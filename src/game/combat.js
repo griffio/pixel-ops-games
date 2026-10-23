@@ -4,7 +4,7 @@ import { WEAPONS } from './weapons.js';
 export class Combat {
   constructor(units, spatial, world, dust) {
     this.units = units; this.spatial = spatial; this.world = world; this.dust = dust;
-    this.onDeath = null; this.scratch = [];
+    this.onDeath = null; this.scratch = []; this.teams = null; this.audio = null;
     this.blockers = world.obstacles.filter(o => (o.h === undefined ? 2 : o.h) >= 1.5);
   }
 
@@ -72,16 +72,20 @@ export class Combat {
     const my = this.eyeY(u);
     const ey = e.pos.y + (e.spec.air ? 2 : e.type === 'soldier' ? 1.1 : 2.2);
     const d = Math.hypot(e.pos.x - u.pos.x, e.pos.z - u.pos.z);
-    let chance = w.acc * (1 - 0.6 * d / w.range);
+    const T = this.teams ? this.teams[u.team] : null;
+    let chance = w.acc * (1 - 0.6 * d / w.range) * ((T && T.acc) || 1);
     if (u.speed > 0.5) chance *= 0.5;
     if (e.type !== 'soldier') chance *= 1.6;             // vehicles are big targets
     const hit = Math.random() < chance;
     const sx = e.pos.x + (hit ? 0 : (Math.random() - 0.5) * 4), sz = e.pos.z + (hit ? 0 : (Math.random() - 0.5) * 4);
     this.dust.tracer(u.pos.x, my, u.pos.z, sx, hit ? ey : e.pos.y + 0.1, sz);
+    if (w.explosive) this.dust.puff(u.pos.x, my, u.pos.z);
+    if (this.audio) this.audio.shot(u.kit, u.pos.x, u.pos.z);
     if (hit) {
-      const dmg = e.type === 'soldier' ? w.dmgInf : w.dmgVeh;
-      this.dust.hitSpark(sx, ey, sz);
+      const dmg = (e.type === 'soldier' ? w.dmgInf : w.dmgVeh) * ((T && T.dmg) || 1);
+      if (w.explosive) this.dust.explosion(sx, ey, sz, 0.35); else this.dust.hitSpark(sx, ey, sz);
+      if (this.audio) this.audio.hit(sx, sz);
       if (e.damage(dmg, u)) { this.onDeath && this.onDeath(e, u); }
-    } else this.dust.impact(sx, e.pos.y + 0.1, sz);
+    } else { this.dust.impact(sx, e.pos.y + 0.1, sz); if (this.audio) this.audio.impact(sx, sz); }
   }
 }

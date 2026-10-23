@@ -241,6 +241,25 @@ Engine changes needed in the existing core:
   Still visible on close inspection: the sand tiles are nearest-sampled without
   mips, so fine grain sparkles under pan, most at the screen's centre row and column.
 
+- **Milestone 7 — done (2026-10-23).** Sound (`src/core/audio.js`): WebAudio
+  synthesis with no assets, positional one-shots per weapon kit, explosions,
+  impacts, rotor and engine loops for the nearest vehicles, UI and match cues,
+  rate limiting, mute/volume persisted; `tools/make-sounds.mjs` generates
+  ElevenLabs clips into `sounds/` which the engine prefers when present (no API
+  key was available in this session, so the clips are untested). Effects: burning
+  wrecks (flames, embers, soot for 45 s), explosions with fireball, ballistic
+  debris and a dust ring, explosive hits and muzzle puffs; particles gained
+  gravity. Kill feed with weapon and class icons, event lines for captures, FOBs
+  and caches, fading. Debrief with a ticket graph from 5-second history samples
+  and a stats table (net tickets, kills, losses by class, captures, FOBs, caches).
+  Village content: mosque and minaret, walled compound, market awnings and
+  crates, garden walls, rubble, a second well. CPU difficulty (`src/game/difficulty.js`):
+  Easy / Normal / Hard scale the CPU's accuracy, damage, respawn timers, plan
+  cadence, attack share and FOB kits; chosen in the force builder and persisted.
+  Verified headlessly: hard CPU multipliers applied and FOBs built, easy CPU built
+  none, 60 history samples over 300 s, feed carrying kill and event lines, audio
+  context running with 91 voices in 6 s and no page errors, debrief rendered.
+
 ## Open questions
 
 

@@ -10,7 +10,11 @@ const ICON = {
   heli: '<rect x="1" y="1" width="14" height="1.2"/><rect x="3" y="3" width="9" height="4.5" rx="1.5"/><rect x="11" y="4" width="4.5" height="1.3"/><rect x="14" y="2.5" width="1.2" height="3"/>',
   cache: '<rect x="2" y="4" width="12" height="5"/><path d="M1 4 L8 1 L15 4 Z"/>',
   fob: '<rect x="7.4" y="0.5" width="1.2" height="9"/><path d="M4 3 L8 1 L12 3" fill="none" stroke="currentColor" stroke-width="1.2"/><rect x="2" y="7" width="12" height="2.5"/>',
+  flag: '<rect x="3" y="0.5" width="1.2" height="9.5"/><path d="M4.2 1 L13 3.2 L4.2 5.6 Z"/>',
+  skull: '<circle cx="8" cy="4" r="3.4"/><rect x="5.6" y="6.5" width="4.8" height="2.6"/><circle cx="6.6" cy="3.8" r="0.9" fill="#111"/><circle cx="9.4" cy="3.8" r="0.9" fill="#111"/>',
 };
+const ico = (k) => `<svg class="ico" viewBox="0 0 16 10">${ICON[k] || ''}</svg>`;
+const KIT_NAME = { rifle: 'rifle', mg: 'MG', at: 'AT', marksman: 'marksman', medic: 'rifle', engineer: 'rifle', autocannon: 'autocannon', doorgun: 'door gun' };
 
 
 // HUD + control panel. Back-end hooks on app: pixel (settings), setShadows(on),
@@ -42,6 +46,9 @@ export class Hud {
     $('c-auto').addEventListener('change', e => a.units.auto = e.target.checked);
     $('b-pause').addEventListener('click', () => this.togglePause());
     for (const b of document.querySelectorAll('[data-tb]')) b.addEventListener('click', () => this.touchAction(b.dataset.tb));
+    $('c-sound').addEventListener('change', e => { if (a.audio) { a.audio.setEnabled(e.target.checked); this.syncSound(); } });
+    $('c-vol').addEventListener('input', e => { if (a.audio) { a.audio.setVolume(+e.target.value / 100); this.syncSound(); } });
+    setTimeout(() => this.syncSound(), 0);
     $('b-reset').addEventListener('click', () => a.rts.reset());
     // renderer switch keeps the rest of the URL (view params) intact
     $('s-renderer').textContent = a.rendererName;
@@ -60,16 +67,15 @@ export class Hud {
     $('m-t0').textContent = Math.max(0, Math.round(t0.tickets)); $('m-t1').textContent = Math.max(0, Math.round(t1.tickets));
     const s = Math.max(0, Math.ceil(m.time)); $('m-time').textContent = `${Math.floor(s / 60)}:${String(s % 60).padStart(2, '0')}`;
     if (!this.modeShown) {
-      this.modeShown = true; document.querySelector('#match .small').textContent = m.mode.constructor.name + (m.mode.constructor.sides ? (m.mode.attacker === (this.app.playerTeam ?? 0) ? ' · attacking' : ' · defending') : '');
+      this.modeShown = true; document.querySelector('#match .small').textContent = m.mode.constructor.name + (m.mode.constructor.sides ? (m.mode.attacker === (this.app.playerTeam ?? 0) ? ' · attacking' : ' · defending') : '') + (m.cpu && m.cpu.length === 1 ? ` · ${m.difficulty.name} CPU` : '');
       document.querySelector('#match .t0 .nm').innerHTML = `BLUFOR<br><em>${t0.doctrine.name}</em>`; document.querySelector('#match .t1 .nm').innerHTML = `OPFOR<br><em>${t1.doctrine.name}</em>`;
       for (const id of ['minimap', 'objs', 'match', 'reinf-h', 'reinf']) $(id).style.display = ''; this.mmHidden = false;
       $('reinf-h').insertAdjacentHTML('afterend', `<select id="spawn-pref"><option value="auto">spawn nearest the squad</option><option value="base">spawn at main base</option>${t0.doctrine.heliSpawn ? '<option value="heli">spawn beside idle helicopter</option>' : ''}</select>`); $('spawn-pref').addEventListener('change', e => { t0.spawnPref = e.target.value; });
     }
 
-    const feed = $('feed'), lines = m.feed.filter(f => f.t < 8);
-    if (lines.length !== feed.childElementCount || (lines[0] && feed.firstChild && feed.firstChild.dataset.k !== lines[0].v.pickId + '')) {
-      feed.innerHTML = lines.map(f => `<div data-k="${f.v.pickId}"><b class="t${f.k ? f.k.team : 0}">${f.k ? f.k.label : '?'}</b> &rsaquo; <b class="t${f.v.team}">${f.v.label}</b> ${f.v.type}</div>`).join('');
-    }
+    const feed = $('feed'), lines = m.feed.filter(f => f.t < 10), key = lines.map(f => f.id).join(',');
+    if (key !== this.feedKey) { this.feedKey = key; feed.innerHTML = lines.map(f => this.feedLine(f)).join(''); }
+    lines.forEach((f, i) => { const el = feed.children[i]; if (el) el.style.opacity = f.t > 7 ? ((10 - f.t) / 3).toFixed(2) : 1; });
     // objectives bar from the mode
     const objs = $('objs'), items = m.mode.bar();
     if (objs.childElementCount !== items.length) objs.innerHTML = items.map(l => `<div class="obj"><b>${l.name}</b><span></span><i></i></div>`).join('');
@@ -84,6 +90,16 @@ export class Hud {
     const fobs = m.fobs.active(me).length, kits = m.fobs.kitsLeft(me), build = m.fobs.builds.find(b => b.team === me);
     $('reinf').innerHTML = `<div>FOBs ${fobs} · kits ${kits}${build ? ` · building ${Math.ceil(build.t)}s` : ''}</div>` + (q.length ? q.map(x => `<div><b>${x.unit.label}</b> ${x.unit.type} ${Math.ceil(x.t)}s</div>`).join('') : '<div>all units deployed</div>');
     this.drawMinimap(m);
+  }
+
+  feedLine(f) {
+    if (f.kind === 'kill') {
+      const k = f.k, v = f.v, kit = k && k.kit ? KIT_NAME[k.kit] || k.kit : '';
+      return `<div class="kill${v.type !== 'soldier' ? ' veh' : ''}"><b class="t${k ? k.team : 0}">${k ? k.label : '?'}</b><span class="w">${kit}</span>${ico(v.type === 'soldier' ? 'skull' : v.type)}<b class="t${v.team}">${v.label}</b></div>`;
+    }
+    const e = f.e, team = e.team, name = team === 0 ? 'BLUFOR' : 'OPFOR', loc = e.loc ? e.loc.name : '';
+    const text = e.type === 'captured' ? `captured <b>${loc}</b>` : e.type === 'lost' ? `lost <b>${loc}</b>` : e.type === 'fob' ? 'FOB is up' : e.type === 'cache revealed' ? `found the cache at <b>${loc}</b>` : e.type === 'cache destroyed' ? `destroyed the cache at <b>${loc}</b>` : e.type;
+    return `<div class="ev">${ico(e.type === 'fob' ? 'fob' : e.type.startsWith('cache') ? 'cache' : 'flag')}<b class="t${team}">${name}</b> ${text}</div>`;
   }
 
   // ---- minimap: cached terrain, then zones, units and the camera footprint
@@ -144,11 +160,44 @@ export class Hud {
     [[0, 0], [1, 0], [1, 1], [0, 1]].forEach(([sx, sy], i) => { const p = a.rts.screenToGround(sx, sy); i ? g.lineTo(X(p.x), Z(p.z)) : g.moveTo(X(p.x), Z(p.z)); });
     g.closePath(); g.stroke();
   }
+  // ---- debrief: ticket graph and a stats table per team
   showEnd(m) {
-    const me = this.app.playerTeam ?? 0;
-    $('end-h').textContent = m.winner === null ? 'DRAW' : m.winner.id === me ? 'VICTORY' : 'DEFEAT';
-    $('end-d').textContent = `${m.mode.constructor.name}: ${m.reason} · BLUFOR ${Math.max(0, Math.round(m.teams[0].tickets))} / OPFOR ${Math.max(0, Math.round(m.teams[1].tickets))} tickets`;
-    $('end').style.display = 'block'; $('end-again').onclick = () => location.reload();
+    const me = this.app.playerTeam ?? 0, won = m.winner !== null && m.winner.id === me;
+    $('end-h').textContent = m.winner === null ? 'DRAW' : won ? 'VICTORY' : 'DEFEAT';
+    const mins = Math.floor(m.elapsed / 60), secs = String(Math.floor(m.elapsed % 60)).padStart(2, '0');
+    $('end-d').textContent = `${m.mode.constructor.name} · ${m.reason} · ${mins}:${secs} played`;
+    this.drawTickets(m, $('end-graph'));
+    const [a, b] = m.teams, S = (t, k) => t.stats.kills[k] || 0, L = (t, k) => t.stats.losses[k] || 0;
+    const sum = (o) => Object.values(o).reduce((s, v) => s + v, 0);
+    const rows = [
+      ['Tickets left', Math.max(0, Math.round(a.tickets)), Math.max(0, Math.round(b.tickets))],
+      ['Net tickets', (() => { const v = Math.round(a.tickets - m.mode.tickets(0)); return (v >= 0 ? '+' : '') + v; })(), (() => { const v = Math.round(b.tickets - m.mode.tickets(1)); return (v >= 0 ? '+' : '') + v; })()],
+      ['Kills', sum(a.stats.kills), sum(b.stats.kills)],
+      ['Infantry lost', L(a, 'soldier'), L(b, 'soldier')],
+      ['Vehicles lost', L(a, 'truck') + L(a, 'apc') + L(a, 'heli'), L(b, 'truck') + L(b, 'apc') + L(b, 'heli')],
+      ['Vehicles killed', S(a, 'truck') + S(a, 'apc') + S(a, 'heli'), S(b, 'truck') + S(b, 'apc') + S(b, 'heli')],
+      ['Captures', a.stats.captures, b.stats.captures],
+      ['Locations lost', a.stats.lost, b.stats.lost],
+      ['FOBs built / lost', `${a.stats.fobs} / ${a.stats.fobsLost}`, `${b.stats.fobs} / ${b.stats.fobsLost}`],
+    ];
+    if (a.stats.caches || b.stats.caches) rows.push(['Caches destroyed', a.stats.caches, b.stats.caches]);
+    $('end-stats').innerHTML = `<table><tr><th></th><th class="t0">BLUFOR<em>${a.loadoutName} · ${a.doctrine.name}</em></th><th class="t1">OPFOR<em>${b.loadoutName} · ${b.doctrine.name}${m.cpu.includes(1) ? ' · ' + m.difficulty.name : ''}</em></th></tr>${rows.map(r => `<tr><td>${r[0]}</td><td>${r[1]}</td><td>${r[2]}</td></tr>`).join('')}</table>`;
+    $('end').style.display = 'block';
+    $('end-again').onclick = () => location.reload();
+    $('end-lobby').onclick = () => { location.href = location.pathname; };
+    if (this.app.audio) this.app.audio.ui(m.winner === null ? 'lose' : won ? 'win' : 'lose');
+  }
+  drawTickets(m, cv) {
+    const g = cv.getContext('2d'), W = cv.width, H = cv.height, h = m.history, pl = 34, pr = 10, pt = 12, pb = 22;
+    g.clearRect(0, 0, W, H); if (h.length < 2) return;
+    const tMax = Math.max(60, h[h.length - 1][0]), yMax = Math.max(50, ...h.map(p => Math.max(p[1], p[2])));
+    const X = (t) => pl + (t / tMax) * (W - pl - pr), Y = (v) => pt + (1 - v / yMax) * (H - pt - pb);
+    g.strokeStyle = 'rgba(255,255,255,0.12)'; g.lineWidth = 1; g.fillStyle = '#9a958a'; g.font = '9px Menlo, monospace'; g.textAlign = 'right';
+    for (let i = 0; i <= 4; i++) { const v = Math.round(yMax * i / 4), y = Math.round(Y(v)) + 0.5; g.beginPath(); g.moveTo(pl, y); g.lineTo(W - pr, y); g.stroke(); g.fillText(v, pl - 4, y + 3); }
+    g.textAlign = 'center';
+    for (let t = 0; t <= tMax; t += tMax > 900 ? 300 : 120) { const x = Math.round(X(t)) + 0.5; g.beginPath(); g.moveTo(x, pt); g.lineTo(x, H - pb); g.stroke(); g.fillText(Math.round(t / 60) + 'm', x, H - 8); }
+    [['#7fb2e5', 1], ['#e86a5a', 2]].forEach(([col, i]) => { g.strokeStyle = col; g.lineWidth = 2; g.beginPath(); h.forEach((p, k) => k ? g.lineTo(X(p[0]), Y(p[i])) : g.moveTo(X(p[0]), Y(p[i]))); g.stroke(); });
+    g.fillStyle = '#9a958a'; g.textAlign = 'left'; g.fillText('tickets', pl + 4, pt + 8);
   }
 
   togglePause() {
@@ -163,6 +212,13 @@ export class Hud {
     else if (k === 'pause') this.togglePause();
     else if (k === 'base') { const b = a.match && a.match.teams[a.playerTeam ?? 0].base; if (b) { a.rts.target.set(b.x, 0, b.z); a.rts.follow = null; } else a.rts.reset(); }
     else if (k === 'dev') document.body.classList.toggle('dev');
+    else if (k === 'sound') this.toggleSound();
+  }
+  toggleSound() { const au = this.app.audio; if (!au) return; au.resume(); au.setEnabled(!au.enabled); this.syncSound(); this.toast(au.enabled ? 'Sound on' : 'Sound off'); }
+  syncSound() {
+    const au = this.app.audio; if (!au) return;
+    $('c-sound').checked = au.enabled; $('c-vol').value = Math.round(au.volume * 100); $('v-vol').textContent = Math.round(au.volume * 100) + '%';
+    const tb = document.querySelector('[data-tb=sound]'); if (tb) { tb.textContent = au.enabled ? '\u266B' : '\u266B\u0338'; tb.classList.toggle('on', au.enabled); }
   }
   syncTouchbar() { const b = document.querySelector('[data-tb=box]'); if (b) b.classList.toggle('on', !!this.app.input?.touch?.boxArmed); }
   toast(msg) { const t = $('toast'); t.textContent = msg; t.style.opacity = 1; clearTimeout(this.tt); this.tt = setTimeout(() => t.style.opacity = 0, 1400); }
@@ -192,7 +248,7 @@ export class Hud {
   }
   action(kind) {
     const m = this.app.match, sel = this.app.input.selected; if (!m) return;
-    if (kind === 'fob') { const eng = sel.find(u => u.kit === 'engineer' && !u.dead); if (!eng) return this.toast('Select an engineer'); const r = m.fobs.startBuild(eng); this.toast(r.ok ? `Building FOB, ${Math.round(r.build.total)} s` : r.reason); }
+    if (kind === 'fob') { const eng = sel.find(u => u.kit === 'engineer' && !u.dead); if (!eng) return this.toast('Select an engineer'); const r = m.fobs.startBuild(eng); this.toast(r.ok ? `Building FOB, ${Math.round(r.build.total)} s` : r.reason); if (this.app.audio) this.app.audio.ui(r.ok ? 'order' : 'deny'); }
     if (kind === 'unload') { const heli = sel.find(u => u.type === 'heli' && u.passengers.length); if (!heli) return; if (heli.alt > 0.5) return this.toast('Land first'); heli.unload(); this.toast('Unloaded'); }
     this.showSelection(sel);
   }

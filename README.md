@@ -77,6 +77,7 @@ objectives.
 | `F` | Follow the selected unit |
 | `Space` | Pause simulation |
 | `R` / Reset view | Default camera |
+| `M` | Mute / unmute |
 
 ### Touch (iPad)
 
@@ -100,6 +101,29 @@ and engine panels hidden, larger tap targets, and the force builder as a scrolli
 sheet. `?mobile=1` or `?mobile=0` forces the profile either way. The page ships a
 web app manifest and icons, so "Add to Home Screen" installs it full-screen in
 landscape; there is no service worker, so it still needs the server.
+
+## Sound, difficulty and debrief
+
+Sound is synthesized in WebAudio with no assets: filtered-noise shots per weapon,
+explosions, impacts, looping rotor and engine voices for the nearest six
+vehicles, and cues for selection, orders, captures, FOBs and the match result.
+Everything positional is attenuated and panned around the camera target. The
+context starts on the first click or touch; the Render panel has a mute box and
+volume slider, the touch toolbar a note button, and `M` mutes. To upgrade the
+one-shots to ElevenLabs clips, run `ELEVENLABS_API_KEY=... node tools/make-sounds.mjs`
+once; it writes `sounds/manifest.json` and the engine prefers those clips.
+
+The force builder picks the CPU difficulty. Easy CPU shoots and hits softer,
+respawns slower and never builds FOBs; Hard shoots and hits harder, respawns
+faster, gets an extra FOB kit, re-plans every few seconds and commits more of
+its force to the attack. `?difficulty=easy|normal|hard` overrides it.
+
+The match ends on a debrief: a ticket graph for both teams over the match and a
+table of kills, losses by class, captures, locations lost, FOBs and caches, with
+"Play again" and "Change loadout". The kill feed shows the killer's weapon and
+the victim's class, and reports captures, FOBs and cache events; vehicle kills are
+highlighted. Destroyed vehicles burn for 45 seconds with flames, embers and soot
+before smouldering out; explosions throw debris on ballistic arcs and a dust ring.
 
 URL parameters set the initial state so the two back ends can be compared on
 identical frames: `?r=gl&seed=7&x=52&z=50&zoom=6&yaw=0.6&pitch=0.95&hour=21&pixel=0&tpu=12`

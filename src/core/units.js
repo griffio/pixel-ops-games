@@ -102,7 +102,9 @@ export class Unit {
       if (this.deathT > 10) this.group.visible = false;                              // body fades; object is reused on respawn
     } else if (this.wreck) {
       this.wreckT += dt;
-      if (this.mgr && this.mgr.dust && this.wreckT < 75 && rng() < dt * (this.type === 'apc' ? 6 : 4)) this.mgr.dust.smoke(this.pos.x, this.pos.y + (this.type === 'apc' ? 3.9 : 3.3), this.pos.z, this.type === 'apc' ? 1.4 : 1);   // from the roof, so the plume clears the hull
+      const roof = this.pos.y + (this.type === 'apc' ? 3.9 : 3.3), k = this.type === 'apc' ? 1.4 : 1, dust = this.mgr && this.mgr.dust;
+      if (dust && this.wreckT < 75 && rng() < dt * (this.wreckT < 45 ? 6 : 4) * (this.type === 'apc' ? 1.5 : 1)) dust.smoke(this.pos.x, roof + 0.8, this.pos.z, k);   // from above the roof, so the plume clears the hull
+      if (dust && this.wreckT < 45) for (let n = dt * (this.type === 'apc' ? 18 : 12) * (1 - this.wreckT / 50); n > 0; n -= 1) if (rng() < n) dust.fire(this.pos.x, roof - 0.4, this.pos.z, k);   // flames die down over the first 45 s
       if (this.wreckT > 90) this.remove = true;
     }
   }

@@ -73,6 +73,7 @@ export class Input {
       if (e.code === 'KeyR') { this.rts.reset(); return; }
       if (e.code === 'KeyB') { this.hud.action('fob'); return; }
       if (e.code === 'KeyU') { this.hud.action('unload'); return; }
+      if (e.code === 'KeyM') { this.hud.toggleSound(); return; }
     }
     down ? this.rts.keys.add(e.code) : this.rts.keys.delete(e.code);
   }
@@ -107,6 +108,7 @@ export class Input {
     const me = this.app.playerTeam ?? 0;
     this.selected = list.filter(u => !u.dead && u.team === me);
     for (const u of this.selected) u.setSelected(true);
+    if (this.selected.length && this.app.audio) this.app.audio.ui('select');
     this.hud.showSelection(this.selected);
   }
 
@@ -124,7 +126,7 @@ export class Input {
   orderAt(gx, gz) {
     if (!this.selected.length) return;
     const g = { x: gx, z: gz };
-    if (this.units.world.isBlocked(g.x, g.z, 1)) { this.hud.toast('Blocked'); return; }
+    if (this.units.world.isBlocked(g.x, g.z, 1)) { this.hud.toast('Blocked'); if (this.app.audio) this.app.audio.ui('deny'); return; }
     const squads = new Set(), loose = [];
     for (const u of this.selected) u.squad ? squads.add(u.squad) : loose.push(u);
     const all = [...squads, ...loose], n = all.length;
@@ -133,7 +135,7 @@ export class Input {
       const c = i % cols, rw = Math.floor(i / cols);
       t.order(g.x + (c - (cols - 1) / 2) * gap, g.z + (rw - (Math.ceil(n / cols) - 1) / 2) * gap);
     });
-    this.app.markers.add(g.x, g.z);
+    this.app.markers.add(g.x, g.z); if (this.app.audio) this.app.audio.ui('order');
     this.hud.toast(`Move order: ${this.selected.length} unit${this.selected.length > 1 ? 's' : ''}`);
   }
 }

@@ -1,5 +1,6 @@
 import { ITEMS, DOCTRINES, PRESETS, BUDGET, itemCost, summarize, clone, preset, saveLoadout, loadSaved } from '../loadout.js';
 import { MODES } from '../modes/index.js';
+import { DIFFICULTY } from '../difficulty.js';
 
 const $ = (id) => document.getElementById(id);
 
@@ -10,6 +11,7 @@ export class Lobby {
     this.loadout = loadSaved() || preset('balanced');
     try { this.modeOpts = JSON.parse(localStorage.getItem('pixelops.mode')) || { mode: 'aas', side: 'attack' }; } catch { this.modeOpts = { mode: 'aas', side: 'attack' }; }
     if (!MODES[this.modeOpts.mode]) this.modeOpts.mode = 'aas';
+    if (!DIFFICULTY[this.modeOpts.difficulty]) this.modeOpts.difficulty = 'normal';
     this.root = $('lobby'); this.root.style.display = 'block';
     this.build();
     this.render();
@@ -21,7 +23,7 @@ export class Lobby {
     $('lb-vehicles').innerHTML = Object.keys(ITEMS).filter(k => ITEMS[k].kind !== 'squad').map(row).join('');
     $('lb-doctrines').innerHTML = Object.entries(DOCTRINES).map(([k, d]) => `<label class="lb-doc"><input type="radio" name="doctrine" value="${k}"><div><b>${d.name}</b><small>${d.desc}</small></div></label>`).join('');
     $('lb-presets').innerHTML = Object.entries(PRESETS).map(([k, p]) => `<button data-preset="${k}">${p.name}</button>`).join('');
-    $('lb-modes').innerHTML = Object.values(MODES).filter(M => M.key !== 'skirmish' || true).map(M => `<label class="lb-doc"><input type="radio" name="mode" value="${M.key}"><div><b>${M.name}</b><small>${M.desc}</small></div></label>`).join('') + `<div id="lb-side" class="row"><span class="lb-lbl">Your side</span><label><input type="radio" name="side" value="attack"> attack</label><label><input type="radio" name="side" value="defend"> defend</label></div>`;
+    $('lb-modes').innerHTML = Object.values(MODES).filter(M => M.key !== 'skirmish' || true).map(M => `<label class="lb-doc"><input type="radio" name="mode" value="${M.key}"><div><b>${M.name}</b><small>${M.desc}</small></div></label>`).join('') + `<div id="lb-side" class="row"><span class="lb-lbl">Your side</span><label><input type="radio" name="side" value="attack"> attack</label><label><input type="radio" name="side" value="defend"> defend</label></div>` + `<div id="lb-diff" class="row"><span class="lb-lbl">CPU</span>${Object.entries(DIFFICULTY).map(([k, d]) => `<label title="${d.desc}"><input type="radio" name="difficulty" value="${k}"> ${d.name.toLowerCase()}</label>`).join('')}</div>`;
     this.root.addEventListener('click', (e) => {
       const t = e.target.closest('button'); if (!t) return;
       if (t.dataset.inc) this.set(t.dataset.inc, this.n(t.dataset.inc) + 1);
@@ -34,6 +36,7 @@ export class Lobby {
       if (e.target.name === 'doctrine') { this.loadout.doctrine = e.target.value; this.render(); }
       if (e.target.name === 'mode') { this.modeOpts.mode = e.target.value; this.render(); }
       if (e.target.name === 'side') { this.modeOpts.side = e.target.value; this.render(); }
+      if (e.target.name === 'difficulty') { this.modeOpts.difficulty = e.target.value; this.render(); }
     });
   }
 
@@ -46,8 +49,9 @@ export class Lobby {
     for (const r of this.root.querySelectorAll('input[name=doctrine]')) r.checked = r.value === l.doctrine;
     for (const r of this.root.querySelectorAll('input[name=mode]')) r.checked = r.value === this.modeOpts.mode;
     for (const r of this.root.querySelectorAll('input[name=side]')) r.checked = r.value === this.modeOpts.side;
+    for (const r of this.root.querySelectorAll('input[name=difficulty]')) r.checked = r.value === this.modeOpts.difficulty;
     $('lb-side').style.display = MODES[this.modeOpts.mode].sides ? 'flex' : 'none';
-    $('lb-sub').textContent = `Desert Crossing · ${MODES[this.modeOpts.mode].name} · ${Math.round(new MODES[this.modeOpts.mode]({ teams: [], units: null, world: {} }).length / 60)}:00 · you command BLUFOR, the CPU answers your loadout`;
+    $('lb-sub').textContent = `Desert Crossing · ${MODES[this.modeOpts.mode].name} · ${Math.round(new MODES[this.modeOpts.mode]({ teams: [], units: null, world: {} }).length / 60)}:00 · you command BLUFOR, a ${DIFFICULTY[this.modeOpts.difficulty].name.toLowerCase()} CPU answers your loadout`;
     const pct = Math.min(100, s.cost / BUDGET * 100);
     $('lb-summary').innerHTML = `<div class="bar"><i style="width:${pct}%" class="${s.cost > BUDGET ? 'over' : ''}"></i></div>
       <div class="kv"><span>points</span><b>${s.cost} / ${BUDGET}</b></div><div class="kv"><span>squads</span><b>${s.squads} / ${s.slots}</b></div><div class="kv"><span>vehicles</span><b>${s.vehicles} / 9</b></div>

@@ -122,6 +122,33 @@ export const desert1km = {
       for (let i = 0; i < 4; i++) box(3, 2.2, 2, 0x6f6448, vx - 2 + i * 4, vz + 8, { obstacle: false, cast: true });
       props.push({ geo: 'cyl:1.4,1.4,1.2,8', color: 0x9a8f7a, x: vx, y: 0.6, z: vz - 8, rot: [0, 0, 0], cast: true }); obstacles.push({ minX: vx - 1.5, maxX: vx + 1.5, minZ: vz - 9.5, maxZ: vz - 6.5, h: 1.2 });
       for (let i = 0; i < 10; i++) bush(vx + (r() - 0.5) * 110, vz + (r() - 0.5) * 110);
+      // mosque with a dome and minaret at the west edge
+      { const mx = vx - 48, mz = vz + 2;
+        box(12, 5, 10, 0xd8c7a3, mx, mz); box(13, 0.4, 11, 0xc9b48f, mx, mz, { y: 5, obstacle: false });
+        props.push({ geo: 'cyl:1.9,3.3,1.7,12', color: 0x7fa6a0, x: mx, y: 6.25, z: mz, rot: [0, 0, 0], cast: true });
+        props.push({ geo: 'cyl:0.15,1.9,1.3,12', color: 0x7fa6a0, x: mx, y: 7.75, z: mz, rot: [0, 0, 0], cast: true });
+        box(1.6, 2.6, 0.2, 0x4a3a2a, mx, mz + 5.05, { obstacle: false });
+        box(2.2, 16, 2.2, 0xe0d2b4, mx + 8, mz - 6); box(3.2, 0.5, 3.2, 0x7fa6a0, mx + 8, mz - 6, { y: 16, obstacle: false });
+        props.push({ geo: 'cyl:0.1,1.5,1.5,10', color: 0x7fa6a0, x: mx + 8, y: 17.25, z: mz - 6, rot: [0, 0, 0], cast: true });
+        for (let i = 0; i < 4; i++) box(0.3, 0.6, 0.3, 0x4a3a2a, mx + 8 + (i % 2 ? 0.9 : -0.9), mz - 6 + (i < 2 ? 0.9 : -0.9), { y: 15.4, obstacle: false });
+      }
+      // walled compound east of the village: a courtyard house with a gap on its west side
+      { const cx = vx + 54, cz = vz - 2;
+        house(cx + 2, cz + 1, 7, 6, 1, 0); wallRun(cx - 8, cz - 8, cx + 8, cz - 8); wallRun(cx + 8, cz - 8, cx + 8, cz + 8); wallRun(cx + 8, cz + 8, cx - 8, cz + 8); wallRun(cx - 8, cz + 8, cx - 8, cz + 2); wallRun(cx - 8, cz - 8, cx - 8, cz - 3);
+        for (let i = 0; i < 3; i++) box(1, 1, 1, 0x8a6a3a, cx - 5 + i * 1.2, cz + 5.5, { rot: r() * 0.4 });
+        palm(cx - 4, cz - 4);
+      }
+      // market: cloth awnings over the stalls, poles, crates
+      for (let i = 0; i < 4; i++) { const sx = vx - 2 + i * 4, sz = vz + 8, col = [0xb04a3a, 0x3a6ab0, 0xd0b040, 0x6a9a4a][i];
+        box(3.6, 0.14, 2.8, col, sx, sz, { y: 2.5, obstacle: false });
+        for (const [ox, oz] of [[-1.6, -1.2], [1.6, -1.2], [-1.6, 1.2], [1.6, 1.2]]) box(0.12, 2.5, 0.12, 0x5a4a3a, sx + ox, sz + oz, { obstacle: false });
+        if (i % 2) box(1, 0.9, 1, 0x8a6a3a, sx + 1, sz - 2.2, { rot: r() * 0.5 });
+      }
+      // low garden walls along the south lane (cover, not line-of-sight blockers) and rubble by the west wall
+      wallRun(vx - 20, vz + 26, vx + 10, vz + 26, 1.2); wallRun(vx + 14, vz + 26, vx + 30, vz + 26, 1.2);
+      for (let i = 0; i < 7; i++) { const s = 0.6 + r() * 0.9; box(s, s * 0.5, s * 0.8, [0xcbb58e, 0xb5a37c, 0x9c8b64][Math.floor(r() * 3)], vx - 37 + r() * 4, vz - 26 + r() * 36, { rot: r() * Math.PI, obstacle: false }); }
+      props.push({ geo: 'cyl:1.4,1.4,1.2,8', color: 0x9a8f7a, x: vx + 50, y: 0.6, z: vz - 22, rot: [0, 0, 0], cast: true }); obstacles.push({ minX: vx + 48.5, maxX: vx + 51.5, minZ: vz - 23.5, maxZ: vz - 20.5, h: 1.2 });
+      scrub(vx, vz, 55, 120);
     }
     // ---- Depot: fuel tanks, fence posts, containers on an asphalt pad
     { const d = this.locations[3], dx = d.x, dz = d.z;

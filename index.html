@@ -71,9 +71,21 @@
   #feed { position: absolute; right: 10px; top: 460px; display: flex; flex-direction: column; gap: 3px; align-items: flex-end; pointer-events: none; }
   #feed div { background: rgba(14,14,16,0.85); border: 1px solid rgba(255,255,255,0.1); padding: 2px 7px; font-size: 10px; color: var(--muted); }
   #feed div b { color: var(--text); font-weight: 600; } #feed div .t0 { color: #7fb2e5; } #feed div .t1 { color: var(--danger); }
-  #end { display: none; top: 50%; left: 50%; transform: translate(-50%, -50%); text-align: center; padding: 22px 36px; min-width: 300px; }
+  #feed div { display: flex; align-items: center; gap: 5px; transition: opacity .3s; }
+  #feed .ico { width: 16px; height: 10px; fill: #cfcac0; } #feed .w { font-size: 9px; letter-spacing: 0.08em; text-transform: uppercase; color: #8a857a; }
+  #feed .veh { border-color: rgba(242,193,78,0.45); } #feed .veh .ico { fill: var(--accent); }
+  #feed .ev { border-color: rgba(127,209,168,0.4); color: var(--text); } #feed .ev .ico { fill: var(--accent2); }
+  #end { display: none; top: 50%; left: 50%; transform: translate(-50%, -50%); text-align: center; padding: 22px 30px 18px; width: 600px; max-width: calc(100vw - 24px); max-height: calc(100vh - 24px); overflow: auto; }
   #end .h { font-size: 26px; font-weight: 700; letter-spacing: 0.12em; }
-  #end .d { color: var(--muted); margin: 6px 0 14px; }
+  #end .d { color: var(--muted); margin: 6px 0 12px; }
+  #end-graph { width: 100%; height: 160px; display: block; background: rgba(0,0,0,0.25); border: 1px solid rgba(255,255,255,0.08); }
+  #end-stats { margin-top: 10px; } #end-stats table { width: 100%; border-collapse: collapse; font-size: 11px; }
+  #end-stats th { font-size: 10px; letter-spacing: 0.1em; text-transform: uppercase; padding: 4px 6px; border-bottom: 1px solid rgba(255,255,255,0.12); }
+  #end-stats th em { display: block; font-style: normal; font-size: 9px; letter-spacing: 0.04em; text-transform: none; color: var(--muted); }
+  #end-stats th.t0 { color: #7fb2e5; } #end-stats th.t1 { color: var(--danger); }
+  #end-stats td { padding: 3px 6px; border-bottom: 1px solid rgba(255,255,255,0.05); font-family: "SF Mono", Menlo, monospace; }
+  #end-stats td:first-child { text-align: left; font-family: inherit; color: var(--muted); }
+  #end .lb-actions { justify-content: center; gap: 8px; }
   .tag.enemy { border-color: rgba(232,106,90,0.6); } .tag.enemy .tick { background: var(--danger); }
   .tag .bar i { transform-origin: left; }
   .tag .bar i.dead { background: #444; }
@@ -105,7 +117,7 @@
   #lb-summary .bar { height: 6px; background: #2a2a2a; margin: 4px 0 8px; } #lb-summary .bar i { display: block; height: 100%; background: var(--accent2); } #lb-summary .bar i.over { background: var(--danger); }
   #lb-summary .kv { display: flex; justify-content: space-between; font-size: 11px; color: var(--muted); } #lb-summary .kv b { color: var(--text); font-family: "SF Mono", Menlo, monospace; }
   #lb-summary .err { color: var(--danger); font-size: 11px; margin-top: 6px; } #lb-summary .ok { color: var(--accent2); font-size: 11px; margin-top: 6px; }
-  #lb-side { gap: 12px; align-items: center; padding: 4px 0 2px 24px; font-size: 11px; } #lb-side .lb-lbl { color: var(--muted); font-size: 10px; letter-spacing: 0.1em; text-transform: uppercase; } #lb-side input { accent-color: var(--accent); }
+  #lb-side, #lb-diff { gap: 12px; align-items: center; padding: 4px 0 2px 24px; font-size: 11px; } #lb-diff .lb-lbl, #lb-diff input { accent-color: var(--accent); } #lb-side .lb-lbl { color: var(--muted); font-size: 10px; letter-spacing: 0.1em; text-transform: uppercase; } #lb-side input { accent-color: var(--accent); }
   #lobby { width: 900px; }
   .lb-actions { margin-top: 12px; align-items: center; } .lb-actions #lb-msg { color: var(--accent2); font-size: 10px; flex: 1; }
   button.primary { background: var(--accent); color: #111; border-color: var(--accent); font-weight: 600; padding: 6px 16px; } button.primary:disabled { opacity: 0.4; cursor: default; }
@@ -208,7 +220,11 @@
     </div>
   </div>
   <div id="end" class="panel">
-<div class="h" id="end-h"></div><div class="d" id="end-d"></div><button id="end-again">Play again</button></div>
+    <div class="h" id="end-h"></div><div class="d" id="end-d"></div>
+    <canvas id="end-graph" width="540" height="160"></canvas>
+    <div id="end-stats"></div>
+    <div class="row lb-actions"><button id="end-again" class="primary">Play again</button><button id="end-lobby">Change loadout</button></div>
+  </div>
 
   <div id="stats" class="panel">
 
@@ -238,6 +254,8 @@
     <label><span>Outline</span><input type="checkbox" id="c-outline" checked></label>
     <label><span>Shadows</span><input type="checkbox" id="c-shadow" checked></label>
     <label><span>Texels / unit</span><input type="range" id="c-tpu" min="4" max="24" step="1" value="10"><span class="v" id="v-tpu">10</span></label>
+    <label><span>Sound (M)</span><input type="checkbox" id="c-sound" checked></label>
+    <label><span>Volume</span><input type="range" id="c-vol" min="0" max="100" step="5" value="70"><span class="v" id="v-vol">70%</span></label>
     <h4>World</h4>
     <label><span>Time speed</span><input type="range" id="c-tspeed" min="0" max="600" step="10" value="60"><span class="v" id="v-tspeed">60×</span></label>
     <label><span>Hour</span><input type="range" id="c-hour" min="0" max="24" step="0.1" value="14"><span class="v" id="v-hour">14:00</span></label>
@@ -253,7 +271,7 @@
     <kbd>Wheel</kbd> zoom &nbsp; <kbd>WASD</kbd> / edge pan &nbsp; <kbd>MMB drag</kbd> pan &nbsp; <kbd>Space</kbd> pause &nbsp; <kbd>F</kbd> follow</span><span class="tb">
     <kbd>tap</kbd> select &nbsp; <kbd>hold</kbd> order / box &nbsp; <kbd>drag</kbd> pan &nbsp; <kbd>pinch</kbd> zoom &nbsp; <kbd>twist</kbd> rotate &nbsp; <kbd>3 fingers</kbd> tilt</span>
   </div>
-  <div id="touchbar"><button data-tb="box">Box</button><button data-tb="follow">Follow</button><button data-tb="pause">Pause</button><button data-tb="base">Base</button><button data-tb="dev" title="engine panels">&#9881;</button></div>
+  <div id="touchbar"><button data-tb="box">Box</button><button data-tb="follow">Follow</button><button data-tb="pause">Pause</button><button data-tb="base">Base</button><button data-tb="sound" title="sound">&#9835;</button><button data-tb="dev" title="engine panels">&#9881;</button></div>
   <div id="hold"></div>
 
   <div id="selinfo" class="panel"><div class="n" id="sel-n"></div><div class="d" id="sel-d"></div><div id="sel-actions" class="row"></div></div>

@@ -2,6 +2,7 @@ import { seedRng } from './math.js';
 import { Match } from '../game/match.js';
 import { Lobby } from '../game/ui/lobby.js';
 import { preset, counterPick } from '../game/loadout.js';
+import { AudioEngine } from './audio.js';
 
 // Shared bootstrap: URL view parameters, the initial population and the frame loop.
 // A back end supplies: canvas, pixel, rts, world, units, dust, markers, hud,
@@ -45,8 +46,9 @@ export function populate(app) {
     const cpu = q.get('cpu') === 'both' ? [0, 1] : q.get('cpu') === 'none' ? [] : [1];
     app.startMatch = (playerLoadout, modeOpts = {}) => {
       const cpuKey = q.get('cpuloadout') || counterPick(playerLoadout);
-      const mode = q.get('mode') || modeOpts.mode || 'aas', side = q.get('side') || modeOpts.side || 'attack';
-      app.match = new Match(app, { cpu, mode, side, loadouts: [playerLoadout, preset(cpuKey)] });
+      const mode = q.get('mode') || modeOpts.mode || 'aas', side = q.get('side') || modeOpts.side || 'attack', difficulty = q.get('difficulty') || modeOpts.difficulty || 'normal';
+      app.match = new Match(app, { cpu, mode, side, difficulty, loadouts: [playerLoadout, preset(cpuKey)] });
+      if (app.audio) app.audio.ui('start');
       // the sun stands still during a match (a moving sun crawls every shadow edge at close zoom); ?hour= picks the time
       app.world.timeSpeed = 0; if (!q.has('hour')) { app.world.time = 9.5; app.world.update(0); }
       document.getElementById('c-tspeed').value = 0; document.getElementById('v-tspeed').textContent = '0×';
@@ -67,9 +69,10 @@ export function populate(app) {
 }
 
 export function runLoop(app) {
-  // ?warp=N pre-steps the simulation N seconds so screenshots can start mid-action
+  // ?warp=N pre-steps the simulation N seconds so screenshots can start mid-action (silently)
   const warp = +(new URLSearchParams(location.search).get('warp') || 0);
   for (let t = 0; t < warp; t += 0.05) { app.world.update(0.05); app.units.update(0.05); if (app.match) app.match.update(0.05); app.dust.update(0.05); app.markers.update(0.05); }
+  app.audio = new AudioEngine(app); if (app.match) app.match.combat.audio = app.audio;
 
   let W = 0, H = 0;
   const resize = () => { W = window.innerWidth; H = window.innerHeight; app.resize(W, H); };
@@ -85,6 +88,7 @@ export function runLoop(app) {
     if (app.match) app.match.update(simDt);
     app.dust.update(simDt);
     app.markers.update(simDt);
+    if (app.audio) app.audio.update(dt);
     if (app.input) app.input.update(dt);
     app.rts.update(dt, W, H);
     app.render(dt, W, H);
