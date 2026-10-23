@@ -67,7 +67,7 @@ export class Unit {
   // revive at a position (infantry respawn reuses the object so squads keep their members)
   revive(x, z, heading) {
     this.dead = false; this.hp = this.maxHp; this.pos.set(x, 0, z); this.heading = heading; this.group.rotation.set(0, heading, 0);
-    this.group.visible = true; this.speed = 0; this.enemy = null; this.target = null; this.path = null; this.dest = null; this.deathT = 0;
+    this.group.visible = true; this.speed = 0; this.enemy = null; this.target = null; this.path = null; this.dest = null; this.deathT = 0; this.reviveT = 0; this.hold = false;
   }
 
   stepDead(dt) {
@@ -245,14 +245,16 @@ export class UnitManager {
   }
 
   add(unit) { unit.mgr = this; this.units.push(unit); this.scene.add(unit.group); return unit; }
-  spawn(type, x, z, heading, team = 0) {
+  spawn(type, x, z, heading, team = 0, opts = {}) {
     if (x === undefined) [x, z] = this.freePoint(SPEC[type].air ? 6 : 3);
-    return this.add(new Unit(type, this.builders[type], x, z, heading, team));
+    const u = this.add(new Unit(type, this.builders[type], x, z, heading, team));
+    if (opts.supply) { u.supply = true; u.label = u.label.replace('TR', 'SP'); }
+    return u;
   }
-  spawnSquad(x, z, team = 0) {
+  spawnSquad(x, z, team = 0, kits = KITS) {
     if (x === undefined) [x, z] = this.freePoint(3);
     const members = []; const h = rng() * Math.PI * 2;
-    for (let i = 0; i < 4; i++) { const m = this.spawn('soldier', x + (i % 2) * 1.4 - 0.7, z + Math.floor(i / 2) * 1.4 - 0.7, h, team); m.kit = KITS[i]; members.push(m); }
+    for (let i = 0; i < 4; i++) { const m = this.spawn('soldier', x + (i % 2) * 1.4 - 0.7, z + Math.floor(i / 2) * 1.4 - 0.7, h, team); m.kit = kits[i] || 'rifle'; members.push(m); }
     const sq = new Squad(members); sq.id = (this.squadCount = (this.squadCount || 0) + 1);
     for (const m of members) m.label = `SQ-${String(sq.id).padStart(2, '0')}`;
     this.squads.push(sq); return sq;

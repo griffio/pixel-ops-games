@@ -39,7 +39,7 @@ export class RtsCamera {
     const k = 1 - Math.pow(0.001, dt);
     this.yaw = lerp(this.yaw, this.yawT, k);
     this.pitch = lerp(this.pitch, this.pitchT, k);
-    this.zoom = lerp(this.zoom, this.zoomT, k);
+    this.zoom = clamp(lerp(this.zoom, this.zoomT, k), this.minZoom, this.maxZoom);
     this.pixel.pixelScale = Math.max(1, this.zoom);
     this.pixel.texelsPerUnit = this.baseTpu * Math.min(1, this.zoom);
 

@@ -56,7 +56,13 @@ export class Hud {
     const [t0, t1] = m.teams;
     $('m-t0').textContent = Math.max(0, Math.round(t0.tickets)); $('m-t1').textContent = Math.max(0, Math.round(t1.tickets));
     const s = Math.max(0, Math.ceil(m.time)); $('m-time').textContent = `${Math.floor(s / 60)}:${String(s % 60).padStart(2, '0')}`;
-    if (!this.modeShown) { this.modeShown = true; document.querySelector('#match .small').textContent = m.mode === 'aas' ? 'Advance & Secure' : 'Skirmish'; }
+    if (!this.modeShown) {
+      this.modeShown = true; document.querySelector('#match .small').textContent = m.mode === 'aas' ? 'Advance & Secure' : 'Skirmish';
+      document.querySelector('#match .t0 .nm').innerHTML = `BLUFOR<br><em>${t0.doctrine.name}</em>`; document.querySelector('#match .t1 .nm').innerHTML = `OPFOR<br><em>${t1.doctrine.name}</em>`;
+      for (const id of ['minimap', 'objs', 'match', 'reinf-h', 'reinf']) $(id).style.display = ''; this.mmHidden = false;
+      if (t0.doctrine.heliSpawn) { $('reinf-h').insertAdjacentHTML('afterend', `<select id="spawn-pref"><option value="base">spawn at base</option><option value="heli">spawn beside idle helicopter</option></select>`); $('spawn-pref').addEventListener('change', e => { t0.spawnPref = e.target.value; }); }
+    }
+
     const feed = $('feed'), lines = m.feed.filter(f => f.t < 8);
     if (lines.length !== feed.childElementCount || (lines[0] && feed.firstChild && feed.firstChild.dataset.k !== lines[0].v.pickId + '')) {
       feed.innerHTML = lines.map(f => `<div data-k="${f.v.pickId}"><b class="t${f.k ? f.k.team : 0}">${f.k ? f.k.label : '?'}</b> &rsaquo; <b class="t${f.v.team}">${f.v.label}</b> ${f.v.type}</div>`).join('');
@@ -164,7 +170,7 @@ export class Hud {
   update(dt, w, h) {
     const a = this.app;
     if (a.match) this.updateMatch(a.match);
-    else if (!this.mmHidden) { this.mmHidden = true; $('minimap').style.display = 'none'; $('objs').style.display = 'none'; }
+    else if (!this.mmHidden) { this.mmHidden = true; for (const id of ['minimap', 'objs', 'match', 'reinf-h', 'reinf']) $(id).style.display = 'none'; }
 
     this.fpsAcc += dt; this.fpsN++; if (this.fpsAcc > 0.5) { this.fps = Math.round(this.fpsN / this.fpsAcc); this.fpsAcc = 0; this.fpsN = 0; }
     $('s-fps').textContent = this.fps; $('s-units').textContent = a.units.units.length;

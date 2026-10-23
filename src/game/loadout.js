@@ -1,0 +1,71 @@
+// Force builder data: items, doctrines, presets, validation, CPU counter-picks and
+// saved loadouts. A loadout is { doctrine, items: { key: count } }.
+export const BUDGET = 1200, MAX_SQUADS = 8, MAX_VEHICLES = 9;
+
+export const ITEMS = {
+  rifle:    { kind: 'squad', name: 'Rifle squad', cost: 100, kits: ['rifle', 'rifle', 'mg', 'rifle'], desc: 'All-round infantry' },
+  support:  { kind: 'squad', name: 'Support squad', cost: 130, kits: ['mg', 'mg', 'rifle', 'rifle'], desc: 'Two machine guns' },
+  at:       { kind: 'squad', name: 'Anti-tank squad', cost: 140, kits: ['at', 'at', 'rifle', 'rifle'], desc: 'Two launchers, kills vehicles' },
+  medic:    { kind: 'squad', name: 'Medic squad', cost: 120, kits: ['rifle', 'medic', 'rifle', 'rifle'], desc: 'Revives fallen soldiers nearby' },
+  marksman: { kind: 'squad', name: 'Marksman squad', cost: 110, kits: ['marksman', 'rifle', 'rifle', 'rifle'], desc: 'Long range, picks off infantry' },
+  engineer: { kind: 'squad', name: 'Engineer squad', cost: 120, kits: ['rifle', 'engineer', 'rifle', 'rifle'], desc: 'Repairs vehicles, builds FOBs' },
+  truck:    { kind: 'vehicle', type: 'truck', name: 'Truck', cost: 60, desc: 'Moves fast, no weapon' },
+  supply:   { kind: 'vehicle', type: 'truck', name: 'Supply truck', cost: 80, supply: true, desc: 'Carries FOB supplies' },
+  apc:      { kind: 'vehicle', type: 'apc', name: 'APC', cost: 220, desc: 'Autocannon, 600 hp' },
+  heli:     { kind: 'vehicle', type: 'heli', name: 'Transport helicopter', cost: 300, desc: 'Door gun, fast, fragile' },
+};
+
+export const DOCTRINES = {
+  mechanized: { name: 'Mechanized', desc: 'APCs 25% cheaper, vehicles respawn 30% faster', costMul: { apc: 0.75 }, vehicleRespawn: 0.7, infantryRespawn: 1 },
+  air:        { name: 'Air Assault', desc: 'Helicopters 25% cheaper; infantry may respawn beside an idle helicopter', costMul: { heli: 0.75 }, vehicleRespawn: 1, infantryRespawn: 1, heliSpawn: true },
+  light:      { name: 'Light Infantry', desc: 'Infantry respawn halved, one extra squad slot', costMul: {}, vehicleRespawn: 1, infantryRespawn: 0.5, squadSlots: 1 },
+  entrenched: { name: 'Entrenched', desc: '+10 tickets for every location captured; FOBs build faster', costMul: {}, vehicleRespawn: 1, infantryRespawn: 1, captureBonus: 10 },
+};
+
+export const PRESETS = {
+  balanced:   { name: 'Balanced', doctrine: 'entrenched', items: { rifle: 3, support: 1, at: 1, medic: 1, truck: 1, apc: 2 } },
+  mechanized: { name: 'Mechanized', doctrine: 'mechanized', items: { rifle: 2, support: 1, at: 1, engineer: 1, apc: 3, truck: 1 } },
+  air:        { name: 'Air Assault', doctrine: 'air', items: { rifle: 3, support: 1, medic: 1, marksman: 1, heli: 2, truck: 1 } },
+  light:      { name: 'Light Infantry', doctrine: 'light', items: { rifle: 4, support: 2, at: 1, medic: 1, marksman: 1, truck: 2 } },
+  defensive:  { name: 'Defensive', doctrine: 'entrenched', items: { rifle: 2, support: 2, at: 2, medic: 1, apc: 1, supply: 1 } },
+};
+
+export function itemCost(key, doctrine) { const it = ITEMS[key], mul = (DOCTRINES[doctrine] && DOCTRINES[doctrine].costMul[key]) || 1; return Math.round(it.cost * mul); }
+export function summarize(l) {
+  let cost = 0, squads = 0, vehicles = 0;
+  for (const [k, n] of Object.entries(l.items || {})) { if (!ITEMS[k] || !n) continue; cost += itemCost(k, l.doctrine) * n; ITEMS[k].kind === 'squad' ? squads += n : vehicles += n; }
+  const slots = MAX_SQUADS + ((DOCTRINES[l.doctrine] && DOCTRINES[l.doctrine].squadSlots) || 0);
+  const errors = [];
+  if (cost > BUDGET) errors.push(`over budget by ${cost - BUDGET}`);
+  if (squads > slots) errors.push(`too many squads (${squads}/${slots})`);
+  if (vehicles > MAX_VEHICLES) errors.push(`too many vehicles (${vehicles}/${MAX_VEHICLES})`);
+  if (squads === 0) errors.push('at least one squad');
+  if (!DOCTRINES[l.doctrine]) errors.push('pick a doctrine');
+  return { cost, squads, vehicles, slots, errors, ok: errors.length === 0 };
+}
+// deploy list: [{ kind:'squad', kits }, { kind:'vehicle', type, supply }]
+export function expand(l) {
+  const out = [];
+  for (const [k, n] of Object.entries(l.items || {})) for (let i = 0; i < n; i++) {
+    const it = ITEMS[k]; if (!it) continue;
+    out.push(it.kind === 'squad' ? { kind: 'squad', item: k, kits: it.kits } : { kind: 'vehicle', item: k, type: it.type, supply: !!it.supply });
+  }
+  return out;
+}
+export const clone = (l) => ({ doctrine: l.doctrine, items: { ...l.items } });
+export const preset = (key) => clone(PRESETS[key] || PRESETS.balanced);
+
+// The CPU reads the player's force and answers it.
+export function counterPick(player, rnd = Math.random) {
+  const n = (k) => (player.items && player.items[k]) || 0;
+  const squads = Object.keys(ITEMS).filter(k => ITEMS[k].kind === 'squad').reduce((s, k) => s + n(k), 0);
+  if (n('apc') >= 2) return 'defensive';
+  if (n('heli') >= 2) return 'light';
+  if (player.doctrine === 'light' || squads >= 7) return 'mechanized';
+  if (player.doctrine === 'entrenched') return 'air';
+  return ['balanced', 'mechanized', 'air'][Math.floor(rnd() * 3)];
+}
+
+const KEY = 'pixelops.loadout';
+export function saveLoadout(l) { try { localStorage.setItem(KEY, JSON.stringify(l)); return true; } catch { return false; } }
+export function loadSaved() { try { const s = localStorage.getItem(KEY); if (!s) return null; const l = JSON.parse(s); return summarize(l).ok ? l : null; } catch { return null; } }

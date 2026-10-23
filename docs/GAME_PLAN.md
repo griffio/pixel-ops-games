@@ -178,7 +178,18 @@ Engine changes needed in the existing core:
   probes: every leg of the chain is reachable and vehicles route through the passes
   and over the bridge; base-to-base is 1.2 km for vehicles.
 
+- **Milestone 3 — done (2026-10-23).** Force builder before the match: 1,200-point
+  budget, six squad types with distinct kits (rifle, support, anti-tank, medic,
+  marksman, engineer), four vehicle items including supply trucks, four doctrines
+  (Mechanized, Air Assault, Light Infantry, Entrenched), five presets, validation
+  (budget, squad and vehicle slots), saved to localStorage. Doctrines act in play:
+  cheaper APCs or helicopters, faster respawns, an extra squad slot, +10 tickets per
+  capture, and infantry respawning beside an idle helicopter (spawn preference in the
+  reinforcements panel). Medics revive squadmates within 12 s of death; engineers
+  repair vehicles. The CPU picks an archetype that answers the player's force.
+
 ## Open questions
+
 
 
 

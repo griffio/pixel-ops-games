@@ -4,29 +4,37 @@ import { NavGrid } from './nav.js';
 import { SpatialHash } from './spatial.js';
 import { Combat } from './combat.js';
 import { Respawn } from './respawn.js';
+import { Support } from './support.js';
 import { Objectives } from './objectives.js';
 import { Strategist } from './ai/strategist.js';
+import { DOCTRINES, PRESETS, expand, preset } from './loadout.js';
 
 // Match flow. Advance and Secure when the map has locations (capture in lattice
 // order, majority bleed, capturing everything wins outright); Skirmish otherwise.
-// Tickets drain on losses and respawns; at 0 the team loses; at full time the
-// higher ticket count wins.
+// Each team deploys the force in its loadout; doctrines shape respawns and spawns.
 export class Match {
-  constructor(app, { cpu = [1], length = RULES.matchLength, mode } = {}) {
+  constructor(app, { cpu = [1], length = RULES.matchLength, mode, loadouts = [preset('balanced'), preset('balanced')] } = {}) {
     this.app = app; this.units = app.units; this.world = app.world;
     const map = this.world.map;
     this.mode = mode || (map && map.locations && map.locations.length ? 'aas' : 'skirmish');
     this.teams = makeTeams(RULES.startTickets[this.mode], map && map.bases);
+    this.teams.forEach((t, i) => {
+      t.loadout = loadouts[i]; t.doctrine = DOCTRINES[t.loadout.doctrine] || DOCTRINES.entrenched;
+      const p = Object.entries(PRESETS).find(([k, v]) => v.doctrine === t.loadout.doctrine && JSON.stringify(v.items) === JSON.stringify(t.loadout.items));
+      t.loadoutName = p ? p[1].name : 'Custom';
+    });
     this.nav = { foot: new NavGrid(this.world.size, 1, 0.6), vehicle: new NavGrid(this.world.size, 2, 2.2) };
     this.nav.foot.build(this.world.obstacles, this.world.terrain, 0.9, this.world.onBridge); this.nav.vehicle.build(this.world.obstacles, this.world.terrain, 0.45, this.world.onBridge); this.units.nav = this.nav;
     this.spatial = new SpatialHash(8); this.units.spatial = this.spatial;
     this.combat = new Combat(this.units, this.spatial, this.world, app.dust);
     this.respawn = new Respawn(this.units, this.teams, this.world);
+    this.support = new Support(this.units, this.respawn);
     this.feed = []; this.events = [];
     this.combat.onDeath = (v, k) => { this.respawn.onDeath(v, k); this.feed.unshift({ v, k, t: 0 }); this.feed.length = Math.min(this.feed.length, 6); };
     this.objectives = this.mode === 'aas' ? new Objectives(map.locations, this.teams) : null;
     if (this.objectives) this.objectives.onEvent = (type, loc, team) => {
       if (type === 'lost') this.teams[team].tickets -= RULES.ticketCost.location;
+      if (type === 'captured' && this.teams[team].doctrine.captureBonus) this.teams[team].tickets += this.teams[team].doctrine.captureBonus;
       this.events.unshift({ type, loc, team, t: 0 }); this.events.length = Math.min(this.events.length, 4);
     };
     this.strategists = cpu.map(t => new Strategist(t, this.units, this.teams, this));
@@ -36,17 +44,19 @@ export class Match {
   }
 
   deploy() {
-    const F = RULES.force, w = this.world;
+    const w = this.world;
     for (const team of this.teams) {
       const b = team.base, d = Math.hypot(b.x, b.z) || 1, dx = -b.x / d, dz = -b.z / d, lx = -dz, lz = dx, toward = Math.atan2(dx, dz);
       const at = (fwd, lat) => [b.x + dx * fwd + lx * lat, b.z + dz * fwd + lz * lat];
       const place = (fwd, lat, pad, fn) => { let [x, z] = at(fwd, lat); if (w.isBlocked(x, z, pad)) [x, z] = team.spawnPoint(w, pad); return fn(x, z); };
-      for (let i = 0; i < F.squads; i++) place(4 + (i % 2) * 5, -12 + Math.floor(i / 2) * 7, 2, (x, z) => {
-        const sq = this.units.spawnSquad(x, z, team.id); for (const m of sq.members) { m.heading = toward; m.group.rotation.y = toward; }
-      });
-      for (let i = 0; i < F.apc; i++) place(11, -10 + i * 10, 4, (x, z) => this.units.spawn('apc', x, z, toward, team.id));
-      for (let i = 0; i < F.truck; i++) place(-4, -8 + i * 8, 4, (x, z) => this.units.spawn('truck', x, z, toward, team.id));
-      for (let i = 0; i < F.heli; i++) place(-12, -8 + i * 16, 8, (x, z) => this.units.spawn('heli', x, z, toward, team.id));
+      const force = expand(team.loadout);
+      const squads = force.filter(f => f.kind === 'squad'), apcs = force.filter(f => f.type === 'apc'), trucks = force.filter(f => f.type === 'truck'), helis = force.filter(f => f.type === 'heli');
+      squads.forEach((f, i) => place(4 + (i % 2) * 5, -14 + Math.floor(i / 2) * 7, 2, (x, z) => {
+        const sq = this.units.spawnSquad(x, z, team.id, f.kits); sq.item = f.item; for (const m of sq.members) { m.heading = toward; m.group.rotation.y = toward; }
+      }));
+      apcs.forEach((f, i) => place(11, -10 + i * 10, 4, (x, z) => this.units.spawn('apc', x, z, toward, team.id)));
+      trucks.forEach((f, i) => place(-4, -12 + i * 8, 4, (x, z) => this.units.spawn('truck', x, z, toward, team.id, { supply: f.supply })));
+      helis.forEach((f, i) => place(-13, -12 + i * 16, 8, (x, z) => this.units.spawn('heli', x, z, toward, team.id)));
     }
   }
 
@@ -69,6 +79,7 @@ export class Match {
   tick(dt) {
     this.combat.tick(dt);
     this.respawn.tick(dt);
+    this.support.tick(dt);
     if (this.objectives) {
       this.objectives.tick(dt, this.spatial);
       const o0 = this.objectives.owned(0), o1 = this.objectives.owned(1);

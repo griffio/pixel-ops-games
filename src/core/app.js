@@ -1,5 +1,7 @@
 import { seedRng } from './math.js';
 import { Match } from '../game/match.js';
+import { Lobby } from '../game/ui/lobby.js';
+import { preset, counterPick } from '../game/loadout.js';
 
 // Shared bootstrap: URL view parameters, the initial population and the frame loop.
 // A back end supplies: canvas, pixel, rts, world, units, dust, markers, hud,
@@ -30,18 +32,23 @@ export function populate(app) {
     if (q.has('kill')) { const u = units.units[0]; u.mgr = units; u.damage(9999); }   // debug: inspect death / wreck effects
     return;
   }
-  // ?sandbox=1 keeps the free-roam airfield; otherwise a Skirmish match starts (cpu=both|none|1)
+  // ?sandbox=1 keeps the free-roam airfield; otherwise a match: the force builder opens unless the
+  // CPU plays both sides or ?loadout=<preset> skips it (cpu=both|none|1, mode=aas|skirmish)
   if (q.get('sandbox') !== '1' && !app.sandboxOnly) {
     const cpu = q.get('cpu') === 'both' ? [0, 1] : q.get('cpu') === 'none' ? [] : [1];
-    app.match = new Match(app, { cpu, mode: q.get('mode') || undefined });
-    // a match runs the clock at 24x: 25 minutes covers 10 game hours, from mid-morning into dusk
-    app.world.timeSpeed = 24; if (!q.has('hour')) { app.world.time = 9.5; app.world.update(0); }
-    document.getElementById('c-tspeed').value = 24; document.getElementById('v-tspeed').textContent = '24×';
-    document.getElementById('c-auto').checked = false;
-    if (!q.has('x')) rts.target.set(app.match.teams[0].base.x + 10, 0, app.match.teams[0].base.z + 10);
+    app.startMatch = (playerLoadout) => {
+      const cpuKey = q.get('cpuloadout') || counterPick(playerLoadout);
+      app.match = new Match(app, { cpu, mode: q.get('mode') || undefined, loadouts: [playerLoadout, preset(cpuKey)] });
+      app.world.timeSpeed = 24; if (!q.has('hour')) { app.world.time = 9.5; app.world.update(0); }
+      document.getElementById('c-tspeed').value = 24; document.getElementById('v-tspeed').textContent = '24×';
+      document.getElementById('c-auto').checked = false;
+      if (!q.has('x')) rts.target.set(app.match.teams[0].base.x + 10, 0, app.match.teams[0].base.z + 10);
+      app.hud.toast(`${app.match.teams[0].loadoutName} vs ${app.match.teams[1].loadoutName}`);
+    };
+    if (cpu.includes(0) || q.has('loadout')) app.startMatch(preset(q.get('loadout') || 'balanced'));
+    else { new Lobby(app.startMatch); rts.target.set(-390, 0, -390); }
     return;
   }
-
   for (let i = 0; i < 10; i++) units.spawnSquad();
   for (let i = 0; i < 6; i++) units.spawn('truck');
   for (let i = 0; i < 4; i++) units.spawn('apc');
@@ -62,7 +69,7 @@ export function runLoop(app) {
   const frame = (now) => {
     requestAnimationFrame(frame);
     if (window.innerWidth !== W || window.innerHeight !== H) resize();   // catches missed resize events (emulation, zoom)
-    const dt = Math.min(0.05, (now - last) / 1000); last = now;
+    const dt = Math.max(0, Math.min(0.05, (now - last) / 1000)); last = now;   // the first rAF stamp can precede performance.now(); never step backwards
     const simDt = app.hud.paused ? 0 : dt;
     app.world.update(simDt);
     app.units.update(simDt);

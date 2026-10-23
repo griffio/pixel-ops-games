@@ -48,7 +48,8 @@
   #match { top: 56px; left: 50%; transform: translateX(-50%); display: flex; align-items: center; gap: 14px; padding: 5px 12px; }
   #match .side { display: flex; align-items: center; gap: 8px; min-width: 96px; }
   #match .side.t1 { justify-content: flex-end; }
-  #match .nm { font-size: 10px; letter-spacing: 0.1em; text-transform: uppercase; color: var(--muted); }
+  #match .nm { font-size: 10px; letter-spacing: 0.1em; text-transform: uppercase; color: var(--muted); line-height: 1.2; }
+  #match .nm em { font-style: normal; font-size: 8px; color: var(--muted); letter-spacing: 0.06em; }
   #match .t0 .nm { color: #7fb2e5; } #match .t1 .nm { color: var(--danger); }
   #match b { font-size: 16px; font-weight: 700; font-family: "SF Mono", Menlo, monospace; }
   #match .mid { display: flex; flex-direction: column; align-items: center; min-width: 64px; }
@@ -76,7 +77,27 @@
   #reinf b { color: var(--text); font-weight: 600; }
   #feed { bottom: 240px; top: auto; }
 
+  #lobby { display: none; top: 50%; left: 50%; transform: translate(-50%, -50%); width: 820px; max-width: calc(100vw - 40px); max-height: calc(100vh - 40px); overflow: auto; padding: 18px 22px 16px; }
+  #lobby .lh .title { font-size: 18px; font-weight: 700; letter-spacing: 0.12em; text-transform: uppercase; }
+  #lobby .lh .sub { color: var(--muted); font-size: 11px; margin: 4px 0 12px; }
+  #lobby .cols { display: flex; gap: 22px; } #lobby .col { flex: 1; min-width: 0; }
+  #lobby h4 { margin: 10px 0 6px; font-size: 10px; color: var(--muted); letter-spacing: 0.12em; text-transform: uppercase; }
+  .lb-item { display: flex; align-items: center; gap: 8px; padding: 4px 0; border-bottom: 1px solid rgba(255,255,255,0.06); }
+  .lb-item .n { flex: 1; font-size: 12px; } .lb-item .n small { display: block; color: var(--muted); font-size: 10px; }
+  .lb-item .c { width: 36px; text-align: right; font-family: "SF Mono", Menlo, monospace; color: var(--accent); font-size: 11px; }
+  .lb-item .q { display: flex; align-items: center; gap: 4px; } .lb-item .q b { min-width: 16px; text-align: center; font-family: "SF Mono", Menlo, monospace; }
+  .lb-item .q button { width: 24px; padding: 2px 0; }
+  .lb-doc { display: flex; gap: 8px; align-items: flex-start; padding: 5px 0; cursor: pointer; } .lb-doc input { accent-color: var(--accent); margin-top: 2px; }
+  .lb-doc b { font-size: 12px; } .lb-doc small { display: block; color: var(--muted); font-size: 10px; }
+  #lb-summary .bar { height: 6px; background: #2a2a2a; margin: 4px 0 8px; } #lb-summary .bar i { display: block; height: 100%; background: var(--accent2); } #lb-summary .bar i.over { background: var(--danger); }
+  #lb-summary .kv { display: flex; justify-content: space-between; font-size: 11px; color: var(--muted); } #lb-summary .kv b { color: var(--text); font-family: "SF Mono", Menlo, monospace; }
+  #lb-summary .err { color: var(--danger); font-size: 11px; margin-top: 6px; } #lb-summary .ok { color: var(--accent2); font-size: 11px; margin-top: 6px; }
+  .lb-actions { margin-top: 12px; align-items: center; } .lb-actions #lb-msg { color: var(--accent2); font-size: 10px; flex: 1; }
+  button.primary { background: var(--accent); color: #111; border-color: var(--accent); font-weight: 600; padding: 6px 16px; } button.primary:disabled { opacity: 0.4; cursor: default; }
+  #reinf select { background: #222; color: var(--text); border: 1px solid #444; font: inherit; font-size: 10px; margin-bottom: 4px; }
+
   #stats { top: 10px;
+
 
  left: 10px; font-family: "SF Mono", Menlo, monospace; font-size: 11px;
     min-width: 190px; }
@@ -135,7 +156,16 @@
   <div id="feed"></div>
   <canvas id="minimap" width="220" height="220"></canvas>
 
-  <div id="end" class="panel"><div class="h" id="end-h"></div><div class="d" id="end-d"></div><button id="end-again">Play again</button></div>
+  <div id="lobby" class="panel">
+    <div class="lh"><div class="title">Force builder</div><div class="sub">Desert Crossing &middot; Advance &amp; Secure &middot; 25:00 &middot; you command BLUFOR, the CPU answers your loadout</div></div>
+    <div class="cols">
+      <div class="col"><h4>Squads</h4><div id="lb-squads"></div><h4>Vehicles</h4><div id="lb-vehicles"></div></div>
+      <div class="col"><h4>Doctrine</h4><div id="lb-doctrines"></div><h4>Presets</h4><div id="lb-presets" class="row"></div><h4>Summary</h4><div id="lb-summary"></div>
+        <div class="row lb-actions"><button id="lb-save">Save loadout</button><span id="lb-msg"></span><button id="lb-deploy" class="primary">Deploy</button></div></div>
+    </div>
+  </div>
+  <div id="end" class="panel">
+<div class="h" id="end-h"></div><div class="d" id="end-d"></div><button id="end-again">Play again</button></div>
 
   <div id="stats" class="panel">
 

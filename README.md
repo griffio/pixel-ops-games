@@ -18,15 +18,21 @@ open http://localhost:8787               # WebGL2, the game renderer
 open http://localhost:8787/?r=three      # legacy three.js back end (160 m airfield sandbox only)
 ```
 
-By default a 25-minute **Advance and Secure** match starts on the 1 km *Desert
-Crossing* map: you command BLUFOR (tan) from the south-west corner against a CPU
-OPFOR (olive) commander in the north-east. Five locations (Outpost, Airfield,
-Village, Depot, Relay) are captured in order; holding the majority bleeds the
-enemy's tickets, losing a location costs 10, and capturing all five wins outright.
-Each side starts with 400 tickets; vehicle losses and infantry respawns drain
-them, and the first team at 0 loses. Left-drag to select squads, right-click to
-move them, click an enemy to attack-move, click the minimap to jump the camera,
-and keep zooming out for the strategic view. `?cpu=both` lets the CPU play both
+By default the **force builder** opens over the 1 km *Desert Crossing* map: spend
+1,200 points on squads (rifle, support, anti-tank, medic, marksman, engineer),
+vehicles (trucks, supply trucks, APCs, transport helicopters) and one doctrine
+(Mechanized, Air Assault, Light Infantry, Entrenched), or pick a preset. Your
+loadout is saved in the browser. The CPU reads it and counter-picks, then a
+25-minute **Advance and Secure** match starts: you command BLUFOR (tan) from the
+south-west corner against OPFOR (olive) in the north-east. Five locations
+(Outpost, Airfield, Village, Depot, Relay) are captured in order; holding the
+majority bleeds the enemy's tickets, losing a location costs 10, and capturing all
+five wins outright. Each side starts with 400 tickets; vehicle losses and
+infantry respawns drain them, and the first team at 0 loses. Left-drag to select
+squads, right-click to move them, click an enemy to attack-move, click the
+minimap to jump the camera, and keep zooming out for the strategic view.
+`?loadout=air|mechanized|light|defensive|balanced` skips the builder,
+`?cpuloadout=<preset>` fixes the CPU's pick, `?cpu=both` lets the CPU play both
 sides, `?cpu=none` disables it, `?mode=skirmish` drops the objectives, and
 `?sandbox=1` restores the free-roam airfield with no combat.
 
@@ -84,6 +90,9 @@ src/game/           milestone 1 game layer (renderer-agnostic)
   respawn.js        ticket charges and respawns at main base
   ai/strategist.js  CPU commander v0
   objectives.js     capture zones, lattice order, ownership events
+  loadout.js        force builder data: items, doctrines, presets, validation, CPU counter-pick, saved loadouts
+  support.js        medic revives and engineer repairs
+  ui/lobby.js       the pre-match force builder screen
   maps/             map definitions (desert1km.js) and ground texture generators
   match.js          AAS / Skirmish match flow, 10 Hz game tick, bleed, win checks
 src/three/          three.js back end: models, world, PixelRenderer (low-res target + outline), dust, markers
