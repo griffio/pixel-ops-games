@@ -1,5 +1,5 @@
 import { Mat4, Vec3, hexToLinear } from '../core/math.js';
-import { buildGeometry } from './geometry.js';
+import { buildGeometry } from '../core/geometry.js';
 import * as S from './shaders.js';
 
 const STRIDE = 24;            // floats per instance: mat4 (16) + colour (4) + emissive rgb + pick id (4)
@@ -60,14 +60,14 @@ export class GLRenderer {
     return { p, u };
   }
 
-  texture(name, canvas, { nearest = false, repeat = false, mips = true } = {}) {
+  texture(name, canvas, { nearest = false, repeat = false, mips = true, nearestMag = false } = {}) {
     const gl = this.gl, t = gl.createTexture();
     gl.bindTexture(gl.TEXTURE_2D, t);
     gl.pixelStorei(gl.UNPACK_FLIP_Y_WEBGL, true);                       // same orientation as three.js canvas textures
     gl.texImage2D(gl.TEXTURE_2D, 0, gl.SRGB8_ALPHA8, gl.RGBA, gl.UNSIGNED_BYTE, canvas);
     gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, repeat ? gl.REPEAT : gl.CLAMP_TO_EDGE);
     gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, repeat ? gl.REPEAT : gl.CLAMP_TO_EDGE);
-    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, nearest ? gl.NEAREST : gl.LINEAR);
+    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, nearest || nearestMag ? gl.NEAREST : gl.LINEAR);
     gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, nearest ? gl.NEAREST : (mips ? gl.LINEAR_MIPMAP_LINEAR : gl.LINEAR));
     if (mips && !nearest) { gl.generateMipmap(gl.TEXTURE_2D); if (this.aniso) gl.texParameterf(gl.TEXTURE_2D, this.aniso.TEXTURE_MAX_ANISOTROPY_EXT, 4); }
     this.textures.set(name, t); return t;
@@ -244,7 +244,7 @@ export class GLRenderer {
     gl.activeTexture(gl.TEXTURE1); gl.bindTexture(gl.TEXTURE_2D, this.main.depth);
     gl.uniform1i(c.u.tColor, 0); gl.uniform1i(c.u.tDepth, 1);
     gl.uniform2f(c.u.texel, 1 / bw, 1 / bh); gl.uniform1f(c.u.outline, this.pixel.outline ? 1 : 0);
-    gl.uniform1f(c.u.depthThresh, 0.45 / (cam.far - cam.near));
+    gl.uniform1f(c.u.depthThresh, 0.9 / (cam.far - cam.near));   // silhouettes only
     gl.bindVertexArray(this.emptyVao); gl.drawArrays(gl.TRIANGLES, 0, 3); this.stats.calls++;
     gl.enable(gl.DEPTH_TEST); gl.activeTexture(gl.TEXTURE0);
     this.lastViewProj = cam.viewProj;

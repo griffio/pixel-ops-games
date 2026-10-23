@@ -38,6 +38,10 @@ The stats panel has a link that switches renderer while keeping the view.
 URL parameters set the initial state so the two back ends can be compared on
 identical frames: `?r=gl&seed=7&x=52&z=50&zoom=6&yaw=0.6&pitch=0.95&hour=21&pixel=0&tpu=12`
 
+`?stage=soldier|truck|apc|heli` spawns just that unit at the camera target, sends it
+forward and follows it, for close-up inspection of models and animation:
+`?r=gl&stage=soldier&zoom=10&yaw=1.2&pitch=0.8&hour=10`
+
 ## Layout
 
 ```

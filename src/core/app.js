@@ -16,7 +16,17 @@ export function applyUrlParams({ rts, pixel, world }) {
   if (q.has('seed')) seedRng(+q.get('seed'));
 }
 
-export function populate(units) {
+export function populate(app) {
+  const { units, rts } = app;
+  // ?stage=soldier|truck|apc|heli puts one unit at the camera target and sends it forward, for close-ups
+  const stage = new URLSearchParams(location.search).get('stage');
+  if (stage) {
+    const t = rts.target;
+    if (stage === 'soldier') { const sq = units.spawnSquad(t.x, t.z); sq.order(t.x, t.z + 60); rts.follow = sq.leader; }
+    else if (units.builders[stage]) { const u = units.spawn(stage, t.x, t.z, 0); u.order(t.x, t.z + 60); rts.follow = u; }
+    units.auto = false; document.getElementById('c-auto').checked = false;
+    return;
+  }
   for (let i = 0; i < 10; i++) units.spawnSquad();
   for (let i = 0; i < 6; i++) units.spawn('truck');
   for (let i = 0; i < 4; i++) units.spawn('apc');

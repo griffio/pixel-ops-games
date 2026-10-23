@@ -94,7 +94,7 @@ void main() {
     float dl = texture(tDepth, vUv - vec2(texel.x, 0.0)).r, dr = texture(tDepth, vUv + vec2(texel.x, 0.0)).r;
     float du = texture(tDepth, vUv + vec2(0.0, texel.y)).r, dd = texture(tDepth, vUv - vec2(0.0, texel.y)).r;
     float e = max(max(dl - d, dr - d), max(du - d, dd - d));
-    c.rgb *= mix(1.0, 0.42, step(depthThresh, e));
+    c.rgb *= mix(1.0, 0.55, step(depthThresh, e));
   }
   frag = vec4(toSrgb(clamp(c.rgb, 0.0, 1.0)), 1.0);
 }`;

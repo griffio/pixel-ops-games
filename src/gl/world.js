@@ -7,7 +7,7 @@ import { Mesh } from './scene.js';
 export class World extends WorldState {
   constructor(scene, renderer) {
     super(); this.scene = scene;
-    renderer.texture('ground', groundCanvas(), { mips: true });
+    renderer.texture('ground', groundCanvas(), { nearest: true, mips: false });   // crisp grain at every zoom
     const ground = new Mesh(`plane:${WORLD_SIZE},${WORLD_SIZE}`, { color: [1, 1, 1, 1], tex: 'ground', emissive: [0, 0, 0], cast: false });
     ground.rotation.x = -Math.PI / 2; scene.add(ground);
     const outer = new Mesh(`plane:${WORLD_SIZE * 4},${WORLD_SIZE * 4}`, { color: [...hexToLinear(0x6b6557), 1], tex: null, emissive: [0, 0, 0], cast: false });

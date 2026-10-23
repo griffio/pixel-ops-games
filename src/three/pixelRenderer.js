@@ -41,7 +41,7 @@ export class PixelRenderer {
             // this texel is nearer than a neighbour -> it sits on a silhouette edge
             float e = max(max(dl - d, dr - d), max(du - d, dd - d));
             float k = step(depthThresh, e);
-            c.rgb *= mix(1.0, 0.42, k);
+            c.rgb *= mix(1.0, 0.55, k);
           }
           gl_FragColor = c;
           #include <colorspace_fragment>

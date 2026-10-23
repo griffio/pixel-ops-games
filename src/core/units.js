@@ -71,13 +71,16 @@ export class Unit {
     if (this.type === 'soldier') {
       const run = clamp(this.speed / this.spec.speed, 0, 1);
       this.phase += dt * (3 + 10 * run);
-      const sw = Math.sin(this.phase) * 0.95 * run;
+      const sw = Math.sin(this.phase) * 0.85 * run;              // +x rotation swings a leg backward
       p.legL.rotation.x = sw; p.legR.rotation.x = -sw;
-      p.armL.rotation.x = -sw * 0.7; p.armR.rotation.x = sw * 0.4 - 1.2 * (0.55 + 0.45 * run);
-      p.armL.rotation.x += -0.8 * run;
-      p.torso.position.y = 0.9 + Math.abs(Math.cos(this.phase)) * 0.09 * run;
-      p.torso.rotation.x = 0.18 * run; // lean into the run
-      p.legL.position.y = p.legR.position.y = 0.9 + Math.abs(Math.cos(this.phase)) * 0.09 * run;
+      p.kneeL.rotation.x = Math.max(0, sw) * 1.4 + 0.12 * run;   // heel kicks up on the trailing leg
+      p.kneeR.rotation.x = Math.max(0, -sw) * 1.4 + 0.12 * run;
+      const bob = 1.1 + Math.abs(Math.cos(this.phase)) * 0.08 * run;
+      p.torso.position.y = p.legL.position.y = p.legR.position.y = bob;
+      p.torso.rotation.x = 0.22 * run;                            // lean into the run
+      p.torso.rotation.y = Math.sin(this.phase) * 0.08 * run;     // shoulder twist
+      p.armL.rotation.x = -1.35 + Math.sin(this.phase) * 0.12 * run; p.armL.rotation.z = 0.35;   // both hands stay on the rifle
+      p.armR.rotation.x = -1.0 - Math.sin(this.phase) * 0.12 * run; p.armR.rotation.z = -0.25;
     } else {
       const spin = this.speed * dt / 0.6;
       for (const w of p.wheels) w.rotation.x += spin;

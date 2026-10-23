@@ -1,6 +1,7 @@
 import * as THREE from 'three';
 import { WorldState, WORLD_SIZE } from '../core/layout.js';
 import { groundCanvas } from '../core/textures.js';
+import { geometry } from './geometry.js';
 
 // three.js view of the shared world layout + lighting state.
 export class World extends WorldState {
@@ -11,28 +12,21 @@ export class World extends WorldState {
 
   buildGround() {
     const tex = new THREE.CanvasTexture(groundCanvas());
-    tex.colorSpace = THREE.SRGBColorSpace; tex.anisotropy = 4;
-    const m = new THREE.Mesh(new THREE.PlaneGeometry(WORLD_SIZE, WORLD_SIZE), new THREE.MeshLambertMaterial({ map: tex }));
+    tex.colorSpace = THREE.SRGBColorSpace; tex.anisotropy = 4; tex.magFilter = tex.minFilter = THREE.NearestFilter; tex.generateMipmaps = false;   // the buffer is denser than the texture only in native mode; nearest keeps the grain crisp
+    const m = new THREE.Mesh(geometry(`plane:${WORLD_SIZE},${WORLD_SIZE}`), new THREE.MeshLambertMaterial({ map: tex }));
     m.rotation.x = -Math.PI / 2; m.receiveShadow = true; this.scene.add(m);
-    const outer = new THREE.Mesh(new THREE.PlaneGeometry(WORLD_SIZE * 4, WORLD_SIZE * 4), new THREE.MeshLambertMaterial({ color: 0x6b6557 }));
+    const outer = new THREE.Mesh(geometry(`plane:${WORLD_SIZE * 4},${WORLD_SIZE * 4}`), new THREE.MeshLambertMaterial({ color: 0x6b6557 }));
     outer.rotation.x = -Math.PI / 2; outer.position.y = -0.05; outer.receiveShadow = true; this.scene.add(outer);
   }
 
   buildProps() {
-    const geos = new Map(), mats = new Map();
-    const geo = (key) => {
-      if (!geos.has(key)) {
-        const [type, args] = key.split(':'); const a = args.split(',').map(Number);
-        geos.set(key, type === 'box' ? new THREE.BoxGeometry(a[0], a[1], a[2]) : new THREE.CylinderGeometry(a[0], a[1], a[2], a[3]));
-      }
-      return geos.get(key);
-    };
+    const mats = new Map();
     const heads = [];
     for (const p of this.layout.props) {
       let mat;
       if (p.emissive !== undefined) mat = new THREE.MeshLambertMaterial({ color: p.color, emissive: p.emissive, emissiveIntensity: 0 });
       else { if (!mats.has(p.color)) mats.set(p.color, new THREE.MeshLambertMaterial({ color: p.color })); mat = mats.get(p.color); }
-      const m = new THREE.Mesh(geo(p.geo), mat);
+      const m = new THREE.Mesh(geometry(p.geo), mat);
       m.position.set(p.x, p.y, p.z); m.rotation.set(p.rot[0], p.rot[1], p.rot[2]);
       m.castShadow = p.cast; m.receiveShadow = true; this.scene.add(m);
       if (p.lampHead) heads.push(m);

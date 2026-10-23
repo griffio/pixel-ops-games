@@ -60,7 +60,7 @@ const app = {
   },
   render(dt, W, H) {
     syncCamera();
-    pixel.setDepthThreshold(cam, 0.45);
+    pixel.setDepthThreshold(cam, 0.9);   // silhouettes only; part-to-part edges on small figures stay clean
     dustView.update();
     renderer.info.reset();
     pixel.render(scene, cam, W, H);
@@ -69,6 +69,6 @@ const app = {
 applyUrlParams(app);
 app.hud = new Hud(app);
 app.input = new Input(app);
-populate(units);
+populate(app);
 runLoop(app);
 window.app = app;

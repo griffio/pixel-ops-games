@@ -35,6 +35,6 @@ const app = {
 applyUrlParams(app);
 app.hud = new Hud(app);
 app.input = new Input(app);
-populate(units);
+populate(app);
 runLoop(app);
 window.app = app;
