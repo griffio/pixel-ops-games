@@ -3,7 +3,6 @@ import { buildGeometry } from '../core/geometry.js';
 import * as S from './shaders.js';
 
 const STRIDE = 24;            // floats per instance: mat4 (16) + colour (4) + emissive rgb + pick id (4)
-const SHADOW_SIZE = 4096;
 const LIGHT_UP = new Vec3(0, 1, 0);
 
 // Raw WebGL2 renderer. Every mesh is an instance of a shared geometry. Dynamic
@@ -12,12 +11,13 @@ const LIGHT_UP = new Vec3(0, 1, 0);
 // Passes: shadow depth (frustum fitted to the view) -> low-res lit colour+depth ->
 // composite (nearest upscale, outline, sRGB). Picking renders ids on demand.
 export class GLRenderer {
-  constructor(canvas) {
+  // opts: shadowSize (4096; 2048 on mobile), dprCap (2; 1 on mobile keeps the composite cheap on retina tablets)
+  constructor(canvas, { shadowSize = 4096, dprCap = 2 } = {}) {
     const gl = canvas.getContext('webgl2', { antialias: false, alpha: false, powerPreference: 'high-performance' });
     if (!gl) throw new Error('WebGL2 is not available in this browser');
-    this.gl = gl; this.canvas = canvas;
+    this.gl = gl; this.canvas = canvas; this.shadowSize = shadowSize; this.dprCap = dprCap;
     this.aniso = gl.getExtension('EXT_texture_filter_anisotropic');
-    this.shadows = true; this.stats = { calls: 0, chunks: 0 };
+    this.shadows = true; this.pcf = true; this.stats = { calls: 0, chunks: 0 };
     this.pixel = {
       enabled: true, outline: true, texelsPerUnit: 10, pixelScale: 3, dpr: 1, rtW: 0, rtH: 0,
       bufferSize(w, h) {
@@ -92,7 +92,7 @@ export class GLRenderer {
   }
   buildShadowTarget() {
     const gl = this.gl;
-    this.shadowTex = this.depthTexture(SHADOW_SIZE, SHADOW_SIZE);
+    this.shadowTex = this.depthTexture(this.shadowSize, this.shadowSize);
     this.shadowFb = gl.createFramebuffer(); gl.bindFramebuffer(gl.FRAMEBUFFER, this.shadowFb);
     gl.framebufferTexture2D(gl.FRAMEBUFFER, gl.DEPTH_ATTACHMENT, gl.TEXTURE_2D, this.shadowTex, 0);
     gl.drawBuffers([gl.NONE]); gl.readBuffer(gl.NONE);
@@ -124,7 +124,7 @@ export class GLRenderer {
   checkFb(name) { const s = this.gl.checkFramebufferStatus(this.gl.FRAMEBUFFER); if (s !== this.gl.FRAMEBUFFER_COMPLETE) throw new Error(`${name} framebuffer incomplete: ${s}`); }
 
   setSize(W, H) {
-    this.pixel.dpr = Math.min(window.devicePixelRatio || 1, 2);
+    this.pixel.dpr = Math.min(window.devicePixelRatio || 1, this.dprCap);
     this.canvas.width = Math.round(W * this.pixel.dpr); this.canvas.height = Math.round(H * this.pixel.dpr);
   }
 
@@ -230,15 +230,18 @@ export class GLRenderer {
     const gl = this.gl, P = this.progs; this.stats.calls = 0;
     this.collect(scene);
     const box = this.viewBox(cam);
-    const mainChunks = this.visibleChunks(box, 40), shadowChunks = this.visibleChunks(box, 90);   // margins allow for hills and long shadows
-    this.stats.chunks = mainChunks.length;
-
-    // light frustum fitted to the visible ground, snapped to shadow texels so edges don't crawl
+    // Light frustum: centred on the visible ground, sized from the camera's own footprint (view size and
+    // pitch, not the terrain hits, which change continuously while panning over hills) and quantised to
+    // quarter-octave steps, so the shadow texel size only changes at discrete zoom levels. With a fixed
+    // texel size the eye snap below keeps the shadow grid still in the world and edges stop rippling.
     const cx = (box.minX + box.maxX) / 2, cz = (box.minZ + box.maxZ) / 2;
-    const R = Math.hypot(box.maxX - box.minX, box.maxZ - box.minZ) / 2 + 45;
+    const footprint = Math.hypot(cam.viewW, cam.viewH / Math.max(0.3, Math.sin(cam.pitch)));
+    const R = 8 * Math.pow(2, Math.ceil(Math.log2((footprint / 2 + 70) / 8) * 4) / 4);   // 70 m: hills shift the footprint, long shadows reach in
+    const mainChunks = this.visibleChunks(box, 40), shadowChunks = this.visibleChunks(box, R);   // every chunk the light frustum can see
+    this.stats.chunks = mainChunks.length; this.stats.shadowR = R;
     const target = new Vec3(cx, 0, cz), eye = new Vec3(cx + L.sunDir[0] * 400, L.sunDir[1] * 400, cz + L.sunDir[2] * 400);
     Mat4.cameraWorld(this.lightWorld, eye, target, LIGHT_UP);
-    const right = Mat4.column(this.lightWorld, 0), up = Mat4.column(this.lightWorld, 1), texel = 2 * R / SHADOW_SIZE;
+    const right = Mat4.column(this.lightWorld, 0), up = Mat4.column(this.lightWorld, 1), texel = 2 * R / this.shadowSize;
     const ox = eye.dot(right), oy = eye.dot(up);
     eye.addScaledVector(right, Math.round(ox / texel) * texel - ox).addScaledVector(up, Math.round(oy / texel) * texel - oy);
     this.lightWorld[12] = eye.x; this.lightWorld[13] = eye.y; this.lightWorld[14] = eye.z;
@@ -248,7 +251,7 @@ export class GLRenderer {
 
     // 1. shadow depth
     if (this.shadows) {
-      gl.bindFramebuffer(gl.FRAMEBUFFER, this.shadowFb); gl.viewport(0, 0, SHADOW_SIZE, SHADOW_SIZE);
+      gl.bindFramebuffer(gl.FRAMEBUFFER, this.shadowFb); gl.viewport(0, 0, this.shadowSize, this.shadowSize);
       gl.clear(gl.DEPTH_BUFFER_BIT);
       gl.useProgram(P.shadow.p); gl.uniformMatrix4fv(P.shadow.u.uLightVP, false, this.lightVP); gl.uniform1i(P.shadow.u.uTex, 0); gl.activeTexture(gl.TEXTURE0);
       for (const b of this.eachBatch(shadowChunks)) if (b.cast) {
@@ -263,7 +266,7 @@ export class GLRenderer {
     gl.clearColor(L.background[0], L.background[1], L.background[2], 1); gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
     const u = P.main.u; gl.useProgram(P.main.p);
     gl.uniformMatrix4fv(u.uViewProj, false, cam.viewProj); gl.uniformMatrix4fv(u.uLightVP, false, this.lightVP);
-    gl.uniform1f(u.uNormalBias, 0.6); gl.uniform1f(u.uShadowBias, -0.0006); gl.uniform1f(u.uShadowOn, this.shadows ? 1 : 0);
+    gl.uniform1f(u.uNormalBias, 0.6); gl.uniform1f(u.uShadowBias, -0.0006); gl.uniform1f(u.uShadowOn, this.shadows ? 1 : 0); gl.uniform1f(u.uShadowPcf, this.pcf ? 1 : 0);
     gl.uniform3f(u.uSunDir, L.sunDir[0], L.sunDir[1], L.sunDir[2]);
     gl.uniform3f(u.uSunCol, L.sunColor[0] * L.sunI, L.sunColor[1] * L.sunI, L.sunColor[2] * L.sunI);
     gl.uniform3f(u.uHemiSky, L.hemiSky[0] * L.hemiI, L.hemiSky[1] * L.hemiI, L.hemiSky[2] * L.hemiI);
@@ -315,16 +318,25 @@ export class GLRenderer {
   }
 
   // Renders dynamic instance ids into a small buffer and reads the pixel under the cursor.
-  pick(nx, ny) {
+  // radiusPx > 0 (touch) searches a block around the point and returns the nearest id.
+  pick(nx, ny, radiusPx = 0) {
     if (!this.main || !this.lastViewProj) return 0;
     const gl = this.gl, w = this.main.w, h = this.main.h, savedCalls = this.stats.calls; this.ensurePickTarget(w, h);
     gl.bindFramebuffer(gl.FRAMEBUFFER, this.pickFb.fb); gl.viewport(0, 0, w, h);
     gl.clearColor(0, 0, 0, 0); gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
     const p = this.progs.pick; gl.useProgram(p.p); gl.uniformMatrix4fv(p.u.uViewProj, false, this.lastViewProj);
     for (const b of this.batches.values()) if (b.n && !b.unlit) this.drawBatch(b);
-    const px = new Uint8Array(4);
-    gl.readPixels(Math.min(w - 1, Math.floor(nx * w)), Math.min(h - 1, Math.floor((1 - ny) * h)), 1, 1, gl.RGBA, gl.UNSIGNED_BYTE, px);
+    const cx = Math.min(w - 1, Math.floor(nx * w)), cy = Math.min(h - 1, Math.floor((1 - ny) * h));
+    const r = Math.min(24, Math.round(radiusPx * w / (this.canvas.clientWidth || w)));
+    const x0 = Math.max(0, cx - r), y0 = Math.max(0, cy - r), bw = Math.min(w - 1, cx + r) - x0 + 1, bh = Math.min(h - 1, cy + r) - y0 + 1;
+    const px = new Uint8Array(bw * bh * 4);
+    gl.readPixels(x0, y0, bw, bh, gl.RGBA, gl.UNSIGNED_BYTE, px);
     gl.bindFramebuffer(gl.FRAMEBUFFER, null); this.stats.calls = savedCalls;
-    return px[0] + px[1] * 256 + px[2] * 65536;
+    let best = 0, bestD = Infinity;
+    for (let y = 0; y < bh; y++) for (let x = 0; x < bw; x++) {
+      const i = (y * bw + x) * 4, id = px[i] + px[i + 1] * 256 + px[i + 2] * 65536; if (!id) continue;
+      const d = (x0 + x - cx) ** 2 + (y0 + y - cy) ** 2; if (d < bestD) { bestD = d; best = id; }
+    }
+    return best;
   }
 }

@@ -8,13 +8,14 @@ import { UnitManager } from '../core/units.js';
 import { DustSim } from '../core/dust.js';
 import { Input } from '../core/input.js';
 import { Hud } from '../core/hud.js';
-import { applyUrlParams, populate, runLoop } from '../core/app.js';
+import { applyUrlParams, populate, runLoop, detectTouch } from '../core/app.js';
 import { desert1km } from '../game/maps/desert1km.js';
 
 const q = new URLSearchParams(location.search);
 const sandbox = q.get('sandbox') === '1';
 const canvas = document.getElementById('view');
-const renderer = new GLRenderer(canvas);
+const touch = detectTouch();
+const renderer = new GLRenderer(canvas, touch ? { shadowSize: 2048, dprCap: 1 } : {});   // tablets: smaller shadow map, no retina composite
 const pixel = renderer.pixel;
 registerTextures(renderer);
 
@@ -26,12 +27,13 @@ const dust = new DustSim(); units.dust = dust;
 const markers = new Markers(scene, world.heightAt);
 world.focus = rts.target; rts.heightAt = world.heightAt;
 
+if (touch) { document.body.classList.add('touch'); rts.edgePan = false; }
 const app = {
-  canvas, pixel, rts, world, units, dust, markers,
+  canvas, pixel, rts, world, units, dust, markers, touch, renderer,
   rendererName: 'WebGL2', otherRenderer: { name: 'three.js sandbox', param: 'three' },
   drawCalls: () => renderer.stats.calls,
   setShadows: (on) => { renderer.shadows = on; },
-  pick(nx, ny) { const id = renderer.pick(nx, ny); return id ? units.byPickId(id) : null; },
+  pick(nx, ny, radiusPx = 0) { const id = renderer.pick(nx, ny, radiusPx); return id ? units.byPickId(id) : null; },
   resize(W, H) { renderer.setSize(W, H); },
   render(dt, W, H) { renderer.render(scene, rts, world.lightState, dust, W, H); },
 };

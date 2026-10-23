@@ -1,16 +1,21 @@
 // Mouse + keyboard: LMB click/drag-box selects, RMB click orders, RMB/MMB drag
-// rotates/pans, wheel zooms toward the cursor's ground point. Picking is
-// delegated to the back end through app.pick(nx, ny).
+// rotates/pans, wheel zooms toward the cursor's ground point. Touch and pen
+// pointers are handed to TouchInput. Picking is delegated to the back end through
+// app.pick(nx, ny, radiusPx).
+import { TouchInput } from './touch.js';
+
 export class Input {
   constructor(app) {
     this.app = app; this.canvas = app.canvas; this.rts = app.rts; this.units = app.units; this.hud = app.hud;
     this.selected = []; this.down = null;
     this.box = document.getElementById('selbox');
-    const c = this.canvas, rts = this.rts;
+    this.touch = new TouchInput(this);
+    const c = this.canvas, rts = this.rts, mouse = (e) => e.pointerType === 'mouse';
     c.addEventListener('contextmenu', e => e.preventDefault());
-    c.addEventListener('pointerdown', e => this.onDown(e));
-    window.addEventListener('pointermove', e => this.onMove(e));
-    window.addEventListener('pointerup', e => this.onUp(e));
+    c.addEventListener('pointerdown', e => mouse(e) ? this.onDown(e) : this.touch.onDown(e));
+    window.addEventListener('pointermove', e => mouse(e) ? this.onMove(e) : this.touch.onMove(e));
+    window.addEventListener('pointerup', e => mouse(e) ? this.onUp(e) : this.touch.onUp(e));
+    window.addEventListener('pointercancel', e => mouse(e) ? this.onUp(e) : this.touch.onUp(e));
     c.addEventListener('wheel', e => this.onWheel(e), { passive: false });
     window.addEventListener('keydown', e => this.onKey(e, true));
     window.addEventListener('keyup', e => this.onKey(e, false));
@@ -19,16 +24,17 @@ export class Input {
   }
 
   norm(e) { const r = this.canvas.getBoundingClientRect(); return [(e.clientX - r.left) / r.width, (e.clientY - r.top) / r.height]; }
+  update(dt) { this.touch.update(dt); }
 
   onDown(e) {
     if (e.target !== this.canvas) return;
     const [nx, ny] = this.norm(e);
     this.down = { button: e.button, x: e.clientX, y: e.clientY, nx, ny, moved: false, ground: this.rts.screenToGround(nx, ny) };
-    this.canvas.setPointerCapture?.(e.pointerId);
+    try { this.canvas.setPointerCapture(e.pointerId); } catch {}
   }
 
   onMove(e) {
-    const [nx, ny] = this.norm(e); this.rts.mouse.set(nx, ny, 0);
+    const [nx, ny] = this.norm(e); this.rts.mouse.set(nx, ny, 0); this.rts.edgePan = true;   // a real mouse showed up: edge panning is useful again
     const d = this.down; if (!d) return;
     const dx = e.clientX - d.x, dy = e.clientY - d.y;
     if (!d.moved && Math.hypot(dx, dy) > 4) d.moved = true;
@@ -71,14 +77,13 @@ export class Input {
     down ? this.rts.keys.add(e.code) : this.rts.keys.delete(e.code);
   }
 
-  clickSelect(nx, ny, add) {
-    const u = this.app.pick(nx, ny), me = this.app.playerTeam ?? 0;
+  clickSelect(nx, ny, add, radiusPx = 0) {
+    const u = this.app.pick(nx, ny, radiusPx), me = this.app.playerTeam ?? 0;
     if (u && u.team !== me) { if (this.selected.length) this.orderAt(u.pos.x, u.pos.z); return; }   // click an enemy: attack-move there
     if (!u) { if (!add) this.select([]); return; }
     const set = u.squad ? u.squad.members : [u];
     this.select(add ? [...new Set([...this.selected, ...set])] : set);
   }
-
 
   boxSelect(x0, y0, x1, y1, add) {
     const r = this.canvas.getBoundingClientRect();
@@ -90,6 +95,13 @@ export class Input {
     this.select(add ? [...new Set([...this.selected, ...found])] : found);
   }
 
+  // every friendly unit of a type that is on screen (double-tap / double-click)
+  selectType(type) {
+    const r = this.canvas.getBoundingClientRect(), me = this.app.playerTeam ?? 0;
+    const found = this.units.units.filter(u => u.type === type && u.team === me && !u.dead && !u.mounted && (() => { const [sx, sy] = this.rts.worldToScreen(u.pos.x, u.pos.y + 1, u.pos.z, r.width, r.height); return sx >= 0 && sx <= r.width && sy >= 0 && sy <= r.height; })());
+    this.select(found); if (found.length) this.hud.toast(`${found.length} ${type}${found.length > 1 ? 's' : ''} on screen`);
+  }
+
   select(list) {
     for (const u of this.selected) u.setSelected(false);
     const me = this.app.playerTeam ?? 0;
@@ -98,14 +110,15 @@ export class Input {
     this.hud.showSelection(this.selected);
   }
 
-  issueOrder(nx, ny) {
+  issueOrder(nx, ny, radiusPx = 0) {
     // right-click on a friendly landed helicopter with infantry selected: board it
-    const u = this.app.pick(nx, ny), me = this.app.playerTeam ?? 0;
+    const u = this.app.pick(nx, ny, radiusPx), me = this.app.playerTeam ?? 0;
     if (u && u.type === 'heli' && u.team === me && !u.dead && this.selected.some(s => s.type === 'soldier')) {
       const squads = new Set(); for (const s of this.selected) if (s.type === 'soldier') (s.squad ? squads.add(s.squad) : s.board(u));
       for (const sq of squads) sq.board(u); u.dropOnLand = true;
       this.hud.toast(`Boarding ${u.label}: fly it and it unloads on landing`); return;
     }
+    if (u && u.team !== me && !u.dead) { this.orderAt(u.pos.x, u.pos.z); return; }   // an enemy under the finger: attack-move onto it
     const g = this.rts.screenToGround(nx, ny); this.orderAt(g.x, g.z);
   }
   orderAt(gx, gz) {

@@ -19,6 +19,13 @@ export function applyUrlParams({ rts, pixel, world }) {
   if (q.has('seed')) seedRng(+q.get('seed'));
 }
 
+// Touch profile: iPad and phones (coarse primary pointer with multi-touch). ?mobile=1|0 forces it either way.
+export function detectTouch() {
+  const q = new URLSearchParams(location.search);
+  if (q.has('mobile')) return q.get('mobile') !== '0';
+  return navigator.maxTouchPoints > 1 && matchMedia('(pointer: coarse)').matches;
+}
+
 export function populate(app) {
   const { units, rts } = app;
   const q = new URLSearchParams(location.search);
@@ -77,6 +84,7 @@ export function runLoop(app) {
     if (app.match) app.match.update(simDt);
     app.dust.update(simDt);
     app.markers.update(simDt);
+    if (app.input) app.input.update(dt);
     app.rts.update(dt, W, H);
     app.render(dt, W, H);
     app.hud.update(dt, W, H);

@@ -3,8 +3,8 @@
 A browser sandbox for testing a "3D rendered as pixel art" RTS look, with two
 interchangeable renderers behind one simulation:
 
-- **three.js** back end (`?r=three`, the default)
-- **raw WebGL2** back end with instanced batching (`?r=gl`), no dependencies
+- **raw WebGL2** back end with instanced batching (the default), no dependencies
+- **three.js** back end (`?r=three`, legacy airfield sandbox only)
 
 Low-poly units are rendered into a small buffer whose texel size is fixed in
 **world** units, then upscaled with nearest filtering, so zooming in makes the
@@ -78,6 +78,29 @@ objectives.
 | `Space` | Pause simulation |
 | `R` / Reset view | Default camera |
 
+### Touch (iPad)
+
+Touch and pen pointers go to a gesture layer; a mouse or trackpad keeps the table above.
+
+| Gesture | Action |
+|---|---|
+| Tap a unit | Select it (its whole squad); tap an enemy with a selection to attack-move |
+| Double-tap a unit | Select every friendly unit of that type on screen |
+| Hold on the ground | Order the selection there (the ring fills in 0.45 s); hold a landed helicopter to board it |
+| Hold with nothing selected, then drag | Box select |
+| One-finger drag | Pan, with a fling on release |
+| Pinch | Zoom about the midpoint |
+| Twist | Rotate about the midpoint |
+| Three-finger drag up/down | Tilt |
+| Toolbar | **Box** arms a one-shot box select, **Follow**, **Pause**, **Base** jumps to your main, **⚙** shows the engine panels |
+
+Tablets and phones (a coarse primary pointer with multi-touch) get the mobile
+profile: device pixel ratio 1, a 2048 shadow map, no edge panning, keyboard hints
+and engine panels hidden, larger tap targets, and the force builder as a scrolling
+sheet. `?mobile=1` or `?mobile=0` forces the profile either way. The page ships a
+web app manifest and icons, so "Add to Home Screen" installs it full-screen in
+landscape; there is no service worker, so it still needs the server.
+
 URL parameters set the initial state so the two back ends can be compared on
 identical frames: `?r=gl&seed=7&x=52&z=50&zoom=6&yaw=0.6&pitch=0.95&hour=21&pixel=0&tpu=12`
 
@@ -139,8 +162,11 @@ src/gl/             WebGL2 back end
   One `drawElementsInstanced` per batch: ~60 units cost about 125 draw calls
   including the shadow pass, versus roughly 1000 for the three.js back end.
 - Shadow pass renders depth from an orthographic light camera into a 4096²
-  depth texture; the lit pass does a hard compare with a normal-offset bias,
-  which gives the crisp pixel shadows.
+  depth texture (2048² on tablets). The light frustum is sized from the camera's
+  footprint in quarter-octave steps and its eye is snapped to shadow texels, so the
+  shadow grid stays still in the world while panning. The lit pass does a 2×2
+  bilinear depth comparison thresholded at 0.5 with a normal-offset bias: edges stay
+  hard but follow the sub-texel iso-line instead of the shadow texel staircase.
 - Lighting is Lambert with three.js' physical units (irradiance / π, sRGB
   textures via `SRGB8_ALPHA8`, linear-to-sRGB in the composite), so both back
   ends produce the same image from the same `lighting(time)` values.
@@ -162,6 +188,16 @@ box-selects and orders everything on screen. Run it against either back end:
 ```bash
 node tools/pick-test.mjs 'http://localhost:8787/?r=gl&seed=11&zoom=2' 9351
 node tools/pick-test.mjs 'http://localhost:8787/?seed=11&zoom=2' 9352
+```
+
+`tools/match-test.mjs` runs a CPU-vs-CPU match for a while and reports tickets,
+objectives, FOBs, lifts and the kill feed. `tools/touch-test.mjs` drives the touch
+layer with synthetic touches on an iPad-sized viewport (tap, hold, drag, pinch,
+twist, tilt, box select, double-tap) and checks the mobile profile and manifest:
+
+```bash
+node tools/match-test.mjs 'http://localhost:8787/?cpu=both&seed=11&warp=240&mode=invasion' 9333
+node tools/touch-test.mjs 'http://localhost:8787/?mobile=1&cpu=none&loadout=balanced&seed=5' 9341 /tmp/touch-profile shot.png
 ```
 
 For a still frame, headless Chrome's `--screenshot` with `--virtual-time-budget`

@@ -211,6 +211,33 @@ Engine changes needed in the existing core:
   chosen in the force builder and remembered. Strategist takes attack/hold/reserve
   goals and an attack share from the mode.
 
+- **Milestone 6 — done (2026-10-23).** Touch layer beside the mouse input
+  (`src/core/touch.js`): tap selects, double-tap selects a type on screen, a hold on
+  the ground orders (or boards a landed helicopter), a hold with nothing selected
+  starts a box select, one finger pans with a fling, two fingers pinch-zoom and twist
+  about the midpoint, three fingers tilt. Gesture camera changes apply without
+  smoothing so the ground stays under the fingers; picking searches a 14 px radius.
+  Mobile profile (coarse pointer with multi-touch, or `?mobile=1`): DPR 1, 2048
+  shadow map, no edge pan, touch toolbar (Box, Follow, Pause, Base, engine panels),
+  gesture hints, larger tap targets, force builder stacks to one column under 900 px.
+  Web app manifest with generated icons (`tools/make-icons.mjs`); no service worker.
+  Verified with a CDP touch harness (`tools/touch-test.mjs`): pan distance, pinch
+  factor and twist angle match to the decimal, midpoint drift under 0.2 m.
+
+- **Shadow stability (2026-10-23).** Shadow edges rippled while panning over hills:
+  the light frustum was sized from the four screen-corner ground hits, which move
+  with the terrain under them, so the shadow texel size drifted every frame (0.3 m
+  over a 2 m pan) and every edge re-rasterised on a new grid. The frustum is now
+  sized from the camera's own footprint (view size and pitch) in quarter-octave
+  steps, so the texel size is constant until the zoom crosses a step and the texel
+  snap keeps the grid still in the world. The depth test is a 2x2 bilinear
+  comparison thresholded at 0.5: edges follow the sub-texel iso-line instead of the
+  shadow texel staircase while staying hard. Measured with a shadow-mask probe:
+  0.3% of shadow pixels change per one-texel pan at the base on both 2048 and 4096
+  maps. The sun's own movement at 24x proved negligible (0.02% per quarter second).
+  Still visible on close inspection: the sand tiles are nearest-sampled without
+  mips, so fine grain sparkles under pan, most at the screen's centre row and column.
+
 ## Open questions
 
 

@@ -2,8 +2,16 @@
 <html lang="en">
 <head>
 <meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>Pixel Ops Sandbox</title>
+<meta name="theme-color" content="#0b0b0c">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Pixel Ops">
+<link rel="manifest" href="manifest.json">
+<link rel="icon" type="image/png" href="icons/icon-192.png">
+<link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
 <style>
   :root {
     --panel: rgba(16, 16, 18, 0.88);
@@ -17,10 +25,15 @@
   * { box-sizing: border-box; }
   html, body { margin: 0; height: 100%; background: #0b0b0c; color: var(--text);
     font: 12px/1.35 -apple-system, "Helvetica Neue", Arial, sans-serif; overflow: hidden;
-    user-select: none; -webkit-user-select: none; }
+    user-select: none; -webkit-user-select: none; -webkit-touch-callout: none; overscroll-behavior: none; }
   #app { position: fixed; inset: 0; }
   canvas#view { position: absolute; inset: 0; width: 100%; height: 100%; display: block;
-    image-rendering: pixelated; image-rendering: crisp-edges; cursor: crosshair; }
+    image-rendering: pixelated; image-rendering: crisp-edges; cursor: crosshair; touch-action: none; }
+  button, label, select, input, .panel { touch-action: manipulation; }
+  #hold { position: absolute; left: 0; top: 0; width: 48px; height: 48px; margin: -24px 0 0 -24px; border: 2px solid var(--accent); border-radius: 50%;
+    pointer-events: none; display: none; box-shadow: 0 0 0 1px rgba(0,0,0,0.5) inset; }
+  #hold.on { display: block; animation: holdfill .45s linear forwards; }
+  @keyframes holdfill { from { transform: scale(0.25); opacity: 0.4; } to { transform: scale(1); opacity: 1; } }
   #labels { position: absolute; inset: 0; pointer-events: none; overflow: hidden; }
   .tag { position: absolute; left: 0; top: 0; transform: translate(-50%, -100%); display: flex; align-items: center; gap: 4px;
     background: rgba(14,14,16,0.92); border: 1px solid rgba(255,255,255,0.18); border-radius: 3px; color: #fff;
@@ -136,6 +149,33 @@
   #toast { position: absolute; bottom: 70px; left: 50%; transform: translateX(-50%);
     color: var(--accent2); font-size: 11px; letter-spacing: 0.1em; text-transform: uppercase;
     opacity: 0; transition: opacity .3s; pointer-events: none; }
+
+  /* ---- touch profile (body.touch: iPad / phones, or ?mobile=1). Dev panels return with the gear button (body.dev). */
+  #touchbar { position: absolute; left: calc(10px + env(safe-area-inset-left)); bottom: calc(10px + env(safe-area-inset-bottom)); display: none; gap: 6px; }
+  #touchbar button { min-width: 58px; min-height: 40px; font-size: 12px; letter-spacing: 0.04em; background: var(--panel); backdrop-filter: blur(4px); }
+  #touchbar button.on { border-color: var(--accent); color: var(--accent); }
+  #help .tb { display: none; }
+  body.touch #touchbar { display: flex; }
+  body.touch #help { bottom: calc(58px + env(safe-area-inset-bottom)); left: calc(10px + env(safe-area-inset-left)); padding: 5px 9px; font-size: 10px; }
+  body.touch #help .kb { display: none; } body.touch #help .tb { display: inline; }
+  body.touch:not(.dev) #stats { display: none; }
+  body.touch:not(.dev) #controls > :not(#reinf-h):not(#reinf):not(#spawn-pref) { display: none; }
+  body.touch #controls { top: calc(10px + env(safe-area-inset-top)); right: calc(10px + env(safe-area-inset-right)); }
+  body.touch #minimap { right: calc(10px + env(safe-area-inset-right)); bottom: calc(10px + env(safe-area-inset-bottom)); touch-action: none; }
+  body.touch #feed { bottom: calc(240px + env(safe-area-inset-bottom)); }
+  body.touch #selinfo { bottom: calc(60px + env(safe-area-inset-bottom)); } body.touch #toast { bottom: calc(118px + env(safe-area-inset-bottom)); }
+  body.touch button { min-height: 34px; padding: 6px 12px; font-size: 12px; }
+  body.touch #sel-actions button { min-height: 38px; }
+  body.touch .lb-item .q button { width: 38px; min-height: 34px; padding: 4px 0; } body.touch .lb-item { padding: 6px 0; }
+  body.touch .lb-doc { padding: 8px 0; } body.touch .lb-doc input, body.touch #lb-side input { width: 18px; height: 18px; }
+  body.touch #lobby { -webkit-overflow-scrolling: touch; touch-action: pan-y; }
+  body.touch #reinf select { font-size: 12px; padding: 4px; }
+  body.touch #end button { min-height: 40px; padding: 8px 18px; }
+  #lobby[style*="block"] ~ #touchbar, #lobby[style*="block"] ~ #help { display: none !important; }   /* the force builder is a full-height sheet on tablets */
+  body.touch #lobby { padding-bottom: calc(16px + env(safe-area-inset-bottom)); }
+  @media (max-width: 900px) { #lobby { width: calc(100vw - 24px); padding: 14px 14px 12px; } #lobby .cols { flex-direction: column; gap: 6px; } }
+  @media (max-width: 700px) { #minimap { width: 150px; height: 150px; } #feed { bottom: 170px !important; } #match .side { min-width: 70px; } #objs .obj { width: 60px; } }
+  @media (max-width: 700px) { body.touch #help { display: none; } }
 </style>
 </head>
 <body>
@@ -208,10 +248,13 @@
 
   </div>
 
-  <div id="help" class="panel">
+  <div id="help" class="panel"><span class="kb">
     <kbd>LMB</kbd> select / drag box &nbsp; <kbd>RMB</kbd> move order &nbsp; <kbd>RMB drag</kbd> / <kbd>Q</kbd><kbd>E</kbd> rotate<br>
-    <kbd>Wheel</kbd> zoom &nbsp; <kbd>WASD</kbd> / edge pan &nbsp; <kbd>MMB drag</kbd> pan &nbsp; <kbd>Space</kbd> pause &nbsp; <kbd>F</kbd> follow
+    <kbd>Wheel</kbd> zoom &nbsp; <kbd>WASD</kbd> / edge pan &nbsp; <kbd>MMB drag</kbd> pan &nbsp; <kbd>Space</kbd> pause &nbsp; <kbd>F</kbd> follow</span><span class="tb">
+    <kbd>tap</kbd> select &nbsp; <kbd>hold</kbd> order / box &nbsp; <kbd>drag</kbd> pan &nbsp; <kbd>pinch</kbd> zoom &nbsp; <kbd>twist</kbd> rotate &nbsp; <kbd>3 fingers</kbd> tilt</span>
   </div>
+  <div id="touchbar"><button data-tb="box">Box</button><button data-tb="follow">Follow</button><button data-tb="pause">Pause</button><button data-tb="base">Base</button><button data-tb="dev" title="engine panels">&#9881;</button></div>
+  <div id="hold"></div>
 
   <div id="selinfo" class="panel"><div class="n" id="sel-n"></div><div class="d" id="sel-d"></div><div id="sel-actions" class="row"></div></div>
   <div id="toast"></div>

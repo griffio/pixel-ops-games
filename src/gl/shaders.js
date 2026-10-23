@@ -27,7 +27,7 @@ in vec3 vN; in vec2 vUv; in vec4 vColor; in vec3 vEmis; in vec3 vWorld; in vec4 
 uniform sampler2D uTex; uniform sampler2D uShadow;
 uniform vec3 uSunDir; uniform vec3 uSunCol; uniform vec3 uHemiSky; uniform vec3 uHemiGround;
 uniform vec3 uPointPos[4]; uniform vec3 uPointCol[4]; uniform float uPointDist[4];
-uniform float uShadowOn; uniform float uShadowBias; uniform float uUnlit; uniform float uCutout;
+uniform float uShadowOn; uniform float uShadowBias; uniform float uShadowPcf; uniform float uUnlit; uniform float uCutout;
 // ground mode: albedo blended from tileable textures by a splat map in world space
 uniform int uMode; uniform sampler2D uSplat; uniform sampler2D uBase; uniform sampler2D uT0; uniform sampler2D uT1; uniform sampler2D uT2; uniform sampler2D uT3;
 uniform vec4 uTileInv; uniform float uBaseInv; uniform float uMapInv;
@@ -50,8 +50,15 @@ void main() {
   if (uShadowOn > 0.5) {
     vec3 sc = vShadow.xyz / vShadow.w * 0.5 + 0.5;
     if (sc.x > 0.0 && sc.x < 1.0 && sc.y > 0.0 && sc.y < 1.0 && sc.z <= 1.0) {
-      float d = texture(uShadow, sc.xy).r;
-      sh = (sc.z + uShadowBias) > d ? 0.0 : 1.0;
+      float z = sc.z + uShadowBias;
+      if (uShadowPcf > 0.5) {
+        // 2x2 bilinear comparison, then a hard threshold: the edge follows the sub-texel iso-line of the
+        // depth test instead of the shadow texel staircase, so it stays put as the screen grid slides over it
+        vec2 ts = vec2(textureSize(uShadow, 0)), p = sc.xy * ts - 0.5, f = fract(p), b = (floor(p) + 0.5) / ts;
+        float s00 = z > texture(uShadow, b).r ? 0.0 : 1.0, s10 = z > texture(uShadow, b + vec2(1.0 / ts.x, 0.0)).r ? 0.0 : 1.0;
+        float s01 = z > texture(uShadow, b + vec2(0.0, 1.0 / ts.y)).r ? 0.0 : 1.0, s11 = z > texture(uShadow, b + 1.0 / ts).r ? 0.0 : 1.0;
+        sh = mix(mix(s00, s10, f.x), mix(s01, s11, f.x), f.y) >= 0.5 ? 1.0 : 0.0;
+      } else sh = z > texture(uShadow, sc.xy).r ? 0.0 : 1.0;
     }
   }
   vec3 irr = uSunCol * max(dot(n, uSunDir), 0.0) * sh;
