@@ -8,6 +8,7 @@ export const SPEC = {
   apc:     { speed: 8,   turn: 0.9, accel: 4, label: 'AP', air: false, hp: 600, nav: 'vehicle', kit: 'autocannon' },
   heli:    { speed: 16,  turn: 1.4, accel: 6, label: 'HE', air: true, hp: 300, nav: null, kit: 'doorgun' },
   fob:     { speed: 0,   turn: 0,   accel: 0, label: 'FB', air: false, hp: 300, nav: null, structure: true },
+  cache:   { speed: 0,   turn: 0,   accel: 0, label: 'CA', air: false, hp: 250, nav: null, structure: true },
 };
 const counters = {}; let pickSeq = 0;
 

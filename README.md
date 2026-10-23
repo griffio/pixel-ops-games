@@ -53,6 +53,18 @@ somewhere: it unloads on landing (**U** unloads a parked helicopter). The CPU
 commander builds a FOB one hop behind its front and lifts squads toward distant
 objectives.
 
+**Game modes** (picked in the force builder, or `?mode=` with `?side=attack|defend`):
+- *Advance & Secure*: capture the five locations in order; majority bleed; take all to win.
+- *Invasion*: defenders start with every location and 300 tickets against the attackers'
+  500; attackers must take them all before the 20-minute clock, each capture costs the
+  defenders 15 tickets.
+- *Destruction*: three weapon caches hidden near the defenders' locations, one active at a
+  time and revealed when attackers come close or after 90 s; destroying all three before the
+  20-minute clock wins, each costs the defenders 40 tickets.
+- *Territory Control*: a hex grid over the map; capture only hexes touching your own; more
+  hexes bleeds the enemy; 80% of the land wins outright.
+- *Skirmish*: tickets only.
+
 ## Controls
 
 | Input | Action |
@@ -103,6 +115,7 @@ src/game/           milestone 1 game layer (renderer-agnostic)
   respawn.js        ticket charges and respawns at main base
   ai/strategist.js  CPU commander: objectives, logistics (FOBs), air lifts, FOB raids
   objectives.js     capture zones, lattice order, ownership events
+  modes/            game modes behind one interface: aas, invasion, destruction, territory, skirmish (objectives, tickets, win checks, HUD bar, minimap, CPU goals)
   loadout.js        force builder data: items, doctrines, presets, validation, CPU counter-pick, saved loadouts
   support.js        medic revives, engineer repairs, supply truck refills
   fob.js            forward operating bases: build rules, construction, spawn points

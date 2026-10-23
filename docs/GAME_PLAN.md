@@ -201,7 +201,18 @@ Engine changes needed in the existing core:
 - Balance note: Air Assault still underperforms Balanced in CPU-vs-CPU runs; the
   helicopter discount went to 35% so the preset fields six squads.
 
+- **Milestone 5 — done (2026-10-23).** Modes behind one interface (`src/game/modes/`):
+  the mode owns objectives, ticket rules, win checks, the objectives bar, minimap
+  drawing and the CPU's goals. Advance & Secure (extracted), Invasion (defenders own
+  everything, 500 vs 300 tickets, 20 minutes, 15 tickets per lost location),
+  Destruction (three caches hidden near the defenders' locations, revealed by
+  proximity or after 90 s, 40 tickets each, 20 minutes), Territory Control (68 m hex
+  grid, adjacency capture, majority bleed, 80% wins) and Skirmish. Mode and side are
+  chosen in the force builder and remembered. Strategist takes attack/hold/reserve
+  goals and an attack share from the mode.
+
 ## Open questions
+
 
 
 

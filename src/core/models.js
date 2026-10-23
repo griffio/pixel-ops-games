@@ -138,9 +138,19 @@ export function makeBuilders(F) {
     return { group: g, parts: p, height: 6.4, radius: 5.5 };
   }
 
+  // Weapon cache: crates under a tarp. Static structure.
+  function cache() {
+    const g = group(); const p = {};
+    box(2.4, 1.0, 1.6, 'olive', -0.6, 0.5, 0, g); box(1.6, 0.9, 1.2, 'canvas', 1.2, 0.45, 0.6, g); box(1.2, 0.7, 1.0, 'rifle', 0.8, 0.35, -1.1, g);
+    mesh('wedge:4.2,1.4,3.6,1.0,1.0', 'canvas', 0.3, 1.3, 0, g);
+    box(0.12, 1.8, 0.12, 'metal', -1.9, 0.9, -1.6, g); box(0.12, 1.8, 0.12, 'metal', 2.3, 0.9, 1.6, g);
+    p.ring = ring(3, g);
+    return { group: g, parts: p, height: 2.4, radius: 2.2 };
+  }
+
   // each builder takes the team so the whole model picks the right camo set
   const forTeam = (fn) => (t = 0) => { team = t; const r = fn(); team = 0; return r; };
-  return { soldier: forTeam(soldier), truck: forTeam(truck), apc: forTeam(apc), heli: forTeam(heli), fob: forTeam(fob) };
+  return { soldier: forTeam(soldier), truck: forTeam(truck), apc: forTeam(apc), heli: forTeam(heli), fob: forTeam(fob), cache: forTeam(cache) };
 
 
 

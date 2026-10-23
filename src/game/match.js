@@ -6,20 +6,23 @@ import { Combat } from './combat.js';
 import { Respawn } from './respawn.js';
 import { Support } from './support.js';
 import { Fobs } from './fob.js';
-import { Objectives } from './objectives.js';
 import { Strategist } from './ai/strategist.js';
 import { DOCTRINES, PRESETS, expand, preset } from './loadout.js';
+import { createMode } from './modes/index.js';
 
-// Match flow. Advance and Secure when the map has locations (capture in lattice
-// order, majority bleed, capturing everything wins outright); Skirmish otherwise.
-// Each team deploys the force in its loadout; doctrines shape respawns and spawns.
+// Match flow. The mode object owns objectives and win conditions; the match owns
+// teams, tickets, the simulation systems and the clock. Each team deploys the force
+// in its loadout; doctrines shape respawns and spawns.
 export class Match {
-  constructor(app, { cpu = [1], length = RULES.matchLength, mode, loadouts = [preset('balanced'), preset('balanced')] } = {}) {
+  constructor(app, { cpu = [1], mode = 'aas', side = 'attack', loadouts = [preset('balanced'), preset('balanced')] } = {}) {
     this.app = app; this.units = app.units; this.world = app.world;
     const map = this.world.map;
-    this.mode = mode || (map && map.locations && map.locations.length ? 'aas' : 'skirmish');
-    this.teams = makeTeams(RULES.startTickets[this.mode], map && map.bases);
+    if (!(map && map.locations && map.locations.length)) mode = 'skirmish';
+    this.mode = createMode(mode, this, { side });
+    this.teams = makeTeams(400, map && map.bases);
+    this.mode.teams = this.teams;
     this.teams.forEach((t, i) => {
+      t.tickets = this.mode.tickets(i);
       t.loadout = loadouts[i]; t.doctrine = DOCTRINES[t.loadout.doctrine] || DOCTRINES.entrenched;
       const p = Object.entries(PRESETS).find(([k, v]) => v.doctrine === t.loadout.doctrine && JSON.stringify(v.items) === JSON.stringify(t.loadout.items));
       t.loadoutName = p ? p[1].name : 'Custom'; t.fobKits = (t.loadout.items && t.loadout.items.fob) || 0;
@@ -31,20 +34,21 @@ export class Match {
     this.respawn = new Respawn(this.units, this.teams, this.world);
     this.support = new Support(this.units, this.respawn, this.teams);
     this.fobs = new Fobs(this.units, this.teams, this.world);
-    this.fobs.onBuilt = (fob) => { this.events.unshift({ type: 'fob', team: fob.team, t: 0, fob }); this.events.length = Math.min(this.events.length, 4); };
     this.feed = []; this.events = [];
+    this.fobs.onBuilt = (fob) => this.event({ type: 'fob', team: fob.team, fob });
     this.combat.onDeath = (v, k) => { this.respawn.onDeath(v, k); this.feed.unshift({ v, k, t: 0 }); this.feed.length = Math.min(this.feed.length, 6); };
-    this.objectives = this.mode === 'aas' ? new Objectives(map.locations, this.teams) : null;
-    if (this.objectives) this.objectives.onEvent = (type, loc, team) => {
-      if (type === 'lost') this.teams[team].tickets -= RULES.ticketCost.location;
-      if (type === 'captured' && this.teams[team].doctrine.captureBonus) this.teams[team].tickets += this.teams[team].doctrine.captureBonus;
-      this.events.unshift({ type, loc, team, t: 0 }); this.events.length = Math.min(this.events.length, 4);
-    };
-    this.strategists = cpu.map(t => new Strategist(t, this.units, this.teams, this));
-    this.time = length; this.state = 'play'; this.winner = null; this.reason = ''; this.acc = 0; this.bleedAcc = 0;
+    this.time = this.mode.length; this.state = 'play'; this.winner = null; this.reason = ''; this.acc = 0;
     this.units.auto = false;
     this.deploy();
+    this.mode.setup();
+    this.objectives = this.mode.objectives || null;
+    this.strategists = cpu.map(t => new Strategist(t, this.units, this.teams, this));
+    this.spatial.rebuild(this.units.units);
   }
+
+  event(e) { e.t = 0; this.events.unshift(e); this.events.length = Math.min(this.events.length, 4); }
+  // live enemy ground units of `team` within r of a point
+  enemiesNear(team, x, z, r) { let n = 0; for (const u of this.units.units) if (!u.dead && !u.mounted && u.team !== team && !u.spec.structure && !(u.spec.air && u.alt > 2) && Math.hypot(u.pos.x - x, u.pos.z - z) < r) n++; return n; }
 
   deploy() {
     const w = this.world;
@@ -72,10 +76,8 @@ export class Match {
     for (const f of this.feed) f.t += dt;
     for (const e of this.events) e.t += dt;
     const [a, b] = this.teams;
-    if (this.objectives) {
-      if (this.objectives.allOwned(0)) return this.end(a, 'captured every location');
-      if (this.objectives.allOwned(1)) return this.end(b, 'captured every location');
-    }
+    const w = this.mode.check();
+    if (w) return this.end(w.winner, w.reason);
     if (a.tickets <= 0 || b.tickets <= 0) this.end(a.tickets <= 0 ? (b.tickets <= 0 ? null : b) : a, 'tickets exhausted');
     else if (this.time <= 0) this.end(a.tickets === b.tickets ? null : (a.tickets > b.tickets ? a : b), 'time expired');
   }
@@ -84,11 +86,7 @@ export class Match {
     this.respawn.tick(dt);
     this.support.tick(dt);
     this.fobs.tick(dt);
-    if (this.objectives) {
-      this.objectives.tick(dt, this.spatial);
-      const o0 = this.objectives.owned(0), o1 = this.objectives.owned(1);
-      if (o0 !== o1) { this.bleedAcc += dt; while (this.bleedAcc >= RULES.bleedEvery) { this.bleedAcc -= RULES.bleedEvery; this.teams[o0 > o1 ? 1 : 0].tickets -= 1; } }
-    }
+    this.mode.tick(dt);
     for (const s of this.strategists) s.tick(dt);
   }
   end(winner, reason) { this.state = 'over'; this.winner = winner; this.reason = reason; this.app.hud.showEnd(this); }

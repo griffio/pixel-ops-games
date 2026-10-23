@@ -22,27 +22,27 @@ export class Strategist {
 
   tick(dt) {
     this.timer -= dt; if (this.timer > 0) return; this.timer = 4 + Math.random() * 2;
-    const obj = this.match.objectives, base = this.teams[this.team].base;
+    const base = this.teams[this.team].base;
     // drop lifts whose helicopter or squad is gone, so squads return to the pool
     for (const [k, v] of [...this.lifts]) { const heli = k.type === 'heli' ? k : v, sq = k.type === 'heli' ? v.sq : k; if (!heli || heli.dead || !sq || !sq.leader) { this.lifts.delete(k); if (sq) for (const m of sq.members) m.boardTarget = null; } }
     const squads = this.units.squads.filter(s => s.team === this.team && s.leader && !this.lifts.has(s) && !s.members.some(m => m.building));
     const vehicles = this.units.units.filter(u => u.team === this.team && !u.dead && !u.squad && !u.spec.structure);
-    if (!obj) return this.skirmish(squads, vehicles, base);
-    const attack = obj.nextFor(this.team), front = obj.front(this.team);
-    const myFobs = this.units.units.filter(u => u.type === 'fob' && u.team === this.team && !u.dead);
-    const threatened = [...obj.list.filter(l => l.owner === this.team), ...myFobs.map(f => ({ x: f.pos.x, z: f.pos.z, r: 18, index: 'fob' + f.id }))].filter(l => this.enemiesNear(l.x, l.z, l.r + 25).length > 0);
+    const myFobs = this.units.units.filter(u => u.type === 'fob' && u.team === this.team && !u.dead).map(f => ({ x: f.pos.x, z: f.pos.z, r: 18, index: 'fob' + f.id }));
+    const g = this.match.mode.goals(this.team, myFobs);
+    if (g.hunt) return this.skirmish(squads, vehicles, base);
+    const attack = g.attack, hold = g.hold, reserve = g.reserve || null;
     const enemyFob = this.units.units.find(u => u.type === 'fob' && u.team !== this.team && !u.dead && (attack ? Math.hypot(u.pos.x - attack.x, u.pos.z - attack.z) < 160 : true));
-    const hold = threatened[0] || front;
-    const logisticsSquad = this.logistics(squads, vehicles, front, attack);
+    const logisticsSquad = this.logistics(squads, vehicles, g.fobAnchor);
     const free = squads.filter(s => s !== logisticsSquad);
-    const nAttack = attack ? Math.ceil(free.length * (hold ? 0.65 : 1)) : 0;
+    const nAttack = attack ? Math.ceil(free.length * g.attackShare) : 0;
     free.forEach((sq, i) => {
-      if (enemyFob && i === 0) { this.send(sq, enemyFob.pos.x, enemyFob.pos.z, 'raid'); return; }   // one squad raids the nearest enemy FOB
+      if (enemyFob && i === 0 && attack) { this.send(sq, enemyFob.pos.x, enemyFob.pos.z, 'raid'); return; }   // one squad raids the nearest enemy FOB
       if (i < nAttack && attack) {
         const foes = this.enemiesNear(attack.x, attack.z, attack.r + 20);
-        if (foes.length > 1 && attack.n[this.team] < 4) { const c = this.cluster(foes), cen = sq.centroid(); const [x, z] = this.toward(cen, c, 20); this.send(sq, x, z, 'approach'); }
+        if (foes.length > 1 && (attack.n ? attack.n[this.team] : 0) < 4) { const c = this.cluster(foes), cen = sq.centroid(); const [x, z] = this.toward(cen, c, 20); this.send(sq, x, z, 'approach'); }
         else { const [x, z] = this.inZone(attack.x, attack.z, attack); this.send(sq, x, z, 'cap' + attack.index); }
-      } else if (hold) { const [x, z] = this.inZone(hold.x, hold.z, hold, 0.7); this.send(sq, x, z, 'hold' + hold.index); }
+      } else if (reserve && hold && i >= nAttack + Math.ceil((free.length - nAttack) * 0.7)) { const [x, z] = this.inZone(reserve.x, reserve.z, reserve, 0.6); this.send(sq, x, z, 'reserve' + reserve.index); }
+      else if (hold) { const [x, z] = this.inZone(hold.x, hold.z, hold, 0.7); this.send(sq, x, z, 'hold' + hold.index); }
       else this.send(sq, base.x + (Math.random() - 0.5) * 20, base.z + (Math.random() - 0.5) * 20, 'home');
     });
     for (const v of vehicles) {
@@ -61,12 +61,12 @@ export class Strategist {
 
   // Logistics: with kits left, a supply truck and an engineer squad, build a FOB one hop
   // behind the front (towards our base) and keep the pair together until it is up.
-  logistics(squads, vehicles, front, attack) {
+  logistics(squads, vehicles, anchor) {
     const fobs = this.match.fobs, team = this.teams[this.team], base = team.base;
     if (this.plan && (this.plan.sq.engineer === null || this.plan.truck.dead || this.plan.done)) this.plan = null;
     if (!this.plan) {
       if (fobs.kitsLeft(this.team) <= 0) return null;
-      const anchor = front || (attack ? null : null); if (!anchor) return null;
+      if (!anchor) return null;
       const truck = vehicles.filter(v => v.supply && v.supplies >= RULES.fob.supplyCost).sort((a, b) => Math.hypot(a.pos.x - anchor.x, a.pos.z - anchor.z) - Math.hypot(b.pos.x - anchor.x, b.pos.z - anchor.z))[0];
       const sq = squads.find(s => s.engineer); if (!truck || !sq) return null;
       const [x, z] = this.toward(anchor, base, Math.hypot(anchor.x - base.x, anchor.z - base.z) - 45, 0);   // 45 m behind the location, towards home

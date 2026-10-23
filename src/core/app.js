@@ -36,9 +36,10 @@ export function populate(app) {
   // CPU plays both sides or ?loadout=<preset> skips it (cpu=both|none|1, mode=aas|skirmish)
   if (q.get('sandbox') !== '1' && !app.sandboxOnly) {
     const cpu = q.get('cpu') === 'both' ? [0, 1] : q.get('cpu') === 'none' ? [] : [1];
-    app.startMatch = (playerLoadout) => {
+    app.startMatch = (playerLoadout, modeOpts = {}) => {
       const cpuKey = q.get('cpuloadout') || counterPick(playerLoadout);
-      app.match = new Match(app, { cpu, mode: q.get('mode') || undefined, loadouts: [playerLoadout, preset(cpuKey)] });
+      const mode = q.get('mode') || modeOpts.mode || 'aas', side = q.get('side') || modeOpts.side || 'attack';
+      app.match = new Match(app, { cpu, mode, side, loadouts: [playerLoadout, preset(cpuKey)] });
       app.world.timeSpeed = 24; if (!q.has('hour')) { app.world.time = 9.5; app.world.update(0); }
       document.getElementById('c-tspeed').value = 24; document.getElementById('v-tspeed').textContent = '24×';
       document.getElementById('c-auto').checked = false;
