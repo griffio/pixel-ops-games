@@ -1,0 +1,38 @@
+import { RULES } from './rules.js';
+
+// Capture zones for Advance and Secure. progress runs -100 (OPFOR owned) .. +100
+// (BLUFOR owned); a team can only capture the next location in its lattice order.
+export class Objectives {
+  constructor(locations, teams) {
+    this.list = locations.map((l, i) => ({ ...l, index: i, owner: -1, progress: 0, n: [0, 0] }));
+    this.teams = teams; this.onEvent = null; this.scratch = [];
+  }
+  order(team) { return team === 0 ? this.list : [...this.list].reverse(); }
+  capturable(team, loc) {
+    const prev = team === 0 ? this.list[loc.index - 1] : this.list[loc.index + 1];
+    return !prev || prev.owner === team;
+  }
+  owned(team) { return this.list.filter(l => l.owner === team).length; }
+  allOwned(team) { return this.list.every(l => l.owner === team); }
+  nextFor(team) { return this.order(team).find(l => l.owner !== team && this.capturable(team, l)) || null; }
+  front(team) { const o = this.order(team).filter(l => l.owner === team); return o[o.length - 1] || null; }
+
+  tick(dt, spatial) {
+    for (const loc of this.list) {
+      const list = spatial.query(loc.x, loc.z, loc.r, this.scratch);
+      let n0 = 0, n1 = 0;
+      for (const u of list) { if (u.dead || (u.spec.air && u.alt > 1)) continue; u.team === 0 ? n0++ : n1++; }
+      loc.n[0] = n0; loc.n[1] = n1;
+      if ((n0 && n1) || (!n0 && !n1)) continue;
+      const team = n0 ? 0 : 1, n = Math.min(8, n0 || n1);
+      if (!this.capturable(team, loc)) continue;
+      const before = loc.progress, sign = team === 0 ? 1 : -1;
+      loc.progress = Math.max(-100, Math.min(100, loc.progress + sign * n * RULES.captureRate * dt));
+      // neutralised: the previous owner loses it
+      if (loc.owner === 1 - team && sign * loc.progress >= 0) { const loser = loc.owner; loc.owner = -1; this.fire('lost', loc, loser); }
+      if (loc.owner !== team && Math.abs(loc.progress) >= 100) { loc.owner = team; this.fire('captured', loc, team); }
+      if (before !== loc.progress && loc.owner === team) loc.progress = sign * 100;
+    }
+  }
+  fire(type, loc, team) { if (this.onEvent) this.onEvent(type, loc, team); }
+}

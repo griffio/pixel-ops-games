@@ -13,8 +13,9 @@ export class RtsCamera {
     this.target = new Vec3(); this.eye = new Vec3();
     this.yaw = Math.PI * 0.25; this.yawT = this.yaw;
     this.pitch = 0.95; this.pitchT = this.pitch;
-    this.zoomT = pixel.pixelScale; this.minZoom = 1; this.maxZoom = 12;
-    this.follow = null; this.keys = new Set(); this.edgePan = true;
+    // zoom > 1: screen pixels per texel. zoom < 1: strategic zoom, texel density itself drops.
+    this.zoomT = pixel.pixelScale; this.zoom = this.zoomT; this.minZoom = 0.25; this.maxZoom = 12; this.baseTpu = pixel.texelsPerUnit;
+    this.follow = null; this.keys = new Set(); this.edgePan = true; this.heightAt = null;
     this.mouse = new Vec3(-1, -1, 0);
     this.world = Mat4.create(); this.view = Mat4.create(); this.proj = Mat4.create();
     this.viewProj = Mat4.create(); this.invViewProj = Mat4.create();
@@ -38,7 +39,9 @@ export class RtsCamera {
     const k = 1 - Math.pow(0.001, dt);
     this.yaw = lerp(this.yaw, this.yawT, k);
     this.pitch = lerp(this.pitch, this.pitchT, k);
-    this.pixel.pixelScale = lerp(this.pixel.pixelScale, this.zoomT, k);
+    this.zoom = lerp(this.zoom, this.zoomT, k);
+    this.pixel.pixelScale = Math.max(1, this.zoom);
+    this.pixel.texelsPerUnit = this.baseTpu * Math.min(1, this.zoom);
 
     const [viewW, viewH] = this.pixel.viewSize(screenW, screenH);
     this.viewW = viewW; this.viewH = viewH;
@@ -58,7 +61,8 @@ export class RtsCamera {
     if (this.keys.has('KeyE')) this.yawT -= 1.6 * dt;
     if (this.follow) { const p = this.follow.pos; this.target.x = lerp(this.target.x, p.x, k); this.target.z = lerp(this.target.z, p.z, k); }
     const b = this.bounds;
-    this.target.x = clamp(this.target.x, -b, b); this.target.z = clamp(this.target.z, -b, b); this.target.y = 0;
+    this.target.x = clamp(this.target.x, -b, b); this.target.z = clamp(this.target.z, -b, b);
+    this.target.y = this.heightAt ? this.heightAt(this.target.x, this.target.z) : 0;
 
     Mat4.ortho(this.proj, -viewW / 2, viewW / 2, viewH / 2, -viewH / 2, this.near, this.far);
     const dist = 120;
@@ -80,11 +84,13 @@ export class RtsCamera {
     Mat4.invert(this.invViewProj, this.viewProj);
   }
 
-  // screen (0..1) -> point on the ground plane y = 0
+  // screen (0..1) -> point on the terrain (iterates against the height under the hit)
   screenToGround(nx, ny) {
-    const p = Mat4.transformPoint(this.invViewProj, new Vec3(nx * 2 - 1, -(ny * 2 - 1), 0));
+    const p0 = Mat4.transformPoint(this.invViewProj, new Vec3(nx * 2 - 1, -(ny * 2 - 1), 0));
     const d = Mat4.column(this.world, 2).multiplyScalar(-1); // camera looks down its -z
-    return p.addScaledVector(d, -p.y / d.y);
+    let h = 0, p = p0.clone().addScaledVector(d, -p0.y / d.y);
+    if (this.heightAt) for (let i = 0; i < 4; i++) { h = this.heightAt(p.x, p.z); p = p0.clone().addScaledVector(d, (h - p0.y) / d.y); }
+    return p;
   }
 
   worldToScreen(x, y, z, screenW, screenH) {

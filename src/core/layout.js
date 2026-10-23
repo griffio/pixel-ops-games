@@ -1,4 +1,5 @@
 import { clamp, lerp, smoothstep, hexToLinear, lerpColor } from './math.js';
+import { Terrain } from './terrain.js';
 
 export const WORLD_SIZE = 160;      // ground is WORLD_SIZE x WORLD_SIZE units, centred on 0
 export const HALF = WORLD_SIZE / 2;
@@ -106,11 +107,28 @@ export function lighting(time) {
 }
 
 export class WorldState {
-  constructor() {
-    this.layout = buildLayout(); this.obstacles = this.layout.obstacles;
+  // `map` is a map definition (size, build(), bases, locations); without one the
+  // legacy 160 m airfield layout is used.
+  constructor(map = null) {
+    this.map = map; this.size = map ? map.size : WORLD_SIZE; this.half = this.size / 2;
+    this.layout = map ? map.build() : buildLayout(); this.obstacles = this.layout.obstacles;
+    this.terrain = map && map.terrain ? new Terrain(this.size, 4, { ...map.terrain, flats: map.flats || [] }) : null;
+    this.bridges = (map && map.bridges) || [];
+    // height including bridge decks (local-frame rectangle test)
+    this.heightAt = (x, z) => {
+      let h = this.terrain ? this.terrain.height(x, z) : 0;
+      for (const b of this.bridges) {
+        const dx = x - b.x, dz = z - b.z, c = Math.cos(b.angle), s = Math.sin(b.angle), along = dx * s + dz * c, across = dx * c - dz * s;
+        if (Math.abs(along) <= b.len / 2 && Math.abs(across) <= b.w / 2) h = Math.max(h, b.y);
+      }
+      return h;
+    };
+    this.onBridge = (x, z) => this.bridges.some(b => { const dx = x - b.x, dz = z - b.z, c = Math.cos(b.angle), s = Math.sin(b.angle); return Math.abs(dx * s + dz * c) <= b.len / 2 && Math.abs(dx * c - dz * s) <= b.w / 2; });
+
     this.time = 14; this.timeSpeed = 60; this.day = 1;
     this.light = lighting(this.time);
   }
+
   phase() {
     const t = this.time;
     if (t >= 5 && t < 7) return 'Dawn'; if (t >= 7 && t < 18) return 'Day';

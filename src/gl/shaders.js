@@ -28,10 +28,22 @@ uniform sampler2D uTex; uniform sampler2D uShadow;
 uniform vec3 uSunDir; uniform vec3 uSunCol; uniform vec3 uHemiSky; uniform vec3 uHemiGround;
 uniform vec3 uPointPos[4]; uniform vec3 uPointCol[4]; uniform float uPointDist[4];
 uniform float uShadowOn; uniform float uShadowBias; uniform float uUnlit; uniform float uCutout;
+// ground mode: albedo blended from tileable textures by a splat map in world space
+uniform int uMode; uniform sampler2D uSplat; uniform sampler2D uBase; uniform sampler2D uT0; uniform sampler2D uT1; uniform sampler2D uT2; uniform sampler2D uT3;
+uniform vec4 uTileInv; uniform float uBaseInv; uniform float uMapInv;
 out vec4 frag;
 void main() {
-  vec4 albedo = vColor * texture(uTex, vUv);
+  vec4 albedo;
+  if (uMode == 1) {
+    vec2 w = vWorld.xz;
+    vec4 s = texture(uSplat, w * uMapInv + 0.5);
+    float rest = max(0.0, 1.0 - (s.r + s.g + s.b + s.a));
+    vec3 c = texture(uBase, w * uBaseInv).rgb * rest + texture(uT0, w * uTileInv.x).rgb * s.r + texture(uT1, w * uTileInv.y).rgb * s.g
+           + texture(uT2, w * uTileInv.z).rgb * s.b + texture(uT3, w * uTileInv.w).rgb * s.a;
+    albedo = vec4(c * vColor.rgb, 1.0);
+  } else albedo = vColor * texture(uTex, vUv);
   if (uCutout > 0.5 && albedo.a < 0.5) discard;
+
   if (uUnlit > 0.5) { frag = albedo; return; }
   vec3 n = normalize(vN);
   float sh = 1.0;

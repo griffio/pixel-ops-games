@@ -10,9 +10,7 @@ export class Team {
     return [this.base.x, this.base.z];
   }
 }
-export function makeTeams(tickets) {
-  return [
-    new Team(0, 'BLUFOR', { x: -50, z: -58, r: 17 }, tickets, '#7fb2e5'),
-    new Team(1, 'OPFOR', { x: 54, z: 54, r: 17 }, tickets, '#e86a5a'),
-  ];
+export function makeTeams(tickets, bases) {
+  const b = bases || [{ team: 0, x: -50, z: -58, r: 17 }, { team: 1, x: 54, z: 54, r: 17 }];
+  return [new Team(0, 'BLUFOR', b[0], tickets, '#7fb2e5'), new Team(1, 'OPFOR', b[1], tickets, '#e86a5a')];
 }

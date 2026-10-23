@@ -24,7 +24,10 @@ export class Combat {
     return true;
   }
 
+  eyeY(u) { return u.pos.y + (u.type === 'soldier' ? 1.5 : u.type === 'apc' ? 3.6 : 1.8); }
   canSee(u, e) {
+    const T = this.world.terrain;
+    if (T && !T.los(u.pos.x, this.eyeY(u), u.pos.z, e.pos.x, e.pos.y + 1.2, e.pos.z)) return false;   // hills block
     if ((u.spec.air && u.alt > 2) || (e.spec.air && e.alt > 2)) return true;
     return this.los(u.pos.x, u.pos.z, e.pos.x, e.pos.z);
   }
@@ -66,19 +69,19 @@ export class Combat {
 
   fire(u, w, e) {
     u.cooldown = w.rate * (0.85 + Math.random() * 0.3);
-    const my = u.type === 'soldier' ? 1.5 : u.type === 'apc' ? 3.6 : u.pos.y + 1.8;
-    const ey = e.spec.air ? e.pos.y + 2 : (e.type === 'soldier' ? 1.1 : 2.2);
+    const my = this.eyeY(u);
+    const ey = e.pos.y + (e.spec.air ? 2 : e.type === 'soldier' ? 1.1 : 2.2);
     const d = Math.hypot(e.pos.x - u.pos.x, e.pos.z - u.pos.z);
     let chance = w.acc * (1 - 0.6 * d / w.range);
     if (u.speed > 0.5) chance *= 0.5;
     if (e.type !== 'soldier') chance *= 1.6;             // vehicles are big targets
     const hit = Math.random() < chance;
     const sx = e.pos.x + (hit ? 0 : (Math.random() - 0.5) * 4), sz = e.pos.z + (hit ? 0 : (Math.random() - 0.5) * 4);
-    this.dust.tracer(u.pos.x, my, u.pos.z, sx, hit ? ey : 0.1, sz);
+    this.dust.tracer(u.pos.x, my, u.pos.z, sx, hit ? ey : e.pos.y + 0.1, sz);
     if (hit) {
       const dmg = e.type === 'soldier' ? w.dmgInf : w.dmgVeh;
       this.dust.hitSpark(sx, ey, sz);
       if (e.damage(dmg, u)) { this.onDeath && this.onDeath(e, u); }
-    } else this.dust.impact(sx, 0.1, sz);
+    } else this.dust.impact(sx, e.pos.y + 0.1, sz);
   }
 }

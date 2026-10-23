@@ -150,7 +150,38 @@ Engine changes needed in the existing core:
 - Tuning note: with both sides CPU-controlled and fully committed, 400 tickets last
   about 17 minutes. A human commander fights more slowly; revisit after milestone 2.
 
+- **Milestone 2 — done (2026-10-23).** 1 km *Desert Crossing* map as data (bases,
+  five locations, road and tracks, props, splat-painted terrain). Engine scaling:
+  chunked static instance batches with per-chunk culling, shadow frustum fitted to
+  the view and snapped to shadow texels, splat-mapped tiled ground with road strips
+  and decals, strategic zoom below one pixel per texel, 1 m infantry and 2 m vehicle
+  navigation grids. Game: Advance and Secure with lattice capture, majority bleed,
+  location-loss tickets and capture-all victory; objectives bar, minimap with camera
+  jump, reinforcements panel; Strategist v1 (attack next capturable, hold the front
+  or threatened locations, APC escorts at autocannon range). WebGL2 is now the
+  default and only game renderer; three.js serves the legacy sandbox.
+- Scale decision: one unit is one metre; final maps target 2 km. The 1 km map exercises
+  every scaling path, so 2 km is content work.
+
+- **Terrain (2026-10-23).** Analytic heightfield (hills of 10–26 m plus rolling noise,
+  level pads under bases and locations) rendered as static 64 m chunk meshes in
+  ground mode. Units, props, lamps, roads and decals follow the height; the camera
+  picks on slopes; hills block line of sight in combat; slopes above 45% are
+  impassable for vehicles and above 90% for infantry; the minimap is hill-shaded.
+
+- **Choke points (2026-10-23).** Terrain rebuilt around ridge features: three 30 m
+  ridges with a single notch pass each separate Outpost/Airfield, Airfield/Village and
+  Depot/Relay; mesas up to 54 m; flank ridges by the bases. A river with 7 m channel
+  crosses between Village and Depot with one bridge (deck, railings, piers; walkable
+  via WorldState.heightAt) and one ford. Water and slopes above 45% are impassable
+  for vehicles (about 23% of the map), above 90% for infantry (12%). Verified by path
+  probes: every leg of the chain is reachable and vehicles route through the passes
+  and over the bridge; base-to-base is 1.2 km for vehicles.
+
 ## Open questions
+
+
+
 
 1. Match length target: 15 minutes (arcade) or 25 (methodical)? Affects ticket pools.
 2. Fog of war: none (Squad-style, everything visible) or squad-based vision?

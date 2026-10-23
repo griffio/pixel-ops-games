@@ -13,7 +13,7 @@ export function applyUrlParams({ rts, pixel, world }) {
   if (q.has('pitch')) rts.pitch = rts.pitchT = +q.get('pitch');
   if (q.has('hour')) { world.time = +q.get('hour'); world.update(0); }
   if (q.has('pixel')) pixel.enabled = q.get('pixel') !== '0';
-  if (q.has('tpu')) pixel.texelsPerUnit = +q.get('tpu');
+  if (q.has('tpu')) { pixel.texelsPerUnit = +q.get('tpu'); rts.baseTpu = +q.get('tpu'); }
   if (q.has('seed')) seedRng(+q.get('seed'));
 }
 
@@ -31,9 +31,12 @@ export function populate(app) {
     return;
   }
   // ?sandbox=1 keeps the free-roam airfield; otherwise a Skirmish match starts (cpu=both|none|1)
-  if (q.get('sandbox') !== '1') {
+  if (q.get('sandbox') !== '1' && !app.sandboxOnly) {
     const cpu = q.get('cpu') === 'both' ? [0, 1] : q.get('cpu') === 'none' ? [] : [1];
-    app.match = new Match(app, { cpu });
+    app.match = new Match(app, { cpu, mode: q.get('mode') || undefined });
+    // a match runs the clock at 24x: 25 minutes covers 10 game hours, from mid-morning into dusk
+    app.world.timeSpeed = 24; if (!q.has('hour')) { app.world.time = 9.5; app.world.update(0); }
+    document.getElementById('c-tspeed').value = 24; document.getElementById('v-tspeed').textContent = '24×';
     document.getElementById('c-auto').checked = false;
     if (!q.has('x')) rts.target.set(app.match.teams[0].base.x + 10, 0, app.match.teams[0].base.z + 10);
     return;

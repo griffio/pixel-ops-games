@@ -4,20 +4,20 @@ import * as S from './shaders.js';
 
 const STRIDE = 24;            // floats per instance: mat4 (16) + colour (4) + emissive rgb + pick id (4)
 const SHADOW_SIZE = 4096;
-const LIGHT_UP = new Vec3(0, 1, 0), ORIGIN = new Vec3();
+const LIGHT_UP = new Vec3(0, 1, 0);
 
-// Raw WebGL2 renderer. Every mesh in the scene graph is an instance of a shared
-// geometry; instances are grouped per (geometry, texture, flags) and drawn with
-// drawElementsInstanced, so a scene of thousands of boxes costs a few dozen calls.
-// Passes: shadow depth -> low-res lit colour+depth -> composite (nearest upscale,
-// outline, sRGB). Picking renders ids into a small buffer on demand.
+// Raw WebGL2 renderer. Every mesh is an instance of a shared geometry. Dynamic
+// meshes (units, markers) are collected from the scene graph each frame; static
+// props are baked once into per-chunk instance buffers and culled per chunk.
+// Passes: shadow depth (frustum fitted to the view) -> low-res lit colour+depth ->
+// composite (nearest upscale, outline, sRGB). Picking renders ids on demand.
 export class GLRenderer {
   constructor(canvas) {
     const gl = canvas.getContext('webgl2', { antialias: false, alpha: false, powerPreference: 'high-performance' });
     if (!gl) throw new Error('WebGL2 is not available in this browser');
     this.gl = gl; this.canvas = canvas;
     this.aniso = gl.getExtension('EXT_texture_filter_anisotropic');
-    this.shadows = true; this.stats = { calls: 0 };
+    this.shadows = true; this.stats = { calls: 0, chunks: 0 };
     this.pixel = {
       enabled: true, outline: true, texelsPerUnit: 10, pixelScale: 3, dpr: 1, rtW: 0, rtH: 0,
       bufferSize(w, h) {
@@ -27,6 +27,7 @@ export class GLRenderer {
       viewSize(w, h) { return [w / this.pixelScale / this.texelsPerUnit, h / this.pixelScale / this.texelsPerUnit]; },
     };
     this.geos = new Map(); this.batches = new Map(); this.textures = new Map();
+    this.chunkSize = 64; this.chunks = new Map(); this.ground = null;
     this.lightVP = Mat4.create(); this.lightView = Mat4.create(); this.lightProj = Mat4.create(); this.lightWorld = Mat4.create();
     this.progs = {
       main: this.program(S.MAIN_VS, S.MAIN_FS), shadow: this.program(S.SHADOW_VS, S.SHADOW_FS),
@@ -41,7 +42,6 @@ export class GLRenderer {
     [[0, 3], [1, 1], [2, 1], [3, 3], [4, 2]].forEach(([loc, n], i) => { gl.bindBuffer(gl.ARRAY_BUFFER, this.dustBufs[i]); gl.enableVertexAttribArray(loc); gl.vertexAttribPointer(loc, n, gl.FLOAT, false, 0, 0); });
     gl.bindVertexArray(null);
     gl.enable(gl.DEPTH_TEST); gl.enable(gl.CULL_FACE); gl.cullFace(gl.BACK);
-    Mat4.ortho(this.lightProj, -125, 125, 125, -125, 1, 400);
   }
 
   // ---- resources -------------------------------------------------------------
@@ -62,7 +62,7 @@ export class GLRenderer {
   texture(name, canvas, { nearest = false, repeat = false, mips = true, nearestMag = false } = {}) {
     const gl = this.gl, t = gl.createTexture();
     gl.bindTexture(gl.TEXTURE_2D, t);
-    gl.pixelStorei(gl.UNPACK_FLIP_Y_WEBGL, true);                       // same orientation as three.js canvas textures
+    gl.pixelStorei(gl.UNPACK_FLIP_Y_WEBGL, true);
     gl.texImage2D(gl.TEXTURE_2D, 0, gl.SRGB8_ALPHA8, gl.RGBA, gl.UNSIGNED_BYTE, canvas);
     gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, repeat ? gl.REPEAT : gl.CLAMP_TO_EDGE);
     gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, repeat ? gl.REPEAT : gl.CLAMP_TO_EDGE);
@@ -71,6 +71,8 @@ export class GLRenderer {
     if (mips && !nearest) { gl.generateMipmap(gl.TEXTURE_2D); if (this.aniso) gl.texParameterf(gl.TEXTURE_2D, this.aniso.TEXTURE_MAX_ANISOTROPY_EXT, 4); }
     this.textures.set(name, t); return t;
   }
+  // splat map: linear so terrain blends are soft while the tiles stay crisp
+  dataTexture(name, canvas) { return this.texture(name, canvas, { nearest: false, repeat: false, mips: false }); }
 
   depthTexture(w, h) {
     const gl = this.gl, t = gl.createTexture();
@@ -88,7 +90,6 @@ export class GLRenderer {
     gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE); gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
     return t;
   }
-
   buildShadowTarget() {
     const gl = this.gl;
     this.shadowTex = this.depthTexture(SHADOW_SIZE, SHADOW_SIZE);
@@ -127,22 +128,20 @@ export class GLRenderer {
     this.canvas.width = Math.round(W * this.pixel.dpr); this.canvas.height = Math.round(H * this.pixel.dpr);
   }
 
-  // ---- batching --------------------------------------------------------------
-  geometry(key) {
-    let g = this.geos.get(key); if (g) return g;
-    const gl = this.gl, src = buildGeometry(key);
-    g = { vbo: gl.createBuffer(), ebo: gl.createBuffer(), count: src.count };
+  // ---- geometry & batches ----------------------------------------------------
+  uploadGeometry(key, src) {
+    const gl = this.gl, g = { vbo: gl.createBuffer(), ebo: gl.createBuffer(), count: src.count };
     gl.bindBuffer(gl.ARRAY_BUFFER, g.vbo); gl.bufferData(gl.ARRAY_BUFFER, src.data, gl.STATIC_DRAW);
     gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, g.ebo); gl.bufferData(gl.ELEMENT_ARRAY_BUFFER, src.idx, gl.STATIC_DRAW);
     this.geos.set(key, g); return g;
   }
+  geometry(key) { return this.geos.get(key) || this.uploadGeometry(key, buildGeometry(key)); }
+  registerGeometry(key, src) { if (!this.geos.has(key)) this.uploadGeometry(key, src); return key; }
 
-  batch(mesh) {
-    const m = mesh.mat, key = `${mesh.geo}|${m.tex || ''}|${m.unlit ? 1 : 0}|${m.cast ? 1 : 0}|${m.cutout ? 1 : 0}`;
-    let b = this.batches.get(key); if (b) return b;
-    const gl = this.gl, geo = this.geometry(mesh.geo);
-    b = { key, geo, tex: m.tex, unlit: !!m.unlit, cast: !!m.cast, cutout: !!m.cutout, vao: gl.createVertexArray(), ibo: gl.createBuffer(), cap: 64, n: 0 };
-    b.data = new Float32Array(b.cap * STRIDE);
+  batchKey(geo, m) { return `${geo}|${m.tex || ''}|${m.unlit ? 1 : 0}|${m.cast ? 1 : 0}|${m.cutout ? 1 : 0}|${m.ground ? 1 : 0}`; }
+  makeBatch(geoKey, m, cap) {
+    const gl = this.gl, geo = this.geometry(geoKey);
+    const b = { geo, tex: m.tex, unlit: !!m.unlit, cast: !!m.cast, cutout: !!m.cutout, ground: !!m.ground, vao: gl.createVertexArray(), ibo: gl.createBuffer(), cap, n: 0, data: new Float32Array(cap * STRIDE) };
     gl.bindVertexArray(b.vao);
     gl.bindBuffer(gl.ARRAY_BUFFER, geo.vbo);
     [[0, 3, 0], [1, 3, 12], [2, 2, 24]].forEach(([loc, n, off]) => { gl.enableVertexAttribArray(loc); gl.vertexAttribPointer(loc, n, gl.FLOAT, false, 32, off); });
@@ -150,8 +149,39 @@ export class GLRenderer {
     for (let i = 0; i < 6; i++) { gl.enableVertexAttribArray(3 + i); gl.vertexAttribPointer(3 + i, 4, gl.FLOAT, false, STRIDE * 4, i * 16); gl.vertexAttribDivisor(3 + i, 1); }
     gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, geo.ebo);
     gl.bindVertexArray(null);
-    this.batches.set(key, b); return b;
+    return b;
   }
+  pushInstance(b, world, m, id) {
+    if (b.n === b.cap) { b.cap *= 2; const d = new Float32Array(b.cap * STRIDE); d.set(b.data); b.data = d; }
+    const o = b.n * STRIDE, d = b.data, ei = m.emissiveI === undefined ? 1 : m.emissiveI;
+    d.set(world, o);
+    d[o + 16] = m.color[0]; d[o + 17] = m.color[1]; d[o + 18] = m.color[2]; d[o + 19] = m.color[3] === undefined ? 1 : m.color[3];
+    d[o + 20] = m.emissive[0] * ei; d[o + 21] = m.emissive[1] * ei; d[o + 22] = m.emissive[2] * ei; d[o + 23] = id;
+    b.n++;
+  }
+
+  // static props: baked once into per-chunk batches, culled per chunk
+  addStatic(mesh) {
+    const p = mesh.position, cs = this.chunkSize;
+    const cx = Math.floor(p.x / cs), cz = Math.floor(p.z / cs), key = cx + ',' + cz;
+    let c = this.chunks.get(key);
+    if (!c) { c = { minX: cx * cs, maxX: (cx + 1) * cs, minZ: cz * cs, maxZ: (cz + 1) * cs, batches: new Map(), r: cs }; this.chunks.set(key, c); }
+    const bk = this.batchKey(mesh.geo, mesh.mat);
+    let b = c.batches.get(bk); if (!b) { b = this.makeBatch(mesh.geo, mesh.mat, 16); c.batches.set(bk, b); }
+    Mat4.fromTRS(mesh.world, mesh.position, mesh.rotation, mesh.scale);
+    this.pushInstance(b, mesh.world, mesh.mat, 0);
+    if (mesh.mat.ground) c.ground = true;
+  }
+  finalizeStatic() {
+    const gl = this.gl;
+    for (const c of this.chunks.values()) for (const b of c.batches.values()) { gl.bindBuffer(gl.ARRAY_BUFFER, b.ibo); gl.bufferData(gl.ARRAY_BUFFER, b.data.subarray(0, b.n * STRIDE), gl.STATIC_DRAW); }
+  }
+  clearStatic() {
+    const gl = this.gl;
+    for (const c of this.chunks.values()) for (const b of c.batches.values()) { gl.deleteVertexArray(b.vao); gl.deleteBuffer(b.ibo); }
+    this.chunks.clear();
+  }
+  setGround(g) { this.ground = g; }   // { splat, base, tiles:[4 names], tileSize:[4], baseSize, mapSize }
 
   collect(scene) {
     for (const b of this.batches.values()) b.n = 0;
@@ -161,13 +191,9 @@ export class GLRenderer {
       parentWorld ? Mat4.multiply(node.world, parentWorld, node.local) : node.world.set(node.local);
       const id = node.pickId !== undefined ? node.pickId : pid;
       if (node.geo) {
-        const b = this.batch(node);
-        if (b.n === b.cap) { b.cap *= 2; const d = new Float32Array(b.cap * STRIDE); d.set(b.data); b.data = d; }
-        const o = b.n * STRIDE, d = b.data, m = node.mat, ei = m.emissiveI === undefined ? 1 : m.emissiveI;
-        d.set(node.world, o);
-        d[o + 16] = m.color[0]; d[o + 17] = m.color[1]; d[o + 18] = m.color[2]; d[o + 19] = m.color[3] === undefined ? 1 : m.color[3];
-        d[o + 20] = m.emissive[0] * ei; d[o + 21] = m.emissive[1] * ei; d[o + 22] = m.emissive[2] * ei; d[o + 23] = id;
-        b.n++;
+        const bk = this.batchKey(node.geo, node.mat);
+        let b = this.batches.get(bk); if (!b) { b = this.makeBatch(node.geo, node.mat, 64); this.batches.set(bk, b); }
+        this.pushInstance(b, node.world, node.mat, id);
       }
       for (const c of node.children) visit(c, node.world, id);
     };
@@ -176,21 +202,48 @@ export class GLRenderer {
     for (const b of this.batches.values()) if (b.n) { gl.bindBuffer(gl.ARRAY_BUFFER, b.ibo); gl.bufferData(gl.ARRAY_BUFFER, b.data.subarray(0, b.n * STRIDE), gl.DYNAMIC_DRAW); }
   }
 
+  // ground-plane bounding box of the camera view, for chunk culling and the shadow fit
+  viewBox(cam) {
+    let minX = Infinity, maxX = -Infinity, minZ = Infinity, maxZ = -Infinity;
+    for (const [sx, sy] of [[0, 0], [1, 0], [1, 1], [0, 1]]) { const p = cam.screenToGround(sx, sy); minX = Math.min(minX, p.x); maxX = Math.max(maxX, p.x); minZ = Math.min(minZ, p.z); maxZ = Math.max(maxZ, p.z); }
+    return { minX, maxX, minZ, maxZ };
+  }
+  visibleChunks(box, margin) {
+    const out = [];
+    for (const c of this.chunks.values()) if (c.maxX + margin > box.minX && c.minX - margin < box.maxX && c.maxZ + margin > box.minZ && c.minZ - margin < box.maxZ) out.push(c);
+    return out;
+  }
+
   drawBatch(b) {
     const gl = this.gl;
     gl.bindVertexArray(b.vao);
     gl.drawElementsInstanced(gl.TRIANGLES, b.geo.count, gl.UNSIGNED_SHORT, 0, b.n);
     this.stats.calls++;
   }
+  *eachBatch(chunks) {
+    for (const c of chunks) for (const b of c.batches.values()) if (b.n) yield b;
+    for (const b of this.batches.values()) if (b.n) yield b;
+  }
 
   // ---- frame -----------------------------------------------------------------
   render(scene, cam, L, dust, W, H) {
     const gl = this.gl, P = this.progs; this.stats.calls = 0;
     this.collect(scene);
+    const box = this.viewBox(cam);
+    const mainChunks = this.visibleChunks(box, 40), shadowChunks = this.visibleChunks(box, 90);   // margins allow for hills and long shadows
+    this.stats.chunks = mainChunks.length;
 
-    // light matrices (orthographic shadow camera looking at the world origin)
-    const eye = new Vec3(L.sunDir[0] * 200, L.sunDir[1] * 200, L.sunDir[2] * 200);
-    Mat4.cameraWorld(this.lightWorld, eye, ORIGIN, LIGHT_UP); Mat4.invert(this.lightView, this.lightWorld);
+    // light frustum fitted to the visible ground, snapped to shadow texels so edges don't crawl
+    const cx = (box.minX + box.maxX) / 2, cz = (box.minZ + box.maxZ) / 2;
+    const R = Math.hypot(box.maxX - box.minX, box.maxZ - box.minZ) / 2 + 45;
+    const target = new Vec3(cx, 0, cz), eye = new Vec3(cx + L.sunDir[0] * 400, L.sunDir[1] * 400, cz + L.sunDir[2] * 400);
+    Mat4.cameraWorld(this.lightWorld, eye, target, LIGHT_UP);
+    const right = Mat4.column(this.lightWorld, 0), up = Mat4.column(this.lightWorld, 1), texel = 2 * R / SHADOW_SIZE;
+    const ox = eye.dot(right), oy = eye.dot(up);
+    eye.addScaledVector(right, Math.round(ox / texel) * texel - ox).addScaledVector(up, Math.round(oy / texel) * texel - oy);
+    this.lightWorld[12] = eye.x; this.lightWorld[13] = eye.y; this.lightWorld[14] = eye.z;
+    Mat4.invert(this.lightView, this.lightWorld);
+    Mat4.ortho(this.lightProj, -R, R, R, -R, 1, 800);
     Mat4.multiply(this.lightVP, this.lightProj, this.lightView);
 
     // 1. shadow depth
@@ -198,7 +251,7 @@ export class GLRenderer {
       gl.bindFramebuffer(gl.FRAMEBUFFER, this.shadowFb); gl.viewport(0, 0, SHADOW_SIZE, SHADOW_SIZE);
       gl.clear(gl.DEPTH_BUFFER_BIT);
       gl.useProgram(P.shadow.p); gl.uniformMatrix4fv(P.shadow.u.uLightVP, false, this.lightVP); gl.uniform1i(P.shadow.u.uTex, 0); gl.activeTexture(gl.TEXTURE0);
-      for (const b of this.batches.values()) if (b.n && b.cast) {
+      for (const b of this.eachBatch(shadowChunks)) if (b.cast) {
         gl.uniform1f(P.shadow.u.uCutout, b.cutout ? 1 : 0); if (b.cutout) gl.bindTexture(gl.TEXTURE_2D, this.textures.get(b.tex));
         this.drawBatch(b);
       }
@@ -220,13 +273,23 @@ export class GLRenderer {
     gl.uniform3fv(u.uPointPos, pp); gl.uniform3fv(u.uPointCol, pc); gl.uniform1fv(u.uPointDist, pd);
     gl.uniform1i(u.uTex, 0); gl.uniform1i(u.uShadow, 1);
     gl.activeTexture(gl.TEXTURE1); gl.bindTexture(gl.TEXTURE_2D, this.shadowTex);
+    if (this.ground) {
+      const g = this.ground, units = [2, 3, 4, 5, 6, 7], names = [g.splat, g.base, ...g.tiles];
+      names.forEach((n, i) => { gl.activeTexture(gl.TEXTURE0 + units[i]); gl.bindTexture(gl.TEXTURE_2D, this.textures.get(n)); });
+      gl.uniform1i(u.uSplat, 2); gl.uniform1i(u.uBase, 3); gl.uniform1i(u.uT0, 4); gl.uniform1i(u.uT1, 5); gl.uniform1i(u.uT2, 6); gl.uniform1i(u.uT3, 7);
+      gl.uniform4f(u.uTileInv, 1 / g.tileSize[0], 1 / g.tileSize[1], 1 / g.tileSize[2], 1 / g.tileSize[3]);
+      gl.uniform1f(u.uBaseInv, 1 / g.baseSize); gl.uniform1f(u.uMapInv, 1 / g.mapSize);
+    }
     gl.activeTexture(gl.TEXTURE0);
     gl.uniform1f(u.uUnlit, 0); gl.depthMask(true); gl.disable(gl.BLEND);
-    for (const b of this.batches.values()) if (b.n && !b.unlit) { gl.uniform1f(u.uCutout, b.cutout ? 1 : 0); gl.bindTexture(gl.TEXTURE_2D, b.tex ? this.textures.get(b.tex) : this.white); this.drawBatch(b); }
-    gl.uniform1f(u.uUnlit, 1); gl.uniform1f(u.uCutout, 0); gl.depthMask(false); gl.enable(gl.BLEND); gl.blendFunc(gl.SRC_ALPHA, gl.ONE_MINUS_SRC_ALPHA); gl.disable(gl.CULL_FACE);
-    for (const b of this.batches.values()) if (b.n && b.unlit) { gl.bindTexture(gl.TEXTURE_2D, b.tex ? this.textures.get(b.tex) : this.white); this.drawBatch(b); }
+    for (const b of this.eachBatch(mainChunks)) if (!b.unlit) {
+      gl.uniform1i(u.uMode, b.ground ? 1 : 0); gl.uniform1f(u.uCutout, b.cutout ? 1 : 0);
+      gl.bindTexture(gl.TEXTURE_2D, b.tex ? this.textures.get(b.tex) : this.white); this.drawBatch(b);
+    }
+    gl.uniform1i(u.uMode, 0); gl.uniform1f(u.uUnlit, 1); gl.uniform1f(u.uCutout, 0); gl.depthMask(false); gl.enable(gl.BLEND); gl.blendFunc(gl.SRC_ALPHA, gl.ONE_MINUS_SRC_ALPHA); gl.disable(gl.CULL_FACE);
+    for (const b of this.eachBatch(mainChunks)) if (b.unlit) { gl.bindTexture(gl.TEXTURE_2D, b.tex ? this.textures.get(b.tex) : this.white); this.drawBatch(b); }
 
-    // 3. dust (one draw call)
+    // 3. particles (one draw call)
     if (dust && dust.n) {
       const d = P.dust; gl.useProgram(d.p);
       gl.uniformMatrix4fv(d.u.uViewProj, false, cam.viewProj);
@@ -245,13 +308,13 @@ export class GLRenderer {
     gl.activeTexture(gl.TEXTURE1); gl.bindTexture(gl.TEXTURE_2D, this.main.depth);
     gl.uniform1i(c.u.tColor, 0); gl.uniform1i(c.u.tDepth, 1);
     gl.uniform2f(c.u.texel, 1 / bw, 1 / bh); gl.uniform1f(c.u.outline, this.pixel.outline ? 1 : 0);
-    gl.uniform1f(c.u.depthThresh, 0.9 / (cam.far - cam.near));   // silhouettes only
+    gl.uniform1f(c.u.depthThresh, 0.9 / (cam.far - cam.near));
     gl.bindVertexArray(this.emptyVao); gl.drawArrays(gl.TRIANGLES, 0, 3); this.stats.calls++;
     gl.enable(gl.DEPTH_TEST); gl.activeTexture(gl.TEXTURE0);
     this.lastViewProj = cam.viewProj;
   }
 
-  // Renders instance ids into a small buffer and reads the pixel under the cursor.
+  // Renders dynamic instance ids into a small buffer and reads the pixel under the cursor.
   pick(nx, ny) {
     if (!this.main || !this.lastViewProj) return 0;
     const gl = this.gl, w = this.main.w, h = this.main.h, savedCalls = this.stats.calls; this.ensurePickTarget(w, h);
@@ -261,7 +324,7 @@ export class GLRenderer {
     for (const b of this.batches.values()) if (b.n && !b.unlit) this.drawBatch(b);
     const px = new Uint8Array(4);
     gl.readPixels(Math.min(w - 1, Math.floor(nx * w)), Math.min(h - 1, Math.floor((1 - ny) * h)), 1, 1, gl.RGBA, gl.UNSIGNED_BYTE, px);
-    gl.bindFramebuffer(gl.FRAMEBUFFER, null); this.stats.calls = savedCalls;   // picks are not part of the frame cost
+    gl.bindFramebuffer(gl.FRAMEBUFFER, null); this.stats.calls = savedCalls;
     return px[0] + px[1] * 256 + px[2] * 65536;
   }
 }

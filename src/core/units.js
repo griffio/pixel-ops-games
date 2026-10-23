@@ -1,5 +1,4 @@
 import { Vec3, lerp, clamp, wrapAngle as wrap, rng } from './math.js';
-import { HALF } from './layout.js';
 
 const rnd = (a, b) => a + rng() * (b - a);
 
@@ -36,8 +35,8 @@ export class Unit {
   order(x, z) {
     if (this.dead) return;
     this.dest = new Vec3(x, 0, z); this.idle = 0; this.hold = false;
-    const nav = this.mgr && this.mgr.nav;
-    this.path = (nav && this.spec.nav) ? nav.findPath(this.spec.nav, this.pos.x, this.pos.z, x, z) : null;
+    const nav = this.mgr && this.mgr.nav && this.spec.nav ? this.mgr.nav[this.spec.nav] : null;
+    this.path = nav ? nav.findPath(this.pos.x, this.pos.z, x, z) : null;
     const first = this.path && this.path.length ? this.path[0] : [x, z];
     this.target = new Vec3(first[0], 0, first[1]);
     if (this.spec.air && (this.state === 'parked' || this.state === 'spooldown')) this.state = 'spool';
@@ -63,7 +62,7 @@ export class Unit {
   becomeWreck() {
     this.wreck = true; this.wreckT = 0;
     if (this.mgr) { this.mgr.recolor(this.group, 'wreck'); if (this.mgr.dust) this.mgr.dust.explosion(this.pos.x, 0, this.pos.z, this.type === 'apc' ? 1.5 : 1); }
-    if (this.spec.air) { this.parts.blades.visible = true; this.parts.disc.visible = false; this.alt = 0; this.pos.y = 0; this.parts.body.rotation.x = 0; this.parts.body.rotation.z = 0.35; }
+    if (this.spec.air) { this.parts.blades.visible = true; this.parts.disc.visible = false; this.alt = 0; this.pos.y = this.mgr ? this.mgr.world.heightAt(this.pos.x, this.pos.z) : 0; this.parts.body.rotation.x = 0; this.parts.body.rotation.z = 0.35; }
   }
   // revive at a position (infantry respawn reuses the object so squads keep their members)
   revive(x, z, heading) {
@@ -75,7 +74,7 @@ export class Unit {
     this.deathT += dt;
     const p = this.parts;
     if (this.spec.air && this.state === 'crash') {           // falling out of the sky
-      this.alt = Math.max(0, this.alt - 9 * dt); this.pos.y = this.alt; this.heading += 2.5 * dt; this.group.rotation.y = this.heading;
+      this.alt = Math.max(0, this.alt - 9 * dt); this.pos.y = this.mgr.world.heightAt(this.pos.x, this.pos.z) + this.alt; this.heading += 2.5 * dt; this.group.rotation.y = this.heading;
       p.body.rotation.z = lerp(p.body.rotation.z, 0.6, 1 - Math.pow(0.1, dt)); p.rotor.rotation.y += 10 * dt;
       const step = this.speed * dt; this.pos.x += Math.sin(this.heading) * step; this.pos.z += Math.cos(this.heading) * step;
       if (this.alt <= 0) { this.state = 'wrecked'; this.becomeWreck(); }
@@ -123,7 +122,8 @@ export class Unit {
       else { nx = this.pos.x; nz = this.pos.z; this.heading += (this.id % 2 ? 1 : -1) * 2.5 * dt; this.speed *= 0.5; }
     }
     this.dist += Math.hypot(nx - this.pos.x, nz - this.pos.z);
-    this.pos.x = clamp(nx, -HALF + 2, HALF - 2); this.pos.z = clamp(nz, -HALF + 2, HALF - 2);
+    const H = this.mgr.world.half; this.pos.x = clamp(nx, -H + 2, H - 2); this.pos.z = clamp(nz, -H + 2, H - 2);
+    this.pos.y = this.mgr.world.heightAt(this.pos.x, this.pos.z);
     this.group.rotation.y = this.heading;
     this.animate(dt);
   }
@@ -192,9 +192,9 @@ export class Unit {
     const blur = this.rotor > 0.8; p.blades.visible = !blur; p.disc.visible = blur;
     p.beacon.visible = (performance.now() * 0.002 + this.id) % 2 < 0.25;
     const step = this.speed * dt;
-    this.pos.x = clamp(this.pos.x + Math.sin(this.heading) * step, -HALF + 4, HALF - 4);
-    this.pos.z = clamp(this.pos.z + Math.cos(this.heading) * step, -HALF + 4, HALF - 4);
-    this.pos.y = this.alt;
+    const H = this.mgr.world.half; this.pos.x = clamp(this.pos.x + Math.sin(this.heading) * step, -H + 4, H - 4);
+    this.pos.z = clamp(this.pos.z + Math.cos(this.heading) * step, -H + 4, H - 4);
+    this.pos.y = this.mgr.world.heightAt(this.pos.x, this.pos.z) + this.alt;
     this.group.rotation.y = this.heading;
     this.tilt = lerp(this.tilt, this.speed / s.speed * 0.22, 1 - Math.pow(0.02, dt));
     p.body.rotation.x = this.tilt; p.body.rotation.z = this.bank;
@@ -235,10 +235,10 @@ export class UnitManager {
   recolor(group, mat) { this.recolorFn(group, mat); }
   byPickId(id) { return this.units.find(u => u.pickId === id) || null; }
 
-  freePoint(pad = 3, tries = 40, cx = 0, cz = 0, r = HALF - 8) {
+  freePoint(pad = 3, tries = 40, cx = 0, cz = 0, r = this.world.half - 8) {
     for (let i = 0; i < tries; i++) {
       const x = cx + rnd(-r, r), z = cz + rnd(-r, r);
-      if (Math.abs(x) > HALF - 6 || Math.abs(z) > HALF - 6) continue;
+      if (Math.abs(x) > this.world.half - 6 || Math.abs(z) > this.world.half - 6) continue;
       if (!this.world.isBlocked(x, z, pad)) return [x, z];
     }
     return [cx, cz];

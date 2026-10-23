@@ -26,7 +26,7 @@ const expr = `(async () => {
   const alive = (team, type) => a.units.units.filter(u => u.team === team && u.type === type && !u.dead).length;
   return JSON.stringify({ renderer: a.rendererName, state: m.state, time: Math.round(m.time), tickets: [Math.round(t[0].tickets), Math.round(t[1].tickets)], kills: [t[0].kills, t[1].kills], losses: [t[0].losses, t[1].losses],
     alive: { blu: [alive(0, "soldier"), alive(0, "truck"), alive(0, "apc"), alive(0, "heli")], op: [alive(1, "soldier"), alive(1, "truck"), alive(1, "apc"), alive(1, "heli")] },
-    units: a.units.units.length, wrecks: a.units.units.filter(u => u.wreck).length, particles: a.dust.n, drawCalls: a.drawCalls(), feed: m.feed.slice(0, 3).map(f => (f.k ? f.k.label : "?") + ">" + f.v.label) });
+    objectives: m.objectives ? m.objectives.list.map(l => l.name + ":" + (l.owner === -1 ? "n" : l.owner) + ":" + Math.round(l.progress)) : null, units: a.units.units.length, wrecks: a.units.units.filter(u => u.wreck).length, particles: a.dust.n, drawCalls: a.drawCalls(), feed: m.feed.slice(0, 3).map(f => (f.k ? f.k.label : "?") + ">" + f.v.label) });
 })()`;
 const res = await send('Runtime.evaluate', { expression: expr, awaitPromise: true, returnByValue: true });
 console.log(res.result?.result?.value ?? JSON.stringify(res));

@@ -41,7 +41,7 @@ function syncCamera() {
 const ray = new THREE.Raycaster();
 const app = {
   canvas, pixel, rts, world, units, dust, markers,
-  rendererName: 'three.js', otherRenderer: { name: 'WebGL2', param: 'gl' },
+  rendererName: 'three.js', otherRenderer: { name: 'WebGL2', param: '' }, sandboxOnly: true,   // legacy back end: airfield sandbox only
   drawCalls: () => renderer.info.render.calls,
   setShadows: (on) => { renderer.shadowMap.enabled = on; scene.traverse(o => { if (o.material) o.material.needsUpdate = true; }); },
   pick(nx, ny) {

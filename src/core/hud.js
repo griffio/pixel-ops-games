@@ -29,7 +29,7 @@ export class Hud {
       this.toast(k === 'clear' ? 'Cleared' : `Spawned ${k}`);
     });
     const link = (id, vid, fn, fmt = (v) => v) => { const el = $(id); const upd = () => { $(vid).textContent = fmt(+el.value); fn(+el.value); }; el.addEventListener('input', upd); upd(); };
-    link('c-tpu', 'v-tpu', v => { a.pixel.texelsPerUnit = v; });
+    link('c-tpu', 'v-tpu', v => { a.rts.baseTpu = v; });
     link('c-tspeed', 'v-tspeed', v => { a.world.timeSpeed = v; }, v => v + '×');
     link('c-hour', 'v-hour', v => { if (this.draggingHour) a.world.time = v % 24; }, v => fmtTime(v));
     $('c-hour').addEventListener('pointerdown', () => this.draggingHour = true);
@@ -44,20 +44,100 @@ export class Hud {
     $('s-renderer').textContent = a.rendererName;
     const sw = $('r-switch'); sw.textContent = `switch to ${a.otherRenderer.name}`;
     const q = new URLSearchParams(location.search); a.otherRenderer.param ? q.set('r', a.otherRenderer.param) : q.delete('r');
+    if (a.otherRenderer.param === 'three') q.set('sandbox', '1');
     sw.href = '?' + q.toString();
     // sync panel with URL-provided state
-    $('c-tpu').value = a.pixel.texelsPerUnit; $('v-tpu').textContent = a.pixel.texelsPerUnit;
+    $('c-tpu').value = a.rts.baseTpu; $('v-tpu').textContent = a.rts.baseTpu;
     $('c-pixel').checked = a.pixel.enabled;
+    if (!a.world.map) { $('minimap').style.display = 'none'; $('objs').style.display = 'none'; $('reinf-h').style.display = 'none'; $('reinf').style.display = 'none'; }
   }
 
   updateMatch(m) {
     const [t0, t1] = m.teams;
     $('m-t0').textContent = Math.max(0, Math.round(t0.tickets)); $('m-t1').textContent = Math.max(0, Math.round(t1.tickets));
     const s = Math.max(0, Math.ceil(m.time)); $('m-time').textContent = `${Math.floor(s / 60)}:${String(s % 60).padStart(2, '0')}`;
+    if (!this.modeShown) { this.modeShown = true; document.querySelector('#match .small').textContent = m.mode === 'aas' ? 'Advance & Secure' : 'Skirmish'; }
     const feed = $('feed'), lines = m.feed.filter(f => f.t < 8);
     if (lines.length !== feed.childElementCount || (lines[0] && feed.firstChild && feed.firstChild.dataset.k !== lines[0].v.pickId + '')) {
       feed.innerHTML = lines.map(f => `<div data-k="${f.v.pickId}"><b class="t${f.k ? f.k.team : 0}">${f.k ? f.k.label : '?'}</b> &rsaquo; <b class="t${f.v.team}">${f.v.label}</b> ${f.v.type}</div>`).join('');
     }
+    // objectives bar
+    const objs = $('objs');
+    if (m.objectives) {
+      if (objs.childElementCount !== m.objectives.list.length) objs.innerHTML = m.objectives.list.map(l => `<div class="obj"><b>${l.name}</b><span></span><i></i></div>`).join('');
+      m.objectives.list.forEach((l, i) => {
+        const el = objs.children[i], p = l.progress;
+        el.className = 'obj' + (l.owner === 0 ? ' t0' : l.owner === 1 ? ' t1' : '');
+        el.children[1].textContent = l.owner === 0 ? 'BLUFOR' : l.owner === 1 ? 'OPFOR' : (p > 0 ? 'capturing' : p < 0 ? 'capturing' : 'neutral');
+        const bar = el.children[2]; bar.style.width = Math.abs(p) + '%'; bar.className = p < 0 ? 't1' : '';
+      });
+    }
+    // reinforcements for the player's team
+    const me = this.app.playerTeam ?? 0, q = m.respawn.queue.filter(x => x.unit.team === me).sort((a, b) => a.t - b.t).slice(0, 6);
+    $('reinf').innerHTML = q.length ? q.map(x => `<div><b>${x.unit.label}</b> ${x.unit.type} ${Math.ceil(x.t)}s</div>`).join('') : '<div>all units deployed</div>';
+    this.drawMinimap(m);
+  }
+
+  // ---- minimap: cached terrain, then zones, units and the camera footprint
+  minimapBackground(map) {
+    const S = 220, bg = document.createElement('canvas'); bg.width = bg.height = S; const g = bg.getContext('2d');
+    const splat = document.createElement('canvas'); splat.width = splat.height = S; map.paintSplat(splat.getContext('2d'), S, map.size / 2);
+    const sp = splat.getContext('2d').getImageData(0, 0, S, S).data, out = g.createImageData(S, S), o = out.data;
+    const sand = [196, 176, 136], tiles = [[182, 176, 164], [91, 91, 93], [138, 138, 88], [163, 142, 102]];
+    for (let i = 0; i < S * S; i++) {
+      const w = [sp[i * 4] / 255, sp[i * 4 + 1] / 255, sp[i * 4 + 2] / 255, sp[i * 4 + 3] / 255], rest = Math.max(0, 1 - w[0] - w[1] - w[2] - w[3]);
+      for (let c = 0; c < 3; c++) o[i * 4 + c] = sand[c] * rest + tiles[0][c] * w[0] + tiles[1][c] * w[1] + tiles[2][c] * w[2] + tiles[3][c] * w[3];
+      o[i * 4 + 3] = 255;
+    }
+    g.putImageData(out, 0, 0);
+    // hillshade from the terrain
+    const T = this.app.world.terrain;
+    if (T) {
+      const img = g.getImageData(0, 0, S, S), d = img.data;
+      for (let py = 0; py < S; py++) for (let px = 0; px < S; px++) {
+        const x = px / S * map.size - map.size / 2, z = map.size / 2 - py / S * map.size, nn = T.normal(x, z), i = (py * S + px) * 4;
+        if (T.height(x, z) < T.water) { d[i] = 52; d[i + 1] = 92; d[i + 2] = 112; continue; }
+        const shade = 0.72 + 0.55 * Math.max(0, nn[0] * -0.5 + nn[1] * 0.75 + nn[2] * 0.45);
+        d[i] = Math.min(255, d[i] * shade); d[i + 1] = Math.min(255, d[i + 1] * shade); d[i + 2] = Math.min(255, d[i + 2] * shade);
+      }
+      g.putImageData(img, 0, 0);
+    }
+
+    const k = S / map.size, X = (x) => (x + map.size / 2) * k, Z = (z) => (map.size / 2 - z) * k;
+    const line = (pts, w, col) => { g.strokeStyle = col; g.lineWidth = w; g.lineJoin = 'round'; g.beginPath(); g.moveTo(X(pts[0][0]), Z(pts[0][1])); for (const p of pts.slice(1)) g.lineTo(X(p[0]), Z(p[1])); g.stroke(); };
+    for (const t of map.tracks || []) line(t, 1.5, '#8a7450');
+    if (map.roadPath) line(map.roadPath, 2.5, '#4a4a4c');
+    this.mmX = X; this.mmZ = Z; this.mmK = k;
+    return bg;
+  }
+  drawMinimap(m) {
+    const a = this.app, map = a.world.map; if (!map) return;
+    const cv = $('minimap'), g = cv.getContext('2d');
+    if (!this.mmBg) {
+      this.mmBg = this.minimapBackground(map);
+      const toWorld = (e) => { const r = cv.getBoundingClientRect(); return [(e.clientX - r.left) / r.width * map.size - map.size / 2, map.size / 2 - (e.clientY - r.top) / r.height * map.size]; };
+      let down = false;
+      cv.addEventListener('pointerdown', e => { down = true; const [x, z] = toWorld(e); a.rts.target.set(x, 0, z); a.rts.follow = null; e.preventDefault(); });
+      window.addEventListener('pointermove', e => { if (down) { const [x, z] = toWorld(e); a.rts.target.set(x, 0, z); } });
+      window.addEventListener('pointerup', () => down = false);
+    }
+    g.drawImage(this.mmBg, 0, 0);
+    const X = this.mmX, Z = this.mmZ, k = this.mmK, me = a.playerTeam ?? 0;
+    for (const b of m.teams) { g.strokeStyle = b.id === 0 ? '#7fb2e5' : '#e86a5a'; g.lineWidth = 1; g.beginPath(); g.arc(X(b.base.x), Z(b.base.z), b.base.r * k, 0, Math.PI * 2); g.stroke(); }
+    if (m.objectives) for (const l of m.objectives.list) {
+      g.fillStyle = l.owner === 0 ? 'rgba(127,178,229,0.35)' : l.owner === 1 ? 'rgba(232,106,90,0.35)' : 'rgba(255,255,255,0.15)';
+      g.beginPath(); g.arc(X(l.x), Z(l.z), l.r * k, 0, Math.PI * 2); g.fill();
+      if (l.owner === -1 && l.progress) { g.strokeStyle = l.progress > 0 ? '#7fb2e5' : '#e86a5a'; g.lineWidth = 2; g.beginPath(); g.arc(X(l.x), Z(l.z), l.r * k, -Math.PI / 2, -Math.PI / 2 + Math.PI * 2 * Math.abs(l.progress) / 100); g.stroke(); }
+    }
+    for (const u of a.units.units) {
+      if (u.dead) continue;
+      g.fillStyle = u.team === me ? '#9fd0ff' : '#ff8a7a';
+      const s = u.type === 'soldier' ? 2 : 3; g.fillRect(X(u.pos.x) - s / 2, Z(u.pos.z) - s / 2, s, s);
+    }
+    // camera footprint
+    g.strokeStyle = 'rgba(242,193,78,0.9)'; g.lineWidth = 1; g.beginPath();
+    [[0, 0], [1, 0], [1, 1], [0, 1]].forEach(([sx, sy], i) => { const p = a.rts.screenToGround(sx, sy); i ? g.lineTo(X(p.x), Z(p.z)) : g.moveTo(X(p.x), Z(p.z)); });
+    g.closePath(); g.stroke();
   }
   showEnd(m) {
     const me = this.app.playerTeam ?? 0;
@@ -84,6 +164,7 @@ export class Hud {
   update(dt, w, h) {
     const a = this.app;
     if (a.match) this.updateMatch(a.match);
+    else if (!this.mmHidden) { this.mmHidden = true; $('minimap').style.display = 'none'; $('objs').style.display = 'none'; }
 
     this.fpsAcc += dt; this.fpsN++; if (this.fpsAcc > 0.5) { this.fps = Math.round(this.fpsN / this.fpsAcc); this.fpsAcc = 0; this.fpsN = 0; }
     $('s-fps').textContent = this.fps; $('s-units').textContent = a.units.units.length;
