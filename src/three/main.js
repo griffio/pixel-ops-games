@@ -1,7 +1,7 @@
 import * as THREE from 'three';
 import { PixelRenderer } from './pixelRenderer.js';
 import { World } from './world.js';
-import { builders } from './models.js';
+import { builders, F } from './models.js';
 import { DustView } from './dustView.js';
 import { Markers } from './markers.js';
 import { RtsCamera } from '../core/camera.js';
@@ -25,7 +25,7 @@ const scene = new THREE.Scene();
 const pixel = new PixelRenderer(renderer);
 const rts = new RtsCamera(pixel, HALF - 10);
 const world = new World(scene);
-const units = new UnitManager(scene, world, builders);
+const units = new UnitManager(scene, world, builders, F.recolor);
 const dust = new DustSim(); units.dust = dust;
 const dustView = new DustView(scene, dust, pixel);
 const markers = new Markers(scene);

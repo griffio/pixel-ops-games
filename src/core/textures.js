@@ -28,8 +28,33 @@ export const CAMO = {
   vest: { colors: ['#6e664c', '#5f5842', '#7a7256'], seed: 13, blotch: [2, 4], count: 30, specks: 60, noise: 0.1 },
   desert: { colors: ['#b8a071', '#a38a5d', '#cbb485', '#8f7a52', '#d5c296'], seed: 5, blotch: [4, 10], count: 36, specks: 60, noise: 0.08 },
   desert2: { colors: ['#a89265', '#947f55', '#bda77a', '#7f6b48'], seed: 9, blotch: [4, 10], count: 36, specks: 60, noise: 0.08 },
-  heli: { colors: ['#4f5650', '#454c47', '#5a615a', '#3e4541'], seed: 21, blotch: [4, 12], count: 30, specks: 40, noise: 0.06 },
+  heli: { colors: ['#8d9093', '#7d8084', '#9a9da0', '#6f7275', '#858889'], seed: 23, blotch: [4, 12], count: 28, specks: 40, noise: 0.05 },
+  trunk: { colors: ['#7a6a4a', '#6a5a3c', '#8a7a58', '#5e5034'], seed: 31, blotch: [1, 3], count: 60, specks: 40, noise: 0.1 },
+  frond: { colors: ['#6f8c3a', '#5f7a30', '#86a347', '#4e6626'], seed: 33, blotch: [1, 3], count: 60, specks: 60, noise: 0.12 },
+  bush: { colors: ['#5f7a35', '#4f6a2b', '#729044', '#3e5520'], seed: 35, blotch: [2, 4], count: 50, specks: 60, noise: 0.12 },
+  // OPFOR recolours: olive uniforms, woodland vehicles, dark green helicopters
+  uniformB: { colors: ['#7f8a5a', '#6a7549', '#8f9a68', '#56603a', '#76804f'], seed: 51, blotch: [2, 5], count: 22, specks: 50, noise: 0.1 },
+  vestB: { colors: ['#4e5538', '#434930', '#5a6142'], seed: 53, blotch: [2, 4], count: 30, specks: 60, noise: 0.1 },
+  desertB: { colors: ['#6e7a4a', '#5a4a36', '#7f8c58', '#4d5a35', '#8a7a52'], seed: 55, blotch: [4, 10], count: 36, specks: 60, noise: 0.08 },
+  desert2B: { colors: ['#637046', '#524532', '#75825a', '#45523a'], seed: 57, blotch: [4, 10], count: 36, specks: 60, noise: 0.08 },
+  heliB: { colors: ['#4e5a4c', '#44503f', '#5b675a', '#3a453a', '#505c4e'], seed: 59, blotch: [4, 12], count: 28, specks: 40, noise: 0.05 },
+  wreck: { colors: ['#2a2724', '#1d1b19', '#3a3531', '#171514'], seed: 61, blotch: [2, 6], count: 50, specks: 80, noise: 0.15 },
 };
+
+
+// Grass tuft with transparent background: a fan of light-khaki blades.
+export function tuftCanvas() {
+  const size = 16, cv = document.createElement('canvas'); cv.width = cv.height = size;
+  const g = cv.getContext('2d'); g.clearRect(0, 0, size, size);
+  let s = 41; const r = () => (s = (s * 1664525 + 1013904223) >>> 0) / 4294967296;
+  const cols = ['#c2bb7e', '#a9a66a', '#d2c98c', '#b5ae72'];
+  for (let b = 0; b < 7; b++) {
+    const x0 = 6 + r() * 4, x1 = 1 + r() * 14, h = 4 + r() * 11;
+    g.strokeStyle = cols[b % cols.length]; g.lineWidth = 1 + (r() < 0.4 ? 1 : 0);
+    g.beginPath(); g.moveTo(x0, size); g.quadraticCurveTo((x0 + x1) / 2, size - h * 0.6, x1, size - h); g.stroke();
+  }
+  return cv;
+}
 
 export function groundCanvas() {
   const px = 2048, ppu = px / WORLD_SIZE;
@@ -49,6 +74,19 @@ export function groundCanvas() {
   }
   g.strokeStyle = 'rgba(70,62,55,0.55)'; g.lineWidth = 2;
   for (let i = 0; i <= px; i += slab) { g.beginPath(); g.moveTo(i, 0); g.lineTo(i, px); g.moveTo(0, i); g.lineTo(px, i); g.stroke(); }
+  // asphalt road with white lane dashes and a double yellow centre line (z -39..-25)
+  const Z = (z) => (z + HALF) * ppu;
+  g.fillStyle = '#5b5b5d'; g.fillRect(0, Z(-39), px, 14 * ppu);
+  for (let i = 0; i < 9000; i++) { const a = 0.06 + r() * 0.1; g.fillStyle = r() < 0.5 ? 'rgba(20,20,22,' + a + ')' : 'rgba(200,200,205,' + a + ')'; g.fillRect(r() * px, Z(-39) + r() * 14 * ppu, 1 + r() * 3, 1 + r() * 2); }
+  g.strokeStyle = '#d8d6cf'; g.lineWidth = 0.3 * ppu; g.setLineDash([]);
+  g.beginPath(); g.moveTo(0, Z(-38.6)); g.lineTo(px, Z(-38.6)); g.moveTo(0, Z(-25.4)); g.lineTo(px, Z(-25.4)); g.stroke();
+  g.save(); g.setLineDash([3 * ppu, 3 * ppu]); g.beginPath(); g.moveTo(0, Z(-35.5)); g.lineTo(px, Z(-35.5)); g.moveTo(0, Z(-28.5)); g.lineTo(px, Z(-28.5)); g.stroke(); g.restore();
+  g.strokeStyle = '#d4ad3a'; g.lineWidth = 0.22 * ppu;
+  g.beginPath(); g.moveTo(0, Z(-32.3)); g.lineTo(px, Z(-32.3)); g.moveTo(0, Z(-31.7)); g.lineTo(px, Z(-31.7)); g.stroke();
+  // grass strip along the south edge (z > 70) with a sandy path
+  g.fillStyle = '#8a8a58'; g.fillRect(0, Z(70), px, 10 * ppu);
+  for (let i = 0; i < 14000; i++) { const a = 0.08 + r() * 0.14; g.fillStyle = r() < 0.5 ? 'rgba(60,70,30,' + a + ')' : 'rgba(190,185,120,' + a + ')'; g.fillRect(r() * px, Z(70) + r() * 10 * ppu, 1 + r() * 4, 1 + r() * 3); }
+  g.strokeStyle = '#b9ad86'; g.lineWidth = 3.2 * ppu; g.beginPath(); g.moveTo(0, Z(73)); g.quadraticCurveTo(px * 0.5, Z(78.5), px, Z(74)); g.stroke();
   const Y = (ax, az, bx, bz, w = 0.6, dash = null) => {
     g.save(); g.strokeStyle = '#d4ad3a'; g.lineWidth = w * ppu; g.lineCap = 'butt';
     if (dash) g.setLineDash(dash.map(d => d * ppu));

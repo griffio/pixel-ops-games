@@ -27,10 +27,11 @@ in vec3 vN; in vec2 vUv; in vec4 vColor; in vec3 vEmis; in vec3 vWorld; in vec4 
 uniform sampler2D uTex; uniform sampler2D uShadow;
 uniform vec3 uSunDir; uniform vec3 uSunCol; uniform vec3 uHemiSky; uniform vec3 uHemiGround;
 uniform vec3 uPointPos[4]; uniform vec3 uPointCol[4]; uniform float uPointDist[4];
-uniform float uShadowOn; uniform float uShadowBias; uniform float uUnlit;
+uniform float uShadowOn; uniform float uShadowBias; uniform float uUnlit; uniform float uCutout;
 out vec4 frag;
 void main() {
   vec4 albedo = vColor * texture(uTex, vUv);
+  if (uCutout > 0.5 && albedo.a < 0.5) discard;
   if (uUnlit > 0.5) { frag = albedo; return; }
   vec3 n = normalize(vN);
   float sh = 1.0;
@@ -53,12 +54,13 @@ void main() {
 
 export const SHADOW_VS = `#version 300 es
 ${INSTANCE_IN}
-uniform mat4 uLightVP;
-void main() { gl_Position = uLightVP * (mat4(iM0, iM1, iM2, iM3) * vec4(aPos, 1.0)); }`;
+uniform mat4 uLightVP; out vec2 vUv;
+void main() { vUv = aUv; gl_Position = uLightVP * (mat4(iM0, iM1, iM2, iM3) * vec4(aPos, 1.0)); }`;
 
 export const SHADOW_FS = `#version 300 es
 precision mediump float;
-void main() {}`;
+uniform sampler2D uTex; uniform float uCutout; in vec2 vUv;
+void main() { if (uCutout > 0.5 && texture(uTex, vUv).a < 0.5) discard; }`;
 
 export const PICK_VS = `#version 300 es
 ${INSTANCE_IN}
@@ -100,11 +102,11 @@ void main() {
 }`;
 
 export const DUST_VS = `#version 300 es
-layout(location=0) in vec3 aPos; layout(location=1) in float aLife; layout(location=2) in float aSize;
-uniform mat4 uViewProj; uniform float uTpu; out float vA;
-void main() { vA = aLife; gl_PointSize = max(1.0, aSize * (1.6 - aLife) * uTpu); gl_Position = uViewProj * vec4(aPos, 1.0); }`;
+layout(location=0) in vec3 aPos; layout(location=1) in float aLife; layout(location=2) in float aSize; layout(location=3) in vec3 aColor; layout(location=4) in vec2 aParams;
+uniform mat4 uViewProj; uniform float uTpu; out vec4 vC;
+void main() { vC = vec4(aColor, aLife * aParams.y); gl_PointSize = max(1.0, aSize * mix(1.0, 1.6 - aLife, aParams.x) * uTpu); gl_Position = uViewProj * vec4(aPos, 1.0); }`;
 
 export const DUST_FS = `#version 300 es
 precision mediump float;
-uniform vec3 uColor; in float vA; out vec4 frag;
-void main() { if (vA <= 0.0) discard; frag = vec4(uColor, vA * 0.55); }`;
+in vec4 vC; out vec4 frag;
+void main() { if (vC.a <= 0.0) discard; frag = vC; }`;

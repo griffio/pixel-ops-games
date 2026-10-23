@@ -2,6 +2,7 @@ import * as THREE from 'three';
 import { WorldState, WORLD_SIZE } from '../core/layout.js';
 import { groundCanvas } from '../core/textures.js';
 import { geometry } from './geometry.js';
+import { MAT } from './models.js';
 
 // three.js view of the shared world layout + lighting state.
 export class World extends WorldState {
@@ -15,7 +16,7 @@ export class World extends WorldState {
     tex.colorSpace = THREE.SRGBColorSpace; tex.anisotropy = 4; tex.magFilter = tex.minFilter = THREE.NearestFilter; tex.generateMipmaps = false;   // the buffer is denser than the texture only in native mode; nearest keeps the grain crisp
     const m = new THREE.Mesh(geometry(`plane:${WORLD_SIZE},${WORLD_SIZE}`), new THREE.MeshLambertMaterial({ map: tex }));
     m.rotation.x = -Math.PI / 2; m.receiveShadow = true; this.scene.add(m);
-    const outer = new THREE.Mesh(geometry(`plane:${WORLD_SIZE * 4},${WORLD_SIZE * 4}`), new THREE.MeshLambertMaterial({ color: 0x6b6557 }));
+    const outer = new THREE.Mesh(geometry(`plane:${WORLD_SIZE * 4},${WORLD_SIZE * 4}`), new THREE.MeshLambertMaterial({ color: 0x8a8a58 }));   // grass beyond the apron
     outer.rotation.x = -Math.PI / 2; outer.position.y = -0.05; outer.receiveShadow = true; this.scene.add(outer);
   }
 
@@ -24,12 +25,21 @@ export class World extends WorldState {
     const heads = [];
     for (const p of this.layout.props) {
       let mat;
-      if (p.emissive !== undefined) mat = new THREE.MeshLambertMaterial({ color: p.color, emissive: p.emissive, emissiveIntensity: 0 });
+      if (p.tex) mat = MAT[p.tex];
+      else if (p.emissive !== undefined) mat = new THREE.MeshLambertMaterial({ color: p.color, emissive: p.emissive, emissiveIntensity: 0 });
       else { if (!mats.has(p.color)) mats.set(p.color, new THREE.MeshLambertMaterial({ color: p.color })); mat = mats.get(p.color); }
       const m = new THREE.Mesh(geometry(p.geo), mat);
       m.position.set(p.x, p.y, p.z); m.rotation.set(p.rot[0], p.rot[1], p.rot[2]);
       m.castShadow = p.cast; m.receiveShadow = true; this.scene.add(m);
       if (p.lampHead) heads.push(m);
+    }
+    // grass tufts: one InstancedMesh per size (static, alpha-tested, shadow casting)
+    for (const size of [0.7, 0.9, 1.15]) {
+      const list = this.layout.tufts.filter(t => t.size === size);
+      const im = new THREE.InstancedMesh(geometry('tuft:' + size + ',' + (size * 1.1).toFixed(2)), MAT.tuft, list.length);
+      const m = new THREE.Matrix4();
+      list.forEach((t, i) => { m.makeRotationY(t.yaw); m.setPosition(t.x, 0, t.z); im.setMatrixAt(i, m); });
+      im.castShadow = im.receiveShadow = true; this.scene.add(im);
     }
     this.layout.lamps.forEach((l, i) => {
       const light = new THREE.PointLight(l.color, 0, l.distance, 2); light.position.set(l.x, l.y, l.z); this.scene.add(light);

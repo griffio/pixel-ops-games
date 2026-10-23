@@ -1,11 +1,10 @@
-import { Mat4, Vec3, hexToLinear } from '../core/math.js';
+import { Mat4, Vec3 } from '../core/math.js';
 import { buildGeometry } from '../core/geometry.js';
 import * as S from './shaders.js';
 
 const STRIDE = 24;            // floats per instance: mat4 (16) + colour (4) + emissive rgb + pick id (4)
 const SHADOW_SIZE = 4096;
 const LIGHT_UP = new Vec3(0, 1, 0), ORIGIN = new Vec3();
-const DUST_COLOR = hexToLinear(0xb3a386);
 
 // Raw WebGL2 renderer. Every mesh in the scene graph is an instance of a shared
 // geometry; instances are grouped per (geometry, texture, flags) and drawn with
@@ -37,9 +36,9 @@ export class GLRenderer {
     this.buildShadowTarget();
     this.main = null; this.pickFb = null;
     this.emptyVao = gl.createVertexArray();
-    this.dustVao = gl.createVertexArray(); this.dustBufs = [gl.createBuffer(), gl.createBuffer(), gl.createBuffer()];
+    this.dustVao = gl.createVertexArray(); this.dustBufs = [0, 1, 2, 3, 4].map(() => gl.createBuffer());
     gl.bindVertexArray(this.dustVao);
-    [[0, 3], [1, 1], [2, 1]].forEach(([loc, n], i) => { gl.bindBuffer(gl.ARRAY_BUFFER, this.dustBufs[i]); gl.enableVertexAttribArray(loc); gl.vertexAttribPointer(loc, n, gl.FLOAT, false, 0, 0); });
+    [[0, 3], [1, 1], [2, 1], [3, 3], [4, 2]].forEach(([loc, n], i) => { gl.bindBuffer(gl.ARRAY_BUFFER, this.dustBufs[i]); gl.enableVertexAttribArray(loc); gl.vertexAttribPointer(loc, n, gl.FLOAT, false, 0, 0); });
     gl.bindVertexArray(null);
     gl.enable(gl.DEPTH_TEST); gl.enable(gl.CULL_FACE); gl.cullFace(gl.BACK);
     Mat4.ortho(this.lightProj, -125, 125, 125, -125, 1, 400);
@@ -139,10 +138,10 @@ export class GLRenderer {
   }
 
   batch(mesh) {
-    const m = mesh.mat, key = `${mesh.geo}|${m.tex || ''}|${m.unlit ? 1 : 0}|${m.cast ? 1 : 0}`;
+    const m = mesh.mat, key = `${mesh.geo}|${m.tex || ''}|${m.unlit ? 1 : 0}|${m.cast ? 1 : 0}|${m.cutout ? 1 : 0}`;
     let b = this.batches.get(key); if (b) return b;
     const gl = this.gl, geo = this.geometry(mesh.geo);
-    b = { key, geo, tex: m.tex, unlit: !!m.unlit, cast: !!m.cast, vao: gl.createVertexArray(), ibo: gl.createBuffer(), cap: 64, n: 0 };
+    b = { key, geo, tex: m.tex, unlit: !!m.unlit, cast: !!m.cast, cutout: !!m.cutout, vao: gl.createVertexArray(), ibo: gl.createBuffer(), cap: 64, n: 0 };
     b.data = new Float32Array(b.cap * STRIDE);
     gl.bindVertexArray(b.vao);
     gl.bindBuffer(gl.ARRAY_BUFFER, geo.vbo);
@@ -198,8 +197,11 @@ export class GLRenderer {
     if (this.shadows) {
       gl.bindFramebuffer(gl.FRAMEBUFFER, this.shadowFb); gl.viewport(0, 0, SHADOW_SIZE, SHADOW_SIZE);
       gl.clear(gl.DEPTH_BUFFER_BIT);
-      gl.useProgram(P.shadow.p); gl.uniformMatrix4fv(P.shadow.u.uLightVP, false, this.lightVP);
-      for (const b of this.batches.values()) if (b.n && b.cast) this.drawBatch(b);
+      gl.useProgram(P.shadow.p); gl.uniformMatrix4fv(P.shadow.u.uLightVP, false, this.lightVP); gl.uniform1i(P.shadow.u.uTex, 0); gl.activeTexture(gl.TEXTURE0);
+      for (const b of this.batches.values()) if (b.n && b.cast) {
+        gl.uniform1f(P.shadow.u.uCutout, b.cutout ? 1 : 0); if (b.cutout) gl.bindTexture(gl.TEXTURE_2D, this.textures.get(b.tex));
+        this.drawBatch(b);
+      }
     }
 
     // 2. lit scene into the low-res buffer
@@ -220,8 +222,8 @@ export class GLRenderer {
     gl.activeTexture(gl.TEXTURE1); gl.bindTexture(gl.TEXTURE_2D, this.shadowTex);
     gl.activeTexture(gl.TEXTURE0);
     gl.uniform1f(u.uUnlit, 0); gl.depthMask(true); gl.disable(gl.BLEND);
-    for (const b of this.batches.values()) if (b.n && !b.unlit) { gl.bindTexture(gl.TEXTURE_2D, b.tex ? this.textures.get(b.tex) : this.white); this.drawBatch(b); }
-    gl.uniform1f(u.uUnlit, 1); gl.depthMask(false); gl.enable(gl.BLEND); gl.blendFunc(gl.SRC_ALPHA, gl.ONE_MINUS_SRC_ALPHA); gl.disable(gl.CULL_FACE);
+    for (const b of this.batches.values()) if (b.n && !b.unlit) { gl.uniform1f(u.uCutout, b.cutout ? 1 : 0); gl.bindTexture(gl.TEXTURE_2D, b.tex ? this.textures.get(b.tex) : this.white); this.drawBatch(b); }
+    gl.uniform1f(u.uUnlit, 1); gl.uniform1f(u.uCutout, 0); gl.depthMask(false); gl.enable(gl.BLEND); gl.blendFunc(gl.SRC_ALPHA, gl.ONE_MINUS_SRC_ALPHA); gl.disable(gl.CULL_FACE);
     for (const b of this.batches.values()) if (b.n && b.unlit) { gl.bindTexture(gl.TEXTURE_2D, b.tex ? this.textures.get(b.tex) : this.white); this.drawBatch(b); }
 
     // 3. dust (one draw call)
@@ -229,9 +231,8 @@ export class GLRenderer {
       const d = P.dust; gl.useProgram(d.p);
       gl.uniformMatrix4fv(d.u.uViewProj, false, cam.viewProj);
       gl.uniform1f(d.u.uTpu, this.pixel.enabled ? this.pixel.texelsPerUnit : this.pixel.texelsPerUnit * this.pixel.pixelScale * this.pixel.dpr);
-      gl.uniform3f(d.u.uColor, DUST_COLOR[0], DUST_COLOR[1], DUST_COLOR[2]);
       gl.bindVertexArray(this.dustVao);
-      [dust.pos.subarray(0, dust.n * 3), dust.life.subarray(0, dust.n), dust.size.subarray(0, dust.n)].forEach((arr, i) => { gl.bindBuffer(gl.ARRAY_BUFFER, this.dustBufs[i]); gl.bufferData(gl.ARRAY_BUFFER, arr, gl.DYNAMIC_DRAW); });
+      [dust.pos.subarray(0, dust.n * 3), dust.life.subarray(0, dust.n), dust.size.subarray(0, dust.n), dust.color.subarray(0, dust.n * 3), dust.params.subarray(0, dust.n * 2)].forEach((arr, i) => { gl.bindBuffer(gl.ARRAY_BUFFER, this.dustBufs[i]); gl.bufferData(gl.ARRAY_BUFFER, arr, gl.DYNAMIC_DRAW); });
       gl.drawArrays(gl.POINTS, 0, dust.n); this.stats.calls++;
     }
     gl.depthMask(true); gl.disable(gl.BLEND); gl.enable(gl.CULL_FACE);

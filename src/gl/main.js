@@ -1,7 +1,7 @@
 import { GLRenderer } from './renderer.js';
 import { Scene } from './scene.js';
 import { World } from './world.js';
-import { builders, registerTextures } from './models.js';
+import { builders, registerTextures, F } from './models.js';
 import { Markers } from './markers.js';
 import { RtsCamera } from '../core/camera.js';
 import { HALF } from '../core/layout.js';
@@ -19,7 +19,7 @@ registerTextures(renderer);
 const scene = new Scene();
 const rts = new RtsCamera(pixel, HALF - 10);
 const world = new World(scene, renderer);
-const units = new UnitManager(scene, world, builders);
+const units = new UnitManager(scene, world, builders, F.recolor);
 const dust = new DustSim(); units.dust = dust;
 const markers = new Markers(scene);
 

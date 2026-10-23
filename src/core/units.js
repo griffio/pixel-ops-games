@@ -3,36 +3,92 @@ import { HALF } from './layout.js';
 
 const rnd = (a, b) => a + rng() * (b - a);
 
-const SPEC = {
-  soldier: { speed: 4.6, turn: 9, accel: 18, label: 'SQ', air: false },
-  truck:   { speed: 9.5, turn: 1.1, accel: 5, label: 'TR', air: false },
-  apc:     { speed: 8,   turn: 0.9, accel: 4, label: 'AP', air: false },
-  heli:    { speed: 16,  turn: 1.4, accel: 6, label: 'HE', air: true },
+export const SPEC = {
+  soldier: { speed: 4.6, turn: 9, accel: 18, label: 'SQ', air: false, hp: 100, nav: 'foot' },
+  truck:   { speed: 9.5, turn: 1.1, accel: 5, label: 'TR', air: false, hp: 150, nav: 'vehicle' },
+  apc:     { speed: 8,   turn: 0.9, accel: 4, label: 'AP', air: false, hp: 600, nav: 'vehicle', kit: 'autocannon' },
+  heli:    { speed: 16,  turn: 1.4, accel: 6, label: 'HE', air: true, hp: 300, nav: null, kit: 'doorgun' },
 };
 const counters = {}; let pickSeq = 0;
 
 export class Unit {
-  constructor(type, build, x, z, heading = rng() * Math.PI * 2) {
-    const spec = SPEC[type]; this.type = type; this.spec = spec;
-    const m = build();
+  constructor(type, build, x, z, heading = rng() * Math.PI * 2, team = 0) {
+    const spec = SPEC[type]; this.type = type; this.spec = spec; this.team = team;
+    const m = build(team);
     this.pickId = m.group.pickId = ++pickSeq; this.group = m.group; this.parts = m.parts; this.height = m.height; this.radius = m.radius;
     this.pos = this.group.position; this.pos.set(x, 0, z);
     this.heading = heading; this.group.rotation.y = heading;
-    this.speed = 0; this.target = null; this.selected = false; this.squad = null;
-    this.idle = rnd(0, 3); this.phase = rng() * 6; this.hp = 1;
+    this.speed = 0; this.target = null; this.dest = null; this.path = null; this.hold = false;
+    this.selected = false; this.squad = null; this.mgr = null;
+    this.idle = rnd(0, 3); this.phase = rng() * 6;
+    this.hp = this.maxHp = spec.hp; this.kit = spec.kit || null; this.enemy = null; this.cooldown = 0; this.retarget = 0;
+    this.dead = false; this.deathT = 0; this.wreck = false; this.remove = false;
     this.alt = 0; this.altT = 0; this.rotor = 0; this.rotorT = 0; this.state = 'parked'; this.tilt = 0; this.bank = 0;
     this.id = (counters[type] = (counters[type] || 0) + 1);
     this.label = `${spec.label}-${String(this.id).padStart(2, '0')}`;
-    this.dist = 0; this.dead = false;
+    this.dist = 0;
   }
 
   get moving() { return this.speed > 0.05 || this.state === 'cruise' || this.state === 'takeoff'; }
+  setSelected(s) { this.selected = s; this.parts.ring.visible = s && !this.dead; }
 
-  setSelected(s) { this.selected = s; this.parts.ring.visible = s; }
-
+  // Move order: path through the nav grid when one is available, otherwise straight line.
   order(x, z) {
-    this.target = new Vec3(x, 0, z); this.idle = 0;
+    if (this.dead) return;
+    this.dest = new Vec3(x, 0, z); this.idle = 0; this.hold = false;
+    const nav = this.mgr && this.mgr.nav;
+    this.path = (nav && this.spec.nav) ? nav.findPath(this.spec.nav, this.pos.x, this.pos.z, x, z) : null;
+    const first = this.path && this.path.length ? this.path[0] : [x, z];
+    this.target = new Vec3(first[0], 0, first[1]);
     if (this.spec.air && (this.state === 'parked' || this.state === 'spooldown')) this.state = 'spool';
+  }
+  nextWaypoint() {
+    if (this.path && this.path.length > 1) { this.path.shift(); this.target.set(this.path[0][0], 0, this.path[0][1]); return true; }
+    this.target = null; this.path = null; this.dest = null; return false;
+  }
+
+  damage(amount, from) {
+    if (this.dead) return false;
+    this.hp -= amount;
+    if (this.hp <= 0) { this.hp = 0; this.die(from); return true; }
+    return false;
+  }
+  die(from) {
+    this.dead = true; this.deathT = 0; this.enemy = null; this.target = null; this.path = null; this.dest = null; this.hold = false;
+    this.killer = from || null; this.parts.ring.visible = false;
+    if (this.spec.air && this.alt > 0.1) { this.state = 'crash'; this.speed *= 0.5; return; }
+    this.speed = 0;
+    if (this.type !== 'soldier') this.becomeWreck();
+  }
+  becomeWreck() {
+    this.wreck = true; this.wreckT = 0;
+    if (this.mgr) { this.mgr.recolor(this.group, 'wreck'); if (this.mgr.dust) this.mgr.dust.explosion(this.pos.x, 0, this.pos.z, this.type === 'apc' ? 1.5 : 1); }
+    if (this.spec.air) { this.parts.blades.visible = true; this.parts.disc.visible = false; this.alt = 0; this.pos.y = 0; this.parts.body.rotation.x = 0; this.parts.body.rotation.z = 0.35; }
+  }
+  // revive at a position (infantry respawn reuses the object so squads keep their members)
+  revive(x, z, heading) {
+    this.dead = false; this.hp = this.maxHp; this.pos.set(x, 0, z); this.heading = heading; this.group.rotation.set(0, heading, 0);
+    this.group.visible = true; this.speed = 0; this.enemy = null; this.target = null; this.path = null; this.dest = null; this.deathT = 0;
+  }
+
+  stepDead(dt) {
+    this.deathT += dt;
+    const p = this.parts;
+    if (this.spec.air && this.state === 'crash') {           // falling out of the sky
+      this.alt = Math.max(0, this.alt - 9 * dt); this.pos.y = this.alt; this.heading += 2.5 * dt; this.group.rotation.y = this.heading;
+      p.body.rotation.z = lerp(p.body.rotation.z, 0.6, 1 - Math.pow(0.1, dt)); p.rotor.rotation.y += 10 * dt;
+      const step = this.speed * dt; this.pos.x += Math.sin(this.heading) * step; this.pos.z += Math.cos(this.heading) * step;
+      if (this.alt <= 0) { this.state = 'wrecked'; this.becomeWreck(); }
+      return;
+    }
+    if (this.type === 'soldier') {
+      this.group.rotation.x = -clamp(this.deathT / 0.4, 0, 1) * 1.45;            // fall onto the back
+      if (this.deathT > 10) this.group.visible = false;                              // body fades; object is reused on respawn
+    } else if (this.wreck) {
+      this.wreckT += dt;
+      if (this.mgr && this.mgr.dust && this.wreckT < 75 && rng() < dt * (this.type === 'apc' ? 6 : 4)) this.mgr.dust.smoke(this.pos.x, this.pos.y + (this.type === 'apc' ? 3.9 : 3.3), this.pos.z, this.type === 'apc' ? 1.4 : 1);   // from the roof, so the plume clears the hull
+      if (this.wreckT > 90) this.remove = true;
+    }
   }
 
   // ---- ground vehicles & infantry ------------------------------------------
@@ -40,15 +96,21 @@ export class Unit {
     const s = this.spec; let want = 0;
     if (this.target) {
       const dx = this.target.x - this.pos.x, dz = this.target.z - this.pos.z, dist = Math.hypot(dx, dz);
-      const arrive = this.type === 'soldier' ? 0.5 : 1.5;
-      if (dist < arrive) { this.target = null; }
+      const last = !this.path || this.path.length <= 1, arrive = last ? (this.type === 'soldier' ? 0.5 : 1.5) : 1.2;
+      if (dist < arrive) { this.nextWaypoint(); }
       else {
         const desired = Math.atan2(dx, dz), diff = wrap(desired - this.heading);
         const maxTurn = s.turn * dt * (this.type === 'soldier' ? 1 : clamp(this.speed / 3, 0.35, 1));
         this.heading += clamp(diff, -maxTurn, maxTurn);
         const align = this.type === 'soldier' ? 1 : clamp(1.2 - Math.abs(diff) / Math.PI * 2.2, 0.3, 1);
-        want = s.speed * align * clamp(dist / (this.type === 'soldier' ? 1.5 : 6), 0.25, 1);
+        want = s.speed * align * (last ? clamp(dist / (this.type === 'soldier' ? 1.5 : 6), 0.25, 1) : 1);
       }
+    }
+    if (this.hold && this.type === 'soldier') want = 0;
+    // face the enemy while standing still
+    if (want === 0 && this.enemy && this.type === 'soldier') {
+      const diff = wrap(Math.atan2(this.enemy.pos.x - this.pos.x, this.enemy.pos.z - this.pos.z) - this.heading);
+      this.heading += clamp(diff, -s.turn * dt, s.turn * dt);
     }
     this.speed += clamp(want - this.speed, -s.accel * 2 * dt, s.accel * dt);
     if (this.speed < 0.01) this.speed = 0;
@@ -77,20 +139,22 @@ export class Unit {
       p.kneeR.rotation.x = Math.max(0, -sw) * 1.4 + 0.12 * run;
       const bob = 1.1 + Math.abs(Math.cos(this.phase)) * 0.08 * run;
       p.torso.position.y = p.legL.position.y = p.legR.position.y = bob;
-      p.torso.rotation.x = 0.22 * run;                            // lean into the run
-      p.torso.rotation.y = Math.sin(this.phase) * 0.08 * run;     // shoulder twist
-      p.armL.rotation.x = -1.35 + Math.sin(this.phase) * 0.12 * run; p.armL.rotation.z = 0.35;   // both hands stay on the rifle
+      p.torso.rotation.x = 0.22 * run + (this.enemy && run < 0.2 ? 0.12 : 0);   // lean into the run / into the rifle
+      p.torso.rotation.y = Math.sin(this.phase) * 0.08 * run;
+      p.armL.rotation.x = -1.35 + Math.sin(this.phase) * 0.12 * run; p.armL.rotation.z = 0.35;
       p.armR.rotation.x = -1.0 - Math.sin(this.phase) * 0.12 * run; p.armR.rotation.z = -0.25;
     } else {
       const spin = this.speed * dt / 0.6;
       for (const w of p.wheels) w.rotation.x += spin;
       if (this.target) {
-        const dx = this.target.x - this.pos.x, dz = this.target.z - this.pos.z;
-        const diff = wrap(Math.atan2(dx, dz) - this.heading);
+        const diff = wrap(Math.atan2(this.target.x - this.pos.x, this.target.z - this.pos.z) - this.heading);
         const st = clamp(diff, -0.5, 0.5);
         for (const w of p.steer) w.rotation.y = lerp(w.rotation.y, st, 1 - Math.pow(0.01, dt));
       }
-      if (p.turret) p.turret.rotation.y = Math.sin(this.phase + performance.now() * 0.0004) * 0.6;
+      if (p.turret) {
+        const want = this.enemy ? wrap(Math.atan2(this.enemy.pos.x - this.pos.x, this.enemy.pos.z - this.pos.z) - this.heading) : Math.sin(this.phase + performance.now() * 0.0004) * 0.6;
+        p.turret.rotation.y += clamp(wrap(want - p.turret.rotation.y), -2.5 * dt, 2.5 * dt);
+      }
     }
   }
 
@@ -104,7 +168,7 @@ export class Unit {
       case 'cruise': {
         if (!this.target) { this.state = 'land'; break; }
         const dx = this.target.x - this.pos.x, dz = this.target.z - this.pos.z, dist = Math.hypot(dx, dz);
-        if (dist < 1.2 && this.speed < 1.5) { this.state = 'land'; this.target = null; break; }
+        if (dist < 1.2 && this.speed < 1.5) { this.state = 'land'; this.target = null; this.dest = null; break; }
         const desired = Math.atan2(dx, dz), diff = wrap(desired - this.heading);
         const turn = clamp(diff, -s.turn * dt, s.turn * dt); this.heading += turn;
         const want = s.speed * clamp(dist / 14, 0.08, 1) * clamp(1.3 - Math.abs(diff), 0.15, 1);
@@ -120,15 +184,13 @@ export class Unit {
       case 'spooldown': this.rotorT = 0; if (this.rotor < 0.02) { this.state = 'parked'; this.rotor = 0; } break;
     }
     if (this.state !== 'cruise') { this.bank = lerp(this.bank, 0, 1 - Math.pow(0.02, dt)); if (this.state !== 'land') this.speed = Math.max(0, this.speed - s.accel * dt); }
-    // vertical
     const climb = this.state === 'land' ? 2.2 : 3.5;
     this.alt += clamp(this.altT - this.alt, -climb * dt, climb * dt);
     if (this.state === 'land' && this.alt < 0.02) this.alt = 0;
-    // rotor
     this.rotor += clamp(this.rotorT - this.rotor, -0.35 * dt, 0.3 * dt);
     p.rotor.rotation.y += this.rotor * 28 * dt; p.tail.rotation.x += this.rotor * 60 * dt;
+    const blur = this.rotor > 0.8; p.blades.visible = !blur; p.disc.visible = blur;
     p.beacon.visible = (performance.now() * 0.002 + this.id) % 2 < 0.25;
-    // move
     const step = this.speed * dt;
     this.pos.x = clamp(this.pos.x + Math.sin(this.heading) * step, -HALF + 4, HALF - 4);
     this.pos.z = clamp(this.pos.z + Math.cos(this.heading) * step, -HALF + 4, HALF - 4);
@@ -140,74 +202,89 @@ export class Unit {
     this.dist += step;
   }
 
-  step(dt, world) { this.spec.air ? this.stepAir(dt, world) : this.stepGround(dt, world); }
+  step(dt, world) {
+    if (this.dead) { this.stepDead(dt); return; }
+    this.spec.air ? this.stepAir(dt, world) : this.stepGround(dt, world);
+  }
 }
 
 export class Squad {
   constructor(members) { this.members = members; for (const m of members) m.squad = this; this.idle = rnd(0, 4); }
   get leader() { return this.members.find(m => !m.dead) || null; }
   get alive() { return this.members.some(m => !m.dead); }
+  get aliveCount() { return this.members.filter(m => !m.dead).length; }
+  get team() { return this.members[0].team; }
   order(x, z) {
     const L = this.leader; if (!L) return;
     const h = Math.atan2(x - L.pos.x, z - L.pos.z), c = Math.cos(h), s = Math.sin(h);
     const offs = [[0, 0], [-1.3, -1.3], [1.3, -1.3], [-2.6, -2.6], [2.6, -2.6], [0, -2.6], [-1.3, -3.9], [1.3, -3.9]];
-    this.members.forEach((m, i) => { const [ox, oz] = offs[i % offs.length]; m.order(x + ox * c + oz * s, z - ox * s + oz * c); });
+    let i = 0;
+    for (const m of this.members) { if (m.dead) continue; const [ox, oz] = offs[i++ % offs.length]; m.order(x + ox * c + oz * s, z - ox * s + oz * c); }
   }
+  get busy() { return this.members.some(m => !m.dead && m.dest); }
+  centroid() { const a = this.members.filter(m => !m.dead); const c = new Vec3(); for (const m of a) c.add(m.pos); return c.multiplyScalar(1 / (a.length || 1)); }
 }
 
+const KITS = ['rifle', 'mg', 'at', 'rifle'];
+
 export class UnitManager {
-  constructor(scene, world, builders) {
-    this.scene = scene; this.world = world; this.builders = builders; this.units = []; this.squads = []; this.auto = true;
+  constructor(scene, world, builders, recolor) {
+    this.scene = scene; this.world = world; this.builders = builders; this.recolorFn = recolor || (() => {});
+    this.units = []; this.squads = []; this.auto = true; this.nav = null; this.spatial = null; this.dust = null;
   }
+  recolor(group, mat) { this.recolorFn(group, mat); }
   byPickId(id) { return this.units.find(u => u.pickId === id) || null; }
 
-  freePoint(pad = 3, tries = 40) {
+  freePoint(pad = 3, tries = 40, cx = 0, cz = 0, r = HALF - 8) {
     for (let i = 0; i < tries; i++) {
-      const x = rnd(-HALF + 8, HALF - 8), z = rnd(-HALF + 8, HALF - 8);
+      const x = cx + rnd(-r, r), z = cz + rnd(-r, r);
+      if (Math.abs(x) > HALF - 6 || Math.abs(z) > HALF - 6) continue;
       if (!this.world.isBlocked(x, z, pad)) return [x, z];
     }
-    return [0, 0];
+    return [cx, cz];
   }
 
-  add(unit) { this.units.push(unit); this.scene.add(unit.group); return unit; }
-  spawn(type, x, z, heading) {
+  add(unit) { unit.mgr = this; this.units.push(unit); this.scene.add(unit.group); return unit; }
+  spawn(type, x, z, heading, team = 0) {
     if (x === undefined) [x, z] = this.freePoint(SPEC[type].air ? 6 : 3);
-    return this.add(new Unit(type, this.builders[type], x, z, heading));
+    return this.add(new Unit(type, this.builders[type], x, z, heading, team));
   }
-  spawnSquad(x, z) {
+  spawnSquad(x, z, team = 0) {
     if (x === undefined) [x, z] = this.freePoint(3);
     const members = []; const h = rng() * Math.PI * 2;
-    for (let i = 0; i < 4; i++) members.push(this.spawn('soldier', x + (i % 2) * 1.4 - 0.7, z + Math.floor(i / 2) * 1.4 - 0.7, h));
+    for (let i = 0; i < 4; i++) { const m = this.spawn('soldier', x + (i % 2) * 1.4 - 0.7, z + Math.floor(i / 2) * 1.4 - 0.7, h, team); m.kit = KITS[i]; members.push(m); }
     const sq = new Squad(members); sq.id = (this.squadCount = (this.squadCount || 0) + 1);
     for (const m of members) m.label = `SQ-${String(sq.id).padStart(2, '0')}`;
     this.squads.push(sq); return sq;
   }
+  removeUnit(u) { this.scene.remove(u.group); const i = this.units.indexOf(u); if (i >= 0) this.units.splice(i, 1); }
   clear() { for (const u of this.units) this.scene.remove(u.group); this.units = []; this.squads = []; }
 
   update(dt) {
     const w = this.world;
-    for (const u of this.units) { u.step(dt, w); if (this.dust && dt > 0) this.dust.fromUnit(u, dt); }
-    // separation between ground units (cheap O(n^2); fine for a few hundred units)
-    const g = this.units.filter(u => !u.spec.air || u.alt < 0.1);
-    for (let i = 0; i < g.length; i++) for (let j = i + 1; j < g.length; j++) {
-      const a = g[i], b = g[j]; const dx = b.pos.x - a.pos.x, dz = b.pos.z - a.pos.z;
-      const r = a.radius + b.radius, d2 = dx * dx + dz * dz;
+    for (const u of this.units) { u.step(dt, w); if (this.dust && dt > 0 && !u.dead) this.dust.fromUnit(u, dt); }
+    for (let i = this.units.length - 1; i >= 0; i--) if (this.units[i].remove) this.removeUnit(this.units[i]);
+    // separation between ground units
+    const push = (a, b) => {
+      if (a.dead || b.dead || (a.spec.air && a.alt > 0.1) || (b.spec.air && b.alt > 0.1)) return;
+      const dx = b.pos.x - a.pos.x, dz = b.pos.z - a.pos.z, r = a.radius + b.radius, d2 = dx * dx + dz * dz;
       if (d2 < r * r && d2 > 1e-6) {
-        const d = Math.sqrt(d2), push = (r - d) * 0.5, nx = dx / d, nz = dz / d;
-        const wa = b.radius / r, wb = a.radius / r; // lighter unit moves more
-        if (!(a.spec.air)) { a.pos.x -= nx * push * wa; a.pos.z -= nz * push * wa; }
-        if (!(b.spec.air)) { b.pos.x += nx * push * wb; b.pos.z += nz * push * wb; }
+        const d = Math.sqrt(d2), k = (r - d) * 0.5, nx = dx / d, nz = dz / d, wa = b.radius / r, wb = a.radius / r;
+        if (!a.spec.air) { a.pos.x -= nx * k * wa; a.pos.z -= nz * k * wa; }
+        if (!b.spec.air) { b.pos.x += nx * k * wb; b.pos.z += nz * k * wb; }
       }
-    }
+    };
+    if (this.spatial) this.spatial.forEachPair(6, push);
+    else for (let i = 0; i < this.units.length; i++) for (let j = i + 1; j < this.units.length; j++) push(this.units[i], this.units[j]);
     if (!this.auto) return;
-    // autonomous orders
+    // sandbox-only autonomous wandering
     for (const sq of this.squads) {
-      const L = sq.leader; if (!L) continue;
-      if (sq.members.every(m => !m.target)) { sq.idle -= dt; if (sq.idle <= 0) { const [x, z] = this.freePoint(2); sq.order(x, z); sq.idle = rnd(2, 9); } }
+      if (!sq.leader) continue;
+      if (!sq.busy) { sq.idle -= dt; if (sq.idle <= 0) { const [x, z] = this.freePoint(2); sq.order(x, z); sq.idle = rnd(2, 9); } }
     }
     for (const u of this.units) {
-      if (u.squad) continue;
-      const parked = u.spec.air ? u.state === 'parked' : !u.target;
+      if (u.squad || u.dead) continue;
+      const parked = u.spec.air ? u.state === 'parked' : !u.dest;
       if (parked) { u.idle -= dt; if (u.idle <= 0) { const [x, z] = this.freePoint(u.spec.air ? 7 : 4); u.order(x, z); u.idle = u.spec.air ? rnd(6, 20) : rnd(2, 10); } }
     }
   }

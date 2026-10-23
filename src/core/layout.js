@@ -17,7 +17,7 @@ export function buildLayout() {
     if (obstacle) {
       const c = Math.abs(Math.cos(rot)), s = Math.abs(Math.sin(rot));
       const hw = (w * c + d * s) / 2, hd = (w * s + d * c) / 2;
-      obstacles.push({ minX: x - hw, maxX: x + hw, minZ: z - hd, maxZ: z + hd });
+      obstacles.push({ minX: x - hw, maxX: x + hw, minZ: z - hd, maxZ: z + hd, h: y + h });
     }
   };
   // hangar
@@ -39,7 +39,7 @@ export function buildLayout() {
   // fuel tanks (cylinders lying on their side)
   for (let i = 0; i < 3; i++) {
     props.push({ geo: 'cyl:2.2,2.2,9,10', color: 0xb0ab9e, x: 60, y: 2.4, z: 10 + i * 6, rot: [0, 0, Math.PI / 2], cast: true });
-    obstacles.push({ minX: 55.5, maxX: 64.5, minZ: 7.8 + i * 6, maxZ: 12.2 + i * 6 });
+    obstacles.push({ minX: 55.5, maxX: 64.5, minZ: 7.8 + i * 6, maxZ: 12.2 + i * 6, h: 4.6 });
   }
   // sandbag walls + jersey barriers
   for (let i = 0; i < 8; i++) box(3, 1.1, 1, 0x9c8b64, -20 + i * 3.2, 20, { rot: 0.1 });
@@ -50,8 +50,34 @@ export function buildLayout() {
     props.push({ geo: 'box:2.2,0.8,1.2', color: 0x222222, emissive: 0xfff2c0, x, y: 12.2, z, rot: [0, 0, 0], cast: true, lampHead: true });
     lamps.push({ x, y: 11, z, color: 0xffe7b0, distance: 55 });
   }
-  return { props, obstacles, lamps };
+  // palms along the grass strip: tilted trunk, crown, 8 drooping fronds
+  const palm = (x, z, tilt) => {
+    props.push({ geo: 'cyl:0.2,0.32,9,6', tex: 'trunk', x, y: 4.5, z, rot: [tilt, 0, tilt * 0.6], cast: true });
+    const tx = x + Math.sin(tilt * 0.6) * 4.5, tz = z + Math.sin(tilt) * 4.5;
+    props.push({ geo: 'cyl:0.55,0.4,0.7,6', tex: 'trunk', x: tx, y: 9.1, z: tz, rot: [0, 0, 0], cast: true });
+    for (let k = 0; k < 8; k++) {
+      const a = k * Math.PI / 4 + (k % 2) * 0.2, droop = (0.35 + (k % 3) * 0.15).toFixed(2);
+      props.push({ geo: 'frond:0.6,0.08,3.6,' + droop, tex: 'frond', x: tx, y: 9.3, z: tz, rot: [0, a, 0], cast: true });
+    }
+    obstacles.push({ minX: x - 0.5, maxX: x + 0.5, minZ: z - 0.5, maxZ: z + 0.5, h: 9 });
+  };
+  for (const [x, z, t] of [[-62, 76, 0.05], [-38, 77.5, -0.04], [-12, 75, 0.08], [16, 78, -0.06], [58, 76, 0.03]]) palm(x, z, t);
+  // bushes: overlapping rounded blobs
+  const bush = (x, z, s) => {
+    for (const [ox, oz, r, h] of [[0, 0, 1.3, 1.6], [0.9, 0.5, 0.9, 1.2], [-0.8, 0.6, 1.0, 1.1], [0.2, -0.9, 0.8, 1.0]])
+      props.push({ geo: 'cyl:' + (r * s).toFixed(2) + ',' + (r * s * 1.15).toFixed(2) + ',' + (h * s).toFixed(2) + ',7', tex: 'bush', x: x + ox * s, y: h * s / 2, z: z + oz * s, rot: [0, 0, 0], cast: true });
+    obstacles.push({ minX: x - 1.6 * s, maxX: x + 1.6 * s, minZ: z - 1.6 * s, maxZ: z + 1.6 * s, h: 1.6 * s });
+  };
+  for (const [x, z, s] of [[-72, 72, 1.0], [-50, 78, 0.8], [-24, 72.5, 1.1], [4, 72, 0.9], [34, 77, 1.2], [46, 72, 0.8], [72, 73, 1.0]]) bush(x, z, s);
+  // grass tufts: static crossed billboards in three sizes
+  const tufts = [], tr = rand(17);
+  for (let i = 0; i < 1100; i++) {
+    const x = -79 + tr() * 158, z = 70.4 + tr() * 9.2;
+    tufts.push({ x, z, yaw: tr() * Math.PI, size: [0.7, 0.9, 1.15][Math.floor(tr() * 3)] });
+  }
+  return { props, obstacles, lamps, tufts };
 }
+
 
 const WHITE = hexToLinear(0xfff6e6), WARM = hexToLinear(0xffb36a), MOON = hexToLinear(0x8fa8d8);
 const SKY_D = hexToLinear(0xcfd8e6), SKY_N = hexToLinear(0x3a4a70), GND_D = hexToLinear(0x6b6050), GND_N = hexToLinear(0x101418);

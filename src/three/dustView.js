@@ -1,21 +1,20 @@
 import * as THREE from 'three';
 
-// Draws the shared DustSim arrays as one Points draw call. Point size is given
-// in world units and converted to buffer texels so puffs stay chunky at any zoom.
+// Draws the shared particle arrays as one Points draw call. Point size is given in
+// world units and converted to buffer texels so sprites stay chunky at any zoom.
 export class DustView {
   constructor(scene, sim, pixel) {
     this.sim = sim; this.pixel = pixel;
     const g = new THREE.BufferGeometry();
-    g.setAttribute('position', new THREE.BufferAttribute(sim.pos, 3).setUsage(THREE.DynamicDrawUsage));
-    g.setAttribute('aLife', new THREE.BufferAttribute(sim.life, 1).setUsage(THREE.DynamicDrawUsage));
-    g.setAttribute('aSize', new THREE.BufferAttribute(sim.size, 1).setUsage(THREE.DynamicDrawUsage));
+    const attr = (name, arr, n) => g.setAttribute(name, new THREE.BufferAttribute(arr, n).setUsage(THREE.DynamicDrawUsage));
+    attr('position', sim.pos, 3); attr('aLife', sim.life, 1); attr('aSize', sim.size, 1); attr('aColor', sim.color, 3); attr('aParams', sim.params, 2);
     this.geo = g;
     this.mat = new THREE.ShaderMaterial({
-      uniforms: { tpu: { value: 10 }, color: { value: new THREE.Color(0xb3a386) } },
-      vertexShader: `attribute float aLife; attribute float aSize; varying float vA; uniform float tpu;
-        void main(){ vA = aLife; vec4 mv = modelViewMatrix * vec4(position, 1.0);
-          gl_PointSize = max(1.0, aSize * (1.6 - aLife) * tpu); gl_Position = projectionMatrix * mv; }`,
-      fragmentShader: `uniform vec3 color; varying float vA; void main(){ if (vA <= 0.0) discard; gl_FragColor = vec4(color, vA * 0.55);
+      uniforms: { tpu: { value: 10 } },
+      vertexShader: `attribute float aLife; attribute float aSize; attribute vec3 aColor; attribute vec2 aParams; varying vec4 vC; uniform float tpu;
+        void main(){ vC = vec4(aColor, aLife * aParams.y); vec4 mv = modelViewMatrix * vec4(position, 1.0);
+          gl_PointSize = max(1.0, aSize * mix(1.0, 1.6 - aLife, aParams.x) * tpu); gl_Position = projectionMatrix * mv; }`,
+      fragmentShader: `varying vec4 vC; void main(){ if (vC.a <= 0.0) discard; gl_FragColor = vC;
         #include <colorspace_fragment> }`,
       transparent: true, depthWrite: false,
     });
@@ -25,7 +24,7 @@ export class DustView {
   update() {
     const p = this.pixel;
     this.mat.uniforms.tpu.value = p.enabled ? p.texelsPerUnit : p.texelsPerUnit * p.pixelScale * p.dpr;
-    this.geo.attributes.position.needsUpdate = this.geo.attributes.aLife.needsUpdate = this.geo.attributes.aSize.needsUpdate = true;
+    for (const a of Object.values(this.geo.attributes)) a.needsUpdate = true;
     this.geo.setDrawRange(0, this.sim.n);
   }
 }

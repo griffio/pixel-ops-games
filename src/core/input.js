@@ -70,11 +70,13 @@ export class Input {
   }
 
   clickSelect(nx, ny, add) {
-    const u = this.app.pick(nx, ny);
+    const u = this.app.pick(nx, ny), me = this.app.playerTeam ?? 0;
+    if (u && u.team !== me) { if (this.selected.length) this.orderAt(u.pos.x, u.pos.z); return; }   // click an enemy: attack-move there
     if (!u) { if (!add) this.select([]); return; }
     const set = u.squad ? u.squad.members : [u];
     this.select(add ? [...new Set([...this.selected, ...set])] : set);
   }
+
 
   boxSelect(x0, y0, x1, y1, add) {
     const r = this.canvas.getBoundingClientRect();
@@ -88,14 +90,16 @@ export class Input {
 
   select(list) {
     for (const u of this.selected) u.setSelected(false);
-    this.selected = list.filter(u => !u.dead);
+    const me = this.app.playerTeam ?? 0;
+    this.selected = list.filter(u => !u.dead && u.team === me);
     for (const u of this.selected) u.setSelected(true);
     this.hud.showSelection(this.selected);
   }
 
-  issueOrder(nx, ny) {
+  issueOrder(nx, ny) { const g = this.rts.screenToGround(nx, ny); this.orderAt(g.x, g.z); }
+  orderAt(gx, gz) {
     if (!this.selected.length) return;
-    const g = this.rts.screenToGround(nx, ny);
+    const g = { x: gx, z: gz };
     if (this.units.world.isBlocked(g.x, g.z, 1)) { this.hud.toast('Blocked'); return; }
     const squads = new Set(), loose = [];
     for (const u of this.selected) u.squad ? squads.add(u.squad) : loose.push(u);

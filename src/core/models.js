@@ -4,10 +4,19 @@ import { rng } from './math.js';
 //   F.group()                              -> empty transform node
 //   F.box(w, h, d, matName, x, y, z, parent) -> box mesh
 //   F.wheel(r, w, x, y, z, parent)         -> spinning wheel group (axle along X)
+//   F.mesh(geoKey, matName, x, y, z, parent) -> mesh of any geometry key
 //   F.ring(radius, parent)                 -> hidden selection ring
 // Local +Z is forward. Sizes are world units; at 10 texels/unit a soldier is ~23 texels tall.
 export function makeBuilders(F) {
-  const { group, box, wheel, ring } = F;
+  // Material names resolve per team: OPFOR (team 1) uses the 'B' recolour when one exists.
+  const TEAMED = new Set(['uniform', 'vest', 'desert', 'desert2', 'heli']);
+  let team = 0;
+  const mat = (n) => (team === 1 && TEAMED.has(n) ? n + 'B' : n);
+  const group = F.group;
+  const box = (w, h, d, m, x, y, z, parent) => F.box(w, h, d, mat(m), x, y, z, parent);
+  const mesh = (geo, m, x, y, z, parent) => F.mesh(geo, mat(m), x, y, z, parent);
+  const wheel = F.wheel, ring = F.ring;
+
 
   // Reference look: realistic proportions, bare dark hair, chest rig, rifle held
   // diagonally across the body with both hands, knees that bend while running.
@@ -63,55 +72,71 @@ export function makeBuilders(F) {
     return { group: g, parts: p, height: 4, radius: 2.2 };
   }
 
+  // Reference look: sloped glacis, roof hatches, side stowage, olive rear ramp, big rimmed wheels.
   function apc() {
     const g = group(); const p = { wheels: [], steer: [] };
-    box(2.5, 1.0, 7.2, 'desert2', 0, 1.4, 0, g);
-    box(2.8, 1.0, 5.8, 'desert', 0, 2.35, 0.2, g);
-    box(2.2, 0.6, 1.4, 'desert2', 0, 2.95, 2.6, g);
-    box(0.4, 0.4, 0.6, 'glass', -0.6, 2.9, 3.0, g); box(0.4, 0.4, 0.6, 'glass', 0.6, 2.9, 3.0, g);
-    p.turret = group(); p.turret.position.set(0, 2.85, -0.3); g.add(p.turret);
-    box(1.5, 0.7, 1.7, 'desert', 0, 0.35, 0, p.turret);
-    box(0.16, 0.16, 2.4, 'metal', 0.3, 0.45, 1.8, p.turret);
-    box(2.9, 0.15, 0.5, 'metal', 0, 1.95, -3.1, g);
-    for (let i = 0; i < 4; i++) for (const x of [-1.4, 1.4]) {
-      const z = -2.5 + i * 1.6 + (i >= 2 ? 0.3 : 0);
-      const w = wheel(0.62, 0.55, x, 0.62, z, g); p.wheels.push(w); if (i >= 2) p.steer.push(w);
+    box(2.7, 1.1, 7.6, 'desert2', 0, 1.65, 0, g);                                   // lower hull
+    mesh('wedge:2.9,1.15,7.0,1.6,0.5', 'desert', 0, 2.75, 0.1, g);                  // upper hull, sloped front
+    mesh('wedge:2.5,0.35,2.2,0.9,0', 'desert2', 0, 3.4, 1.6, g);                    // driver hump
+    box(0.5, 0.08, 0.7, 'desert2', -0.8, 3.37, 0.9, g); box(0.5, 0.08, 0.7, 'desert2', 0.8, 3.37, 0.9, g);   // hatches
+    box(0.4, 0.4, 0.5, 'glass', -0.7, 3.1, 2.7, g); box(0.4, 0.4, 0.5, 'glass', 0.7, 3.1, 2.7, g);          // vision blocks
+    p.turret = group(); p.turret.position.set(0, 3.33, -0.5); g.add(p.turret);
+    mesh('wedge:1.7,0.75,2.0,0.6,0.3', 'desert', 0, 0.37, 0, p.turret);
+    box(0.7, 0.1, 0.7, 'desert2', -0.35, 0.78, -0.3, p.turret);                     // commander hatch
+    box(0.16, 0.16, 2.8, 'metal', 0.35, 0.45, 2.0, p.turret);                        // gun
+    box(0.3, 0.3, 0.6, 'metal', 0.35, 0.45, 0.9, p.turret);                          // mantlet
+    box(0.35, 0.45, 2.4, 'canvas', -1.6, 2.9, -1.2, g); box(0.35, 0.45, 2.4, 'canvas', 1.6, 2.9, -1.2, g);   // side stowage
+    box(2.4, 1.3, 0.18, 'olive', 0, 2.3, -3.85, g);                                   // rear ramp
+    box(0.06, 1.8, 0.06, 'metal', -1.1, 4.2, -2.6, g);                               // antenna
+    for (let i = 0; i < 4; i++) for (const x of [-1.45, 1.45]) {
+      const w = wheel(0.8, 0.62, x, 0.8, [-2.7, -1.35, 0.95, 2.35][i], g); p.wheels.push(w); if (i >= 2) p.steer.push(w);
     }
-    p.ring = ring(3.6, g);
-    return { group: g, parts: p, height: 3.9, radius: 2.4 };
+    p.ring = ring(3.8, g);
+    return { group: g, parts: p, height: 4.6, radius: 2.5 };
   }
 
+  // Reference look: grey utility helicopter, tapered nose and boom, side windows, rotor
+  // that turns into a translucent disc at speed.
   function heli() {
     const g = group(); const p = {};
     const body = group(); g.add(body); p.body = body;
-    box(2.2, 1.9, 5.4, 'heli', 0, 1.9, 0, body);
-    box(1.9, 1.3, 2.0, 'heli', 0, 1.5, 3.4, body);
-    box(1.7, 0.7, 1.3, 'glass', 0, 2.3, 3.0, body);
-    box(0.6, 0.9, 1.6, 'glass', -1.12, 1.9, 0.4, body); box(0.6, 0.9, 1.6, 'glass', 1.12, 1.9, 0.4, body);
-    box(2.6, 0.5, 2.6, 'heliDark', 0, 3.05, -0.2, body);
-    box(3.6, 0.15, 0.9, 'heliDark', 0, 2.0, 1.2, body);
-    box(0.8, 0.8, 4.6, 'heli', 0, 2.4, -4.6, body);
-    box(0.25, 2.2, 1.1, 'heli', 0, 3.6, -6.6, body);
-    box(2.4, 0.12, 0.7, 'heliDark', 0, 2.8, -6.0, body);
-    box(0.2, 0.7, 0.2, 'metal', -0.9, 0.5, 2.2, body); box(0.2, 0.7, 0.2, 'metal', 0.9, 0.5, 2.2, body);
-    wheel(0.3, 0.25, -0.9, 0.3, 2.2, body); wheel(0.3, 0.25, 0.9, 0.3, 2.2, body); wheel(0.25, 0.25, 0, 0.25, -5.6, body);
-    box(0.16, 0.16, 0.16, 'navRed', -1.85, 2.05, 1.2, body); box(0.16, 0.16, 0.16, 'navGreen', 1.85, 2.05, 1.2, body);
-    p.beacon = box(0.2, 0.2, 0.2, 'navRed', 0, 4.8, -6.6, body);
-    p.rotor = group(); p.rotor.position.set(0, 3.55, -0.2); body.add(p.rotor);
+    box(2.3, 1.9, 4.6, 'heli', 0, 1.95, -0.2, body);                                  // cabin
+    mesh('frustum:1.4,1.2,2.6,2.3,1.9', 'heli', 0, 1.75, 3.4, body);                  // nose
+    mesh('wedge:1.9,0.75,1.5,1.0,0', 'glass', 0, 2.55, 3.0, body);                    // windscreen
+    box(0.5, 0.7, 1.4, 'glass', -1.17, 2.2, 0.5, body); box(0.5, 0.7, 1.4, 'glass', 1.17, 2.2, 0.5, body);   // cabin doors
+    box(0.5, 0.6, 0.9, 'glass', -1.17, 2.3, 1.9, body); box(0.5, 0.6, 0.9, 'glass', 1.17, 2.3, 1.9, body);   // cockpit windows
+    mesh('frustum:2.2,0.7,2.6,1.6,0.5', 'heliDark', 0, 3.2, -0.9, body);               // engine deck
+    box(3.6, 0.15, 0.9, 'heliDark', 0, 2.1, 1.0, body);                                 // stub wings
+    box(0.3, 0.3, 0.9, 'metal', -1.9, 2.0, 1.0, body); box(0.3, 0.3, 0.9, 'metal', 1.9, 2.0, 1.0, body);     // pods
+    mesh('frustum:0.9,1.0,5.2,0.5,0.6', 'heli', 0, 2.5, -5.1, body);                    // tail boom
+    box(0.25, 2.3, 1.1, 'heli', 0, 3.6, -7.3, body);                                     // fin
+    box(2.6, 0.12, 0.8, 'heliDark', 0, 2.3, -7.6, body);                                 // stabilator
+    box(0.2, 0.7, 0.2, 'metal', -0.9, 0.5, 2.0, body); box(0.2, 0.7, 0.2, 'metal', 0.9, 0.5, 2.0, body);     // gear legs
+    box(0.15, 1.8, 0.15, 'metal', 0, 1.2, -6.3, body);                                   // tail strut
+    wheel(0.3, 0.25, -0.9, 0.3, 2.0, body); wheel(0.3, 0.25, 0.9, 0.3, 2.0, body); wheel(0.25, 0.25, 0, 0.25, -6.3, body);
+    box(0.16, 0.16, 0.16, 'navRed', -1.85, 2.15, 1.0, body); box(0.16, 0.16, 0.16, 'navGreen', 1.85, 2.15, 1.0, body);
+    p.beacon = box(0.2, 0.2, 0.2, 'navRed', 0, 4.85, -7.3, body);
+    p.rotor = group(); p.rotor.position.set(0, 3.75, -0.5); body.add(p.rotor);
     box(0.5, 0.5, 0.5, 'metal', 0, 0, 0, p.rotor);
-    for (let i = 0; i < 4; i++) { const h = group(); h.rotation.y = i * Math.PI / 2; box(0.28, 0.07, 7.2, 'heliDark', 0, 0.1, 3.6, h); p.rotor.add(h); }
-    p.tail = group(); p.tail.position.set(0.3, 3.9, -6.8); body.add(p.tail);
+    p.blades = group(); p.rotor.add(p.blades);
+    for (let i = 0; i < 4; i++) { const h = group(); h.rotation.y = i * Math.PI / 2; box(0.3, 0.07, 7.4, 'heliDark', 0, 0.1, 3.7, h); p.blades.add(h); }
+    p.disc = mesh('cyl:7.4,7.4,0.05,24', 'rotorBlur', 0, 0.1, 0, p.rotor); p.disc.visible = false;
+    p.tail = group(); p.tail.position.set(0.3, 3.9, -7.5); body.add(p.tail);
     box(0.1, 0.18, 2.2, 'heliDark', 0, 0, 0, p.tail); box(0.1, 2.2, 0.18, 'heliDark', 0, 0, 0, p.tail);
     p.ring = ring(4.5, g);
-    return { group: g, parts: p, height: 4.2, radius: 2.8 };
+    return { group: g, parts: p, height: 4.4, radius: 2.8 };
   }
 
-  return { soldier, truck, apc, heli };
+  // each builder takes the team so the whole model picks the right camo set
+  const forTeam = (fn) => (t = 0) => { team = t; const r = fn(); team = 0; return r; };
+  return { soldier: forTeam(soldier), truck: forTeam(truck), apc: forTeam(apc), heli: forTeam(heli) };
+
+
 }
 
 // sRGB hex colours shared by both back ends' material tables
 export const COLORS = {
   skin: 0xc9966b, skin2: 0x7a5236, hair: 0x1a1512, belt: 0x3b3127, boots: 0x3a3127, rifle: 0x1f1f1f,
-  heliDark: 0x2e3330, glass: 0x1d2328, tire: 0x1a1a1a, rim: 0x6d6a60, metal: 0x2a2a2a, canvas: 0x6f6448,
+  heliDark: 0x2e3330, olive: 0x5c6b3f, glass: 0x1d2328, tire: 0x1a1a1a, rim: 0x8a877c, metal: 0x2a2a2a, canvas: 0x6f6448,
 };
-export const TEXTURED = ['uniform', 'vest', 'desert', 'desert2', 'heli'];
+export const TEXTURED = ['uniform', 'vest', 'desert', 'desert2', 'heli', 'trunk', 'frond', 'bush', 'uniformB', 'vestB', 'desertB', 'desert2B', 'heliB', 'wreck'];
