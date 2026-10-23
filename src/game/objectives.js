@@ -21,7 +21,7 @@ export class Objectives {
     for (const loc of this.list) {
       const list = spatial.query(loc.x, loc.z, loc.r, this.scratch);
       let n0 = 0, n1 = 0;
-      for (const u of list) { if (u.dead || (u.spec.air && u.alt > 1)) continue; u.team === 0 ? n0++ : n1++; }
+      for (const u of list) { if (u.dead || u.mounted || u.spec.structure || (u.spec.air && u.alt > 1)) continue; u.team === 0 ? n0++ : n1++; }
       loc.n[0] = n0; loc.n[1] = n1;
       if ((n0 && n1) || (!n0 && !n1)) continue;
       const team = n0 ? 0 : 1, n = Math.min(8, n0 || n1);

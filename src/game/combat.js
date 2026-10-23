@@ -36,7 +36,7 @@ export class Combat {
     const list = this.spatial.query(u.pos.x, u.pos.z, w.range, this.scratch);
     let best = null, bestScore = -Infinity;
     for (const e of list) {
-      if (e.team === u.team || e.dead) continue;
+      if (e.team === u.team || e.dead || e.mounted) continue;
       if (e.spec.air && e.alt > 2 && !w.air) continue;
       const d = Math.hypot(e.pos.x - u.pos.x, e.pos.z - u.pos.z);
       let score = -d;
@@ -51,12 +51,12 @@ export class Combat {
 
   tick(dt) {
     for (const u of this.units.units) {
-      if (u.dead || !u.kit) continue;
+      if (u.dead || !u.kit || u.mounted) continue;
       const w = WEAPONS[u.kit];
       u.cooldown -= dt;
       if (u.enemy) {
         const e = u.enemy, d = Math.hypot(e.pos.x - u.pos.x, e.pos.z - u.pos.z);
-        if (e.dead || d > w.range * 1.15 || ((u.retarget -= dt) <= 0 && !this.canSee(u, e))) { u.enemy = null; u.retarget = 0.3; }
+        if (e.dead || e.mounted || d > w.range * 1.15 || ((u.retarget -= dt) <= 0 && !this.canSee(u, e))) { u.enemy = null; u.retarget = 0.3; }
         else u.hold = u.type === 'soldier' && d < w.range * 0.8;
       }
       if (!u.enemy) {

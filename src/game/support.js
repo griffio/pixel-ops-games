@@ -1,11 +1,14 @@
 // Medics revive fallen squadmates inside the revive window; engineers repair
 // nearby vehicles. Ticks at the match rate.
+import { RULES } from './rules.js';
 export const REVIVE_WINDOW = 12, REVIVE_TIME = 3, REVIVE_RANGE = 14;
 
 export class Support {
-  constructor(units, respawn) { this.units = units; this.respawn = respawn; }
+  constructor(units, respawn, teams) { this.units = units; this.respawn = respawn; this.teams = teams; }
   tick(dt) {
     const all = this.units.units;
+    // supply trucks refill inside their own main base
+    for (const t of all) if (t.supply && !t.dead && t.supplies < RULES.fob.truckSupplies) { const b = this.teams[t.team].base; if (Math.hypot(t.pos.x - b.x, t.pos.z - b.z) < b.r) t.supplies = Math.min(RULES.fob.truckSupplies, t.supplies + RULES.fob.resupplyRate * dt); }
     for (const u of all) {
       if (u.dead || (u.kit !== 'medic' && u.kit !== 'engineer')) continue;
       if (u.kit === 'medic') {

@@ -127,9 +127,21 @@ export function makeBuilders(F) {
     return { group: g, parts: p, height: 4.4, radius: 2.8 };
   }
 
+  // Forward operating base: radio mast, HAB tent and a sandbag ring. Static structure.
+  function fob() {
+    const g = group(); const p = {};
+    box(0.3, 6, 0.3, 'metal', -2.2, 3, -1.5, g); box(1.2, 0.08, 1.2, 'metal', -2.2, 6, -1.5, g); box(0.5, 0.5, 0.5, 'rifle', -2.2, 1.0, -1.5, g);   // mast, dish, radio
+    mesh('wedge:6,2.6,4.4,1.2,1.2', 'canvas', 1.2, 1.3, 0.2, g);                                                                                     // tent
+    box(2.2, 1.0, 1.4, 'olive', -2.4, 0.5, 1.8, g); box(1.2, 0.7, 0.9, 'canvas', 1.0, 0.35, -2.8, g);                                               // crates
+    for (let i = 0; i < 12; i++) { const a = i / 12 * Math.PI * 2; if (i === 9) continue; const h = group(); h.position.set(Math.cos(a) * 5.2, 0, Math.sin(a) * 5.2); h.rotation.y = -a; box(2.6, 1.0, 0.9, 'sandbag', 0, 0.5, 0, h); g.add(h); }
+    p.ring = ring(6.5, g);
+    return { group: g, parts: p, height: 6.4, radius: 5.5 };
+  }
+
   // each builder takes the team so the whole model picks the right camo set
   const forTeam = (fn) => (t = 0) => { team = t; const r = fn(); team = 0; return r; };
-  return { soldier: forTeam(soldier), truck: forTeam(truck), apc: forTeam(apc), heli: forTeam(heli) };
+  return { soldier: forTeam(soldier), truck: forTeam(truck), apc: forTeam(apc), heli: forTeam(heli), fob: forTeam(fob) };
+
 
 
 }
@@ -137,6 +149,6 @@ export function makeBuilders(F) {
 // sRGB hex colours shared by both back ends' material tables
 export const COLORS = {
   skin: 0xc9966b, skin2: 0x7a5236, hair: 0x1a1512, belt: 0x3b3127, boots: 0x3a3127, rifle: 0x1f1f1f,
-  heliDark: 0x2e3330, olive: 0x5c6b3f, glass: 0x1d2328, tire: 0x1a1a1a, rim: 0x8a877c, metal: 0x2a2a2a, canvas: 0x6f6448,
+  heliDark: 0x2e3330, olive: 0x5c6b3f, sandbag: 0x9c8b64, glass: 0x1d2328, tire: 0x1a1a1a, rim: 0x8a877c, metal: 0x2a2a2a, canvas: 0x6f6448,
 };
 export const TEXTURED = ['uniform', 'vest', 'desert', 'desert2', 'heli', 'trunk', 'frond', 'bush', 'uniformB', 'vestB', 'desertB', 'desert2B', 'heliB', 'wreck'];

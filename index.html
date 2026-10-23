@@ -129,6 +129,7 @@
     min-width: 260px; text-align: center; }
   #selinfo .n { font-size: 14px; color: var(--accent); letter-spacing: 0.06em; }
   #selinfo .d { color: var(--muted); font-size: 11px; margin-top: 2px; }
+  #sel-actions { justify-content: center; margin-top: 6px; align-items: center; } #sel-actions:empty { display: none; } #sel-actions .hint { color: var(--muted); font-size: 10px; }
 
   #toast { position: absolute; bottom: 70px; left: 50%; transform: translateX(-50%);
     color: var(--accent2); font-size: 11px; letter-spacing: 0.1em; text-transform: uppercase;
@@ -210,7 +211,7 @@
     <kbd>Wheel</kbd> zoom &nbsp; <kbd>WASD</kbd> / edge pan &nbsp; <kbd>MMB drag</kbd> pan &nbsp; <kbd>Space</kbd> pause &nbsp; <kbd>F</kbd> follow
   </div>
 
-  <div id="selinfo" class="panel"><div class="n" id="sel-n"></div><div class="d" id="sel-d"></div></div>
+  <div id="selinfo" class="panel"><div class="n" id="sel-n"></div><div class="d" id="sel-d"></div><div id="sel-actions" class="row"></div></div>
   <div id="toast"></div>
 </div>
 

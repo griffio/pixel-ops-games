@@ -5,7 +5,7 @@ export class SpatialHash {
   rebuild(units) {
     this.map.clear();
     for (const u of units) {
-      if (u.dead) continue;
+      if (u.dead || u.mounted) continue;
       const k = this.key(Math.floor(u.pos.x / this.cell), Math.floor(u.pos.z / this.cell));
       let b = this.map.get(k); if (!b) { b = []; this.map.set(k, b); } b.push(u);
     }

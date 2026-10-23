@@ -65,6 +65,8 @@ export class Input {
       if (e.code === 'KeyF') { this.rts.follow = this.selected[0] || null; if (this.rts.follow) this.hud.toast('Following ' + this.rts.follow.label); return; }
       if (e.code === 'Escape') { this.select([]); return; }
       if (e.code === 'KeyR') { this.rts.reset(); return; }
+      if (e.code === 'KeyB') { this.hud.action('fob'); return; }
+      if (e.code === 'KeyU') { this.hud.action('unload'); return; }
     }
     down ? this.rts.keys.add(e.code) : this.rts.keys.delete(e.code);
   }
@@ -96,7 +98,16 @@ export class Input {
     this.hud.showSelection(this.selected);
   }
 
-  issueOrder(nx, ny) { const g = this.rts.screenToGround(nx, ny); this.orderAt(g.x, g.z); }
+  issueOrder(nx, ny) {
+    // right-click on a friendly landed helicopter with infantry selected: board it
+    const u = this.app.pick(nx, ny), me = this.app.playerTeam ?? 0;
+    if (u && u.type === 'heli' && u.team === me && !u.dead && this.selected.some(s => s.type === 'soldier')) {
+      const squads = new Set(); for (const s of this.selected) if (s.type === 'soldier') (s.squad ? squads.add(s.squad) : s.board(u));
+      for (const sq of squads) sq.board(u); u.dropOnLand = true;
+      this.hud.toast(`Boarding ${u.label}: fly it and it unloads on landing`); return;
+    }
+    const g = this.rts.screenToGround(nx, ny); this.orderAt(g.x, g.z);
+  }
   orderAt(gx, gz) {
     if (!this.selected.length) return;
     const g = { x: gx, z: gz };

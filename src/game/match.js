@@ -5,6 +5,7 @@ import { SpatialHash } from './spatial.js';
 import { Combat } from './combat.js';
 import { Respawn } from './respawn.js';
 import { Support } from './support.js';
+import { Fobs } from './fob.js';
 import { Objectives } from './objectives.js';
 import { Strategist } from './ai/strategist.js';
 import { DOCTRINES, PRESETS, expand, preset } from './loadout.js';
@@ -21,14 +22,16 @@ export class Match {
     this.teams.forEach((t, i) => {
       t.loadout = loadouts[i]; t.doctrine = DOCTRINES[t.loadout.doctrine] || DOCTRINES.entrenched;
       const p = Object.entries(PRESETS).find(([k, v]) => v.doctrine === t.loadout.doctrine && JSON.stringify(v.items) === JSON.stringify(t.loadout.items));
-      t.loadoutName = p ? p[1].name : 'Custom';
+      t.loadoutName = p ? p[1].name : 'Custom'; t.fobKits = (t.loadout.items && t.loadout.items.fob) || 0;
     });
     this.nav = { foot: new NavGrid(this.world.size, 1, 0.6), vehicle: new NavGrid(this.world.size, 2, 2.2) };
     this.nav.foot.build(this.world.obstacles, this.world.terrain, 0.9, this.world.onBridge); this.nav.vehicle.build(this.world.obstacles, this.world.terrain, 0.45, this.world.onBridge); this.units.nav = this.nav;
     this.spatial = new SpatialHash(8); this.units.spatial = this.spatial;
     this.combat = new Combat(this.units, this.spatial, this.world, app.dust);
     this.respawn = new Respawn(this.units, this.teams, this.world);
-    this.support = new Support(this.units, this.respawn);
+    this.support = new Support(this.units, this.respawn, this.teams);
+    this.fobs = new Fobs(this.units, this.teams, this.world);
+    this.fobs.onBuilt = (fob) => { this.events.unshift({ type: 'fob', team: fob.team, t: 0, fob }); this.events.length = Math.min(this.events.length, 4); };
     this.feed = []; this.events = [];
     this.combat.onDeath = (v, k) => { this.respawn.onDeath(v, k); this.feed.unshift({ v, k, t: 0 }); this.feed.length = Math.min(this.feed.length, 6); };
     this.objectives = this.mode === 'aas' ? new Objectives(map.locations, this.teams) : null;
@@ -80,6 +83,7 @@ export class Match {
     this.combat.tick(dt);
     this.respawn.tick(dt);
     this.support.tick(dt);
+    this.fobs.tick(dt);
     if (this.objectives) {
       this.objectives.tick(dt, this.spatial);
       const o0 = this.objectives.owned(0), o1 = this.objectives.owned(1);

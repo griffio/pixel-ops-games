@@ -7,6 +7,7 @@ export const SPEC = {
   truck:   { speed: 9.5, turn: 1.1, accel: 5, label: 'TR', air: false, hp: 150, nav: 'vehicle' },
   apc:     { speed: 8,   turn: 0.9, accel: 4, label: 'AP', air: false, hp: 600, nav: 'vehicle', kit: 'autocannon' },
   heli:    { speed: 16,  turn: 1.4, accel: 6, label: 'HE', air: true, hp: 300, nav: null, kit: 'doorgun' },
+  fob:     { speed: 0,   turn: 0,   accel: 0, label: 'FB', air: false, hp: 300, nav: null, structure: true },
 };
 const counters = {}; let pickSeq = 0;
 
@@ -22,6 +23,7 @@ export class Unit {
     this.idle = rnd(0, 3); this.phase = rng() * 6;
     this.hp = this.maxHp = spec.hp; this.kit = spec.kit || null; this.enemy = null; this.cooldown = 0; this.retarget = 0;
     this.dead = false; this.deathT = 0; this.wreck = false; this.remove = false;
+    this.mounted = null; this.passengers = []; this.boardTarget = null; this.supplies = 0;
     this.alt = 0; this.altT = 0; this.rotor = 0; this.rotorT = 0; this.state = 'parked'; this.tilt = 0; this.bank = 0;
     this.id = (counters[type] = (counters[type] || 0) + 1);
     this.label = `${spec.label}-${String(this.id).padStart(2, '0')}`;
@@ -46,6 +48,18 @@ export class Unit {
     this.target = null; this.path = null; this.dest = null; return false;
   }
 
+  // ---- transport ---------------------------------------------------------
+  board(heli) { if (this.type !== 'soldier' || this.dead || this.mounted) return; this.boardTarget = heli; this.boardT = 0; this.order(heli.pos.x, heli.pos.z + 3); }
+  mount(heli) {
+    this.mounted = heli; heli.passengers.push(this); this.boardTarget = null; this.group.visible = false;
+    this.target = null; this.dest = null; this.path = null; this.hold = false; this.enemy = null; this.speed = 0;
+  }
+  unload() {   // helicopter: put passengers down around the airframe
+    const n = this.passengers.length; if (!n) return;
+    this.passengers.forEach((p, i) => { const a = i / n * Math.PI * 2; p.mounted = null; p.group.visible = true; p.pos.set(this.pos.x + Math.cos(a) * 5, this.pos.y, this.pos.z + Math.sin(a) * 5); p.heading = a; p.group.rotation.y = a; });
+    this.passengers = [];
+  }
+
   damage(amount, from) {
     if (this.dead) return false;
     this.hp -= amount;
@@ -53,8 +67,10 @@ export class Unit {
     return false;
   }
   die(from) {
-    this.dead = true; this.deathT = 0; this.enemy = null; this.target = null; this.path = null; this.dest = null; this.hold = false;
+    this.dead = true; this.deathT = 0; this.enemy = null; this.target = null; this.path = null; this.dest = null; this.hold = false; this.boardTarget = null; this.building = null;
     this.killer = from || null; this.parts.ring.visible = false;
+    if (this.passengers.length) { const ps = this.passengers; this.passengers = []; for (const p of ps) { p.mounted = null; p.group.visible = true; p.pos.set(this.pos.x, this.pos.y, this.pos.z); p.damage(9999, from); } }
+    if (this.boardTarget) this.boardTarget = null;
     if (this.spec.air && this.alt > 0.1) { this.state = 'crash'; this.speed *= 0.5; return; }
     this.speed = 0;
     if (this.type !== 'soldier') this.becomeWreck();
@@ -67,7 +83,7 @@ export class Unit {
   // revive at a position (infantry respawn reuses the object so squads keep their members)
   revive(x, z, heading) {
     this.dead = false; this.hp = this.maxHp; this.pos.set(x, 0, z); this.heading = heading; this.group.rotation.set(0, heading, 0);
-    this.group.visible = true; this.speed = 0; this.enemy = null; this.target = null; this.path = null; this.dest = null; this.deathT = 0; this.reviveT = 0; this.hold = false;
+    this.group.visible = true; this.speed = 0; this.enemy = null; this.target = null; this.path = null; this.dest = null; this.deathT = 0; this.reviveT = 0; this.hold = false; this.boardTarget = null; this.mounted = null;
   }
 
   stepDead(dt) {
@@ -181,7 +197,7 @@ export class Unit {
         if (this.alt < 0.02) { this.state = 'spooldown'; }
         break;
       }
-      case 'spooldown': this.rotorT = 0; if (this.rotor < 0.02) { this.state = 'parked'; this.rotor = 0; } break;
+      case 'spooldown': this.rotorT = 0; if (this.passengers.length && this.dropOnLand) { this.unload(); this.dropOnLand = false; } if (this.rotor < 0.02) { this.state = 'parked'; this.rotor = 0; } break;
     }
     if (this.state !== 'cruise') { this.bank = lerp(this.bank, 0, 1 - Math.pow(0.02, dt)); if (this.state !== 'land') this.speed = Math.max(0, this.speed - s.accel * dt); }
     const climb = this.state === 'land' ? 2.2 : 3.5;
@@ -204,6 +220,14 @@ export class Unit {
 
   step(dt, world) {
     if (this.dead) { this.stepDead(dt); return; }
+    if (this.spec.structure) { this.pos.y = world.heightAt(this.pos.x, this.pos.z); return; }   // structures sit on the terrain
+    if (this.mounted) { this.pos.copy(this.mounted.pos); return; }
+    if (this.boardTarget) {
+      const h = this.boardTarget;
+      if (h.dead || h.passengers.length >= 8) this.boardTarget = null;
+      else if (Math.hypot(h.pos.x - this.pos.x, h.pos.z - this.pos.z) < 5 && h.alt < 0.5) { this.mount(h); return; }
+      else if ((this.boardT += dt) > 1.5 && !this.dest) { this.boardT = 0; this.order(h.pos.x, h.pos.z + 3); }
+    }
     this.spec.air ? this.stepAir(dt, world) : this.stepGround(dt, world);
   }
 }
@@ -221,7 +245,10 @@ export class Squad {
     let i = 0;
     for (const m of this.members) { if (m.dead) continue; const [ox, oz] = offs[i++ % offs.length]; m.order(x + ox * c + oz * s, z - ox * s + oz * c); }
   }
-  get busy() { return this.members.some(m => !m.dead && m.dest); }
+  get busy() { return this.members.some(m => !m.dead && (m.dest || m.boardTarget)); }
+  board(heli) { for (const m of this.members) if (!m.dead && !m.mounted) m.board(heli); }
+  get mounted() { const a = this.members.filter(m => !m.dead); return a.length > 0 && a.every(m => m.mounted); }
+  get engineer() { return this.members.find(m => !m.dead && m.kit === 'engineer') || null; }
   centroid() { const a = this.members.filter(m => !m.dead); const c = new Vec3(); for (const m of a) c.add(m.pos); return c.multiplyScalar(1 / (a.length || 1)); }
 }
 
@@ -248,7 +275,8 @@ export class UnitManager {
   spawn(type, x, z, heading, team = 0, opts = {}) {
     if (x === undefined) [x, z] = this.freePoint(SPEC[type].air ? 6 : 3);
     const u = this.add(new Unit(type, this.builders[type], x, z, heading, team));
-    if (opts.supply) { u.supply = true; u.label = u.label.replace('TR', 'SP'); }
+    u.pos.y = this.world.heightAt(x, z);
+    if (opts.supply) { u.supply = true; u.supplies = 100; u.label = u.label.replace('TR', 'SP'); }
     return u;
   }
   spawnSquad(x, z, team = 0, kits = KITS) {
@@ -268,12 +296,12 @@ export class UnitManager {
     for (let i = this.units.length - 1; i >= 0; i--) if (this.units[i].remove) this.removeUnit(this.units[i]);
     // separation between ground units
     const push = (a, b) => {
-      if (a.dead || b.dead || (a.spec.air && a.alt > 0.1) || (b.spec.air && b.alt > 0.1)) return;
+      if (a.dead || b.dead || a.mounted || b.mounted || (a.spec.air && a.alt > 0.1) || (b.spec.air && b.alt > 0.1)) return;
       const dx = b.pos.x - a.pos.x, dz = b.pos.z - a.pos.z, r = a.radius + b.radius, d2 = dx * dx + dz * dz;
       if (d2 < r * r && d2 > 1e-6) {
         const d = Math.sqrt(d2), k = (r - d) * 0.5, nx = dx / d, nz = dz / d, wa = b.radius / r, wb = a.radius / r;
-        if (!a.spec.air) { a.pos.x -= nx * k * wa; a.pos.z -= nz * k * wa; }
-        if (!b.spec.air) { b.pos.x += nx * k * wb; b.pos.z += nz * k * wb; }
+        if (!a.spec.air && !a.spec.structure) { a.pos.x -= nx * k * wa; a.pos.z -= nz * k * wa; }
+        if (!b.spec.air && !b.spec.structure) { b.pos.x += nx * k * wb; b.pos.z += nz * k * wb; }
       }
     };
     if (this.spatial) this.spatial.forEachPair(6, push);

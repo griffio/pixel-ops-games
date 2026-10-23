@@ -15,7 +15,7 @@ export class Lobby {
   build() {
     const row = (k) => `<div class="lb-item" data-k="${k}"><div class="n">${ITEMS[k].name}<small>${ITEMS[k].desc}</small></div><div class="c" data-cost="${k}"></div><div class="q"><button data-dec="${k}">&minus;</button><b data-n="${k}">0</b><button data-inc="${k}">+</button></div></div>`;
     $('lb-squads').innerHTML = Object.keys(ITEMS).filter(k => ITEMS[k].kind === 'squad').map(row).join('');
-    $('lb-vehicles').innerHTML = Object.keys(ITEMS).filter(k => ITEMS[k].kind === 'vehicle').map(row).join('');
+    $('lb-vehicles').innerHTML = Object.keys(ITEMS).filter(k => ITEMS[k].kind !== 'squad').map(row).join('');
     $('lb-doctrines').innerHTML = Object.entries(DOCTRINES).map(([k, d]) => `<label class="lb-doc"><input type="radio" name="doctrine" value="${k}"><div><b>${d.name}</b><small>${d.desc}</small></div></label>`).join('');
     $('lb-presets').innerHTML = Object.entries(PRESETS).map(([k, p]) => `<button data-preset="${k}">${p.name}</button>`).join('');
     this.root.addEventListener('click', (e) => {

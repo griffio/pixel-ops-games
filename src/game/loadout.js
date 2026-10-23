@@ -12,28 +12,29 @@ export const ITEMS = {
   truck:    { kind: 'vehicle', type: 'truck', name: 'Truck', cost: 60, desc: 'Moves fast, no weapon' },
   supply:   { kind: 'vehicle', type: 'truck', name: 'Supply truck', cost: 80, supply: true, desc: 'Carries FOB supplies' },
   apc:      { kind: 'vehicle', type: 'apc', name: 'APC', cost: 220, desc: 'Autocannon, 600 hp' },
-  heli:     { kind: 'vehicle', type: 'heli', name: 'Transport helicopter', cost: 300, desc: 'Door gun, fast, fragile' },
+  heli:     { kind: 'vehicle', type: 'heli', name: 'Transport helicopter', cost: 300, desc: 'Door gun, fast, fragile; carries 8' },
+  fob:      { kind: 'kit', name: 'FOB kit', cost: 50, desc: 'One forward operating base an engineer can build near a supply truck' },
 };
 
 export const DOCTRINES = {
   mechanized: { name: 'Mechanized', desc: 'APCs 25% cheaper, vehicles respawn 30% faster', costMul: { apc: 0.75 }, vehicleRespawn: 0.7, infantryRespawn: 1 },
-  air:        { name: 'Air Assault', desc: 'Helicopters 25% cheaper; infantry may respawn beside an idle helicopter', costMul: { heli: 0.75 }, vehicleRespawn: 1, infantryRespawn: 1, heliSpawn: true },
+  air:        { name: 'Air Assault', desc: 'Helicopters 35% cheaper; infantry may respawn beside an idle helicopter', costMul: { heli: 0.65 }, vehicleRespawn: 1, infantryRespawn: 1, heliSpawn: true },
   light:      { name: 'Light Infantry', desc: 'Infantry respawn halved, one extra squad slot', costMul: {}, vehicleRespawn: 1, infantryRespawn: 0.5, squadSlots: 1 },
-  entrenched: { name: 'Entrenched', desc: '+10 tickets for every location captured; FOBs build faster', costMul: {}, vehicleRespawn: 1, infantryRespawn: 1, captureBonus: 10 },
+  entrenched: { name: 'Entrenched', desc: '+10 tickets for every location captured; FOBs build twice as fast', costMul: {}, vehicleRespawn: 1, infantryRespawn: 1, captureBonus: 10, fobBuild: 0.5 },
 };
 
 export const PRESETS = {
-  balanced:   { name: 'Balanced', doctrine: 'entrenched', items: { rifle: 3, support: 1, at: 1, medic: 1, truck: 1, apc: 2 } },
-  mechanized: { name: 'Mechanized', doctrine: 'mechanized', items: { rifle: 2, support: 1, at: 1, engineer: 1, apc: 3, truck: 1 } },
-  air:        { name: 'Air Assault', doctrine: 'air', items: { rifle: 3, support: 1, medic: 1, marksman: 1, heli: 2, truck: 1 } },
-  light:      { name: 'Light Infantry', doctrine: 'light', items: { rifle: 4, support: 2, at: 1, medic: 1, marksman: 1, truck: 2 } },
-  defensive:  { name: 'Defensive', doctrine: 'entrenched', items: { rifle: 2, support: 2, at: 2, medic: 1, apc: 1, supply: 1 } },
+  balanced:   { name: 'Balanced', doctrine: 'entrenched', items: { rifle: 3, support: 1, at: 1, medic: 1, engineer: 1, apc: 1, supply: 1, fob: 1 } },
+  mechanized: { name: 'Mechanized', doctrine: 'mechanized', items: { rifle: 2, support: 1, at: 1, engineer: 1, apc: 2, supply: 1, fob: 1 } },
+  air:        { name: 'Air Assault', doctrine: 'air', items: { rifle: 3, at: 1, medic: 1, engineer: 1, heli: 2, supply: 1, fob: 1 } },
+  light:      { name: 'Light Infantry', doctrine: 'light', items: { rifle: 4, support: 1, at: 1, medic: 1, engineer: 1, truck: 1, supply: 1, fob: 1 } },
+  defensive:  { name: 'Defensive', doctrine: 'entrenched', items: { rifle: 2, support: 1, at: 2, engineer: 1, apc: 1, supply: 1, fob: 1 } },
 };
 
 export function itemCost(key, doctrine) { const it = ITEMS[key], mul = (DOCTRINES[doctrine] && DOCTRINES[doctrine].costMul[key]) || 1; return Math.round(it.cost * mul); }
 export function summarize(l) {
   let cost = 0, squads = 0, vehicles = 0;
-  for (const [k, n] of Object.entries(l.items || {})) { if (!ITEMS[k] || !n) continue; cost += itemCost(k, l.doctrine) * n; ITEMS[k].kind === 'squad' ? squads += n : vehicles += n; }
+  for (const [k, n] of Object.entries(l.items || {})) { if (!ITEMS[k] || !n) continue; cost += itemCost(k, l.doctrine) * n; if (ITEMS[k].kind === 'squad') squads += n; else if (ITEMS[k].kind === 'vehicle') vehicles += n; }
   const slots = MAX_SQUADS + ((DOCTRINES[l.doctrine] && DOCTRINES[l.doctrine].squadSlots) || 0);
   const errors = [];
   if (cost > BUDGET) errors.push(`over budget by ${cost - BUDGET}`);
@@ -47,7 +48,7 @@ export function summarize(l) {
 export function expand(l) {
   const out = [];
   for (const [k, n] of Object.entries(l.items || {})) for (let i = 0; i < n; i++) {
-    const it = ITEMS[k]; if (!it) continue;
+    const it = ITEMS[k]; if (!it || it.kind === 'kit') continue;
     out.push(it.kind === 'squad' ? { kind: 'squad', item: k, kits: it.kits } : { kind: 'vehicle', item: k, type: it.type, supply: !!it.supply });
   }
   return out;

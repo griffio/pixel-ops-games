@@ -1,5 +1,5 @@
 export class Team {
-  constructor(id, name, base, tickets, color) { this.id = id; this.name = name; this.base = base; this.tickets = tickets; this.color = color; this.kills = 0; this.losses = 0; this.loadout = null; this.doctrine = null; this.loadoutName = ''; this.spawnPref = 'base'; }
+  constructor(id, name, base, tickets, color) { this.id = id; this.name = name; this.base = base; this.tickets = tickets; this.color = color; this.kills = 0; this.losses = 0; this.loadout = null; this.doctrine = null; this.loadoutName = ''; this.spawnPref = 'auto'; this.fobKits = 0; }
   // random point inside the base circle that is not blocked
   spawnPoint(world, pad = 3) {
     for (let i = 0; i < 40; i++) {

@@ -188,7 +188,21 @@ Engine changes needed in the existing core:
   reinforcements panel). Medics revive squadmates within 12 s of death; engineers
   repair vehicles. The CPU picks an archetype that answers the player's force.
 
+- **Milestone 4 — done (2026-10-23).** Supply trucks with supplies that refill at
+  main; FOB kits in the loadout; engineers build a FOB (radio mast, tent, sandbag
+  ring) within 20 m of a supply truck, 20 s (Entrenched 10 s); FOBs are 300 hp
+  structures that cost 20 tickets when destroyed; infantry respawn at the nearest
+  spawn to their squad (main, FOB, or an idle helicopter under Air Assault). Squads
+  board landed helicopters (right-click), ride mounted and invisible to combat and
+  captures, and unload on landing; passengers die with a shot-down helicopter. CPU
+  Logistics builds one FOB behind the front with a truck and an engineer squad; CPU
+  Air lifts squads at base toward objectives more than 250 m away, landing them 70 m
+  short on its own side and avoiding known enemies; one squad raids enemy FOBs.
+- Balance note: Air Assault still underperforms Balanced in CPU-vs-CPU runs; the
+  helicopter discount went to 35% so the preset fields six squads.
+
 ## Open questions
+
 
 
 

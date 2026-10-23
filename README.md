@@ -40,6 +40,19 @@ Any static server works (ES modules can't load over `file://`). three.js comes
 from jsDelivr via an import map; the WebGL2 back end loads nothing external.
 The stats panel has a link that switches renderer while keeping the view.
 
+**Logistics and air.** Supply trucks carry 100 supplies and refill inside your
+main base. Select an engineer squad standing within 20 m of a supply truck and
+press **B** (or the Build FOB button) to raise a forward operating base in 20 s
+(10 s under Entrenched); each FOB kit in your loadout allows one FOB. A FOB is a
+spawn point: fallen infantry come back at whichever spawn is nearest their squad
+(main base, a FOB, or beside an idle helicopter under Air Assault; the
+reinforcements panel can force main base). Destroying a FOB radio costs its owner
+20 tickets, so the CPU raids yours and defends its own. With infantry selected,
+right-click a friendly landed helicopter to board it, then order the helicopter
+somewhere: it unloads on landing (**U** unloads a parked helicopter). The CPU
+commander builds a FOB one hop behind its front and lifts squads toward distant
+objectives.
+
 ## Controls
 
 | Input | Action |
@@ -88,10 +101,11 @@ src/game/           milestone 1 game layer (renderer-agnostic)
   spatial.js        hash grid for targeting and separation
   combat.js         targeting, line of sight, firing, damage, death callbacks
   respawn.js        ticket charges and respawns at main base
-  ai/strategist.js  CPU commander v0
+  ai/strategist.js  CPU commander: objectives, logistics (FOBs), air lifts, FOB raids
   objectives.js     capture zones, lattice order, ownership events
   loadout.js        force builder data: items, doctrines, presets, validation, CPU counter-pick, saved loadouts
-  support.js        medic revives and engineer repairs
+  support.js        medic revives, engineer repairs, supply truck refills
+  fob.js            forward operating bases: build rules, construction, spawn points
   ui/lobby.js       the pre-match force builder screen
   maps/             map definitions (desert1km.js) and ground texture generators
   match.js          AAS / Skirmish match flow, 10 Hz game tick, bleed, win checks
