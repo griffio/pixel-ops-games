@@ -1,0 +1,8 @@
+{
+  "name": "pixel-ops-sandbox",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "3D pixel-art RTS engine sandbox (three.js, low-res buffer upscale)",
+  "scripts": { "start": "python3 -m http.server 8787" }
+}

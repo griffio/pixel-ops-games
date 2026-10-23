@@ -1,0 +1,148 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Pixel Ops Sandbox</title>
+<style>
+  :root {
+    --panel: rgba(16, 16, 18, 0.88);
+    --panel-border: rgba(255, 255, 255, 0.10);
+    --text: #e7e2d6;
+    --muted: #9a958a;
+    --accent: #f2c14e;
+    --accent2: #7fd1a8;
+    --danger: #e86a5a;
+  }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; height: 100%; background: #0b0b0c; color: var(--text);
+    font: 12px/1.35 -apple-system, "Helvetica Neue", Arial, sans-serif; overflow: hidden;
+    user-select: none; -webkit-user-select: none; }
+  #app { position: fixed; inset: 0; }
+  canvas#view { position: absolute; inset: 0; width: 100%; height: 100%; display: block;
+    image-rendering: pixelated; image-rendering: crisp-edges; cursor: crosshair; }
+  #labels { position: absolute; inset: 0; pointer-events: none; overflow: hidden; }
+  .tag { position: absolute; left: 0; top: 0; transform: translate(-50%, -100%);
+    background: rgba(10,10,12,0.9); border: 1px solid rgba(255,255,255,0.25); color: #fff;
+    font-size: 9px; letter-spacing: 0.06em; padding: 1px 4px; white-space: nowrap;
+    font-family: "SF Mono", Menlo, monospace; will-change: transform; }
+  .tag.sel { border-color: var(--accent); color: var(--accent); }
+  .tag.enemy { border-color: var(--danger); }
+  .tag .bar { display: block; height: 2px; margin-top: 2px; background: #333; }
+  .tag .bar i { display: block; height: 100%; background: var(--accent2); }
+  #selbox { position: absolute; border: 1px solid var(--accent); background: rgba(242,193,78,0.12);
+    display: none; pointer-events: none; }
+
+  .panel { position: absolute; background: var(--panel); border: 1px solid var(--panel-border);
+    padding: 8px 10px; backdrop-filter: blur(4px); }
+  #clock { top: 0; left: 50%; transform: translateX(-50%); border-top: 0;
+    display: flex; gap: 14px; align-items: center; padding: 8px 16px 9px; }
+  #clock .sun { width: 26px; height: 26px; border-radius: 50%; border: 2px solid #ddd;
+    position: relative; overflow: hidden; }
+  #clock .sun i { position: absolute; inset: 0; background: #ddd; transform-origin: 50% 50%; }
+  #clock .big { font-size: 15px; font-weight: 600; letter-spacing: 0.04em; }
+  #clock .small { font-size: 10px; color: var(--muted); letter-spacing: 0.08em; text-transform: uppercase; }
+  #clock .col { display: flex; flex-direction: column; gap: 2px; min-width: 64px; }
+
+  #stats { top: 10px; left: 10px; font-family: "SF Mono", Menlo, monospace; font-size: 11px;
+    min-width: 190px; }
+  #stats b { color: var(--accent); font-weight: 600; }
+  #stats div { display: flex; justify-content: space-between; gap: 12px; }
+  #stats .sw { margin-top: 5px; } #stats .sw a { color: var(--accent2); text-decoration: none; font-size: 10px; letter-spacing: 0.08em; text-transform: uppercase; }
+  #stats .sw a:hover { text-decoration: underline; }
+  #stats .title { color: var(--muted); letter-spacing: 0.1em; text-transform: uppercase;
+    font-size: 10px; margin-bottom: 4px; justify-content: flex-start; }
+
+  #help { bottom: 10px; left: 10px; color: var(--muted); font-size: 11px; line-height: 1.5; }
+  #help kbd { color: var(--text); background: #222; border: 1px solid #444; border-radius: 3px;
+    padding: 0 4px; font: inherit; font-size: 10px; }
+
+  #controls { top: 10px; right: 10px; width: 210px; display: flex; flex-direction: column; gap: 6px; }
+  #controls h4 { margin: 2px 0 2px; font-size: 10px; color: var(--muted); letter-spacing: 0.12em;
+    text-transform: uppercase; font-weight: 600; }
+  #controls label { display: flex; justify-content: space-between; align-items: center; gap: 8px; }
+  #controls label span.v { color: var(--accent); font-family: Menlo, monospace; font-size: 10px; min-width: 34px; text-align: right; }
+  #controls input[type=range] { width: 100px; accent-color: var(--accent); }
+  #controls input[type=checkbox] { accent-color: var(--accent); }
+  .row { display: flex; gap: 4px; flex-wrap: wrap; }
+  button { background: #262626; color: var(--text); border: 1px solid #444; padding: 4px 7px;
+    font: inherit; font-size: 11px; cursor: pointer; }
+  button:hover { background: #333; border-color: #666; }
+  button.warn { border-color: #6a3a35; }
+
+  #selinfo { bottom: 10px; left: 50%; transform: translateX(-50%); display: none;
+    min-width: 260px; text-align: center; }
+  #selinfo .n { font-size: 14px; color: var(--accent); letter-spacing: 0.06em; }
+  #selinfo .d { color: var(--muted); font-size: 11px; margin-top: 2px; }
+
+  #toast { position: absolute; bottom: 70px; left: 50%; transform: translateX(-50%);
+    color: var(--accent2); font-size: 11px; letter-spacing: 0.1em; text-transform: uppercase;
+    opacity: 0; transition: opacity .3s; pointer-events: none; }
+</style>
+</head>
+<body>
+<div id="app">
+  <canvas id="view"></canvas>
+  <div id="labels"></div>
+  <div id="selbox"></div>
+
+  <div id="clock" class="panel">
+    <div class="sun"><i id="sunfill"></i></div>
+    <div class="col"><span class="big" id="day">DAY 1</span><span class="small" id="phase">Day</span></div>
+    <div class="col"><span class="big" id="time">12:00</span><span class="small" id="next">Dusk in 6:00</span></div>
+  </div>
+
+  <div id="stats" class="panel">
+    <div class="title">Pixel Ops // engine sandbox</div>
+    <div><span>fps</span><b id="s-fps">0</b></div>
+    <div><span>units</span><b id="s-units">0</b></div>
+    <div><span>draw calls</span><b id="s-calls">0</b></div>
+    <div><span>buffer</span><b id="s-buf">0×0</b></div>
+    <div><span>pixel scale</span><b id="s-zoom">1.0×</b></div>
+    <div><span>camera</span><b id="s-cam">0°</b></div>
+    <div><span>renderer</span><b id="s-renderer">-</b></div>
+    <div class="sw"><a id="r-switch" href="#">switch renderer</a></div>
+  </div>
+
+  <div id="controls" class="panel">
+    <h4>Spawn</h4>
+    <div class="row">
+      <button data-spawn="squad">+ Squad</button>
+      <button data-spawn="truck">+ Truck</button>
+      <button data-spawn="apc">+ APC</button>
+      <button data-spawn="heli">+ Heli</button>
+      <button data-spawn="many">+ 10 Squads</button>
+      <button class="warn" data-spawn="clear">Clear</button>
+    </div>
+    <h4>Render</h4>
+    <label><span>Pixelate</span><input type="checkbox" id="c-pixel" checked></label>
+    <label><span>Outline</span><input type="checkbox" id="c-outline" checked></label>
+    <label><span>Shadows</span><input type="checkbox" id="c-shadow" checked></label>
+    <label><span>Texels / unit</span><input type="range" id="c-tpu" min="4" max="24" step="1" value="10"><span class="v" id="v-tpu">10</span></label>
+    <h4>World</h4>
+    <label><span>Time speed</span><input type="range" id="c-tspeed" min="0" max="600" step="10" value="60"><span class="v" id="v-tspeed">60×</span></label>
+    <label><span>Hour</span><input type="range" id="c-hour" min="0" max="24" step="0.1" value="14"><span class="v" id="v-hour">14:00</span></label>
+    <label><span>Orders</span><input type="checkbox" id="c-auto" checked><span class="v">auto</span></label>
+    <div class="row"><button id="b-pause">Pause</button><button id="b-reset">Reset view</button></div>
+  </div>
+
+  <div id="help" class="panel">
+    <kbd>LMB</kbd> select / drag box &nbsp; <kbd>RMB</kbd> move order &nbsp; <kbd>RMB drag</kbd> / <kbd>Q</kbd><kbd>E</kbd> rotate<br>
+    <kbd>Wheel</kbd> zoom &nbsp; <kbd>WASD</kbd> / edge pan &nbsp; <kbd>MMB drag</kbd> pan &nbsp; <kbd>Space</kbd> pause &nbsp; <kbd>F</kbd> follow
+  </div>
+
+  <div id="selinfo" class="panel"><div class="n" id="sel-n"></div><div class="d" id="sel-d"></div></div>
+  <div id="toast"></div>
+</div>
+
+<script type="importmap">
+{ "imports": { "three": "https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js" } }
+</script>
+<script type="module">
+  // ?r=gl loads the raw WebGL2 back end; default is three.js. Both share the same core.
+  const q = new URLSearchParams(location.search);
+  import(q.get('r') === 'gl' ? './src/gl/main.js' : './src/three/main.js')
+    .catch(e => { console.error(e); const t = document.getElementById('toast'); t.textContent = 'Failed to start: ' + e.message; t.style.opacity = 1; });
+</script>
+</body>
+</html>
