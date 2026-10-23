@@ -234,7 +234,10 @@ Engine changes needed in the existing core:
   comparison thresholded at 0.5: edges follow the sub-texel iso-line instead of the
   shadow texel staircase while staying hard. Measured with a shadow-mask probe:
   0.3% of shadow pixels change per one-texel pan at the base on both 2048 and 4096
-  maps. The sun's own movement at 24x proved negligible (0.02% per quarter second).
+  maps. The sun's own movement at 24x measured small at zoom 3 but is plainly
+  visible at zoom 12 as texels flipping along every edge, so matches now run with
+  the sun fixed (time speed 0, 09:30; `?hour=` picks another time, the World panel
+  slider restarts the clock). Decision taken 2026-10-23: no day cycle in matches.
   Still visible on close inspection: the sand tiles are nearest-sampled without
   mips, so fine grain sparkles under pan, most at the screen's centre row and column.
 

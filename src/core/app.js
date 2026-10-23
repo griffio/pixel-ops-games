@@ -47,8 +47,9 @@ export function populate(app) {
       const cpuKey = q.get('cpuloadout') || counterPick(playerLoadout);
       const mode = q.get('mode') || modeOpts.mode || 'aas', side = q.get('side') || modeOpts.side || 'attack';
       app.match = new Match(app, { cpu, mode, side, loadouts: [playerLoadout, preset(cpuKey)] });
-      app.world.timeSpeed = 24; if (!q.has('hour')) { app.world.time = 9.5; app.world.update(0); }
-      document.getElementById('c-tspeed').value = 24; document.getElementById('v-tspeed').textContent = '24×';
+      // the sun stands still during a match (a moving sun crawls every shadow edge at close zoom); ?hour= picks the time
+      app.world.timeSpeed = 0; if (!q.has('hour')) { app.world.time = 9.5; app.world.update(0); }
+      document.getElementById('c-tspeed').value = 0; document.getElementById('v-tspeed').textContent = '0×';
       document.getElementById('c-auto').checked = false;
       if (!q.has('x')) rts.target.set(app.match.teams[0].base.x + 10, 0, app.match.teams[0].base.z + 10);
       app.hud.toast(`${app.match.teams[0].loadoutName} vs ${app.match.teams[1].loadoutName}`);
