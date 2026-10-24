@@ -3,7 +3,7 @@ import { RULES } from '../rules.js';
 // CPU commander v2: objective-aware manoeuvre, logistics (FOB one hop behind the
 // front) and air (helicopter lifts for squads far from the fight).
 export class Strategist {
-  constructor(team, units, teams, match) { this.team = team; this.units = units; this.teams = teams; this.match = match; this.timer = 1 + Math.random() * 2; this.plan = null; this.lifts = new Map(); this.diff = match.difficulty || { plan: 5, attackShare: 0, logistics: true }; }
+  constructor(team, units, teams, match) { this.team = team; this.units = units; this.teams = teams; this.match = match; this.timer = 1 + Math.random() * 2; this.reflex = 0.5; this.plan = null; this.lifts = new Map(); this.diff = match.difficulty || { plan: 5, attackShare: 0, logistics: true }; }
 
   enemiesNear(x, z, r) { return this.units.units.filter(u => !u.dead && !u.mounted && u.team !== this.team && !(u.spec.air && u.alt > 2) && Math.hypot(u.pos.x - x, u.pos.z - z) < r); }
   friendsNear(x, z, r) { return this.units.units.filter(u => !u.dead && !u.mounted && u.team === this.team && Math.hypot(u.pos.x - x, u.pos.z - z) < r); }
@@ -13,14 +13,15 @@ export class Strategist {
     return best ? { x: best.pos.x, z: best.pos.z } : null;
   }
   inZone(x, z, loc, k = 0.6) { const a = Math.random() * Math.PI * 2, d = Math.sqrt(Math.random()) * loc.r * k; return [loc.x + Math.cos(a) * d, loc.z + Math.sin(a) * d]; }
-  send(sq, x, z, tag) {
+  send(sq, x, z, tag, zone = null) {
     if (sq.busy && sq.tag === tag && sq.goal && Math.hypot(sq.goal[0] - x, sq.goal[1] - z) < 12) return;
     const c = sq.centroid(); if (!sq.busy && Math.hypot(c.x - x, c.z - z) < 10 && sq.tag === tag) return;
-    sq.goal = [x, z]; sq.tag = tag; sq.order(x, z);
+    sq.goal = [x, z]; sq.tag = tag; sq.zone = zone; sq.order(x, z);
   }
   toward(from, to, keep, jitter = 6) { const dx = to.x - from.x, dz = to.z - from.z, d = Math.hypot(dx, dz) || 1, k = Math.max(0, d - keep) / d; return [from.x + dx * k + (Math.random() - 0.5) * jitter, from.z + dz * k + (Math.random() - 0.5) * jitter]; }
 
   tick(dt) {
+    if ((this.reflex -= dt) <= 0) { this.reflex = 1; this.caution(); }
     this.timer -= dt; if (this.timer > 0) return; this.timer = this.diff.plan + Math.random() * 2;
     const base = this.teams[this.team].base;
     // drop lifts whose helicopter or squad is gone, so squads return to the pool
@@ -40,10 +41,10 @@ export class Strategist {
       if (enemyFob && i === 0 && attack) { this.send(sq, enemyFob.pos.x, enemyFob.pos.z, 'raid'); return; }   // one squad raids the nearest enemy FOB
       if (i < nAttack && attack) {
         const foes = this.enemiesNear(attack.x, attack.z, attack.r + 20);
-        if (foes.length > 1 && (attack.n ? attack.n[this.team] : 0) < 4) { const c = this.cluster(foes), cen = sq.centroid(); const [x, z] = this.toward(cen, c, 20); this.send(sq, x, z, 'approach'); }
-        else { const [x, z] = this.inZone(attack.x, attack.z, attack); this.send(sq, x, z, 'cap' + attack.index); }
-      } else if (reserve && hold && i >= nAttack + Math.ceil((free.length - nAttack) * 0.7)) { const [x, z] = this.inZone(reserve.x, reserve.z, reserve, 0.6); this.send(sq, x, z, 'reserve' + reserve.index); }
-      else if (hold) { const [x, z] = this.inZone(hold.x, hold.z, hold, 0.7); this.send(sq, x, z, 'hold' + hold.index); }
+        if (foes.length > 1 && (attack.n ? attack.n[this.team] : 0) < 4) { const c = this.cluster(foes), cen = sq.centroid(); const [x, z] = this.toward(cen, c, 35); this.send(sq, x, z, 'approach', attack); }   // stand off and shoot rather than walk into them
+        else { const [x, z] = this.inZone(attack.x, attack.z, attack); this.send(sq, x, z, 'cap' + attack.index, attack); }
+      } else if (reserve && hold && i >= nAttack + Math.ceil((free.length - nAttack) * 0.7)) { const [x, z] = this.inZone(reserve.x, reserve.z, reserve, 0.6); this.send(sq, x, z, 'reserve' + reserve.index, reserve); }
+      else if (hold) { const [x, z] = this.inZone(hold.x, hold.z, hold, 0.7); this.send(sq, x, z, 'hold' + hold.index, hold); }
       else this.send(sq, base.x + (Math.random() - 0.5) * 20, base.z + (Math.random() - 0.5) * 20, 'home');
     });
     for (const v of vehicles) {
@@ -51,12 +52,35 @@ export class Strategist {
         const goal = attack || hold; if (!goal) continue;
         const foes = this.enemiesNear(goal.x, goal.z, goal.r + 40), c = this.cluster(foes);
         let x, z;
-        if (c) { const dx = c.x - v.pos.x, dz = c.z - v.pos.z, d = Math.hypot(dx, dz) || 1, k = Math.max(0, d - 34) / d; x = v.pos.x + dx * k; z = v.pos.z + dz * k; }
+        // close to a 70 m standoff from the enemy cluster: outside rocket reach, well inside the cannon's; nearer than
+        // that the turret does the work from where it stands, and caution() backs it off when something gets close
+        if (c) { const dx = c.x - v.pos.x, dz = c.z - v.pos.z, d = Math.hypot(dx, dz) || 1; if (d < 85) continue; const k = (d - 70) / d; x = v.pos.x + dx * k; z = v.pos.z + dz * k; }
         else [x, z] = this.inZone(goal.x, goal.z, goal, 0.8);
         if (v.dest && v.goal && Math.hypot(v.goal[0] - x, v.goal[1] - z) < 12) continue;
         v.goal = [x, z]; v.order(x, z);
       } else if (v.type === 'heli') this.air(v, free, attack, base);
       else if (!v.supply && !v.dest && Math.random() < 0.2) v.order(base.x + (Math.random() - 0.5) * 24, base.z + (Math.random() - 0.5) * 24);
+    }
+  }
+
+  // Caution, once a second: a squad with an enemy inside 22 m falls back out of the fight unless it stands in the
+  // zone it was sent to take or hold, or clearly has the numbers; an APC with an enemy inside 50 m backs off to 70 m.
+  caution() {
+    const enemies = this.units.units.filter(u => !u.dead && !u.mounted && u.team !== this.team && !u.spec.structure && !(u.spec.air && u.alt > 2));
+    if (!enemies.length) return;
+    const nearest = (x, z) => { let b = null, bd = Infinity; for (const e of enemies) { const d = Math.hypot(e.pos.x - x, e.pos.z - z); if (d < bd) { bd = d; b = e; } } return [b, bd]; };
+    const away = (x, z, e, dist) => { const dx = x - e.pos.x, dz = z - e.pos.z, d = Math.hypot(dx, dz) || 1; return [x + dx / d * dist, z + dz / d * dist]; };
+    for (const sq of this.units.squads) {
+      if (sq.team !== this.team || !sq.leader || sq.mounted || this.lifts.has(sq) || sq.members.some(m => m.building)) continue;
+      const c = sq.centroid(), [e, d] = nearest(c.x, c.z); if (!e || d > 22) continue;
+      if (sq.zone && Math.hypot(c.x - sq.zone.x, c.z - sq.zone.z) < sq.zone.r) continue;                     // stand and fight for the zone
+      if (this.friendsNear(c.x, c.z, 25).length >= this.enemiesNear(c.x, c.z, 25).length * 2) continue;    // we clearly have the numbers
+      const [x, z] = away(c.x, c.z, e, 28); sq.goal = [x, z]; sq.tag = 'back'; sq.order(x, z);
+    }
+    for (const v of this.units.units) {
+      if (v.team !== this.team || v.dead || v.type !== 'apc') continue;
+      const [e, d] = nearest(v.pos.x, v.pos.z); if (!e || d > 50) continue;
+      const [x, z] = away(v.pos.x, v.pos.z, e, 70 - d); v.goal = [x, z]; v.order(x, z);
     }
   }
 

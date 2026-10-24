@@ -75,7 +75,7 @@ export class Combat {
         let lost = e.dead || e.mounted || d > w.range * 1.15;
         if (!lost && (u.retarget -= dt) <= 0) { u.retarget = 0.5; lost = !this.canSee(u, e); }
         if (lost) { u.enemy = null; u.retarget = 0.3; u.burst = 0; }
-        else u.hold = u.type === 'soldier' && d < w.hold;           // infantry stop to shoot inside the hold range, fire on the move beyond it
+        else u.hold = u.type === 'soldier' && d < (u.dest ? Math.min(w.hold, 18) : w.hold);   // infantry on the move only stop for an enemy at close quarters; once where they were sent they hold and shoot out to their hold range
       }
       if (!u.enemy) {
         u.hold = false;
@@ -92,7 +92,7 @@ export class Combat {
     u.cooldown = u.burst > 0 ? w.burstGap * (0.8 + Math.random() * 0.4) : w.rate * (0.85 + Math.random() * 0.3);
     const d = Math.hypot(e.pos.x - u.pos.x, e.pos.z - u.pos.z), T = this.teams ? this.teams[u.team] : null;
     let chance = w.acc * Math.max(0.05, 1 - 0.75 * d / w.range) * ((T && T.acc) || 1);
-    if (u.speed > 0.5) chance *= 0.5;
+    if (Math.abs(u.speed) > 0.5) chance *= 0.5;
     if (!first) chance *= 0.8;                          // recoil through the burst
     if (e.type !== 'soldier') chance *= 1.6;            // vehicles are big targets
     const hit = Math.random() < chance;
@@ -100,7 +100,7 @@ export class Combat {
     // when it arrives; a miss is aimed past the target and comes down on the ground around it
     const reach = u.type === 'soldier' ? 0.6 : u.type === 'apc' ? 3.0 : 1.6, gunY = u.pos.y + (u.type === 'soldier' ? 1.25 : u.type === 'apc' ? 3.8 : 2.0);
     const hx = e.pos.x - u.pos.x, hz = e.pos.z - u.pos.z, hd = Math.hypot(hx, hz) || 1, mx = u.pos.x + hx / hd * reach, mz = u.pos.z + hz / hd * reach;
-    const flight = d / (w.arc ? w.speed * 0.85 : w.speed), ev = e.speed > 0.05 && !e.dead ? e.speed : 0;
+    const flight = d / (w.arc ? w.speed * 0.85 : w.speed), ev = Math.abs(e.speed) > 0.05 && !e.dead ? e.speed : 0;
     let tx = e.pos.x + Math.sin(e.heading) * ev * flight, tz = e.pos.z + Math.cos(e.heading) * ev * flight, ty = e.pos.y + (e.spec.air ? 2 : e.type === 'soldier' ? 1.1 : 2.2);
     if (!hit) { const sp = (w.arc ? 2 : 1.5) + d * (w.arc ? 0.06 : 0.04); tx += (Math.random() - 0.5) * 2 * sp; tz += (Math.random() - 0.5) * 2 * sp; ty = e.spec.air && e.alt > 2 ? ty + (Math.random() - 0.5) * 6 : this.groundAt(tx, tz) + 0.1; }
     const vx = tx - mx, vy = ty - gunY, vz = tz - mz, vl = Math.hypot(vx, vy, vz) || 1;

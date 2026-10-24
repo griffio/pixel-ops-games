@@ -59,7 +59,10 @@ reinforcements panel can force main base). Destroying a FOB radio costs its owne
 right-click a friendly landed helicopter to board it, then order the helicopter
 somewhere: it unloads on landing (**U** unloads a parked helicopter). The CPU
 commander builds a FOB one hop behind its front and lifts squads toward distant
-objectives.
+objectives. It is cautious: squads close to about 35 m of a defended objective
+and shoot from there, fall back when an enemy gets inside 22 m unless they hold
+the zone or clearly outnumber it, and its APCs keep a 70 m standoff, reversing
+away when something gets inside 50 m.
 
 **Game modes** (picked in the force builder, or `?mode=` with `?side=attack|defend`):
 - *Advance & Secure*: capture the five locations in order; majority bleed; take all to win.

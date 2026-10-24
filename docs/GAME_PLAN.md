@@ -314,7 +314,7 @@ Engine changes needed in the existing core:
   shells fly a gravity arc at 70 m/s (the low-angle solution for the range;
   about two seconds to 150 m) with a glowing head and smoke; rockets trail
   smoke; tracers are additive line streaks, bright at the head, instead of
-  dots. Ranges roughly doubled (rifle 60, MG 80, marksman 110, rocket 60,
+  dots. Ranges roughly doubled (rifle 60, MG 80, marksman 110, rocket 60 then 90,
   autocannon 150, door gun 70); infantry fire bursts (rifle 3, MG 8, door gun
   10) with a pause between, per-round accuracy lower and falling to a quarter
   at full range, halved on the move and dropping through a burst, so
@@ -330,6 +330,29 @@ Engine changes needed in the existing core:
   twice as fast as the holder; Light Infantry vs Air Assault (seed 7) ends at
   6:33 by capturing every location (was a clock win at 340 / 37), a matchup
   for the loadout-balance follow-up.
+
+- **Cautious CPU and vehicle steering (2026-10-24).** Enemy vehicles were seen
+  stopping and driving in a circle: a vehicle ordered to a point a few metres
+  away at a wide angle kept creeping forward while it turned and orbited a goal
+  it could never reach (the commander hands APCs such points when it holds them
+  short of the enemy). Vehicles now back up to a near goal behind them, pivot
+  for a near goal to the side, and may carry negative speed (every reader of
+  speed takes its magnitude; the lead on moving targets keeps the sign). Open-
+  ground tests: goals 4-20 m behind or beside an APC are reached in 2-5 s.
+  The commander gained a once-a-second caution pass (`Strategist.caution`):
+  a squad with an enemy inside 22 m falls back 28 m unless it stands in the
+  zone it was sent to take or hold or clearly has the numbers; an APC with an
+  enemy inside 50 m backs off to 70 m, and the plan now closes APCs to a 70 m
+  standoff (outside rocket reach, inside the cannon's) instead of 34 m. Squads
+  approach a defended objective to 35 m rather than 20 m and shoot from there.
+  Infantry on the move only stop for an enemy inside 18 m; once where they were
+  sent they hold and shoot out to their hold range. Measured on a stepped
+  Mechanized-vs-Mechanized match: CPU APC samples with an enemy inside 40 m
+  fell from 22% to 9%, per-minute medians 48-85 m during the fighting. With the
+  standoff, mirrored runs lost almost no vehicles (0-1 a match against 2-5
+  before), so rockets now reach 90 m, inside which a standing-off APC can be
+  hit about once in five shots: the next eight mirrored runs lost 10 vehicles
+  between them (2 before), all still reaching the clock.
 
 ## Open questions
 

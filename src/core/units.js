@@ -31,7 +31,7 @@ export class Unit {
     this.dist = 0;
   }
 
-  get moving() { return this.speed > 0.05 || this.state === 'cruise' || this.state === 'takeoff'; }
+  get moving() { return Math.abs(this.speed) > 0.05 || this.state === 'cruise' || this.state === 'takeoff'; }
   setSelected(s) { this.selected = s; this.parts.ring.visible = s && !this.dead; }
 
   // Move order: path through the nav grid when one is available, otherwise straight line.
@@ -117,11 +117,17 @@ export class Unit {
       const last = !this.path || this.path.length <= 1, arrive = last ? (this.type === 'soldier' ? 0.5 : 1.5) : 1.2;
       if (dist < arrive) { this.nextWaypoint(); }
       else {
-        const desired = Math.atan2(dx, dz), diff = wrap(desired - this.heading);
-        const maxTurn = s.turn * dt * (this.type === 'soldier' ? 1 : clamp(this.speed / 3, 0.35, 1));
+        const desired = Math.atan2(dx, dz); let diff = wrap(desired - this.heading);
+        // a vehicle backs up to a near goal behind it, and pivots for a near goal off to the side, instead of
+        // creeping forward while it turns and orbiting the point it can never reach
+        const vehicle = this.type !== 'soldier', reverse = vehicle && last && dist < 24 && Math.abs(diff) > 2.0;
+        if (reverse) diff = wrap(diff + Math.PI);
+        const maxTurn = s.turn * dt * (vehicle ? clamp(Math.abs(this.speed) / 3, 0.6, 1) : 1);
         this.heading += clamp(diff, -maxTurn, maxTurn);
-        const align = this.type === 'soldier' ? 1 : clamp(1.2 - Math.abs(diff) / Math.PI * 2.2, 0.3, 1);
-        want = s.speed * align * (last ? clamp(dist / (this.type === 'soldier' ? 1.5 : 6), 0.25, 1) : 1);
+        const align = vehicle ? clamp(1.2 - Math.abs(diff) / Math.PI * 2.2, 0.3, 1) : 1;
+        want = s.speed * align * (last ? clamp(dist / (vehicle ? 6 : 1.5), 0.25, 1) : 1);
+        if (reverse) want = -want * 0.7;
+        else if (vehicle && last && dist < 10 && Math.abs(diff) > 0.9) want = 0;
       }
     }
     if (this.hold && this.type === 'soldier') want = 0;
@@ -131,7 +137,7 @@ export class Unit {
       this.heading += clamp(diff, -s.turn * dt, s.turn * dt);
     }
     this.speed += clamp(want - this.speed, -s.accel * 2 * dt, s.accel * dt);
-    if (this.speed < 0.01) this.speed = 0;
+    if (Math.abs(this.speed) < 0.01) this.speed = 0;
     const step = this.speed * dt, sx = Math.sin(this.heading) * step, sz = Math.cos(this.heading) * step;
     let nx = this.pos.x + sx, nz = this.pos.z + sz;
     const pad = this.radius * 0.9;

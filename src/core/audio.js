@@ -145,14 +145,14 @@ export class AudioEngine {
   update(dt) {
     if (!this.ready) return;
     const ctx = this.ctx, now = ctx.currentTime, want = new Map();
-    const vehicles = this.app.units.units.filter(u => !u.dead && u.type !== 'soldier' && !u.spec.structure && (u.spec.air ? u.rotor > 0.03 : u.speed > 0.3))
+    const vehicles = this.app.units.units.filter(u => !u.dead && u.type !== 'soldier' && !u.spec.structure && (u.spec.air ? u.rotor > 0.03 : Math.abs(u.speed) > 0.3))
       .map(u => ({ u, s: this.spatial(u.pos.x, u.pos.z) })).filter(v => v.s.gain > 0.015).sort((a, b) => b.s.gain - a.s.gain).slice(0, 6);
     for (const { u, s } of vehicles) {
       let L = this.loops.get(u);
       if (!L) { L = u.spec.air ? this.rotorVoice() : this.engineVoice(); this.loops.set(u, L); }
       want.set(u, true);
       if (u.spec.air) { const r = u.rotor; L.lfo.frequency.setTargetAtTime(6 + 14 * r, now, 0.1); L.filter.frequency.setTargetAtTime(220 + 500 * r, now, 0.1); L.gain.gain.setTargetAtTime(s.gain * (0.12 + 0.5 * r) * Math.min(1, 0.4 + u.alt / 12), now, 0.08); }
-      else { L.osc.frequency.setTargetAtTime(48 + u.speed * (u.type === 'apc' ? 4 : 6), now, 0.1); L.gain.gain.setTargetAtTime(s.gain * (u.type === 'apc' ? 0.18 : 0.12), now, 0.08); }
+      else { L.osc.frequency.setTargetAtTime(48 + Math.abs(u.speed) * (u.type === 'apc' ? 4 : 6), now, 0.1); L.gain.gain.setTargetAtTime(s.gain * (u.type === 'apc' ? 0.18 : 0.12), now, 0.08); }
       L.pan.pan.setTargetAtTime(s.pan, now, 0.1);
     }
     for (const [u, L] of [...this.loops]) if (!want.has(u)) { L.gain.gain.setTargetAtTime(0, now, 0.08); this.loops.delete(u); setTimeout(() => { try { L.stop(); } catch {} }, 400); }

@@ -102,7 +102,7 @@ export class DustSim {
           this.emit(u.pos.x + Math.cos(a) * d, 0.2 + r() * 0.5, u.pos.z + Math.sin(a) * d, Math.cos(a) * 6, 1.2, Math.sin(a) * 6, 0.45, 0.7 + r() * 0.5);
         }
       }
-    } else if (u.speed > 1.5) {
+    } else if (Math.abs(u.speed) > 1.5) {
       const rate = u.type === 'soldier' ? 4 : 14, back = u.type === 'soldier' ? 0.3 : u.radius;
       if (r() < rate * dt) {
         const bx = u.pos.x - Math.sin(u.heading) * back + (r() - 0.5) * u.radius, bz = u.pos.z - Math.cos(u.heading) * back + (r() - 0.5) * u.radius;
