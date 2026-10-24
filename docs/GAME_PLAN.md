@@ -472,6 +472,26 @@ Engine changes needed in the existing core:
   tickets. The knobs are the per-round amounts and the 2.5 s decay in
   `Combat.suppress` and `units.js`.
 
+- **Commander memory: trends, plan history, notes (2026-10-24).** The model is
+  stateless, so the game remembers for it in fixed-size blocks instead of a
+  growing prompt. Match history rows (every 5 s) now carry tickets, infantry
+  and vehicle losses and locations owned per side, and the match keeps a log
+  of captures and losses with times. The digest adds `trends` (tickets now and
+  1, 2, 3 minutes ago; our and their deaths and vehicle losses per minute over
+  the last three minutes; locations that changed hands in the last five),
+  `plans` (the last three plans, kept only when the orders change or a minute
+  passes, each with its outcome measured from the state it was made in: ticket
+  swing, captured, lost, infantry and vehicles lost), and `notes`, a 300-
+  character field the model writes and gets back unchanged. The prompt tells
+  it to read the trends before the snapshot, change a plan whose outcome was
+  bad and write fresh notes about intent. Digest about 3,300 characters
+  (1,600 prompt tokens); Llama 3.3 70B answers in about 3.3 s. Check: two
+  consecutive calls on the same state, the second carrying the first answer's
+  notes and outcome, gave a continuing plan and notes that build on the
+  earlier ones ("continue pushing Airfield, waiting for the FOB near Village").
+  The deployed Worker needs `npm run deploy` to pick up the new prompt. Next:
+  `waitFor` conditions and `nextReviewIn`, then squad roles.
+
 ## Open questions
 
 

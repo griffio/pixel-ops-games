@@ -246,10 +246,14 @@ The CPU sides can take their plan from a model instead of the built-in planner.
 Every 20 seconds of match time each CPU side posts a one-page JSON digest of the
 state (`src/game/ai/digest.js`: tickets, locations and who contests them, its
 squads and vehicles with orders, enemy clusters, FOBs, sandbags, recent events,
-its previous plan) to `/commander` and gets back a plan in a fixed schema
+and three memory blocks the game maintains so the prompt never grows: trends
+(tickets now and 1, 2, 3 minutes ago, deaths and vehicle losses per minute,
+locations that changed hands in the last five minutes), the last three plans
+with what followed each (ticket swing, captures, losses, casualties), and the
+model's own notes from last time) to `/commander` and gets back a plan in a fixed schema
 (`src/game/ai/plan.js`: the next location to attack, locations to hold, attack
-share, posture, what to build, whether to use lifts, and a line of radio
-chatter that appears in the feed). The strategist follows the plan while it is
+share, posture, what to build, whether to use lifts, a line of radio chatter
+that appears in the feed, and notes to itself for the next call). The strategist follows the plan while it is
 under 90 seconds old and its own goals otherwise, and every call is
 asynchronous, so a slow or failing endpoint never stalls the match. The posture
 scales the caution distances (cautious keeps 1.3× the distance, aggressive

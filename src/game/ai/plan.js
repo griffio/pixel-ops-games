@@ -14,8 +14,9 @@ export const PLAN_SCHEMA = {
     logistics: { type: 'string', enum: LOGISTICS, description: 'what the engineer and supply truck build next' },
     lift: { type: 'boolean', description: 'use helicopters to lift squads to distant objectives' },
     reason: { type: 'string', maxLength: 160, description: 'one line of radio chatter explaining the plan, shown to the player' },
+    notes: { type: 'string', maxLength: 300, description: 'your own notes for next time: what you intend over the next minutes and why; they come back to you unchanged' },
   },
-  required: ['attack', 'hold', 'attackShare', 'posture', 'logistics', 'lift', 'reason'],
+  required: ['attack', 'hold', 'attackShare', 'posture', 'logistics', 'lift', 'reason', 'notes'],
 };
 
 // A clean plan or null. `names` are the location names the digest offered; anything else is dropped.
@@ -29,6 +30,7 @@ export function validatePlan(p, names) {
   const logistics = LOGISTICS.includes(p.logistics) ? p.logistics : 'fob';
   const lift = p.lift !== false;
   const reason = typeof p.reason === 'string' ? p.reason.replace(/\s+/g, ' ').trim().slice(0, 160) : '';
+  const notes = typeof p.notes === 'string' ? p.notes.replace(/\s+/g, ' ').trim().slice(0, 300) : '';
   if (!attack && !hold.length) return null;
-  return { attack, hold, attackShare: +share.toFixed(2), posture, logistics, lift, reason };
+  return { attack, hold, attackShare: +share.toFixed(2), posture, logistics, lift, reason, notes };
 }

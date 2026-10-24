@@ -39,7 +39,7 @@ export class Match {
     this.respawn = new Respawn(this.units, this.teams, this.world);
     this.support = new Support(this.units, this.respawn, this.teams);
     this.fobs = new Fobs(this.units, this.teams, this.world);
-    this.feed = []; this.events = []; this.feedId = 0; this.history = []; this.histAcc = 5; this.elapsed = 0;
+    this.feed = []; this.events = []; this.feedId = 0; this.history = []; this.histAcc = 5; this.elapsed = 0; this.log = [];   // log: captures and losses with times
     this.fobs.onBuilt = (fob) => this.event({ type: 'fob', team: fob.team, fob });
     // a finished sandbag position becomes low cover: obstacles for movement, cover for combat; anyone caught inside a bag steps out
     this.fobs.onSandbags = (u, boxes) => {
@@ -69,8 +69,15 @@ export class Match {
     this.spatial.rebuild(this.units.units);
   }
 
+  // one history row every 5 s: [t, tickets0, tickets1, infantry lost 0, 1, vehicles lost 0, 1, locations owned 0, 1]
+  sample() {
+    const veh = (t) => Object.entries(t.stats.losses).filter(([k]) => k !== 'soldier' && k !== 'fob').reduce((a, [, v]) => a + v, 0);
+    const [a, b] = this.teams, o = this.objectives;
+    return [Math.round(this.elapsed), Math.max(0, Math.round(a.tickets)), Math.max(0, Math.round(b.tickets)), a.stats.losses.soldier || 0, b.stats.losses.soldier || 0, veh(a), veh(b), o ? o.owned(0) : 0, o ? o.owned(1) : 0];
+  }
   event(e) {
     e.t = 0; this.events.unshift(e); this.events.length = Math.min(this.events.length, 4);
+    if (e.type === 'captured' || e.type === 'lost') { this.log.push({ t: this.elapsed, type: e.type, loc: e.loc ? e.loc.name : '', team: e.team }); if (this.log.length > 60) this.log.shift(); }
     const s = e.team !== undefined && this.teams[e.team] ? this.teams[e.team].stats : null;
     if (s) { if (e.type === 'captured') s.captures++; else if (e.type === 'lost') s.lost++; else if (e.type === 'fob') s.fobs++; else if (e.type === 'cache destroyed') s.caches++; }
     if (e.type !== 'hex lost') this.pushFeed({ kind: 'event', e });
@@ -100,7 +107,7 @@ export class Match {
   update(dt) {
     if (this.state !== 'play' || dt <= 0) return;
     this.time -= dt; this.elapsed += dt;
-    if ((this.histAcc += dt) >= 5) { this.histAcc = 0; this.history.push([Math.round(this.elapsed), Math.max(0, Math.round(this.teams[0].tickets)), Math.max(0, Math.round(this.teams[1].tickets))]); }
+    if ((this.histAcc += dt) >= 5) { this.histAcc = 0; this.history.push(this.sample()); }
     this.spatial.rebuild(this.units.units);
     this.acc += dt;
     while (this.acc >= 0.1) { this.acc -= 0.1; this.tick(0.1); }
@@ -122,7 +129,7 @@ export class Match {
   }
   end(winner, reason) {
     this.state = 'over'; this.winner = winner; this.reason = reason;
-    this.history.push([Math.round(this.elapsed), Math.max(0, Math.round(this.teams[0].tickets)), Math.max(0, Math.round(this.teams[1].tickets))]);
+    this.history.push(this.sample());
     this.app.hud.showEnd(this);
   }
 }
