@@ -270,9 +270,12 @@ scales the caution distances (cautious keeps 1.3× the distance, aggressive
 `worker/index.js` is a Cloudflare Worker that serves the game as static assets
 (`.assetsignore` keeps secrets, tools and docs out) and answers `/commander`
 from a Workers AI model, `@cf/meta/llama-3.3-70b-instruct-fp8-fast` by default
-(`vars.MODEL` in `wrangler.jsonc`). Measured locally it answers in 2 to 3
-seconds for about 1,100 prompt tokens and 40 neurons a call, so a full match
-costs each side roughly 3,000 neurons.
+(`vars.MODEL` in `wrangler.jsonc`). Calls go through the `pixel-ops` AI Gateway
+(`vars.GATEWAY`), which logs every digest and plan with the side and minute as
+metadata, tracks tokens and cost, and rate-limits the endpoint; clear the
+variable to call Workers AI directly. Measured, it answers in 2 to 9 seconds
+for about 1,800 prompt tokens and 40 neurons a call, so a full match costs each
+side roughly 3,000 neurons.
 
 ```bash
 npm install                      # wrangler
@@ -281,6 +284,8 @@ set -a; . ./.env; set +a; export CLOUDFLARE_API_TOKEN="$CLOUDFLARE_API_KEY" CLOU
 npm run dev:cf                   # the game and /commander on http://localhost:8789, AI binding remote
 ```
 
+Add `&model=gpt-oss-120b`, `qwen3-30b` or `mistral-small` to try another catalogue
+model from the Worker's allow-list for that match (`llama` is the default).
 Then open `http://localhost:8789/?commander=1`, or keep playing from the Python
 server and point it at the Worker with `?commander=http://localhost:8789/commander`
 (the endpoint allows cross-origin calls). `npm run commander-stub` starts

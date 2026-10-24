@@ -7,6 +7,6 @@
   "compatibility_date": "2026-10-01",
   "assets": { "directory": ".", "binding": "ASSETS" },
   "ai": { "binding": "AI" },
-  "vars": { "MODEL": "@cf/meta/llama-3.3-70b-instruct-fp8-fast" },
+  "vars": { "MODEL": "@cf/meta/llama-3.3-70b-instruct-fp8-fast", "GATEWAY": "pixel-ops" },   // GATEWAY: an AI Gateway id, logs every call; leave empty to call Workers AI directly
   "observability": { "enabled": true }
 }

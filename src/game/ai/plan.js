@@ -57,7 +57,7 @@ export function validatePlan(p, names, squadIds = null) {
   let waitFor = null;
   if (p.waitFor && typeof p.waitFor === 'object' && WAITS.includes(p.waitFor.kind) && p.waitFor.kind !== 'none') {
     const w = p.waitFor, at = name(w.at), count = Number.isFinite(+w.count) ? Math.round(+w.count) : 0;
-    if (w.kind === 'squadsAt' && at) waitFor = { kind: 'squadsAt', at, count: Math.min(8, Math.max(1, count || 2)) };
+    if (w.kind === 'squadsAt' && at) waitFor = { kind: 'squadsAt', at, count: Math.min(squadIds ? Math.max(1, squadIds.length) : 8, Math.max(1, count || 2)) };   // never more squads than we have
     else if (w.kind === 'enemyBelow' && at) waitFor = { kind: 'enemyBelow', at, count: Math.min(40, Math.max(1, count || 3)) };
     else if (w.kind === 'apcAlive') waitFor = { kind: 'apcAlive' };
     else if (w.kind === 'seconds') waitFor = { kind: 'seconds', count: Math.min(120, Math.max(5, count || 30)) };

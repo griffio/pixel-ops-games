@@ -66,7 +66,7 @@ export class Match {
     this.objectives = this.mode.objectives || null;
     this.strategists = cpu.map(t => new Strategist(t, this.units, this.teams, this));
     // a remote commander (?commander=1 for the Worker's /commander, or a URL) advises each CPU side; its one-liners go to the feed
-    if (app.commanderUrl) for (const s of this.strategists) { s.remote = new RemoteCommander(this, s.team, app.commanderUrl); s.remote.onPlan = (p) => { if (p.reason) this.event({ type: 'radio', team: s.team, text: p.reason }); }; }
+    if (app.commanderUrl) for (const s of this.strategists) { s.remote = new RemoteCommander(this, s.team, app.commanderUrl, { model: app.commanderModel || null }); s.remote.onPlan = (p) => { if (p.reason) this.event({ type: 'radio', team: s.team, text: p.reason }); }; }
     this.spatial.rebuild(this.units.units);
   }
 

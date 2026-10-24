@@ -534,6 +534,43 @@ Engine changes needed in the existing core:
   the 14 s timeout. A match without a commander is unchanged. The deployed
   Worker needs `npm run deploy` for the new prompt.
 
+- **AI Gateway (2026-10-24).** Created the `pixel-ops` gateway over the API
+  (logs on, cache off, 300 requests a minute sliding, no gateway auth) and
+  routed the Worker's Workers AI calls through it with the `gateway` option on
+  `env.AI.run`, tagging each call with side, minute and mode as metadata;
+  `vars.GATEWAY` names it and an empty value calls Workers AI directly. The
+  first logged commander call shows 1,812 tokens in, 169 out, cost $0.0009,
+  9.3 s. The logs are the evaluation dataset for the commander: every digest
+  and plan pair, queryable over the API. The new API token also covers the
+  gateway API and expires 2026-10-31. Next on this thread: an `anthropic`
+  provider mode in the Worker posting the same prompt to Claude through the
+  gateway with a stored key, then mirrored batches per model.
+
+- **Model comparison (2026-10-24).** The Worker's handler was run in Node
+  against eleven Workers AI models on the same two digests (an Airfield held
+  by 26 soldiers and an APC, and one held by 3), two calls each, reasoning
+  models given a 2,500-token budget. Valid plans and latency: Llama 3.3 70B
+  fp8 fast 4/4 at 5-9 s; gpt-oss-120b 3/4 at 8-25 s; gpt-oss-20b 1/4 at
+  18-38 s; Qwen3 30B 4/4 at 6-17 s; Mistral Small 3.1 24B 4/4 at 6-10 s;
+  Gemma 4 26B 0/4 and Nemotron 3 120B 0/4 at 40-48 s (no usable JSON);
+  DeepSeek V4.1 flash, V4 pro, Kimi K2.6 and GLM 5.3 are not on the Workers
+  Free plan. Judgement: gpt-oss-120b was the only one that read the board
+  ("clear the enemy APC at Village before pushing Airfield", screens assigned,
+  share 0.5-0.7 when defended and 0.9 with "Airfield looks thin" when not);
+  Mistral and Qwen gave sane but generic plans; Llama kept choosing the
+  already-true apcAlive wait. Mistral once waited for eight squads when the
+  side had five, so the validator now caps squadsAt by the squads in the
+  digest. The commander timeout is 30 s and `?model=<key>` picks a model from
+  an allow-list in the Worker (llama, gpt-oss-120b, qwen3-30b, mistral-small,
+  each with its own output budget), logged as metadata in the gateway, so
+  models can be compared in real matches; the request body's model key is
+  stripped before it reaches the model. Live check: gpt-oss-120b answered a
+  defended digest in 10.7 s with a five-squad plan. Recommendation: play a few
+  matches with `?model=gpt-oss-120b` against the Llama default; the gateway
+  logs give every digest and plan pair for review. Anthropic or another
+  provider stays optional: a stored key in the gateway and a second provider
+  branch in the Worker if the catalogue models prove not enough.
+
 ## Open questions
 
 

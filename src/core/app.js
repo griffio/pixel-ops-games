@@ -45,6 +45,7 @@ export function populate(app) {
   if (q.get('sandbox') !== '1' && !app.sandboxOnly) {
     const cpu = q.get('cpu') === 'both' ? [0, 1] : q.get('cpu') === 'none' ? [] : [1];
     app.commanderUrl = q.get('commander') === '1' ? '/commander' : (q.get('commander') || null);   // remote commander endpoint for the CPU sides
+    app.commanderModel = q.get('model') || null;   // ?model=<key> picks a model from the Worker's allow-list (llama, gpt-oss-120b, qwen3-30b, mistral-small)
     app.startMatch = (playerLoadout, modeOpts = {}) => {
       const cpuKey = q.get('cpuloadout') || counterPick(playerLoadout);
       const mode = q.get('mode') || modeOpts.mode || 'aas', side = q.get('side') || modeOpts.side || 'attack', difficulty = q.get('difficulty') || modeOpts.difficulty || 'normal';
