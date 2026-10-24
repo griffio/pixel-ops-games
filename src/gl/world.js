@@ -95,11 +95,13 @@ export class World extends WorldState {
   applyLighting() {
     const L = this.light;
     for (const h of this.heads) h.emissiveI = L.lampEmissive;
-    // the shader takes four point lights: use the ones nearest the camera focus
-    const near = this.lamps.map(l => ({ l, d: Math.hypot(l.pos[0] - this.focus.x, l.pos[2] - this.focus.z) })).sort((a, b) => a.d - b.d).slice(0, 4).map(o => o.l);
+    // the shader takes eight point lights: muzzle flashes and explosions first (brief and bright), then the lamps nearest the camera focus
+    const fx = this.focus.x, fz = this.focus.z, dist = (p) => Math.hypot(p[0] - fx, p[2] - fz);
+    const flashes = (this.dust ? this.dust.lights : []).map(f => ({ pos: [f.x, f.y, f.z], color: f.color, intensity: f.intensity * (f.life / f.maxLife), distance: f.distance })).sort((a, b) => dist(a.pos) - dist(b.pos));
+    const near = this.lamps.map(l => ({ pos: l.pos, color: l.color, intensity: L.lampI, distance: l.distance })).sort((a, b) => dist(a.pos) - dist(b.pos));
     this.lightState = {
       sunDir: L.sunDir, sunColor: L.sunColor, sunI: L.sunI, hemiSky: L.hemiSky, hemiGround: L.hemiGround, hemiI: L.hemiI,
-      background: L.background, points: near.map(l => ({ pos: l.pos, color: l.color, intensity: L.lampI, distance: l.distance })),
+      background: L.background, points: [...flashes, ...near].slice(0, 8),
     };
   }
 }

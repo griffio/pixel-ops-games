@@ -23,7 +23,7 @@ const scene = new Scene();
 const world = new World(scene, renderer, sandbox ? null : desert1km);   // the 1 km map, or the legacy airfield in sandbox mode
 const rts = new RtsCamera(pixel, world.half - 10);
 const units = new UnitManager(scene, world, builders, F.recolor);
-const dust = new DustSim(); units.dust = dust;
+const dust = new DustSim(); units.dust = dust; world.dust = dust;   // the world reads muzzle-flash lights from the particle pool
 const markers = new Markers(scene, world.heightAt);
 world.focus = rts.target; rts.heightAt = world.heightAt;
 

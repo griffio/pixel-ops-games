@@ -291,6 +291,22 @@ Engine changes needed in the existing core:
   Measured with scratch runners over tools/match-test.mjs plus stepped probes
   that logged captures, zone presence, river crossings and death positions.
 
+- **Muzzle flashes and vehicle detail (2026-10-24).** Shots now leave the barrel
+  (a little ahead of the unit at gun height) with a muzzle flash sized by weapon
+  class (`MUZZLE` in `src/core/dust.js`): an orange halo and a near-white core,
+  cannon and rocket flashes with sparks, smoke, ejected brass and a rocket
+  backblast. Particles can be additive (alpha encoded as 2 + a) and are drawn
+  as round, premultiplied sprites in one pass, so flashes, fire, embers and
+  tracers glow while smoke still covers. Each flash and explosion also adds a
+  brief point light (`dust.lights`); the world feeds those first into eight
+  shader light slots (was four lamps), so a volley lights the squad and the
+  ground around it the way the reference frames do. Models: trucks are 6x6 with
+  side glass, mirrors, grille, headlights, exhaust stack, fuel tank and a netted
+  load (new `net` texture with a mesh grid); APCs gain a muzzle brake, smoke
+  launchers, a pintle gun, headlights and jerry cans; wheels have hubs and a
+  lighter tread band. Checked with paused CDP captures of a volley, the cannon,
+  a rifle and a vehicle-size explosion.
+
 ## Open questions
 
 

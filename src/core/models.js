@@ -53,19 +53,28 @@ export function makeBuilders(F) {
     return { group: g, parts: p, height: 2.4, radius: 0.45 };
   }
 
+  // Reference look: 6x6 cargo truck; cab with side glass, mirrors, grille and headlights, an
+  // exhaust stack and fuel tank, a netted load with crates on top under the roll frame.
   function truck() {
     const g = group(); const p = { wheels: [], steer: [] };
-    box(5.6, 0.5, 2.0, 'metal', 0, 0.85, 0, g);                       // chassis
-    box(2.3, 1.75, 2.4, 'desert', 0, 2.0, 2.0, g);                     // cab
-    box(2.3, 0.3, 2.4, 'desert2', 0, 2.95, 2.0, g);                   // roof
-    box(0.1, 0.7, 2.0, 'glass', 0, 2.35, 3.2, g);                      // windscreen
-    box(0.5, 0.5, 2.3, 'desert2', 0, 1.4, 3.4, g);                     // bumper
-    box(2.5, 0.9, 3.8, 'desert2', 0, 1.55, -1.3, g);                   // bed
-    box(2.1, 0.8, 2.2, 'canvas', 0, 2.4, -1.2, g);                     // cargo
+    box(5.8, 0.5, 2.0, 'metal', 0, 0.85, -0.1, g);                                                 // chassis
+    box(2.3, 1.75, 2.4, 'desert', 0, 2.0, 2.0, g);                                                  // cab
+    box(2.3, 0.3, 2.4, 'desert2', 0, 2.95, 2.0, g);                                                 // roof
+    box(0.1, 0.7, 2.0, 'glass', 0, 2.35, 3.2, g);                                                   // windscreen
+    box(0.1, 0.6, 1.0, 'glass', -1.2, 2.4, 1.9, g); box(0.1, 0.6, 1.0, 'glass', 1.2, 2.4, 1.9, g); // side windows
+    box(0.12, 0.3, 0.2, 'metal', -1.35, 2.5, 2.9, g); box(0.12, 0.3, 0.2, 'metal', 1.35, 2.5, 2.9, g);   // mirrors
+    box(1.6, 0.55, 0.1, 'grille', 0, 1.6, 3.22, g);                                                 // grille
+    box(0.3, 0.2, 0.1, 'headlight', -0.9, 1.95, 3.22, g); box(0.3, 0.2, 0.1, 'headlight', 0.9, 1.95, 3.22, g);   // headlights
+    box(0.5, 0.5, 2.3, 'desert2', 0, 1.4, 3.4, g);                                                  // bumper
+    box(0.14, 1.7, 0.14, 'metal', 1.25, 3.3, 0.75, g);                                              // exhaust stack
+    const tank = mesh('cyl:0.36,0.36,1.4,8', 'metal', -1.15, 1.05, -0.4, g); tank.rotation.x = Math.PI / 2;   // fuel tank
+    box(2.5, 0.9, 3.8, 'desert2', 0, 1.55, -1.3, g);                                                // bed
+    box(2.1, 0.8, 2.6, 'net', 0, 2.4, -1.3, g);                                                     // netted load
+    box(0.9, 0.5, 0.7, 'olive', 0.5, 2.95, -0.7, g); box(0.7, 0.4, 0.6, 'canvas', -0.55, 2.95, -2.0, g);   // crates on top
     for (const z of [-3.0, 0.4]) for (const x of [-1.15, 1.15]) box(0.1, 1.9, 0.1, 'metal', x, 2.9, z, g);
     for (const x of [-1.15, 1.15]) box(0.1, 0.1, 3.5, 'metal', x, 3.85, -1.3, g);
     for (const z of [-3.0, 0.4]) box(2.4, 0.1, 0.1, 'metal', 0, 3.85, z, g);
-    for (const z of [-2.0, 1.9]) for (const x of [-1.25, 1.25]) {
+    for (const z of [-2.75, -1.45, 1.9]) for (const x of [-1.25, 1.25]) {
       const w = wheel(0.6, 0.5, x, 0.6, z, g); p.wheels.push(w); if (z > 0) p.steer.push(w);
     }
     p.ring = ring(3.2, g);
@@ -84,7 +93,12 @@ export function makeBuilders(F) {
     mesh('wedge:1.7,0.75,2.0,0.6,0.3', 'desert', 0, 0.37, 0, p.turret);
     box(0.7, 0.1, 0.7, 'desert2', -0.35, 0.78, -0.3, p.turret);                     // commander hatch
     box(0.16, 0.16, 2.8, 'metal', 0.35, 0.45, 2.0, p.turret);                        // gun
+    box(0.24, 0.24, 0.3, 'metal', 0.35, 0.45, 3.35, p.turret);                       // muzzle brake
     box(0.3, 0.3, 0.6, 'metal', 0.35, 0.45, 0.9, p.turret);                          // mantlet
+    for (const x of [-0.78, 0.78]) for (let i = 0; i < 3; i++) box(0.1, 0.1, 0.3, 'metal', x, 0.7, 0.5 - i * 0.14, p.turret);   // smoke launchers
+    box(0.08, 0.1, 0.9, 'metal', -0.35, 0.98, -0.1, p.turret); box(0.1, 0.22, 0.1, 'metal', -0.35, 0.88, -0.45, p.turret);   // pintle MG
+    box(0.28, 0.16, 0.1, 'headlight', -1.0, 1.95, 3.84, g); box(0.28, 0.16, 0.1, 'headlight', 1.0, 1.95, 3.84, g);           // headlights
+    box(0.4, 0.5, 0.25, 'olive', -0.8, 2.35, -3.98, g); box(0.4, 0.5, 0.25, 'olive', 0.8, 2.35, -3.98, g);                  // jerry cans
     box(0.35, 0.45, 2.4, 'canvas', -1.6, 2.9, -1.2, g); box(0.35, 0.45, 2.4, 'canvas', 1.6, 2.9, -1.2, g);   // side stowage
     box(2.4, 1.3, 0.18, 'olive', 0, 2.3, -3.85, g);                                   // rear ramp
     box(0.06, 1.8, 0.06, 'metal', -1.1, 4.2, -2.6, g);                               // antenna
@@ -160,5 +174,6 @@ export function makeBuilders(F) {
 export const COLORS = {
   skin: 0xc9966b, skin2: 0x7a5236, hair: 0x1a1512, belt: 0x3b3127, boots: 0x3a3127, rifle: 0x1f1f1f,
   heliDark: 0x2e3330, olive: 0x5c6b3f, sandbag: 0x9c8b64, glass: 0x1d2328, tire: 0x1a1a1a, rim: 0x8a877c, metal: 0x2a2a2a, canvas: 0x6f6448,
+  hub: 0xb9b5a8, tread: 0x2c2c2c, headlight: 0xf2ecd0, grille: 0x171717,
 };
-export const TEXTURED = ['uniform', 'vest', 'desert', 'desert2', 'heli', 'trunk', 'frond', 'bush', 'uniformB', 'vestB', 'desertB', 'desert2B', 'heliB', 'wreck'];
+export const TEXTURED = ['uniform', 'vest', 'desert', 'desert2', 'heli', 'trunk', 'frond', 'bush', 'uniformB', 'vestB', 'desertB', 'desert2B', 'heliB', 'wreck', 'net'];

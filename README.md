@@ -135,6 +135,10 @@ table of kills, losses by class, captures, locations lost, FOBs and caches, with
 the victim's class, and reports captures, FOBs and cache events; vehicle kills are
 highlighted. Destroyed vehicles burn for 45 seconds with flames, embers and soot
 before smouldering out; explosions throw debris on ballistic arcs and a dust ring.
+Every shot starts at the muzzle with a flash scaled to the weapon (rifle, machine
+gun, marksman, autocannon, rocket, door gun), and flashes and explosions cast a
+brief orange light on the units and ground around them; glowing particles are
+drawn additively, smoke covers.
 
 URL parameters set the initial state so the two back ends can be compared on
 identical frames: `?r=gl&seed=7&x=52&z=50&zoom=6&yaw=0.6&pitch=0.95&hour=21&pixel=0&tpu=12`
@@ -160,7 +164,7 @@ src/core/           renderer-agnostic engine
   textures.js       procedural tarmac (slabs, taxi lines, asphalt road, grass strip), camo and grass-tuft canvases
   camera.js         orthographic RTS camera (orbit, zoom-as-pixel-scale, texel snapping, follow)
   units.js          steering, obstacle sliding, separation, squads, helicopter state machine
-  dust.js           dust particle simulation
+  dust.js           particle simulation: dust, smoke, fire, tracers, muzzle flashes and brief flash lights for the renderer
   input.js, hud.js  RTS input / selection and the HUD; picking delegated to the back end
   app.js            URL params, match or sandbox population, frame loop (with ?warp pre-stepping)
 src/game/           milestone 1 game layer (renderer-agnostic)

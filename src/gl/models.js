@@ -25,7 +25,9 @@ export const F = {
   wheel(r, w, x, y, z, parent) {
     const g = new Node(); g.position.set(x, y, z);
     const m = F.mesh(`cyl:${r},${r},${w},8`, 'tire', 0, 0, 0, g); m.rotation.z = Math.PI / 2;
+    const tread = F.mesh(`cyl:${r * 1.02},${r * 1.02},${w * 0.34},8`, 'tread', 0, 0, 0, g); tread.rotation.z = Math.PI / 2;   // lighter centre band on the tyre
     const rim = F.mesh(`cyl:${r * 0.7},${r * 0.7},${w + 0.06},6`, 'rim', 0, 0, 0, g); rim.rotation.z = Math.PI / 2;
+    const hub = F.mesh(`cyl:${r * 0.3},${r * 0.3},${w + 0.14},6`, 'hub', 0, 0, 0, g); hub.rotation.z = Math.PI / 2;
     parent.add(g); return g;
   },
   recolor(root, matName) { const walk = (n) => { if (n.geo && n.mat !== MAT.ring && n.mat !== MAT.rotorBlur) n.mat = MAT[matName]; for (const c of n.children) walk(c); }; walk(root); },

@@ -272,7 +272,7 @@ export class GLRenderer {
     gl.uniform3f(u.uHemiSky, L.hemiSky[0] * L.hemiI, L.hemiSky[1] * L.hemiI, L.hemiSky[2] * L.hemiI);
     gl.uniform3f(u.uHemiGround, L.hemiGround[0] * L.hemiI, L.hemiGround[1] * L.hemiI, L.hemiGround[2] * L.hemiI);
     const pp = [], pc = [], pd = [];
-    for (let i = 0; i < 4; i++) { const l = L.points[i] || { pos: [0, -100, 0], color: [0, 0, 0], intensity: 0, distance: 1 }; pp.push(...l.pos); pc.push(l.color[0] * l.intensity, l.color[1] * l.intensity, l.color[2] * l.intensity); pd.push(l.distance); }
+    for (let i = 0; i < 8; i++) { const l = L.points[i] || { pos: [0, -100, 0], color: [0, 0, 0], intensity: 0, distance: 1 }; pp.push(...l.pos); pc.push(l.color[0] * l.intensity, l.color[1] * l.intensity, l.color[2] * l.intensity); pd.push(l.distance); }
     gl.uniform3fv(u.uPointPos, pp); gl.uniform3fv(u.uPointCol, pc); gl.uniform1fv(u.uPointDist, pd);
     gl.uniform1i(u.uTex, 0); gl.uniform1i(u.uShadow, 1);
     gl.activeTexture(gl.TEXTURE1); gl.bindTexture(gl.TEXTURE_2D, this.shadowTex);
@@ -294,7 +294,7 @@ export class GLRenderer {
 
     // 3. particles (one draw call)
     if (dust && dust.n) {
-      const d = P.dust; gl.useProgram(d.p);
+      const d = P.dust; gl.useProgram(d.p); gl.blendFunc(gl.ONE, gl.ONE_MINUS_SRC_ALPHA);   // premultiplied: additive glow and covering smoke in one pass
       gl.uniformMatrix4fv(d.u.uViewProj, false, cam.viewProj);
       gl.uniform1f(d.u.uTpu, this.pixel.enabled ? this.pixel.texelsPerUnit : this.pixel.texelsPerUnit * this.pixel.pixelScale * this.pixel.dpr);
       gl.bindVertexArray(this.dustVao);

@@ -26,7 +26,7 @@ precision highp float;
 in vec3 vN; in vec2 vUv; in vec4 vColor; in vec3 vEmis; in vec3 vWorld; in vec4 vShadow;
 uniform sampler2D uTex; uniform sampler2D uShadow;
 uniform vec3 uSunDir; uniform vec3 uSunCol; uniform vec3 uHemiSky; uniform vec3 uHemiGround;
-uniform vec3 uPointPos[4]; uniform vec3 uPointCol[4]; uniform float uPointDist[4];
+uniform vec3 uPointPos[8]; uniform vec3 uPointCol[8]; uniform float uPointDist[8];
 uniform float uShadowOn; uniform float uShadowBias; uniform float uShadowPcf; uniform float uUnlit; uniform float uCutout;
 // ground mode: albedo blended from tileable textures by a splat map in world space
 uniform int uMode; uniform sampler2D uSplat; uniform sampler2D uBase; uniform sampler2D uT0; uniform sampler2D uT1; uniform sampler2D uT2; uniform sampler2D uT3;
@@ -63,7 +63,7 @@ void main() {
   }
   vec3 irr = uSunCol * max(dot(n, uSunDir), 0.0) * sh;
   irr += mix(uHemiGround, uHemiSky, 0.5 * n.y + 0.5);
-  for (int i = 0; i < 4; i++) {
+  for (int i = 0; i < 8; i++) {
     vec3 L = uPointPos[i] - vWorld; float d = length(L);
     float cut = pow(clamp(1.0 - pow(d / uPointDist[i], 4.0), 0.0, 1.0), 2.0);
     irr += uPointCol[i] * cut / max(d * d, 0.01) * max(dot(n, L / d), 0.0);
@@ -122,10 +122,12 @@ void main() {
 
 export const DUST_VS = `#version 300 es
 layout(location=0) in vec3 aPos; layout(location=1) in float aLife; layout(location=2) in float aSize; layout(location=3) in vec3 aColor; layout(location=4) in vec2 aParams;
-uniform mat4 uViewProj; uniform float uTpu; out vec4 vC;
-void main() { vC = vec4(aColor, aLife * aParams.y); gl_PointSize = max(1.0, aSize * mix(1.0, 1.6 - aLife, aParams.x) * uTpu); gl_Position = uViewProj * vec4(aPos, 1.0); }`;
+uniform mat4 uViewProj; uniform float uTpu; out vec4 vC; out float vAdd;
+// an alpha of 2 + a flags an additive (glowing) particle; see core/dust.js
+void main() { float a = aParams.y; vAdd = step(1.5, a); a -= 2.0 * vAdd; vC = vec4(aColor, aLife * a); gl_PointSize = max(1.0, aSize * mix(1.0, 1.6 - aLife, aParams.x) * uTpu); gl_Position = uViewProj * vec4(aPos, 1.0); }`;
 
 export const DUST_FS = `#version 300 es
 precision mediump float;
-in vec4 vC; out vec4 frag;
-void main() { if (vC.a <= 0.0) discard; frag = vC; }`;
+in vec4 vC; in float vAdd; out vec4 frag;
+// round sprites, premultiplied output: normal particles cover, additive ones only add light
+void main() { if (vC.a <= 0.0) discard; vec2 q = gl_PointCoord - 0.5; if (dot(q, q) > 0.25) discard; frag = vec4(vC.rgb * vC.a, vC.a * (1.0 - vAdd)); }`;

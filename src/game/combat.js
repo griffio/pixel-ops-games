@@ -1,5 +1,8 @@
 import { WEAPONS } from './weapons.js';
 
+// muzzle flash class per kit (recipes in core/dust.js)
+const MUZZLE_KIND = { mg: 'mg', marksman: 'marksman', autocannon: 'cannon', at: 'rocket', doorgun: 'doorgun' };
+
 // Targeting, line of sight, firing and damage. Ticks at a fixed rate from Match.
 export class Combat {
   constructor(units, spatial, world, dust) {
@@ -69,7 +72,6 @@ export class Combat {
 
   fire(u, w, e) {
     u.cooldown = w.rate * (0.85 + Math.random() * 0.3);
-    const my = this.eyeY(u);
     const ey = e.pos.y + (e.spec.air ? 2 : e.type === 'soldier' ? 1.1 : 2.2);
     const d = Math.hypot(e.pos.x - u.pos.x, e.pos.z - u.pos.z);
     const T = this.teams ? this.teams[u.team] : null;
@@ -78,8 +80,12 @@ export class Combat {
     if (e.type !== 'soldier') chance *= 1.6;             // vehicles are big targets
     const hit = Math.random() < chance;
     const sx = e.pos.x + (hit ? 0 : (Math.random() - 0.5) * 4), sz = e.pos.z + (hit ? 0 : (Math.random() - 0.5) * 4);
-    this.dust.tracer(u.pos.x, my, u.pos.z, sx, hit ? ey : e.pos.y + 0.1, sz);
-    if (w.explosive) this.dust.puff(u.pos.x, my, u.pos.z);
+    // the shot leaves the barrel: a little ahead of the unit towards the target, at gun height
+    const reach = u.type === 'soldier' ? 0.6 : u.type === 'apc' ? 3.0 : 1.6, gunY = u.pos.y + (u.type === 'soldier' ? 1.25 : u.type === 'apc' ? 3.8 : 2.0);
+    const hx = sx - u.pos.x, hz = sz - u.pos.z, hd = Math.hypot(hx, hz) || 1, mx = u.pos.x + hx / hd * reach, mz = u.pos.z + hz / hd * reach;
+    const ty = hit ? ey : e.pos.y + 0.1, vx = sx - mx, vy = ty - gunY, vz = sz - mz, vl = Math.hypot(vx, vy, vz) || 1;
+    this.dust.muzzle(mx, gunY, mz, vx / vl, vy / vl, vz / vl, MUZZLE_KIND[u.kit] || 'rifle');
+    this.dust.tracer(mx, gunY, mz, sx, ty, sz, u.kit === 'autocannon' ? 0.32 : 0.22);
     if (this.audio) this.audio.shot(u.kit, u.pos.x, u.pos.z);
     if (hit) {
       const dmg = (e.type === 'soldier' ? w.dmgInf : w.dmgVeh) * ((T && T.dmg) || 1);
