@@ -492,6 +492,29 @@ Engine changes needed in the existing core:
   The deployed Worker needs `npm run deploy` to pick up the new prompt. Next:
   `waitFor` conditions and `nextReviewIn`, then squad roles.
 
+- **Tempo: nextReviewIn and waitFor (2026-10-24).** The plan gained
+  `nextReviewIn` (10-60 s until the next call; the game also asks at once when
+  a location changes hands or one of the side's APCs dies, via
+  `RemoteCommander.nudge`) and `waitFor`, a condition that holds the attack
+  back: `squadsAt` (count of our squads within r+20 of one of our locations,
+  the staging point), `enemyBelow` (fewer than count enemies near a location),
+  `apcAlive`, or `seconds`. While a wait is unmet the strategist drops the
+  attack goal and sends everyone to the staging location; the wait clock
+  survives re-issued plans and the game stops waiting after two minutes. The
+  digest reports `waiting` with whether it holds. Against the stub (which
+  stages three squads at the front before a defended objective and asks again
+  in 12 s): the cadence followed the plan (25 s, then 12 s), the attack goal
+  was null while squads gathered at the Village, and the push on the Airfield
+  launched the moment three squads were there. With Llama 3.3 70B the
+  mechanism is used but not finely: it chose squadsAt Village x3 for a
+  defended Airfield, then after a prompt line about when waiting pays it chose
+  apcAlive (already true, so attack at once) in both the defended and the
+  lightly held case. A stronger model behind AI Gateway, or a few worked
+  examples in the prompt, is the lever if that matters. Gotcha: `wrangler dev`
+  restarts mid-request because its own `.wrangler/state` writes sit inside the
+  watched assets directory; the scratch Node harness that imports the Worker
+  and calls Workers AI over REST is the reliable way to test the prompt.
+
 ## Open questions
 
 

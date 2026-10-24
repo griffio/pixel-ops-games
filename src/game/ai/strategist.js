@@ -31,7 +31,7 @@ export class Strategist {
     const vehicles = this.units.units.filter(u => u.team === this.team && !u.dead && !u.squad && !u.spec.structure);
     const myFobs = this.units.units.filter(u => u.type === 'fob' && u.team === this.team && !u.dead).map(f => ({ x: f.pos.x, z: f.pos.z, r: 18, index: 'fob' + f.id }));
     const g = this.match.mode.goals(this.team, myFobs);
-    if (this.remote && this.remote.fresh) this.applyPlan(g, this.remote.plan);
+    if (this.remote && this.remote.fresh) this.applyPlan(g, this.remote);
     this.posture = g.posture || 'balanced'; this.prefer = g.logistics || 'fob'; this.lift = g.lift !== false;
     if (g.hunt) return this.skirmish(squads, vehicles, base);
     const attack = g.attack, hold = g.hold, reserve = g.reserve || null;
@@ -75,13 +75,27 @@ export class Strategist {
 
   // A remote commander's plan overrides the mode's goals wherever it names something legal: the attack
   // must be the next capturable location in the lattice, holds must be ours; the rest are knobs.
-  applyPlan(g, p) {
-    const o = this.match.objectives; if (!o) return;
+  applyPlan(g, remote) {
+    const p = remote.plan, o = this.match.objectives; if (!o) return;
     const byName = (n) => o.list.find(l => l.name === n) || null;
     if (p.attack) { const a = byName(p.attack); if (a && a.owner !== this.team && o.capturable(this.team, a)) g.attack = a; }
     else if (p.hold.length) g.attack = null;
     const h = p.hold.map(byName).filter(l => l && l.owner === this.team); if (h.length) g.hold = h[0];
     g.attackShare = p.attackShare; g.posture = p.posture; g.logistics = p.logistics; g.lift = p.lift;
+    // a wait holds the attack back: everyone gathers at the staging location until the condition holds (two minutes at most)
+    if (p.waitFor && g.attack) {
+      const waited = this.match.elapsed - (remote.waitSince ?? remote.planAt), met = this.waitMet(p.waitFor, waited); remote.waitMet = met;
+      if (!met && waited < 120) { const stage = byName(p.waitFor.at); if (stage && stage.owner === this.team) g.hold = stage; g.attack = null; }
+    }
+  }
+  waitMet(w, waited) {
+    const o = this.match.objectives, loc = w.at ? o.list.find(l => l.name === w.at) : null;
+    if (w.kind === 'seconds') return waited >= w.count;
+    if (w.kind === 'apcAlive') return this.units.units.some(u => u.team === this.team && u.type === 'apc' && !u.dead);
+    if (!loc) return true;
+    if (w.kind === 'squadsAt') return this.units.squads.filter(s => s.team === this.team && s.leader && !s.mounted && Math.hypot(s.centroid().x - loc.x, s.centroid().z - loc.z) < loc.r + 20).length >= w.count;
+    if (w.kind === 'enemyBelow') return this.match.enemiesNear(this.team, loc.x, loc.z, loc.r + 25) < w.count;
+    return true;
   }
 
   // Caution, once a second. Armour first: a squad an enemy APC can see within 110 m stalks it to rocket range if

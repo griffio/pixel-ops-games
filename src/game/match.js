@@ -57,6 +57,7 @@ export class Match {
       if (k) { const ks = this.teams[k.team].stats; ks.kills[v.type] = (ks.kills[v.type] || 0) + 1; }
       this.pushFeed({ kind: 'kill', v, k });
       if (v.type !== 'soldier' && this.app.audio) this.app.audio.explosion(v.pos.x, v.pos.z, v.type === 'apc' ? 1.5 : 1);
+      if (v.type === 'apc') for (const s of this.strategists || []) if (s.remote && s.team === v.team) s.remote.nudge();
     };
     this.time = this.mode.length; this.state = 'play'; this.winner = null; this.reason = ''; this.acc = 0;
     this.units.auto = false;
@@ -81,6 +82,7 @@ export class Match {
     const s = e.team !== undefined && this.teams[e.team] ? this.teams[e.team].stats : null;
     if (s) { if (e.type === 'captured') s.captures++; else if (e.type === 'lost') s.lost++; else if (e.type === 'fob') s.fobs++; else if (e.type === 'cache destroyed') s.caches++; }
     if (e.type !== 'hex lost') this.pushFeed({ kind: 'event', e });
+    if (e.type === 'captured' || e.type === 'lost') for (const s of this.strategists || []) if (s.remote) s.remote.nudge();   // a remote commander hears about it at once
     if (this.app.audio) this.app.audio.event(e.type, e.team === (this.app.playerTeam ?? 0));
   }
   pushFeed(f) { f.t = 0; f.id = ++this.feedId; this.feed.unshift(f); this.feed.length = Math.min(this.feed.length, 7); }

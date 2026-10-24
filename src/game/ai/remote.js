@@ -13,6 +13,10 @@ export class RemoteCommander {
     this.stats = { calls: 0, ok: 0, failed: 0, lastMs: 0, lastError: '', model: '' };
   }
   get fresh() { return !!this.plan && this.match.elapsed - this.planAt < this.maxAge; }
+  // something happened (a location changed hands, one of our vehicles died): ask again within a few seconds
+  nudge() { if (!this.pending && this.match.elapsed - this.planAt > 8) this.acc = Math.max(this.acc, this.interval - 4); }
+  // the wait the current plan is under, with whether it holds yet (set by the strategist each plan tick)
+  waitState() { const p = this.plan; if (!p || !p.waitFor) return null; return { ...p.waitFor, met: !!this.waitMet, waitedSeconds: Math.round(this.match.elapsed - (this.waitSince ?? this.planAt)) }; }
   // the state a plan starts from, so its outcome can be measured later
   snapshot() { const m = this.match, s = m.sample(), t = this.team; return { t: m.elapsed, tickets: [s[1 + t], s[2 - t]], inf: s[3 + t], veh: s[5 + t], owned: s[7 + t] }; }
   // the last three plans with what followed each: ticket swing (ours minus theirs), locations captured and lost, our losses
@@ -36,7 +40,9 @@ export class RemoteCommander {
       const body = await res.json();
       const plan = validatePlan(body.plan || body, names);
       if (!plan) throw new Error('no usable plan');
-      this.plan = plan; this.planAt = this.match.elapsed; this.stats.ok++;
+      const sameWait = this.plan && JSON.stringify(this.plan.waitFor) === JSON.stringify(plan.waitFor);   // a re-issued wait keeps its clock, so the two-minute give-up can fire
+      this.waitSince = sameWait && plan.waitFor ? this.waitSince : this.match.elapsed;
+      this.plan = plan; this.planAt = this.match.elapsed; this.stats.ok++; this.interval = plan.nextReviewIn || 20; this.acc = 0; this.waitMet = false;
       // the history keeps a plan only when the orders change or a minute has passed, so three entries span real time and their outcomes mean something
       const last = this.history[this.history.length - 1], same = (a, b) => a.attack === b.attack && a.posture === b.posture && a.logistics === b.logistics && a.lift === b.lift && a.hold.join() === b.hold.join() && Math.abs(a.attackShare - b.attackShare) < 0.1;
       if (!last || !same(last.plan, plan) || this.match.elapsed - last.snap.t > 60) { this.history.push({ plan, snap: this.snapshot() }); if (this.history.length > 3) this.history.shift(); } else last.plan = plan; this.stats.lastMs = Math.round(performance.now() - t0); if (body.model) this.stats.model = body.model;

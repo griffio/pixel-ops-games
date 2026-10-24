@@ -253,7 +253,12 @@ with what followed each (ticket swing, captures, losses, casualties), and the
 model's own notes from last time) to `/commander` and gets back a plan in a fixed schema
 (`src/game/ai/plan.js`: the next location to attack, locations to hold, attack
 share, posture, what to build, whether to use lifts, a line of radio chatter
-that appears in the feed, and notes to itself for the next call). The strategist follows the plan while it is
+that appears in the feed, notes to itself for the next call, how many seconds
+until it wants to be consulted again, and optionally a condition to wait for
+before attacking: squads gathered at a staging location, few enemies near the
+objective, an APC alive, or a number of seconds; the game checks it every few
+seconds, gathers the squads meanwhile, and gives up waiting after two minutes.
+A location changing hands or one of its APCs dying triggers a review at once). The strategist follows the plan while it is
 under 90 seconds old and its own goals otherwise, and every call is
 asynchronous, so a slow or failing endpoint never stalls the match. The posture
 scales the caution distances (cautious keeps 1.3× the distance, aggressive

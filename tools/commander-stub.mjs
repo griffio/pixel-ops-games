@@ -12,7 +12,9 @@ const plan = (d) => {
   const reason = attack !== 'none' ? `Push ${attack}, ${enemyNear(attack)} hostiles there; ${posture} posture, ${hold.length ? 'hold ' + hold[0] : 'nothing to hold'}.` : `Hold what we have and dig in.`;
   const swing = d.trends ? d.trends.tickets.now[0] - d.trends.tickets.now[1] - (d.trends.tickets.min3[0] - d.trends.tickets.min3[1]) : 0;
   const notes = `stub: ${attack !== 'none' ? 'pushing ' + attack : 'holding'}; 3-minute swing ${swing >= 0 ? '+' : ''}${swing}; ${d.plans && d.plans.length ? 'last plan ' + JSON.stringify(d.plans[d.plans.length - 1].outcome) : 'first plan'}`;
-  return { attack, hold, attackShare: posture === 'aggressive' ? 0.8 : posture === 'cautious' ? 0.5 : 0.65, posture, logistics, lift: true, reason, notes };
+  // a defended objective is not rushed: gather three squads at the front first, and look again sooner
+  const defended = attack !== 'none' && enemyNear(attack) >= 6, waitFor = defended && d.front ? { kind: 'squadsAt', at: d.front, count: 3 } : { kind: 'none' };
+  return { attack, hold, attackShare: posture === 'aggressive' ? 0.8 : posture === 'cautious' ? 0.5 : 0.65, posture, logistics, lift: true, reason, notes, nextReviewIn: defended ? 12 : 25, waitFor };
 };
 http.createServer((req, res) => {
   const cors = { 'access-control-allow-origin': '*', 'access-control-allow-headers': 'content-type', 'content-type': 'application/json' };
