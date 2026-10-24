@@ -417,6 +417,38 @@ Engine changes needed in the existing core:
   inside passable, covered from the front, a squad walks in from 20 m; a CPU
   match built positions at the Outpost, Airfield and Depot by 15 minutes.
 
+- **LLM commander, digest and Worker (2026-10-24).** The user wants the CPU
+  commander to take plans from a model, on Cloudflare (Workers + Workers AI in
+  one runtime). Built the game side and the Worker. `src/game/ai/digest.js`
+  compresses a side's view to about 1,700-2,200 characters (500-600 tokens):
+  tickets, locations with owner, contest counts and capturability, our squads
+  (kits, strength, nearest location, order), vehicles, enemy clusters within
+  40 m, FOBs and kits, sandbags, the last six events and the previous plan.
+  `src/game/ai/plan.js` holds the plan schema (attack, hold, attackShare,
+  posture, logistics, lift, reason) and a validator shared by game and Worker
+  that drops anything not legal. `src/game/ai/remote.js` posts the digest every
+  20 s of match time per CPU side, keeps the latest plan for 90 s, never blocks.
+  The strategist applies it in `applyPlan` (attack only if capturable in the
+  lattice, holds only if ours, posture scales caution distances, logistics
+  prefers FOB or sandbags or none, lift on or off) and the reason goes to the
+  feed as radio chatter. `?commander=1` uses `/commander` on the serving
+  origin, `?commander=<url>` any endpoint; `tools/commander-stub.mjs` is a
+  heuristic stand-in. `worker/index.js` + `wrangler.jsonc` serve the game as
+  static assets (`.assetsignore` excludes secrets, tools, docs) and answer
+  `/commander` from Workers AI with a JSON-schema response. Measured: Llama 3.3
+  70B fp8 fast answers in 1.8-2.7 s (about 1,100 prompt tokens, 42 neurons a
+  call); GLM 5.3 flash spent its whole budget on hidden reasoning and took
+  9 s, so Llama is the default. With the stub a 4-minute CPU match made 10
+  calls a side, all applied; with the real model under `wrangler dev` both
+  sides got plans ("Take Village", "Secure Village") in 2.4-2.7 s, from the
+  Worker's own origin and cross-origin. The Cloudflare token is account-scoped
+  (`/user/tokens/verify` rejects it, Workers AI accepts it). Deployed by the
+  user to https://pixel-ops.griffio-work.workers.dev; the first deploy also
+  uploaded `.wrangler/` (local dev state), fixed in `.assetsignore` and
+  redeployed. Live: a plan in 2.4 s direct, 3.5 s from the page; a CPU match
+  played off the live site got plans for both sides. Next: judge plan quality against the built-in planner over a
+  few matches, and consider Agent Memory only at match boundaries.
+
 ## Open questions
 
 

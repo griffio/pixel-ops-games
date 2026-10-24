@@ -236,6 +236,44 @@ Pixelate on/off (compare with native resolution at identical framing), outline,
 shadows, texels per unit (4–24), time speed, hour of day, autonomous orders,
 spawn buttons.
 
+## LLM commander on Cloudflare
+
+The CPU sides can take their plan from a model instead of the built-in planner.
+Every 20 seconds of match time each CPU side posts a one-page JSON digest of the
+state (`src/game/ai/digest.js`: tickets, locations and who contests them, its
+squads and vehicles with orders, enemy clusters, FOBs, sandbags, recent events,
+its previous plan) to `/commander` and gets back a plan in a fixed schema
+(`src/game/ai/plan.js`: the next location to attack, locations to hold, attack
+share, posture, what to build, whether to use lifts, and a line of radio
+chatter that appears in the feed). The strategist follows the plan while it is
+under 90 seconds old and its own goals otherwise, and every call is
+asynchronous, so a slow or failing endpoint never stalls the match. The posture
+scales the caution distances (cautious keeps 1.3× the distance, aggressive
+0.6×).
+
+`worker/index.js` is a Cloudflare Worker that serves the game as static assets
+(`.assetsignore` keeps secrets, tools and docs out) and answers `/commander`
+from a Workers AI model, `@cf/meta/llama-3.3-70b-instruct-fp8-fast` by default
+(`vars.MODEL` in `wrangler.jsonc`). Measured locally it answers in 2 to 3
+seconds for about 1,100 prompt tokens and 40 neurons a call, so a full match
+costs each side roughly 3,000 neurons.
+
+```bash
+npm install                      # wrangler
+# .env holds CLOUDFLARE_API_KEY (an account API token with Workers AI) and CLOUDFLARE_API_ACCOUNT
+set -a; . ./.env; set +a; export CLOUDFLARE_API_TOKEN="$CLOUDFLARE_API_KEY" CLOUDFLARE_ACCOUNT_ID="$CLOUDFLARE_API_ACCOUNT"
+npm run dev:cf                   # the game and /commander on http://localhost:8789, AI binding remote
+```
+
+Then open `http://localhost:8789/?commander=1`, or keep playing from the Python
+server and point it at the Worker with `?commander=http://localhost:8789/commander`
+(the endpoint allows cross-origin calls). `npm run commander-stub` starts
+`tools/commander-stub.mjs`, a local stand-in that answers with a heuristic
+plan, for working on the digest without a model: `?commander=http://localhost:8788/commander`.
+`npm run deploy` publishes the Worker to your account. Matches with a remote
+commander no longer replay from a seed, so the balance runs keep using the
+built-in planner.
+
 ## Headless checks
 
 `tools/pick-test.mjs` launches headless Chrome (software GL), loads a URL, and

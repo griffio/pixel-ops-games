@@ -98,7 +98,7 @@ export class Hud {
       return `<div class="kill${v.type !== 'soldier' ? ' veh' : ''}"><b class="t${k ? k.team : 0}">${k ? k.label : '?'}</b><span class="w">${kit}</span>${ico(v.type === 'soldier' ? 'skull' : v.type)}<b class="t${v.team}">${v.label}</b></div>`;
     }
     const e = f.e, team = e.team, name = team === 0 ? 'BLUFOR' : 'OPFOR', loc = e.loc ? e.loc.name : '';
-    const text = e.type === 'captured' ? `captured <b>${loc}</b>` : e.type === 'lost' ? `lost <b>${loc}</b>` : e.type === 'fob' ? 'FOB is up' : e.type === 'sandbags' ? 'dug in behind sandbags' : e.type === 'cache revealed' ? `found the cache at <b>${loc}</b>` : e.type === 'cache destroyed' ? `destroyed the cache at <b>${loc}</b>` : e.type;
+    const text = e.type === 'captured' ? `captured <b>${loc}</b>` : e.type === 'lost' ? `lost <b>${loc}</b>` : e.type === 'fob' ? 'FOB is up' : e.type === 'sandbags' ? 'dug in behind sandbags' : e.type === 'radio' ? `<i>${String(e.text).replace(/[&<>]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;' }[c]))}</i>` : e.type === 'cache revealed' ? `found the cache at <b>${loc}</b>` : e.type === 'cache destroyed' ? `destroyed the cache at <b>${loc}</b>` : e.type;
     return `<div class="ev">${ico(e.type === 'fob' ? 'fob' : e.type.startsWith('cache') ? 'cache' : 'flag')}<b class="t${team}">${name}</b> ${text}</div>`;
   }
 

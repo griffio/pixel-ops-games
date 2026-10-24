@@ -1,0 +1,17 @@
+# files not served as the game (Workers Static Assets reads this like .gitignore)
+.git
+.gitignore
+.assetsignore
+.env
+.claude
+.DS_Store
+node_modules
+worker
+tools
+docs
+wrangler.jsonc
+package.json
+package-lock.json
+*.md
+*.log
+.wrangler

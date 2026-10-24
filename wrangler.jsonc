@@ -1,0 +1,12 @@
+{
+  // Pixel Ops on Cloudflare: the game as static assets plus /commander, a plan from a Workers AI model.
+  // Local: `npm run dev:cf` (needs CLOUDFLARE_API_TOKEN and CLOUDFLARE_ACCOUNT_ID for the remote AI binding).
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "pixel-ops",
+  "main": "worker/index.js",
+  "compatibility_date": "2026-10-01",
+  "assets": { "directory": ".", "binding": "ASSETS" },
+  "ai": { "binding": "AI" },
+  "vars": { "MODEL": "@cf/meta/llama-3.3-70b-instruct-fp8-fast" },
+  "observability": { "enabled": true }
+}

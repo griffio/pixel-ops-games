@@ -44,6 +44,7 @@ export function populate(app) {
   // CPU plays both sides or ?loadout=<preset> skips it (cpu=both|none|1, mode=aas|skirmish)
   if (q.get('sandbox') !== '1' && !app.sandboxOnly) {
     const cpu = q.get('cpu') === 'both' ? [0, 1] : q.get('cpu') === 'none' ? [] : [1];
+    app.commanderUrl = q.get('commander') === '1' ? '/commander' : (q.get('commander') || null);   // remote commander endpoint for the CPU sides
     app.startMatch = (playerLoadout, modeOpts = {}) => {
       const cpuKey = q.get('cpuloadout') || counterPick(playerLoadout);
       const mode = q.get('mode') || modeOpts.mode || 'aas', side = q.get('side') || modeOpts.side || 'attack', difficulty = q.get('difficulty') || modeOpts.difficulty || 'normal';

@@ -7,6 +7,7 @@ import { Respawn } from './respawn.js';
 import { Support } from './support.js';
 import { Fobs } from './fob.js';
 import { Strategist } from './ai/strategist.js';
+import { RemoteCommander } from './ai/remote.js';
 import { DOCTRINES, PRESETS, expand, preset } from './loadout.js';
 import { createMode } from './modes/index.js';
 import { difficulty } from './difficulty.js';
@@ -63,6 +64,8 @@ export class Match {
     this.mode.setup();
     this.objectives = this.mode.objectives || null;
     this.strategists = cpu.map(t => new Strategist(t, this.units, this.teams, this));
+    // a remote commander (?commander=1 for the Worker's /commander, or a URL) advises each CPU side; its one-liners go to the feed
+    if (app.commanderUrl) for (const s of this.strategists) { s.remote = new RemoteCommander(this, s.team, app.commanderUrl); s.remote.onPlan = (p) => { if (p.reason) this.event({ type: 'radio', team: s.team, text: p.reason }); }; }
     this.spatial.rebuild(this.units.units);
   }
 

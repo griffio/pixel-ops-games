@@ -3,7 +3,7 @@ import { RULES } from '../rules.js';
 // CPU commander v2: objective-aware manoeuvre, logistics (FOB one hop behind the
 // front) and air (helicopter lifts for squads far from the fight).
 export class Strategist {
-  constructor(team, units, teams, match) { this.team = team; this.units = units; this.teams = teams; this.match = match; this.timer = 1 + Math.random() * 2; this.reflex = 0.5; this.plan = null; this.lifts = new Map(); this.diff = match.difficulty || { plan: 5, attackShare: 0, logistics: true }; }
+  constructor(team, units, teams, match) { this.team = team; this.units = units; this.teams = teams; this.match = match; this.timer = 1 + Math.random() * 2; this.reflex = 0.5; this.plan = null; this.remote = null; this.posture = 'balanced'; this.prefer = 'fob'; this.lift = true; this.lifts = new Map(); this.diff = match.difficulty || { plan: 5, attackShare: 0, logistics: true }; }
 
   enemiesNear(x, z, r) { return this.units.units.filter(u => !u.dead && !u.mounted && u.team !== this.team && !(u.spec.air && u.alt > 2) && Math.hypot(u.pos.x - x, u.pos.z - z) < r); }
   friendsNear(x, z, r) { return this.units.units.filter(u => !u.dead && !u.mounted && u.team === this.team && Math.hypot(u.pos.x - x, u.pos.z - z) < r); }
@@ -21,6 +21,7 @@ export class Strategist {
   toward(from, to, keep, jitter = 6) { const dx = to.x - from.x, dz = to.z - from.z, d = Math.hypot(dx, dz) || 1, k = Math.max(0, d - keep) / d; return [from.x + dx * k + (Math.random() - 0.5) * jitter, from.z + dz * k + (Math.random() - 0.5) * jitter]; }
 
   tick(dt) {
+    if (this.remote) this.remote.tick(dt);
     if ((this.reflex -= dt) <= 0) { this.reflex = 1; this.caution(); }
     this.timer -= dt; if (this.timer > 0) return; this.timer = this.diff.plan + Math.random() * 2;
     const base = this.teams[this.team].base;
@@ -30,6 +31,8 @@ export class Strategist {
     const vehicles = this.units.units.filter(u => u.team === this.team && !u.dead && !u.squad && !u.spec.structure);
     const myFobs = this.units.units.filter(u => u.type === 'fob' && u.team === this.team && !u.dead).map(f => ({ x: f.pos.x, z: f.pos.z, r: 18, index: 'fob' + f.id }));
     const g = this.match.mode.goals(this.team, myFobs);
+    if (this.remote && this.remote.fresh) this.applyPlan(g, this.remote.plan);
+    this.posture = g.posture || 'balanced'; this.prefer = g.logistics || 'fob'; this.lift = g.lift !== false;
     if (g.hunt) return this.skirmish(squads, vehicles, base);
     const attack = g.attack, hold = g.hold, reserve = g.reserve || null;
     const enemyFob = this.units.units.find(u => u.type === 'fob' && u.team !== this.team && !u.dead && (attack ? Math.hypot(u.pos.x - attack.x, u.pos.z - attack.z) < 160 : true));
@@ -70,6 +73,17 @@ export class Strategist {
     }
   }
 
+  // A remote commander's plan overrides the mode's goals wherever it names something legal: the attack
+  // must be the next capturable location in the lattice, holds must be ours; the rest are knobs.
+  applyPlan(g, p) {
+    const o = this.match.objectives; if (!o) return;
+    const byName = (n) => o.list.find(l => l.name === n) || null;
+    if (p.attack) { const a = byName(p.attack); if (a && a.owner !== this.team && o.capturable(this.team, a)) g.attack = a; }
+    else if (p.hold.length) g.attack = null;
+    const h = p.hold.map(byName).filter(l => l && l.owner === this.team); if (h.length) g.hold = h[0];
+    g.attackShare = p.attackShare; g.posture = p.posture; g.logistics = p.logistics; g.lift = p.lift;
+  }
+
   // Caution, once a second. Armour first: a squad an enemy APC can see within 110 m stalks it to rocket range if
   // it carries launchers, otherwise it moves behind the nearest building or hill out of the APC's sight (or falls
   // back if there is none) and stays there while the APC is about. Then infantry: a squad with an enemy inside 22 m
@@ -80,6 +94,7 @@ export class Strategist {
     const enemies = this.units.units.filter(u => !u.dead && !u.mounted && u.team !== this.team && !u.spec.structure && !(u.spec.air && u.alt > 2));
     if (!enemies.length) return;
     const C = this.match.combat, now = this.match.elapsed, apcs = enemies.filter(e => e.type === 'apc');
+    const k = this.posture === 'aggressive' ? 0.6 : this.posture === 'cautious' ? 1.3 : 1;   // posture scales every distance below
     const nearest = (x, z) => { let b = null, bd = Infinity; for (const e of enemies) { const d = Math.hypot(e.pos.x - x, e.pos.z - z); if (d < bd) { bd = d; b = e; } } return [b, bd]; };
     const away = (x, z, e, dist) => { const dx = x - e.pos.x, dz = z - e.pos.z, d = Math.hypot(dx, dz) || 1; return [x + dx / d * dist, z + dz / d * dist]; };
     for (const sq of this.units.squads) {
@@ -96,7 +111,7 @@ export class Strategist {
       }
       sq.seen = 0;
       if ((sq.tag === 'cover' || sq.tag === 'stalk') && apcs.some(v => Math.hypot(v.pos.x - c.x, v.pos.z - c.z) < 150)) { sq.pinUntil = now + 6; continue; }   // heads down while it is about
-      const [e, d] = nearest(c.x, c.z); if (!e || d > 22) continue;
+      const [e, d] = nearest(c.x, c.z); if (!e || d > 22 * k) continue;
       if (sq.zone && Math.hypot(c.x - sq.zone.x, c.z - sq.zone.z) < sq.zone.r) continue;                     // stand and fight for the zone
       if (sq.tag && sq.tag.startsWith('post')) continue;                                                     // dug in: stay
       if (this.friendsNear(c.x, c.z, 25).length >= this.enemiesNear(c.x, c.z, 25).length * 2) continue;    // we clearly have the numbers
@@ -104,8 +119,8 @@ export class Strategist {
     }
     for (const v of this.units.units) {
       if (v.team !== this.team || v.dead || v.type !== 'apc') continue;
-      const [e, d] = nearest(v.pos.x, v.pos.z); if (!e || d > 50) continue;
-      const [x, z] = away(v.pos.x, v.pos.z, e, 70 - d); v.goal = [x, z]; v.order(x, z);
+      const [e, d] = nearest(v.pos.x, v.pos.z); if (!e || d > 50 * k) continue;
+      const [x, z] = away(v.pos.x, v.pos.z, e, 70 * k - d); v.goal = [x, z]; v.order(x, z);
     }
   }
 
@@ -115,10 +130,10 @@ export class Strategist {
     const fobs = this.match.fobs, team = this.teams[this.team], base = team.base;
     if (this.plan && (this.plan.sq.engineer === null || this.plan.truck.dead || this.plan.done)) this.plan = null;
     if (!this.plan) {
-      if (!this.diff.logistics) return null;
+      if (!this.diff.logistics || this.prefer === 'none') return null;
       const sq = squads.find(s => s.engineer); if (!sq) return null;
       const truckTo = (at) => vehicles.filter(v => v.supply && v.supplies >= RULES.fob.supplyCost).sort((a, b) => Math.hypot(a.pos.x - at.x, a.pos.z - at.z) - Math.hypot(b.pos.x - at.x, b.pos.z - at.z))[0];
-      if (anchor && fobs.kitsLeft(this.team) > 0) {
+      if (anchor && fobs.kitsLeft(this.team) > 0 && this.prefer !== 'sandbags') {
         const truck = truckTo(anchor); if (!truck) return null;
         const [x, z] = this.toward(anchor, base, Math.hypot(anchor.x - base.x, anchor.z - base.z) - 45, 0);   // 45 m behind the location, towards home
         if (this.units.nav.vehicle.blocked(x, z) || fobs.active(this.team).some(f => Math.hypot(f.pos.x - x, f.pos.z - z) < RULES.fob.minSpacing)) return null;
@@ -156,7 +171,7 @@ export class Strategist {
       } else if (heli.state === 'parked') this.lifts.delete(heli);
       return;
     }
-    if (!attack || heli.state !== 'parked' || Math.hypot(heli.pos.x - base.x, heli.pos.z - base.z) > 50) return;
+    if (!this.lift || !attack || heli.state !== 'parked' || Math.hypot(heli.pos.x - base.x, heli.pos.z - base.z) > 50) return;
     if (this.lifts.size > 0) return;                                                     // one lift at a time: no piecemeal drops
     const far = Math.hypot(attack.x - base.x, attack.z - base.z);
     if (far < 350) return;

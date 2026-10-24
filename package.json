@@ -4,5 +4,13 @@
   "private": true,
   "type": "module",
   "description": "3D pixel-art RTS engine sandbox (three.js, low-res buffer upscale)",
-  "scripts": { "start": "python3 -m http.server 8787" }
+  "scripts": {
+    "start": "python3 -m http.server 8787",
+    "dev:cf": "wrangler dev --port 8789",
+    "deploy": "wrangler deploy",
+    "commander-stub": "node tools/commander-stub.mjs"
+  },
+  "devDependencies": {
+    "wrangler": "^4.152.0"
+  }
 }
