@@ -6,7 +6,7 @@
 export const WEAPONS = {
   rifle:      { range: 60,  rate: 1.6, burst: 3,  burstGap: 0.11, dmgInf: 10, dmgVeh: 1.5, acc: 0.14, speed: 300, hold: 32, air: true },
   mg:         { range: 80,  rate: 1.7, burst: 8,  burstGap: 0.08, dmgInf: 7,  dmgVeh: 1.5, acc: 0.14, speed: 320, hold: 45, air: true },
-  at:         { range: 90,  rate: 10,  burst: 1,  burstGap: 0,    dmgInf: 40, dmgVeh: 90,  acc: 0.7,  speed: 55,  hold: 45, air: true, prefersVehicles: true, explosive: true, rocket: true },   // seven rockets per APC; reaches an APC standing off at 70 m
+  at:         { range: 90,  rate: 6,   burst: 1,  burstGap: 0,    dmgInf: 40, dmgVeh: 120, acc: 0.7,  speed: 55,  hold: 45, air: true, prefersVehicles: true, explosive: true, rocket: true },   // five rockets per APC; reaches an APC standing off at 70 m
   marksman:   { range: 110, rate: 2.6, burst: 1,  burstGap: 0,    dmgInf: 40, dmgVeh: 2,   acc: 0.4,  speed: 420, hold: 75, air: true },   // one shot, one kill
   medic:      { range: 60,  rate: 1.8, burst: 3,  burstGap: 0.11, dmgInf: 9,  dmgVeh: 1.5, acc: 0.12, speed: 300, hold: 32, air: true },
   engineer:   { range: 60,  rate: 1.8, burst: 3,  burstGap: 0.11, dmgInf: 9,  dmgVeh: 1.5, acc: 0.12, speed: 300, hold: 32, air: true },

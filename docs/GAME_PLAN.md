@@ -394,6 +394,13 @@ Engine changes needed in the existing core:
   its bearing while the hull turns under it. Probe: orders 1-20 m behind,
   beside, onto a squad, into or beside a village house all arrive in 1-10 s.
 
+- **Rocket package applied (2026-10-24).** Reload 6 s (was 10) and 120 damage to
+  vehicles (was 90), so five hits kill an APC; accuracy stays 0.7. Seed 11
+  Balanced vs Mechanized, which lost no APCs with accuracy alone, now loses
+  3 and 4 in a 257 / 213 match; eight mirrored Balanced runs lose 38 vehicles
+  between them (10 before the cover and spin fixes, 37 after them), all
+  reaching the clock with closer scores and one draw.
+
 ## Open questions
 
 
