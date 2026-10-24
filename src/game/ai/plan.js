@@ -4,6 +4,7 @@
 export const POSTURES = ['cautious', 'balanced', 'aggressive'];
 export const LOGISTICS = ['fob', 'sandbags', 'none'];
 export const WAITS = ['none', 'squadsAt', 'enemyBelow', 'apcAlive', 'seconds'];
+export const ROLES = ['assault', 'hold', 'reserve', 'screen', 'raid', 'escort'];
 
 export const PLAN_SCHEMA = {
   type: 'object', additionalProperties: false,
@@ -27,12 +28,21 @@ export const PLAN_SCHEMA = {
       required: ['kind'],
       description: 'optionally hold the attack until a condition the game checks every few seconds; it gives up waiting after two minutes',
     },
+    squads: {
+      type: 'array', maxItems: 8,
+      items: { type: 'object', additionalProperties: false, required: ['id', 'role'], properties: {
+        id: { type: 'string', description: 'a squad id from the digest, e.g. SQ-11' },
+        role: { type: 'string', enum: ROLES, description: 'assault: join the attack. hold: stand at location at (ours). reserve: wait near at behind the front, not drawn into attacks. screen: overwatch position 50 m out from at towards the enemy. raid: go for the nearest enemy FOB. escort: stay with the supply truck' },
+        at: { type: 'string', description: 'location name for hold, reserve and screen' },
+      } },
+      description: 'jobs for particular squads; squads left out follow attackShare. Leave the engineer squad to logistics',
+    },
   },
-  required: ['attack', 'hold', 'attackShare', 'posture', 'logistics', 'lift', 'reason', 'notes', 'nextReviewIn', 'waitFor'],
+  required: ['attack', 'hold', 'attackShare', 'posture', 'logistics', 'lift', 'reason', 'notes', 'nextReviewIn', 'waitFor', 'squads'],
 };
 
-// A clean plan or null. `names` are the location names the digest offered; anything else is dropped.
-export function validatePlan(p, names) {
+// A clean plan or null. `names` are the location names the digest offered, `squadIds` our squad ids; anything else is dropped.
+export function validatePlan(p, names, squadIds = null) {
   if (!p || typeof p !== 'object') return null;
   const name = (v) => (typeof v === 'string' && names.includes(v.trim())) ? v.trim() : null;
   const attack = name(p.attack);
@@ -52,6 +62,11 @@ export function validatePlan(p, names) {
     else if (w.kind === 'apcAlive') waitFor = { kind: 'apcAlive' };
     else if (w.kind === 'seconds') waitFor = { kind: 'seconds', count: Math.min(120, Math.max(5, count || 30)) };
   }
+  const seen = new Set(), squads = [];
+  if (Array.isArray(p.squads)) for (const s of p.squads) {
+    if (!s || typeof s.id !== 'string' || !ROLES.includes(s.role) || seen.has(s.id) || (squadIds && !squadIds.includes(s.id))) continue;
+    seen.add(s.id); const at = name(s.at); squads.push(at ? { id: s.id, role: s.role, at } : { id: s.id, role: s.role }); if (squads.length >= 8) break;
+  }
   if (!attack && !hold.length) return null;
-  return { attack, hold, attackShare: +share.toFixed(2), posture, logistics, lift, reason, notes, nextReviewIn, waitFor };
+  return { attack, hold, attackShare: +share.toFixed(2), posture, logistics, lift, reason, notes, nextReviewIn, waitFor, squads };
 }

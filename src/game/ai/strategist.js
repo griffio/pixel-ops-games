@@ -38,24 +38,55 @@ export class Strategist {
     const enemyFob = this.units.units.find(u => u.type === 'fob' && u.team !== this.team && !u.dead && (attack ? Math.hypot(u.pos.x - attack.x, u.pos.z - attack.z) < 160 : true));
     const logisticsSquad = this.logistics(squads, vehicles, g.fobAnchor, hold);
     const free = squads.filter(s => s !== logisticsSquad);
-    const share = Math.min(0.95, Math.max(0.2, g.attackShare + this.diff.attackShare));
-    const nAttack = attack ? Math.ceil(free.length * share) : 0;
     const posts = hold ? this.match.fobs.sandbagsOf(this.team).filter(s => Math.hypot(s.pos.x - hold.x, s.pos.z - hold.z) < hold.r + 12) : []; let post = 0;   // our sandbag positions at the place we hold, one squad each
-    free.forEach((sq, i) => {
-      if (enemyFob && i === 0 && attack) { this.send(sq, enemyFob.pos.x, enemyFob.pos.z, 'raid'); return; }   // one squad raids the nearest enemy FOB
-      if (i < nAttack && attack) {
-        const foes = this.enemiesNear(attack.x, attack.z, attack.r + 20);
-        if (foes.length > 1 && (attack.n ? attack.n[this.team] : 0) < 4) {   // stand off and shoot rather than walk into them, from behind something if an APC overlooks the spot
-          const c = this.cluster(foes), cen = sq.centroid(); let [x, z] = this.toward(cen, c, 35);
-          const apc = this.units.units.find(f => f.type === 'apc' && !f.dead && f.team !== this.team && Math.hypot(f.pos.x - x, f.pos.z - z) < 150 && this.match.combat.canSeePoint(f, x, z));
-          if (apc) { const p = this.match.combat.coverPoint(x, z, apc.pos.x, apc.pos.z, 30, this.units.nav.foot); if (p) [x, z] = p; }
-          this.send(sq, x, z, 'approach', attack);
-        }
-        else { const [x, z] = this.inZone(attack.x, attack.z, attack); this.send(sq, x, z, 'cap' + attack.index, attack); }
-      } else if (reserve && hold && i >= nAttack + Math.ceil((free.length - nAttack) * 0.7)) { const [x, z] = this.inZone(reserve.x, reserve.z, reserve, 0.6); this.send(sq, x, z, 'reserve' + reserve.index, reserve); }
-      else if (hold && post < posts.length) { const s = posts[post++]; this.send(sq, s.pos.x - Math.sin(s.heading) * 0.4, s.pos.z - Math.cos(s.heading) * 0.4, 'post' + s.id, hold); }
-      else if (hold) { const [x, z] = this.inZone(hold.x, hold.z, hold, 0.7); this.send(sq, x, z, 'hold' + hold.index, hold); }
-      else this.send(sq, base.x + (Math.random() - 0.5) * 20, base.z + (Math.random() - 0.5) * 20, 'home');
+    const byName = (n) => (this.match.objectives ? this.match.objectives.list.find(l => l.name === n) : null) || null;
+    // what each job means on the ground
+    const attackWith = (sq) => {
+      if (!attack) return holdAt(sq, hold);
+      const foes = this.enemiesNear(attack.x, attack.z, attack.r + 20);
+      if (foes.length > 1 && (attack.n ? attack.n[this.team] : 0) < 4) {   // stand off and shoot rather than walk into them, from behind something if an APC overlooks the spot
+        const c = this.cluster(foes), cen = sq.centroid(); let [x, z] = this.toward(cen, c, 35);
+        const apc = this.units.units.find(f => f.type === 'apc' && !f.dead && f.team !== this.team && Math.hypot(f.pos.x - x, f.pos.z - z) < 150 && this.match.combat.canSeePoint(f, x, z));
+        if (apc) { const p = this.match.combat.coverPoint(x, z, apc.pos.x, apc.pos.z, 30, this.units.nav.foot); if (p) [x, z] = p; }
+        this.send(sq, x, z, 'approach', attack);
+      }
+      else { const [x, z] = this.inZone(attack.x, attack.z, attack); this.send(sq, x, z, 'cap' + attack.index, attack); }
+    };
+    const holdAt = (sq, loc) => {
+      if (!loc) return this.send(sq, base.x + (Math.random() - 0.5) * 20, base.z + (Math.random() - 0.5) * 20, 'home');
+      if (loc === hold && post < posts.length) { const s = posts[post++]; return this.send(sq, s.pos.x - Math.sin(s.heading) * 0.4, s.pos.z - Math.cos(s.heading) * 0.4, 'post' + s.id, hold); }
+      const [x, z] = this.inZone(loc.x, loc.z, loc, 0.7); this.send(sq, x, z, 'hold' + loc.index, loc);
+    };
+    const reserveAt = (sq, loc) => { if (!loc) return holdAt(sq, hold); const [x, z] = this.inZone(loc.x, loc.z, loc, 0.6); this.send(sq, x, z, 'reserve' + loc.index, loc); };
+    const screenAt = (sq, loc) => {   // an overwatch position 50 m out from our location towards the enemy, in cover if armour overlooks it
+      if (!loc) return holdAt(sq, hold);
+      const to = attack || this.teams[1 - this.team].base; let [x, z] = this.toward(loc, to, Math.max(0, Math.hypot(to.x - loc.x, to.z - loc.z) - 50), 8);
+      const apc = this.units.units.find(f => f.type === 'apc' && !f.dead && f.team !== this.team && Math.hypot(f.pos.x - x, f.pos.z - z) < 150 && this.match.combat.canSeePoint(f, x, z));
+      if (apc) { const p = this.match.combat.coverPoint(x, z, apc.pos.x, apc.pos.z, 30, this.units.nav.foot); if (p) [x, z] = p; }
+      this.send(sq, x, z, 'screen' + loc.index, loc);
+    };
+    const raid = (sq) => { if (enemyFob) this.send(sq, enemyFob.pos.x, enemyFob.pos.z, 'raid'); else attackWith(sq); };
+    const escort = (sq) => { const truck = vehicles.filter(v => v.supply && !v.dead).sort((p, q) => Math.hypot(p.pos.x - sq.centroid().x, p.pos.z - sq.centroid().z) - Math.hypot(q.pos.x - sq.centroid().x, q.pos.z - sq.centroid().z))[0]; if (!truck) return holdAt(sq, hold); this.send(sq, truck.pos.x + 4, truck.pos.z - 4, 'escort'); };
+    // a remote commander may give squads jobs by id; the rest follow the attack share
+    const roles = new Map(); if (this.remote && this.remote.fresh) for (const r of this.remote.plan.squads || []) roles.set(r.id, r);
+    const assigned = free.filter(sq => roles.has(sq.leader.label)), rest = free.filter(sq => !roles.has(sq.leader.label));
+    for (const sq of assigned) {
+      const r = roles.get(sq.leader.label), at = r.at ? byName(r.at) : null, ours = at && at.owner === this.team ? at : null;
+      if (r.role === 'assault') attackWith(sq);
+      else if (r.role === 'hold') holdAt(sq, ours || hold);
+      else if (r.role === 'reserve') reserveAt(sq, ours || reserve || hold);
+      else if (r.role === 'screen') screenAt(sq, ours || hold);
+      else if (r.role === 'raid') raid(sq);
+      else if (r.role === 'escort') escort(sq);
+      else attackWith(sq);
+    }
+    const share = Math.min(0.95, Math.max(0.2, g.attackShare + this.diff.attackShare));
+    const nAttack = attack ? Math.ceil(rest.length * share) : 0;
+    rest.forEach((sq, i) => {
+      if (enemyFob && i === 0 && attack && !assigned.length) { raid(sq); return; }   // one squad raids the nearest enemy FOB unless the commander hands out jobs itself
+      if (i < nAttack && attack) attackWith(sq);
+      else if (reserve && hold && i >= nAttack + Math.ceil((rest.length - nAttack) * 0.7)) reserveAt(sq, reserve);
+      else holdAt(sq, hold);
     });
     for (const v of vehicles) {
       if (v.type === 'apc') {

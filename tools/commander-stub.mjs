@@ -14,7 +14,10 @@ const plan = (d) => {
   const notes = `stub: ${attack !== 'none' ? 'pushing ' + attack : 'holding'}; 3-minute swing ${swing >= 0 ? '+' : ''}${swing}; ${d.plans && d.plans.length ? 'last plan ' + JSON.stringify(d.plans[d.plans.length - 1].outcome) : 'first plan'}`;
   // a defended objective is not rushed: gather three squads at the front first, and look again sooner
   const defended = attack !== 'none' && enemyNear(attack) >= 6, waitFor = defended && d.front ? { kind: 'squadsAt', at: d.front, count: 3 } : { kind: 'none' };
-  return { attack, hold, attackShare: posture === 'aggressive' ? 0.8 : posture === 'cautious' ? 0.5 : 0.65, posture, logistics, lift: true, reason, notes, nextReviewIn: defended ? 12 : 25, waitFor };
+  // jobs: the anti-tank squad screens the front, one rifle squad stays in reserve there, the rest follow the share
+  const squads = []; const at = d.squads.find(s => s.kits.includes('at')), rifle = d.squads.find(s => s.kits.includes('rifle') && !s.kits.includes('engineer') && s !== at);
+  if (d.front && at) squads.push({ id: at.id, role: 'screen', at: d.front }); if (d.front && rifle) squads.push({ id: rifle.id, role: 'reserve', at: d.front });
+  return { attack, hold, attackShare: posture === 'aggressive' ? 0.8 : posture === 'cautious' ? 0.5 : 0.65, posture, logistics, lift: true, reason, notes, nextReviewIn: defended ? 12 : 25, waitFor, squads };
 };
 http.createServer((req, res) => {
   const cors = { 'access-control-allow-origin': '*', 'access-control-allow-headers': 'content-type', 'content-type': 'application/json' };

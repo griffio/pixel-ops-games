@@ -24,7 +24,7 @@ export class RemoteCommander {
     const m = this.match, t = this.team, now = this.snapshot();
     return this.history.map((h, i) => {
       const to = this.history[i + 1] ? this.history[i + 1].snap : now, from = h.snap, since = (e) => e.t > from.t && e.t <= to.t && e.team === t;
-      const { notes, ...plan } = h.plan;
+      const { notes, squads, ...plan } = h.plan; if (squads && squads.length) plan.roles = squads.reduce((acc, s) => { acc[s.role] = (acc[s.role] || 0) + 1; return acc; }, {});
       return { minute: +(from.t / 60).toFixed(1), ...plan, outcome: { minutes: +((to.t - from.t) / 60).toFixed(1), ticketSwing: (to.tickets[0] - to.tickets[1]) - (from.tickets[0] - from.tickets[1]), captured: m.log.filter(e => since(e) && e.type === 'captured').map(e => e.loc), lost: m.log.filter(e => since(e) && e.type === 'lost').map(e => e.loc), infantryLost: to.inf - from.inf, vehiclesLost: to.veh - from.veh } };
     });
   }
@@ -38,7 +38,7 @@ export class RemoteCommander {
       clearTimeout(timer);
       if (!res.ok) throw new Error('http ' + res.status);
       const body = await res.json();
-      const plan = validatePlan(body.plan || body, names);
+      const plan = validatePlan(body.plan || body, names, digest.squads.map(s => s.id));
       if (!plan) throw new Error('no usable plan');
       const sameWait = this.plan && JSON.stringify(this.plan.waitFor) === JSON.stringify(plan.waitFor);   // a re-issued wait keeps its clock, so the two-minute give-up can fire
       this.waitSince = sameWait && plan.waitFor ? this.waitSince : this.match.elapsed;

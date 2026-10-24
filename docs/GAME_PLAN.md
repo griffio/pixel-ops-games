@@ -515,6 +515,25 @@ Engine changes needed in the existing core:
   watched assets directory; the scratch Node harness that imports the Worker
   and calls Workers AI over REST is the reliable way to test the prompt.
 
+- **Squad roles (2026-10-24).** The plan's `squads` array gives particular
+  squads jobs by their digest id: assault (join the attack with the standoff
+  and cover logic), hold (stand at a location of ours, sandbag posts first),
+  reserve (wait inside a location behind the front, never drawn into the
+  attack), screen (an overwatch point 50 m out from the location towards the
+  enemy, moved into cover if an APC overlooks it), raid (the nearest enemy
+  FOB), escort (stay 4 m off the nearest supply truck). The validator keeps
+  only ids present in the digest, known roles and known locations; the
+  strategist's plan tick runs the assigned squads first and splits the rest by
+  attack share as before, and the logistics squad is never reassigned. Plan
+  history summarises roles as counts. Against the stub (anti-tank squad
+  screens the front, one rifle squad in reserve): SQ-11 sat 49-52 m out from
+  the Depot the whole time and SQ-08 inside it, while the free squads fought
+  for the Village and the engineers built. The real model assigns roles with
+  valid ids and sensible kits (rifle and anti-tank squads to assault, one
+  hold, one reserve); with the bigger prompt it now answers in 6-8 s, inside
+  the 14 s timeout. A match without a commander is unchanged. The deployed
+  Worker needs `npm run deploy` for the new prompt.
+
 ## Open questions
 
 

@@ -258,7 +258,10 @@ until it wants to be consulted again, and optionally a condition to wait for
 before attacking: squads gathered at a staging location, few enemies near the
 objective, an APC alive, or a number of seconds; the game checks it every few
 seconds, gathers the squads meanwhile, and gives up waiting after two minutes.
-A location changing hands or one of its APCs dying triggers a review at once). The strategist follows the plan while it is
+A location changing hands or one of its APCs dying triggers a review at once;
+and jobs for particular squads by id: assault, hold or reserve at a location,
+screen 50 m out from it towards the enemy, raid the nearest enemy FOB, or
+escort the supply truck, with squads left out following the attack share). The strategist follows the plan while it is
 under 90 seconds old and its own goals otherwise, and every call is
 asynchronous, so a slow or failing endpoint never stalls the match. The posture
 scales the caution distances (cautious keeps 1.3× the distance, aggressive
