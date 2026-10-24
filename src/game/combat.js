@@ -10,20 +10,25 @@ export class Combat {
   constructor(units, spatial, world, dust) {
     this.units = units; this.spatial = spatial; this.world = world; this.dust = dust;
     this.onDeath = null; this.scratch = []; this.teams = null; this.audio = null;
-    this.blockers = world.obstacles.filter(o => (o.h === undefined ? 2 : o.h) >= 1.5);
-    // a coarse grid over the tall obstacles so a line-of-sight test only touches the boxes near its segment
+    // coarse grids over the obstacles so a segment test only touches the boxes near it: tall boxes block
+    // line of sight, low ones (walls, sandbags, rocks) give partial cover to a soldier right behind them
     this.half = (world.size || 1000) / 2; this.nx = Math.ceil(this.half * 2 / CELL) + 1;
-    this.grid = new Map(); this.stamp = new Int32Array(this.blockers.length); this.gen = 0;
-    this.blockers.forEach((o, i) => { for (let cz = this.ci(o.minZ); cz <= this.ci(o.maxZ); cz++) for (let cx = this.ci(o.minX); cx <= this.ci(o.maxX); cx++) { const k = cz * this.nx + cx; let a = this.grid.get(k); if (!a) this.grid.set(k, a = []); a.push(i); } });
+    const h = (o) => (o.h === undefined ? 2 : o.h);
+    this.tall = this.gridOf(world.obstacles.filter(o => h(o) >= 1.5));
+    this.low = this.gridOf(world.obstacles.filter(o => h(o) >= 0.7 && h(o) < 1.5));
   }
   ci(v) { return Math.max(0, Math.min(this.nx - 1, Math.floor((v + this.half) / CELL))); }
-
-  // 2D segment vs. the tall obstacle boxes near it
-  los(ax, az, bx, bz) {
-    const B = this.blockers, st = this.stamp, gen = ++this.gen, dx = bx - ax, dz = bz - az;
+  gridOf(list) {
+    const g = { list, cells: new Map(), stamp: new Int32Array(list.length), gen: 0 };
+    list.forEach((o, i) => { for (let cz = this.ci(o.minZ); cz <= this.ci(o.maxZ); cz++) for (let cx = this.ci(o.minX); cx <= this.ci(o.maxX); cx++) { const k = cz * this.nx + cx; let a = g.cells.get(k); if (!a) g.cells.set(k, a = []); a.push(i); } });
+    return g;
+  }
+  // does the 2D segment cross any box of the grid?
+  segHits(G, ax, az, bx, bz) {
+    const B = G.list, st = G.stamp, gen = ++G.gen, dx = bx - ax, dz = bz - az;
     const x0 = this.ci(Math.min(ax, bx)), x1 = this.ci(Math.max(ax, bx)), z0 = this.ci(Math.min(az, bz)), z1 = this.ci(Math.max(az, bz));
     for (let cz = z0; cz <= z1; cz++) for (let cx = x0; cx <= x1; cx++) {
-      const a = this.grid.get(cz * this.nx + cx); if (!a) continue;
+      const a = G.cells.get(cz * this.nx + cx); if (!a) continue;
       for (const i of a) {
         if (st[i] === gen) continue; st[i] = gen;
         const o = B[i]; let t0 = 0, t1 = 1;
@@ -33,10 +38,31 @@ export class Combat {
           t0 = Math.max(t0, ta); t1 = Math.min(t1, tb);
           if (t0 > t1) break;
         }
-        if (t0 <= t1) return false;
+        if (t0 <= t1) return true;
       }
     }
-    return true;
+    return false;
+  }
+  los(ax, az, bx, bz) { return !this.segHits(this.tall, ax, az, bx, bz); }
+  // partial cover: a low obstacle within 2.5 m of the target on the shooter's side
+  covered(e, from) { const dx = from.pos.x - e.pos.x, dz = from.pos.z - e.pos.z, d = Math.hypot(dx, dz) || 1, L = Math.min(2.5, d); return this.segHits(this.low, e.pos.x, e.pos.z, e.pos.x + dx / d * L, e.pos.z + dz / d * L); }
+  // can unit u see a point on the ground (hills and tall boxes)?
+  canSeePoint(u, x, z) {
+    const T = this.world.terrain;
+    if (T && !T.los(u.pos.x, this.eyeY(u), u.pos.z, x, this.groundAt(x, z) + 1.2, z)) return false;
+    return this.los(u.pos.x, u.pos.z, x, z);
+  }
+  // the nearest passable spot around (x,z), out to r, wide enough for a squad, that the threat at (tx,tz) cannot
+  // see: behind a building or a hill. null if there is none.
+  coverPoint(x, z, tx, tz, r, nav) {
+    const T = this.world.terrain, ty = this.groundAt(tx, tz) + 3.6;
+    const hidden = (px, pz) => !(nav && nav.blocked(px, pz)) && ((T && !T.los(tx, ty, tz, px, this.groundAt(px, pz) + 1.2, pz)) || !this.los(tx, tz, px, pz));
+    for (const dist of [5, 9, 14, 20, r]) for (let i = 0; i < 12; i++) {
+      const a = i / 12 * Math.PI * 2 + dist * 0.37, px = x + Math.cos(a) * dist, pz = z + Math.sin(a) * dist;
+      const ex = px - tx, ez = pz - tz, el = Math.hypot(ex, ez) || 1, qx = -ez / el * 2.2, qz = ex / el * 2.2;   // across the line of fire
+      if (hidden(px, pz) && hidden(px + qx, pz + qz) && hidden(px - qx, pz - qz)) return [px, pz];
+    }
+    return null;
   }
 
   eyeY(u) { return u.pos.y + (u.type === 'soldier' ? 1.5 : u.type === 'apc' ? 3.6 : 1.8); }
@@ -95,6 +121,7 @@ export class Combat {
     if (Math.abs(u.speed) > 0.5) chance *= 0.5;
     if (!first) chance *= 0.8;                          // recoil through the burst
     if (e.type !== 'soldier') chance *= 1.6;            // vehicles are big targets
+    else if (this.covered(e, u)) chance *= 0.5;         // a soldier behind a low wall, sandbags or a rock
     const hit = Math.random() < chance;
     // the round leaves the barrel a little ahead of the unit at gun height, aimed where the target will be
     // when it arrives; a miss is aimed past the target and comes down on the ground around it

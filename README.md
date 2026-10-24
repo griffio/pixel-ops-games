@@ -62,7 +62,9 @@ commander builds a FOB one hop behind its front and lifts squads toward distant
 objectives. It is cautious: squads close to about 35 m of a defended objective
 and shoot from there, fall back when an enemy gets inside 22 m unless they hold
 the zone or clearly outnumber it, and its APCs keep a 70 m standoff, reversing
-away when something gets inside 50 m.
+away when something gets inside 50 m. Squads an enemy APC can see get behind
+the nearest building or hill out of its sight and stay there while it is about;
+anti-tank squads stalk it to rocket range instead.
 
 **Game modes** (picked in the force builder, or `?mode=` with `?side=attack|defend`):
 - *Advance & Secure*: capture the five locations in order; majority bleed; take all to win.
@@ -147,7 +149,9 @@ streaks, cannon shells fly a gravity arc with a glowing head, rockets trail
 smoke, and misses come down on the ground around the target. Infantry fire
 bursts out to 60-110 m with low per-round accuracy that falls with range,
 walking and firing until about 30 m, then stopping; the autocannon reaches
-150 m. Line of sight (hills and tall obstacles) is required to engage.
+150 m. Line of sight (hills and tall obstacles) is required to engage, and a
+soldier standing right behind a low wall, sandbags or a rock is half as likely
+to be hit from across it, so walls are worth holding.
 
 URL parameters set the initial state so the two back ends can be compared on
 identical frames: `?r=gl&seed=7&x=52&z=50&zoom=6&yaw=0.6&pitch=0.95&hour=21&pixel=0&tpu=12`

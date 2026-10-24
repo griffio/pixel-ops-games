@@ -354,6 +354,35 @@ Engine changes needed in the existing core:
   hit about once in five shots: the next eight mirrored runs lost 10 vehicles
   between them (2 before), all still reaching the clock.
 
+- **Anti-tank accuracy (2026-10-24).** Rocket accuracy raised from 0.3 to 0.7
+  (user: make APCs easier to kill). Measured with a duel probe (an anti-tank
+  squad with two launchers against a stationary APC that shoots back, eight
+  trials): at 0.3, 0.5 and 0.7 the squad never kills the APC at 35 or 60 m,
+  because the autocannon kills the squad in 15-55 s after it has fired only
+  4-5 rockets; mirrored CPU matches lose the same 10 vehicles over eight runs
+  at any accuracy, since standing-off APCs stay out of reach. Survival time is
+  the binding limit, not accuracy. A measured package of accuracy 0.7, reload
+  6 s and 120 damage (five hits) kills the APC in 7 of 8 duels at 35 m (mean
+  20 s) and 2 of 8 at 60 m; only the accuracy part is applied.
+
+- **Cover (2026-10-24).** Enemy squads still walked into an APC's gun. Combat
+  now keeps two obstacle grids: tall boxes block line of sight as before, and
+  low ones (garden walls, sandbags, rocks, 0.7-1.5 m) give partial cover: a
+  soldier standing right behind one is half as likely to be hit from across it.
+  `coverPoint` finds the nearest squad-wide spot, out to 26-30 m, that a threat
+  cannot see (behind a building or over a hill), and `canSeePoint` asks whether
+  a unit sees a ground point. The commander's caution pass treats any enemy APC
+  within 150 m that can see a squad as the first problem: a squad with
+  launchers stalks it to 60 m and fires, any other squad moves to cover (or
+  falls back 30 m if there is none) and stays pinned there while the APC is
+  about; approach orders near an overlooking APC land on a covered spot. Over
+  15 minutes of Balanced vs Mechanized on seeds 3-5, the Balanced side's
+  infantry deaths went from 332 (104 to autocannon fire) to 177 (82), so
+  losses halved and armour kills fell a fifth, but squads in or on their way to
+  cover are still hit at 55-75 m when the APC repositions, and the pace slows.
+  Proper strong points (garrisoning buildings, engineer-built sandbag
+  positions) are the natural next step and are proposed, not built.
+
 ## Open questions
 
 

@@ -26,7 +26,7 @@ export class Strategist {
     const base = this.teams[this.team].base;
     // drop lifts whose helicopter or squad is gone, so squads return to the pool
     for (const [k, v] of [...this.lifts]) { const heli = k.type === 'heli' ? k : v, sq = k.type === 'heli' ? v.sq : k; if (!heli || heli.dead || !sq || !sq.leader) { this.lifts.delete(k); if (sq) for (const m of sq.members) m.boardTarget = null; } }
-    const squads = this.units.squads.filter(s => s.team === this.team && s.leader && !this.lifts.has(s) && !s.members.some(m => m.building));
+    const squads = this.units.squads.filter(s => s.team === this.team && s.leader && !this.lifts.has(s) && !s.members.some(m => m.building) && !(s.pinUntil > this.match.elapsed));   // pinned squads (in cover from armour, or stalking it) keep doing that
     const vehicles = this.units.units.filter(u => u.team === this.team && !u.dead && !u.squad && !u.spec.structure);
     const myFobs = this.units.units.filter(u => u.type === 'fob' && u.team === this.team && !u.dead).map(f => ({ x: f.pos.x, z: f.pos.z, r: 18, index: 'fob' + f.id }));
     const g = this.match.mode.goals(this.team, myFobs);
@@ -41,7 +41,12 @@ export class Strategist {
       if (enemyFob && i === 0 && attack) { this.send(sq, enemyFob.pos.x, enemyFob.pos.z, 'raid'); return; }   // one squad raids the nearest enemy FOB
       if (i < nAttack && attack) {
         const foes = this.enemiesNear(attack.x, attack.z, attack.r + 20);
-        if (foes.length > 1 && (attack.n ? attack.n[this.team] : 0) < 4) { const c = this.cluster(foes), cen = sq.centroid(); const [x, z] = this.toward(cen, c, 35); this.send(sq, x, z, 'approach', attack); }   // stand off and shoot rather than walk into them
+        if (foes.length > 1 && (attack.n ? attack.n[this.team] : 0) < 4) {   // stand off and shoot rather than walk into them, from behind something if an APC overlooks the spot
+          const c = this.cluster(foes), cen = sq.centroid(); let [x, z] = this.toward(cen, c, 35);
+          const apc = this.units.units.find(f => f.type === 'apc' && !f.dead && f.team !== this.team && Math.hypot(f.pos.x - x, f.pos.z - z) < 150 && this.match.combat.canSeePoint(f, x, z));
+          if (apc) { const p = this.match.combat.coverPoint(x, z, apc.pos.x, apc.pos.z, 30, this.units.nav.foot); if (p) [x, z] = p; }
+          this.send(sq, x, z, 'approach', attack);
+        }
         else { const [x, z] = this.inZone(attack.x, attack.z, attack); this.send(sq, x, z, 'cap' + attack.index, attack); }
       } else if (reserve && hold && i >= nAttack + Math.ceil((free.length - nAttack) * 0.7)) { const [x, z] = this.inZone(reserve.x, reserve.z, reserve, 0.6); this.send(sq, x, z, 'reserve' + reserve.index, reserve); }
       else if (hold) { const [x, z] = this.inZone(hold.x, hold.z, hold, 0.7); this.send(sq, x, z, 'hold' + hold.index, hold); }
@@ -63,16 +68,33 @@ export class Strategist {
     }
   }
 
-  // Caution, once a second: a squad with an enemy inside 22 m falls back out of the fight unless it stands in the
-  // zone it was sent to take or hold, or clearly has the numbers; an APC with an enemy inside 50 m backs off to 70 m.
+  // Caution, once a second. Armour first: a squad an enemy APC can see within 110 m stalks it to rocket range if
+  // it carries launchers, otherwise it moves behind the nearest building or hill out of the APC's sight (or falls
+  // back if there is none) and stays there while the APC is about. Then infantry: a squad with an enemy inside 22 m
+  // falls back unless it stands in the zone it was sent to take or hold, or clearly has the numbers. An APC with an
+  // enemy inside 50 m backs off to 70 m.
+  halt(sq, tag) { for (const m of sq.members) if (!m.dead) { m.dest = null; m.target = null; m.path = null; } sq.tag = tag; sq.goal = null; }
   caution() {
     const enemies = this.units.units.filter(u => !u.dead && !u.mounted && u.team !== this.team && !u.spec.structure && !(u.spec.air && u.alt > 2));
     if (!enemies.length) return;
+    const C = this.match.combat, now = this.match.elapsed, apcs = enemies.filter(e => e.type === 'apc');
     const nearest = (x, z) => { let b = null, bd = Infinity; for (const e of enemies) { const d = Math.hypot(e.pos.x - x, e.pos.z - z); if (d < bd) { bd = d; b = e; } } return [b, bd]; };
     const away = (x, z, e, dist) => { const dx = x - e.pos.x, dz = z - e.pos.z, d = Math.hypot(dx, dz) || 1; return [x + dx / d * dist, z + dz / d * dist]; };
     for (const sq of this.units.squads) {
       if (sq.team !== this.team || !sq.leader || sq.mounted || this.lifts.has(sq) || sq.members.some(m => m.building)) continue;
-      const c = sq.centroid(), [e, d] = nearest(c.x, c.z); if (!e || d > 22) continue;
+      const c = sq.centroid();
+      let apc = null, ad = 1e9; for (const v of apcs) { const d = Math.hypot(v.pos.x - c.x, v.pos.z - c.z); if (d < 150 && d < ad && C.canSeePoint(v, c.x, c.z)) { apc = v; ad = d; } }
+      if (apc) {
+        if (sq.members.some(m => !m.dead && m.kit === 'at')) { if (ad > 72) { const [x, z] = this.toward(c, apc.pos, 60); this.send(sq, x, z, 'stalk', sq.zone); } else this.halt(sq, 'stalk'); }
+        else if (sq.tag !== 'cover' || (!sq.busy && (sq.seen = (sq.seen || 0) + 1) >= 2)) {   // not yet hiding, or settled in cover and still seen twice running: pick cover again
+          const p = C.coverPoint(c.x, c.z, apc.pos.x, apc.pos.z, 26, this.units.nav.foot); sq.seen = 0;
+          if (p) { sq.goal = p; sq.tag = 'cover'; sq.order(p[0], p[1]); } else { const [x, z] = away(c.x, c.z, apc, 30); sq.goal = [x, z]; sq.tag = 'back'; sq.order(x, z); }
+        }
+        sq.pinUntil = now + 6; continue;
+      }
+      sq.seen = 0;
+      if ((sq.tag === 'cover' || sq.tag === 'stalk') && apcs.some(v => Math.hypot(v.pos.x - c.x, v.pos.z - c.z) < 150)) { sq.pinUntil = now + 6; continue; }   // heads down while it is about
+      const [e, d] = nearest(c.x, c.z); if (!e || d > 22) continue;
       if (sq.zone && Math.hypot(c.x - sq.zone.x, c.z - sq.zone.z) < sq.zone.r) continue;                     // stand and fight for the zone
       if (this.friendsNear(c.x, c.z, 25).length >= this.enemiesNear(c.x, c.z, 25).length * 2) continue;    // we clearly have the numbers
       const [x, z] = away(c.x, c.z, e, 28); sq.goal = [x, z]; sq.tag = 'back'; sq.order(x, z);
