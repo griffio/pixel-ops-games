@@ -109,9 +109,12 @@ explosions, impacts, looping rotor and engine voices for the nearest six
 vehicles, and cues for selection, orders, captures, FOBs and the match result.
 Everything positional is attenuated and panned around the camera target. The
 context starts on the first click or touch; the Render panel has a mute box and
-volume slider, the touch toolbar a note button, and `M` mutes. To upgrade the
-one-shots to ElevenLabs clips, run `ELEVENLABS_API_KEY=... node tools/make-sounds.mjs`
-once; it writes `sounds/manifest.json` and the engine prefers those clips.
+volume slider, the touch toolbar a note button, and `M` mutes. The one-shots and
+cues ship as ElevenLabs clips in `sounds/` (listed in `sounds/manifest.json`), which
+the engine prefers over its own synthesis; delete the manifest to hear the
+synthesized set. To regenerate them, put an ElevenLabs key in `.env` as
+`ELEVEN_LABS_API=...` (ignored by git) and run `node tools/make-sounds.mjs`, or name
+the clips to redo: `node tools/make-sounds.mjs explosion rifle`.
 
 The force builder picks the CPU difficulty. Easy CPU shoots and hits softer,
 respawns slower and never builds FOBs; Hard shoots and hits harder, respawns

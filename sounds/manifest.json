@@ -1,0 +1,21 @@
+{
+ "clips": {
+  "select": "select.mp3",
+  "rifle": "rifle.mp3",
+  "mg": "mg.mp3",
+  "marksman": "marksman.mp3",
+  "at": "at.mp3",
+  "autocannon": "autocannon.mp3",
+  "doorgun": "doorgun.mp3",
+  "explosion": "explosion.mp3",
+  "impact": "impact.mp3",
+  "hit": "hit.mp3",
+  "captured": "captured.mp3",
+  "lost": "lost.mp3",
+  "fob": "fob.mp3",
+  "start": "start.mp3",
+  "win": "win.mp3",
+  "lose": "lose.mp3",
+  "order": "order.mp3"
+ }
+}

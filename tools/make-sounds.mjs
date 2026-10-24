@@ -1,9 +1,13 @@
 // Generates the optional sound clips with ElevenLabs and writes sounds/manifest.json.
-// Needs ELEVENLABS_API_KEY in the environment. Without the clips the game
-// synthesizes every sound itself (src/core/audio.js), so this is a quality upgrade.
-// usage: ELEVENLABS_API_KEY=... node tools/make-sounds.mjs
-import { writeFileSync, mkdirSync } from 'node:fs';
-const KEY = process.env.ELEVENLABS_API_KEY; if (!KEY) { console.error('set ELEVENLABS_API_KEY'); process.exit(1); }
+// Reads the key from ELEVENLABS_API_KEY or ELEVEN_LABS_API in the environment or
+// from a .env file next to package.json. Without the clips the game synthesizes
+// every sound itself (src/core/audio.js), so this is a quality upgrade.
+// usage: node tools/make-sounds.mjs [names...]   (no names: every clip)
+import { writeFileSync, mkdirSync, readFileSync, existsSync } from 'node:fs';
+const env = { ...process.env };
+if (existsSync('.env')) for (const line of readFileSync('.env', 'utf8').split('\n')) { const m = line.match(/^\s*([A-Za-z_][A-Za-z0-9_]*)\s*=\s*"?([^"#]*)"?\s*$/); if (m && !env[m[1]]) env[m[1]] = m[2].trim(); }
+const KEY = env.ELEVENLABS_API_KEY || env.ELEVEN_LABS_API; if (!KEY) { console.error('set ELEVENLABS_API_KEY (or ELEVEN_LABS_API) in the environment or .env'); process.exit(1); }
+const credits = async () => { try { const r = await fetch('https://api.elevenlabs.io/v1/user/subscription', { headers: { 'xi-api-key': KEY } }); const j = await r.json(); return typeof j.character_limit === 'number' ? j.character_limit - j.character_count : null; } catch { return null; } };   // null for keys without the user_read permission
 const CLIPS = {
   rifle:      ['single assault rifle shot, dry, distant battlefield, short', 0.6],
   mg:         ['single machine gun shot, mechanical, dry, short', 0.5],
@@ -24,11 +28,13 @@ const CLIPS = {
   order:      ['short confirming UI beep, two tones, 8-bit', 0.4],
 };
 mkdirSync('sounds', { recursive: true });
-const manifest = { clips: {} };
+let manifest = { clips: {} }; try { manifest = JSON.parse(readFileSync('sounds/manifest.json', 'utf8')); } catch {}
+const only = process.argv.slice(2), before = await credits(); console.log('credits before:', before === null ? 'unknown (key lacks user_read)' : before);
 for (const [name, [text, duration]] of Object.entries(CLIPS)) {
-  const r = await fetch('https://api.elevenlabs.io/v1/sound-generation?output_format=mp3_44100_96', { method: 'POST', headers: { 'xi-api-key': KEY, 'Content-Type': 'application/json' }, body: JSON.stringify({ text, duration_seconds: duration, prompt_influence: 0.5 }) });
+  if (only.length && !only.includes(name)) continue;
+  const r = await fetch('https://api.elevenlabs.io/v1/sound-generation?output_format=mp3_44100_96', { method: 'POST', headers: { 'xi-api-key': KEY, 'Content-Type': 'application/json' }, body: JSON.stringify({ text, duration_seconds: Math.max(0.5, duration), prompt_influence: 0.5 }) });
   if (!r.ok) { console.error(name, r.status, await r.text()); continue; }
   writeFileSync(`sounds/${name}.mp3`, Buffer.from(await r.arrayBuffer())); manifest.clips[name] = `${name}.mp3`; console.log('wrote', name);
 }
 writeFileSync('sounds/manifest.json', JSON.stringify(manifest, null, 1));
-console.log('manifest with', Object.keys(manifest.clips).length, 'clips');
+const after = await credits(); console.log('manifest with', Object.keys(manifest.clips).length, 'clips' + (before !== null && after !== null ? '; credits used: ' + (before - after) + ', left: ' + after : ''));
