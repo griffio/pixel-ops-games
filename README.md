@@ -155,7 +155,11 @@ bursts out to 60-110 m with low per-round accuracy that falls with range,
 walking and firing until about 30 m, then stopping; the autocannon reaches
 150 m. Line of sight (hills and tall obstacles) is required to engage, and a
 soldier standing right behind a low wall, sandbags or a rock is half as likely
-to be hit from across it, so walls are worth holding.
+to be hit from across it, so walls are worth holding. Infantry stand to move, take a knee to
+shoot, and go flat under heavy fire: rounds landing or bursting nearby build
+suppression (machine guns and cannon far more than rifles), a suppressed soldier
+aims worse and fires slower, and a kneeling or prone one is a smaller target
+(80% and 60% of the hit chance) and only crawls until the fire lifts.
 
 URL parameters set the initial state so the two back ends can be compared on
 identical frames: `?r=gl&seed=7&x=52&z=50&zoom=6&yaw=0.6&pitch=0.95&hour=21&pixel=0&tpu=12`

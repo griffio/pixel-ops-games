@@ -8,7 +8,7 @@ export function buildDigest(match, team, prev = null) {
   const owner = (o) => (o === team ? 'ours' : o === 1 - team ? 'theirs' : 'neutral');
   const o = m.objectives;
   const locations = O.map(l => ({ name: l.name, at: [r(l.x), r(l.z)], owner: owner(l.owner), capturing: l.progress && l.owner === -1 ? (Math.sign(l.progress) === (team === 0 ? 1 : -1) ? 'ours' : 'theirs') : null, ours: l.n ? l.n[team] : 0, theirs: l.n ? l.n[1 - team] : 0, capturable: o ? o.capturable(team, l) && l.owner !== team : false }));
-  const squads = m.units.squads.filter(s => s.team === team && s.leader).map(s => { const c = s.centroid(), al = s.members.filter(live); return { id: s.leader.label, men: al.length, kits: [...new Set(al.map(u => u.kit))], hp: r(al.reduce((a, u) => a + u.hp, 0) / Math.max(1, al.length)), at: [r(c.x), r(c.z)], near: nearLoc(c.x, c.z), order: s.tag || 'idle' }; });
+  const squads = m.units.squads.filter(s => s.team === team && s.leader).map(s => { const c = s.centroid(), al = s.members.filter(live); return { id: s.leader.label, men: al.length, kits: [...new Set(al.map(u => u.kit))], hp: r(al.reduce((a, u) => a + u.hp, 0) / Math.max(1, al.length)), pinned: al.filter(u => u.supp > 0.5).length || undefined, at: [r(c.x), r(c.z)], near: nearLoc(c.x, c.z), order: s.tag || 'idle' }; });
   const vehicles = U.filter(u => u.team === team && live(u) && !u.squad && !u.spec.structure).map(u => ({ id: u.label, type: u.supply ? 'supply' : u.type, hp: r(100 * u.hp / u.maxHp), at: [r(u.pos.x), r(u.pos.z)], near: nearLoc(u.pos.x, u.pos.z), supplies: u.supply ? r(u.supplies) : undefined, passengers: u.passengers && u.passengers.length ? u.passengers.length : undefined }));
   // enemy ground units grouped within 40 m
   const clusters = [];

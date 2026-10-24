@@ -70,7 +70,15 @@ export class Combat {
     return null;
   }
 
-  eyeY(u) { return u.pos.y + (u.type === 'soldier' ? 1.5 : u.type === 'apc' ? 3.6 : 1.8); }
+  eyeY(u) { return u.pos.y + (u.type === 'soldier' ? 1.5 - 0.5 * (u.kneelK || 0) - 1.0 * (u.proneK || 0) : u.type === 'apc' ? 3.6 : 1.8); }
+  // suppression: rounds landing or bursting near infantry push them down; an MG burst pins a squad, a rifle burst rattles it
+  suppress(x, z, w, shooterTeam, victim = null) {
+    const r = w.explosive ? 9 : 4, amount = w.explosive ? 0.4 : w.burst >= 8 ? 0.1 : w.dmgInf >= 20 ? 0.25 : 0.07;
+    for (const s of this.spatial.query(x, z, r, this.scratch)) {
+      if (s.type !== 'soldier' || s.dead || s.mounted || s.team === shooterTeam) continue;
+      const d = Math.hypot(s.pos.x - x, s.pos.z - z); s.supp = Math.min(1, s.supp + amount * (1 - 0.5 * d / r) * (s === victim ? 2 : 1));
+    }
+  }
   canSee(u, e) {
     const T = this.world.terrain;
     if (T && !T.los(u.pos.x, this.eyeY(u), u.pos.z, e.pos.x, e.pos.y + 1.2, e.pos.z)) return false;   // hills block
@@ -121,19 +129,21 @@ export class Combat {
     if (!u.burst) u.burst = w.burst;
     const first = u.burst === w.burst; u.burst--;
     u.cooldown = u.burst > 0 ? w.burstGap * (0.8 + Math.random() * 0.4) : w.rate * (0.85 + Math.random() * 0.3);
+    if (u.type === 'soldier' && u.supp > 0.7) u.cooldown *= 1.5;   // pinned: head down, fewer rounds
     const d = Math.hypot(e.pos.x - u.pos.x, e.pos.z - u.pos.z), T = this.teams ? this.teams[u.team] : null;
     let chance = w.acc * Math.max(0.05, 1 - 0.75 * d / w.range) * ((T && T.acc) || 1);
     if (Math.abs(u.speed) > 0.5) chance *= 0.5;
     if (!first) chance *= 0.8;                          // recoil through the burst
+    if (u.type === 'soldier') chance *= 1 - 0.4 * u.supp; // a suppressed shooter aims badly
     if (e.type !== 'soldier') chance *= 1.6;            // vehicles are big targets
-    else if (this.covered(e, u)) chance *= 0.5;         // a soldier behind a low wall, sandbags or a rock
+    else chance *= Math.max(0.3, (this.covered(e, u) ? 0.5 : 1) * (1 - 0.2 * (e.kneelK || 0) - 0.4 * (e.proneK || 0)));   // cover and a low stance shrink the target
     const hit = Math.random() < chance;
     // the round leaves the barrel a little ahead of the unit at gun height, aimed where the target will be
     // when it arrives; a miss is aimed past the target and comes down on the ground around it
     const reach = u.type === 'soldier' ? 0.6 : u.type === 'apc' ? 3.0 : 1.6, gunY = u.pos.y + (u.type === 'soldier' ? 1.25 : u.type === 'apc' ? 3.8 : 2.0);
     const hx = e.pos.x - u.pos.x, hz = e.pos.z - u.pos.z, hd = Math.hypot(hx, hz) || 1, mx = u.pos.x + hx / hd * reach, mz = u.pos.z + hz / hd * reach;
     const flight = d / (w.arc ? w.speed * 0.85 : w.speed), ev = Math.abs(e.speed) > 0.05 && !e.dead ? e.speed : 0;
-    let tx = e.pos.x + Math.sin(e.heading) * ev * flight, tz = e.pos.z + Math.cos(e.heading) * ev * flight, ty = e.pos.y + (e.spec.air ? 2 : e.type === 'soldier' ? 1.1 : 2.2);
+    let tx = e.pos.x + Math.sin(e.heading) * ev * flight, tz = e.pos.z + Math.cos(e.heading) * ev * flight, ty = e.pos.y + (e.spec.air ? 2 : e.type === 'soldier' ? 1.1 - 0.35 * (e.kneelK || 0) - 0.75 * (e.proneK || 0) : 2.2);
     if (!hit) { const sp = (w.arc ? 2 : 1.5) + d * (w.arc ? 0.06 : 0.04); tx += (Math.random() - 0.5) * 2 * sp; tz += (Math.random() - 0.5) * 2 * sp; ty = e.spec.air && e.alt > 2 ? ty + (Math.random() - 0.5) * 6 : this.groundAt(tx, tz) + 0.1; }
     const vx = tx - mx, vy = ty - gunY, vz = tz - mz, vl = Math.hypot(vx, vy, vz) || 1;
     this.dust.muzzle(mx, gunY, mz, vx / vl, vy / vl, vz / vl, MUZZLE_KIND[u.kit] || 'rifle');
@@ -150,10 +160,12 @@ export class Combat {
       if (w.explosive) this.dust.explosion(p.x, p.y, p.z, 0.35); else this.dust.hitSpark(p.x, p.y, p.z);
       if (this.audio) this.audio.hit(p.x, p.z);
       if (e.damage(dmg, u)) { this.onDeath && this.onDeath(e, u); }
+      this.suppress(p.x, p.z, w, u.team, e);
     } else {
       const gy = this.groundAt(p.x, p.z), y = Math.max(p.y, gy + 0.1);
       if (w.explosive) this.dust.explosion(p.x, y, p.z, 0.3); else this.dust.impact(p.x, y, p.z);
       if (this.audio) this.audio.impact(p.x, p.z);
+      this.suppress(p.x, p.z, w, u.team);
     }
   }
 }

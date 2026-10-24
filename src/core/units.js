@@ -24,6 +24,7 @@ export class Unit {
     this.selected = false; this.squad = null; this.mgr = null;
     this.idle = rnd(0, 3); this.phase = rng() * 6;
     this.hp = this.maxHp = spec.hp; this.kit = spec.kit || null; this.enemy = null; this.cooldown = 0; this.retarget = 0;
+    this.stance = 'stand'; this.supp = 0; this.kneelK = 0; this.proneK = 0;   // infantry: suppression 0..1 and the pose blends it drives
     this.dead = false; this.deathT = 0; this.wreck = false; this.remove = false;
     this.mounted = null; this.passengers = []; this.boardTarget = null; this.supplies = 0;
     this.alt = 0; this.altT = 0; this.rotor = 0; this.rotorT = 0; this.state = 'parked'; this.tilt = 0; this.bank = 0;
@@ -139,6 +140,14 @@ export class Unit {
       }
     }
     if (this.hold && this.type === 'soldier') want = 0;
+    // infantry stance: standing on the move, a knee when still, flat when suppressed (and only crawling then)
+    if (this.type === 'soldier') {
+      this.supp *= Math.exp(-dt / 2.5);
+      this.stance = this.supp > 0.5 ? 'prone' : (this.supp > 0.25 && want === 0) ? 'prone' : want === 0 ? 'kneel' : 'stand';
+      if (this.stance === 'prone' && want !== 0) want *= 0.3;
+      const kk = this.stance === 'kneel' ? 1 : 0, pk = this.stance === 'prone' ? 1 : 0, r1 = Math.min(1, dt * 4), r2 = Math.min(1, dt * 3);
+      this.kneelK += (kk - this.kneelK) * r1; this.proneK += (pk - this.proneK) * r2;
+    }
     // face the enemy while standing still
     if (want === 0 && this.enemy && this.type === 'soldier') {
       const diff = wrap(Math.atan2(this.enemy.pos.x - this.pos.x, this.enemy.pos.z - this.pos.z) - this.heading);
@@ -176,6 +185,16 @@ export class Unit {
       p.torso.rotation.y = Math.sin(this.phase) * 0.08 * run;
       p.armL.rotation.x = -1.35 + Math.sin(this.phase) * 0.12 * run; p.armL.rotation.z = 0.35;
       p.armR.rotation.x = -1.0 - Math.sin(this.phase) * 0.12 * run; p.armR.rotation.z = -0.25;
+      // stance on top of the walk: kneel drops the hips with the left thigh forward and the right knee down,
+      // prone lays the body flat with the legs straight back and the arms forward on the rifle
+      const k = this.kneelK, pr = this.proneK;
+      if (k > 0.01 || pr > 0.01) {
+        p.torso.position.y = p.legL.position.y = p.legR.position.y = bob - 0.45 * k - 0.8 * pr;
+        p.torso.rotation.x += 0.15 * k + 1.45 * pr;
+        p.legL.rotation.x += -1.5 * k + 1.5 * pr; p.kneeL.rotation.x += 1.5 * k;
+        p.legR.rotation.x += 0.9 * k + 1.5 * pr; p.kneeR.rotation.x += 1.3 * k;
+        p.armL.rotation.x += 1.1 * pr; p.armR.rotation.x += 0.8 * pr;
+      }
     } else {
       const spin = this.speed * dt / 0.6;
       for (const w of p.wheels) w.rotation.x += spin;

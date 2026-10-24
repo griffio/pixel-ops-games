@@ -449,6 +449,29 @@ Engine changes needed in the existing core:
   played off the live site got plans for both sides. Next: judge plan quality against the built-in planner over a
   few matches, and consider Agent Memory only at match boundaries.
 
+- **Stances and suppression (2026-10-24).** User feedback before anything
+  else: infantry should kneel to fire and lie flat under heavy fire. Soldiers
+  now carry a suppression value (0-1) and a stance: standing on the move,
+  kneeling when still, prone when suppression passes 0.5 (or 0.25 while
+  still), with the pose blended over the walk animation in `units.js` (hips
+  drop, left thigh forward and right knee down for the kneel; body flat, legs
+  back, arms forward for prone). Suppression comes from rounds landing or
+  bursting near a soldier (`Combat.suppress`: rifle 0.07, machine gun 0.10,
+  cannon 0.25, explosive 0.40 per round, the victim of a hit doubled) and
+  decays with a 2.5 s time constant. Effects: eye and target heights follow
+  the stance, a kneeling or prone target takes 80% / 60% of the hit chance
+  (floor 0.3 together with cover), a suppressed shooter aims at (1 - 0.4 x
+  suppression) and fires 1.5x slower above 0.7, and a prone soldier ordered to
+  move crawls at 30%. The digest reports pinned men per squad. Test: an MG
+  squad at 40 m pins a rifle squad in two seconds and the rifle squad's own
+  machine gun pins the MG squad back, so both lie flat trading fire with few
+  casualties for 30 s; manoeuvre, cover, armour and rockets decide those
+  stand-offs now. Eight mirrored Balanced runs all reach the clock with 120-290
+  infantry deaths a match (250-400 before) and 58 vehicles lost between them
+  (38 before): fewer men die, more vehicles do, and the losing side keeps more
+  tickets. The knobs are the per-round amounts and the 2.5 s decay in
+  `Combat.suppress` and `units.js`.
+
 ## Open questions
 
 
