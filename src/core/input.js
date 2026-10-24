@@ -57,11 +57,19 @@ export class Input {
 
   onWheel(e) {
     e.preventDefault();
-    const [nx, ny] = this.norm(e);
-    const before = this.rts.screenToGround(nx, ny);
-    this.rts.zoomBy(Math.exp(-e.deltaY * 0.0022));
-    const ratio = this.rts.pixel.pixelScale / this.rts.zoomT, t = this.rts.target;
-    t.x += (before.x - t.x) * (1 - ratio); t.z += (before.z - t.z) * (1 - ratio);
+    const [nx, ny] = this.norm(e), rts = this.rts, t = rts.target;
+    if (rts.follow) { rts.zoomBy(Math.exp(-e.deltaY * 0.0022)); return; }   // following a unit: zoom about it, keep following
+    // One anchor per zoom gesture: the ground point under the cursor when the wheel starts. The zoom eases
+    // over several frames, so re-anchoring on every tick picks a point that has already slid away from the
+    // cursor and the view drifts toward it. The anchor's camera-space offset is fixed, so for any zoom the
+    // target that keeps it under the cursor is anchor - offset / zoom (the view width scales with 1 / zoom).
+    // The anchor lives until the cursor moves or something else moves the camera (pan, rotate, follow).
+    const z = this.zoomAnchor;
+    const valid = z && Math.abs(nx - z.nx) < 0.004 && Math.abs(ny - z.ny) < 0.004 && Math.abs(t.x - z.tx) < 1e-6 && Math.abs(t.z - z.tz) < 1e-6 && z.yaw === rts.yawT && z.pitch === rts.pitchT;
+    if (!valid) { const a = rts.screenToGround(nx, ny); this.zoomAnchor = { nx, ny, a, ox: (a.x - t.x) * rts.zoom, oz: (a.z - t.z) * rts.zoom, yaw: rts.yawT, pitch: rts.pitchT }; }
+    const za = this.zoomAnchor;
+    rts.zoomBy(Math.exp(-e.deltaY * 0.0022));
+    t.x = za.a.x - za.ox / rts.zoomT; t.z = za.a.z - za.oz / rts.zoomT; za.tx = t.x; za.tz = t.z; rts.follow = null;
   }
 
   onKey(e, down) {
