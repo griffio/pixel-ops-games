@@ -5,7 +5,7 @@ import { RULES } from '../rules.js';
 // one you own; holding more hexes bleeds the enemy; 80% of the land wins outright.
 export class Territory extends Mode {
   static key = 'territory'; static name = 'Territory Control'; static desc = 'Spread across a hex grid from your base; capture only hexes touching your own. More hexes bleeds the enemy; 80% of the land wins.';
-  tickets() { return 400; }
+  tickets() { return 500; }
   setup() {
     const m = this.match, half = m.world.half, R = 68, w = Math.sqrt(3) * R;
     this.R = R; this.hexes = []; const byKey = new Map();

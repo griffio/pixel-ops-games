@@ -4,17 +4,17 @@ import { RULES } from '../rules.js';
 // Invasion: the defenders start owning every location with fewer tickets; attackers
 // must take all of them before the clock runs out. Each capture costs the defenders.
 export class Invasion extends AAS {
-  static key = 'invasion'; static name = 'Invasion'; static desc = 'Attackers must capture every location before the 20-minute clock; defenders start with all of them but fewer tickets (500 vs 300).'; static sides = true;
+  static key = 'invasion'; static name = 'Invasion'; static desc = 'Attackers must capture every location before the 20-minute clock; defenders start with all of them but fewer tickets (650 vs 400).'; static sides = true;
   get attacker() { return this.opts.side === 'defend' ? 1 : 0; }
   get defender() { return 1 - this.attacker; }
-  tickets(team) { return team === this.attacker ? 500 : 300; }
+  tickets(team) { return team === this.attacker ? 650 : 400; }
   get length() { return 20 * 60; }
   setup() {
     super.setup();
     for (const l of this.objectives.list) { l.owner = this.defender; l.progress = this.defender === 0 ? 100 : -100; }
   }
   onEvent(type, loc, team) {
-    if (type === 'lost' && team === this.defender) this.teams[team].tickets -= 15;   // each location the defenders give up
+    if (type === 'lost' && team === this.defender) this.teams[team].tickets -= 30;   // each location the defenders give up
     if (type === 'captured' && this.teams[team].doctrine.captureBonus) this.teams[team].tickets += this.teams[team].doctrine.captureBonus;
     this.match.event({ type, loc, team });
   }

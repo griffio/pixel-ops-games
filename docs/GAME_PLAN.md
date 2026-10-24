@@ -260,6 +260,20 @@ Engine changes needed in the existing core:
   none, 60 history samples over 300 s, feed carrying kill and event lines, audio
   context running with 91 voices in 6 s and no page errors, debrief rendered.
 
+- **Expendable infantry (2026-10-24).** Soldiers have 35 hp (four rifle hits, two
+  autocannon, one marksman round), respawn in 15 s and come back in squad waves
+  (squadmates who died within 8 s return together), still 1 ticket each.
+  Everything else costs twice what it did (truck 10, supply 16, APC 20, heli 30,
+  FOB 40, location 20, bleed every 5 s, Entrenched +20) and pools are 500 (Invasion
+  650 / 400, Destruction 600 / 450). Rockets do 90 to vehicles so armour needs
+  infantry cover. Measured on full 25-minute CPU matches (seed 11, Balanced vs
+  Mechanized): infantry deaths per minute 4.2 / 6.4 before, 6.7 / 7.0 after; the
+  match now ends by tickets at 24:55 (359 / 0) instead of the clock with 329 / 118;
+  Light vs Air ends at the clock with 340 / 37. Deaths rose less than the
+  lethality because the CPUs spend most of the match walking; FOB placement now
+  decides tempo. Follow-up: BLUFOR won every CPU-vs-CPU run, worth checking the
+  map or lattice for a side bias.
+
 ## Open questions
 
 

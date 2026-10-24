@@ -41,8 +41,11 @@ export class Respawn {
   }
 
   tick(dt) {
+    for (const q of this.queue) q.t -= dt;
+    // squad waves: a soldier whose timer is up pulls squadmates who died up to waveSlack seconds later along
+    for (const q of this.queue) if (q.t <= 0 && q.unit.type === 'soldier' && q.unit.squad) for (const o of this.queue) if (o !== q && o.unit.squad === q.unit.squad && o.t > 0 && o.t <= RULES.waveSlack) o.t = 0;
     for (let i = this.queue.length - 1; i >= 0; i--) {
-      const q = this.queue[i]; q.t -= dt; if (q.t > 0) continue;
+      const q = this.queue[i]; if (q.t > 0) continue;
       const u = q.unit, team = this.teams[u.team];
       if (u.type === 'soldier') {
         if (team.tickets < RULES.ticketCost.soldier) continue;            // can't afford it yet

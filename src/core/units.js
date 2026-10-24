@@ -3,7 +3,7 @@ import { Vec3, lerp, clamp, wrapAngle as wrap, rng } from './math.js';
 const rnd = (a, b) => a + rng() * (b - a);
 
 export const SPEC = {
-  soldier: { speed: 4.6, turn: 9, accel: 18, label: 'SQ', air: false, hp: 100, nav: 'foot' },
+  soldier: { speed: 4.6, turn: 9, accel: 18, label: 'SQ', air: false, hp: 35, nav: 'foot' },   // four rifle hits; infantry are expendable, vehicles are not
   truck:   { speed: 9.5, turn: 1.1, accel: 5, label: 'TR', air: false, hp: 150, nav: 'vehicle' },
   apc:     { speed: 8,   turn: 0.9, accel: 4, label: 'AP', air: false, hp: 600, nav: 'vehicle', kit: 'autocannon' },
   heli:    { speed: 16,  turn: 1.4, accel: 6, label: 'HE', air: true, hp: 300, nav: null, kit: 'doorgun' },

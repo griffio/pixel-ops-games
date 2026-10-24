@@ -4,10 +4,10 @@ import { Mode } from './base.js';
 // locations on their side. Attackers find and destroy them before the clock; each
 // cache lost costs the defenders 40 tickets.
 export class Destruction extends Mode {
-  static key = 'destruction'; static name = 'Destruction'; static desc = 'Attackers hunt three weapon caches hidden near the defenders’ locations, one at a time, before the 20-minute clock. Each cache lost costs the defenders 40 tickets.'; static sides = true;
+  static key = 'destruction'; static name = 'Destruction'; static desc = 'Attackers hunt three weapon caches hidden near the defenders’ locations, one at a time, before the 20-minute clock. Each cache lost costs the defenders 80 tickets.'; static sides = true;
   get attacker() { return this.opts.side === 'defend' ? 1 : 0; }
   get defender() { return 1 - this.attacker; }
-  tickets(team) { return team === this.attacker ? 450 : 350; }
+  tickets(team) { return team === this.attacker ? 600 : 450; }
   get length() { return 20 * 60; }
   setup() {
     const map = this.match.world.map, locs = this.defender === 1 ? [...map.locations].reverse() : map.locations;
@@ -30,7 +30,7 @@ export class Destruction extends Mode {
       if (near || c.t > 90) { c.state = 'revealed'; c.unit.group.visible = true; this.match.event({ type: 'cache revealed', loc: c.site, team: this.attacker }); }
     }
     if (c.unit.dead && c.state !== 'destroyed') {
-      c.state = 'destroyed'; this.teams[this.defender].tickets -= 40; this.phase++;
+      c.state = 'destroyed'; this.teams[this.defender].tickets -= 80; this.phase++;
       this.match.event({ type: 'cache destroyed', loc: c.site, team: this.attacker });
     }
   }

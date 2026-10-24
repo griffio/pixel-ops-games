@@ -27,8 +27,9 @@ loadout is saved in the browser. The CPU reads it and counter-picks, then a
 south-west corner against OPFOR (olive) in the north-east. Five locations
 (Outpost, Airfield, Village, Depot, Relay) are captured in order; holding the
 majority bleeds the enemy's tickets, losing a location costs 10, and capturing all
-five wins outright. Each side starts with 400 tickets; vehicle losses and
-infantry respawns drain them, and the first team at 0 loses. Left-drag to select
+five wins outright. Each side starts with 500 tickets; vehicle losses and
+infantry respawns drain them, and the first team at 0 loses. Infantry are
+expendable: 35 hit points, one ticket, back in 15 seconds in squad waves. Left-drag to select
 squads, right-click to move them, click an enemy to attack-move, click the
 minimap to jump the camera, and keep zooming out for the strategic view.
 `?loadout=air|mechanized|light|defensive|balanced` skips the builder,

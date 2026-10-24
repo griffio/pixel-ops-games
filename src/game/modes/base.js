@@ -3,7 +3,7 @@
 export class Mode {
   static key = 'base'; static name = 'Mode'; static desc = ''; static sides = false;
   constructor(match, opts = {}) { this.match = match; this.opts = opts; this.teams = match.teams; this.units = match.units; }
-  tickets(team) { return 400; }
+  tickets(team) { return 500; }
   get length() { return 25 * 60; }
   setup() {}
   tick(dt) {}
