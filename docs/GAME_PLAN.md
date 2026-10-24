@@ -383,6 +383,17 @@ Engine changes needed in the existing core:
   Proper strong points (garrisoning buildings, engineer-built sandbag
   positions) are the natural next step and are proposed, not built.
 
+- **Vehicle spin (2026-10-24).** The player's APC still stopped and spun with its
+  turret fixed: a fallback in ground movement rotated any unit boxed in on all
+  sides at 2.5 rad/s to wriggle free, so a vehicle parked against a wall with a
+  goal 1.6 m away (just outside its 1.5 m arrival radius) spun for good, and
+  the turret, aimed relative to the hull, went round with it. Removed. Orders
+  that land inside a building snap to the nearest open vehicle cell, a unit
+  that is trying to move but gets no nearer its waypoint for 1.5 s treats the
+  last waypoint as reached (or re-paths an earlier one), and the turret keeps
+  its bearing while the hull turns under it. Probe: orders 1-20 m behind,
+  beside, onto a squad, into or beside a village house all arrive in 1-10 s.
+
 ## Open questions
 
 

@@ -37,14 +37,16 @@ export class Unit {
   // Move order: path through the nav grid when one is available, otherwise straight line.
   order(x, z) {
     if (this.dead) return;
-    this.dest = new Vec3(x, 0, z); this.idle = 0; this.hold = false;
     const nav = this.mgr && this.mgr.nav && this.spec.nav ? this.mgr.nav[this.spec.nav] : null;
+    if (nav && nav.blocked(x, z)) { const c = nav.nearest(nav.cellOf(x), nav.cellOf(z), 12); if (c) { x = nav.world(c[0]); z = nav.world(c[1]); } }   // a goal inside a building becomes the nearest open ground
+    this.dest = new Vec3(x, 0, z); this.idle = 0; this.hold = false; this.bestDist = Infinity; this.noProgress = 0;
     this.path = nav ? nav.findPath(this.pos.x, this.pos.z, x, z) : null;
     const first = this.path && this.path.length ? this.path[0] : [x, z];
     this.target = new Vec3(first[0], 0, first[1]);
     if (this.spec.air && (this.state === 'parked' || this.state === 'spooldown')) this.state = 'spool';
   }
   nextWaypoint() {
+    this.bestDist = Infinity; this.noProgress = 0;
     if (this.path && this.path.length > 1) { this.path.shift(); this.target.set(this.path[0][0], 0, this.path[0][1]); return true; }
     this.target = null; this.path = null; this.dest = null; return false;
   }
@@ -128,6 +130,11 @@ export class Unit {
         want = s.speed * align * (last ? clamp(dist / (vehicle ? 6 : 1.5), 0.25, 1) : 1);
         if (reverse) want = -want * 0.7;
         else if (vehicle && last && dist < 10 && Math.abs(diff) > 0.9) want = 0;
+        // trying to move but getting no nearer for a while (a wall, a crowd): call the last waypoint reached, else look for a way round
+        if (want !== 0) {
+          if (dist < this.bestDist - 0.15) { this.bestDist = dist; this.noProgress = 0; } else this.noProgress += dt;
+          if (this.noProgress > 1.5) { if (last) this.nextWaypoint(); else { const d = this.dest; this.order(d.x, d.z); } }
+        }
       }
     }
     if (this.hold && this.type === 'soldier') want = 0;
@@ -144,7 +151,7 @@ export class Unit {
     if (world.isBlocked(nx, nz, pad)) {
       if (!world.isBlocked(this.pos.x + sx, this.pos.z, pad)) nz = this.pos.z;
       else if (!world.isBlocked(this.pos.x, this.pos.z + sz, pad)) nx = this.pos.x;
-      else { nx = this.pos.x; nz = this.pos.z; this.heading += (this.id % 2 ? 1 : -1) * 2.5 * dt; this.speed *= 0.5; }
+      else { nx = this.pos.x; nz = this.pos.z; this.speed *= 0.5; }   // boxed in: stop (the no-progress rule above releases the order)
     }
     this.dist += Math.hypot(nx - this.pos.x, nz - this.pos.z);
     const H = this.mgr.world.half; this.pos.x = clamp(nx, -H + 2, H - 2); this.pos.z = clamp(nz, -H + 2, H - 2);
@@ -177,6 +184,8 @@ export class Unit {
         for (const w of p.steer) w.rotation.y = lerp(w.rotation.y, st, 1 - Math.pow(0.01, dt));
       }
       if (p.turret) {
+        const dh = wrap(this.heading - (this.lastHeading === undefined ? this.heading : this.lastHeading)); this.lastHeading = this.heading;
+        p.turret.rotation.y = wrap(p.turret.rotation.y - dh);   // the turret holds its bearing while the hull turns under it
         const want = this.enemy ? wrap(Math.atan2(this.enemy.pos.x - this.pos.x, this.enemy.pos.z - this.pos.z) - this.heading) : Math.sin(this.phase + performance.now() * 0.0004) * 0.6;
         p.turret.rotation.y += clamp(wrap(want - p.turret.rotation.y), -2.5 * dt, 2.5 * dt);
       }
