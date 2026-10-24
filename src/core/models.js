@@ -162,12 +162,33 @@ export function makeBuilders(F) {
     return { group: g, parts: p, height: 2.4, radius: 2.2 };
   }
 
+  // Improvised fighting position: a U of sandbags open to the rear, a squad fits inside. Static structure;
+  // its obstacle boxes come from sandbagBoxes() below.
+  function sandbags() {
+    const g = group(); const p = {};
+    for (const x of [-2, 0, 2]) box(2, 1.0, 0.9, 'sandbag', x, 0.5, 2.0, g);                                                       // front
+    for (const z of [1.0, -0.9]) { box(0.9, 1.0, 2.0, 'sandbag', -3.0, 0.5, z, g); box(0.9, 1.0, 2.0, 'sandbag', 3.0, 0.5, z, g); }   // sides
+    box(0.6, 0.35, 0.6, 'olive', 1.2, 0.17, -0.6, g); box(0.5, 0.3, 0.5, 'canvas', -1.4, 0.15, -0.9, g);                             // ammo boxes
+    p.ring = ring(4.2, g);
+    return { group: g, parts: p, height: 1.2, radius: 3.6 };
+  }
+
   // each builder takes the team so the whole model picks the right camo set
   const forTeam = (fn) => (t = 0) => { team = t; const r = fn(); team = 0; return r; };
-  return { soldier: forTeam(soldier), truck: forTeam(truck), apc: forTeam(apc), heli: forTeam(heli), fob: forTeam(fob), cache: forTeam(cache) };
+  return { soldier: forTeam(soldier), truck: forTeam(truck), apc: forTeam(apc), heli: forTeam(heli), fob: forTeam(fob), cache: forTeam(cache), sandbags: forTeam(sandbags) };
 
 
 
+}
+
+// world-space obstacle boxes (low cover, 1 m high) for a sandbag position at (x,z) facing heading h. Each bag
+// is cut into 0.5 m pieces so the axis-aligned boxes hug a wall at any heading and leave the inside open.
+export function sandbagBoxes(x, z, h) {
+  const c = Math.cos(h), s = Math.sin(h), out = [];
+  const piece = (lx, lz, w, d) => { const wx = x + lx * c + lz * s, wz = z - lx * s + lz * c, hw = (w * Math.abs(c) + d * Math.abs(s)) / 2, hd = (w * Math.abs(s) + d * Math.abs(c)) / 2; out.push({ minX: wx - hw, maxX: wx + hw, minZ: wz - hd, maxZ: wz + hd, h: 1.0 }); };
+  for (let lx = -2.75; lx <= 2.75; lx += 0.5) piece(lx, 2.0, 0.5, 0.9);                       // front wall, 6 m
+  for (let lz = -1.65; lz <= 1.75; lz += 0.5) { piece(-3.0, lz, 0.9, 0.5); piece(3.0, lz, 0.9, 0.5); }   // sides, 3.9 m
+  return out;
 }
 
 // sRGB hex colours shared by both back ends' material tables

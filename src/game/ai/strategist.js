@@ -33,10 +33,11 @@ export class Strategist {
     if (g.hunt) return this.skirmish(squads, vehicles, base);
     const attack = g.attack, hold = g.hold, reserve = g.reserve || null;
     const enemyFob = this.units.units.find(u => u.type === 'fob' && u.team !== this.team && !u.dead && (attack ? Math.hypot(u.pos.x - attack.x, u.pos.z - attack.z) < 160 : true));
-    const logisticsSquad = this.logistics(squads, vehicles, g.fobAnchor);
+    const logisticsSquad = this.logistics(squads, vehicles, g.fobAnchor, hold);
     const free = squads.filter(s => s !== logisticsSquad);
     const share = Math.min(0.95, Math.max(0.2, g.attackShare + this.diff.attackShare));
     const nAttack = attack ? Math.ceil(free.length * share) : 0;
+    const posts = hold ? this.match.fobs.sandbagsOf(this.team).filter(s => Math.hypot(s.pos.x - hold.x, s.pos.z - hold.z) < hold.r + 12) : []; let post = 0;   // our sandbag positions at the place we hold, one squad each
     free.forEach((sq, i) => {
       if (enemyFob && i === 0 && attack) { this.send(sq, enemyFob.pos.x, enemyFob.pos.z, 'raid'); return; }   // one squad raids the nearest enemy FOB
       if (i < nAttack && attack) {
@@ -49,6 +50,7 @@ export class Strategist {
         }
         else { const [x, z] = this.inZone(attack.x, attack.z, attack); this.send(sq, x, z, 'cap' + attack.index, attack); }
       } else if (reserve && hold && i >= nAttack + Math.ceil((free.length - nAttack) * 0.7)) { const [x, z] = this.inZone(reserve.x, reserve.z, reserve, 0.6); this.send(sq, x, z, 'reserve' + reserve.index, reserve); }
+      else if (hold && post < posts.length) { const s = posts[post++]; this.send(sq, s.pos.x - Math.sin(s.heading) * 0.4, s.pos.z - Math.cos(s.heading) * 0.4, 'post' + s.id, hold); }
       else if (hold) { const [x, z] = this.inZone(hold.x, hold.z, hold, 0.7); this.send(sq, x, z, 'hold' + hold.index, hold); }
       else this.send(sq, base.x + (Math.random() - 0.5) * 20, base.z + (Math.random() - 0.5) * 20, 'home');
     });
@@ -96,6 +98,7 @@ export class Strategist {
       if ((sq.tag === 'cover' || sq.tag === 'stalk') && apcs.some(v => Math.hypot(v.pos.x - c.x, v.pos.z - c.z) < 150)) { sq.pinUntil = now + 6; continue; }   // heads down while it is about
       const [e, d] = nearest(c.x, c.z); if (!e || d > 22) continue;
       if (sq.zone && Math.hypot(c.x - sq.zone.x, c.z - sq.zone.z) < sq.zone.r) continue;                     // stand and fight for the zone
+      if (sq.tag && sq.tag.startsWith('post')) continue;                                                     // dug in: stay
       if (this.friendsNear(c.x, c.z, 25).length >= this.enemiesNear(c.x, c.z, 25).length * 2) continue;    // we clearly have the numbers
       const [x, z] = away(c.x, c.z, e, 28); sq.goal = [x, z]; sq.tag = 'back'; sq.order(x, z);
     }
@@ -108,24 +111,33 @@ export class Strategist {
 
   // Logistics: with kits left, a supply truck and an engineer squad, build a FOB one hop
   // behind the front (towards our base) and keep the pair together until it is up.
-  logistics(squads, vehicles, anchor) {
+  logistics(squads, vehicles, anchor, hold = null) {
     const fobs = this.match.fobs, team = this.teams[this.team], base = team.base;
     if (this.plan && (this.plan.sq.engineer === null || this.plan.truck.dead || this.plan.done)) this.plan = null;
     if (!this.plan) {
-      if (!this.diff.logistics || fobs.kitsLeft(this.team) <= 0) return null;
-      if (!anchor) return null;
-      const truck = vehicles.filter(v => v.supply && v.supplies >= RULES.fob.supplyCost).sort((a, b) => Math.hypot(a.pos.x - anchor.x, a.pos.z - anchor.z) - Math.hypot(b.pos.x - anchor.x, b.pos.z - anchor.z))[0];
-      const sq = squads.find(s => s.engineer); if (!truck || !sq) return null;
-      const [x, z] = this.toward(anchor, base, Math.hypot(anchor.x - base.x, anchor.z - base.z) - 45, 0);   // 45 m behind the location, towards home
-      if (this.units.nav.vehicle.blocked(x, z) || fobs.active(this.team).some(f => Math.hypot(f.pos.x - x, f.pos.z - z) < RULES.fob.minSpacing)) return null;
-      this.plan = { sq, truck, x, z, t: 0 };
+      if (!this.diff.logistics) return null;
+      const sq = squads.find(s => s.engineer); if (!sq) return null;
+      const truckTo = (at) => vehicles.filter(v => v.supply && v.supplies >= RULES.fob.supplyCost).sort((a, b) => Math.hypot(a.pos.x - at.x, a.pos.z - at.z) - Math.hypot(b.pos.x - at.x, b.pos.z - at.z))[0];
+      if (anchor && fobs.kitsLeft(this.team) > 0) {
+        const truck = truckTo(anchor); if (!truck) return null;
+        const [x, z] = this.toward(anchor, base, Math.hypot(anchor.x - base.x, anchor.z - base.z) - 45, 0);   // 45 m behind the location, towards home
+        if (this.units.nav.vehicle.blocked(x, z) || fobs.active(this.team).some(f => Math.hypot(f.pos.x - x, f.pos.z - z) < RULES.fob.minSpacing)) return null;
+        this.plan = { kind: 'fob', sq, truck, x, z, t: 0 };
+      } else if (hold && fobs.sandbagsOf(this.team).length < RULES.sandbags.max && !fobs.sandbagsOf(this.team).some(s => Math.hypot(s.pos.x - hold.x, s.pos.z - hold.z) < hold.r + 12)) {
+        // no kit to spend: dig in at the location we hold, a few metres towards the enemy
+        const truck = vehicles.filter(v => v.supply && v.supplies >= RULES.sandbags.supplyCost).sort((a, b) => Math.hypot(a.pos.x - hold.x, a.pos.z - hold.z) - Math.hypot(b.pos.x - hold.x, b.pos.z - hold.z))[0]; if (!truck) return null;
+        const eb = this.teams[1 - this.team].base, dx = eb.x - hold.x, dz = eb.z - hold.z, d = Math.hypot(dx, dz) || 1;
+        let x = hold.x + dx / d * Math.min(10, hold.r * 0.5), z = hold.z + dz / d * Math.min(10, hold.r * 0.5);
+        if (this.units.nav.foot.blocked(x, z)) { const c = this.units.nav.foot.nearest(this.units.nav.foot.cellOf(x), this.units.nav.foot.cellOf(z), 10); if (!c) return null; x = this.units.nav.foot.world(c[0]); z = this.units.nav.foot.world(c[1]); }
+        this.plan = { kind: 'sandbags', sq, truck, x, z, t: 0 };
+      } else return null;
     }
     const p = this.plan; p.t += 5;
     if (p.t > 240) { this.plan = null; return null; }                                   // give up on stalled plans
     const eng = p.sq.engineer, near = (u, r) => Math.hypot(u.pos.x - p.x, u.pos.z - p.z) < r;
     if (!near(p.truck, 8) && !p.truck.dest) p.truck.order(p.x + 4, p.z + 4);
     if (!near(eng, 4) && !p.sq.busy) this.send(p.sq, p.x, p.z, 'fob');
-    if (near(eng, 4) && near(p.truck, RULES.fob.buildRange) && !eng.building) { const r = fobs.startBuild(eng); if (r.ok) p.done = true; }
+    if (near(eng, 4) && near(p.truck, RULES.fob.buildRange) && !eng.building) { const r = p.kind === 'sandbags' ? fobs.startSandbags(eng) : fobs.startBuild(eng); if (r.ok) p.done = true; else if (p.kind === 'sandbags') this.plan = null; }
     return p.sq;
   }
 

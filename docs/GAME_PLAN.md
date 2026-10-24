@@ -401,6 +401,22 @@ Engine changes needed in the existing core:
   between them (10 before the cover and spin fixes, 37 after them), all
   reaching the clock with closer scores and one draw.
 
+- **Sandbag positions (2026-10-24).** The user chose improvised strong points
+  over garrisons. An engineer beside a supply truck builds a U of sandbags open
+  to the rear (`N`, 12 supplies, 12 s, halved under Entrenched, up to eight a
+  side, 12 m apart, not within 60 m of the enemy main). The position is a
+  static `sandbags` unit (untargetable, not counted for captures) whose bags
+  become runtime obstacles cut into 0.5 m pieces so axis-aligned boxes hug the
+  walls at any heading: pushed into the world's obstacle list, blocked in both
+  nav grids (a 0.3 m foot pad keeps the inside open) and added to combat's low-
+  cover grid, so a squad inside is half as likely to be hit from the front or
+  sides and not from behind; anyone caught inside a bag steps to the nearest
+  open cell. The CPU's logistics plan digs in at the location it holds, a few
+  metres towards the enemy, once its FOB kit is spent, and its hold orders put
+  one squad in each position there. Probe: built in 6 s, 26 obstacle pieces,
+  inside passable, covered from the front, a squad walks in from 20 m; a CPU
+  match built positions at the Outpost, Airfield and Depot by 15 minutes.
+
 ## Open questions
 
 

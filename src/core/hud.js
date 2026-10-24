@@ -98,7 +98,7 @@ export class Hud {
       return `<div class="kill${v.type !== 'soldier' ? ' veh' : ''}"><b class="t${k ? k.team : 0}">${k ? k.label : '?'}</b><span class="w">${kit}</span>${ico(v.type === 'soldier' ? 'skull' : v.type)}<b class="t${v.team}">${v.label}</b></div>`;
     }
     const e = f.e, team = e.team, name = team === 0 ? 'BLUFOR' : 'OPFOR', loc = e.loc ? e.loc.name : '';
-    const text = e.type === 'captured' ? `captured <b>${loc}</b>` : e.type === 'lost' ? `lost <b>${loc}</b>` : e.type === 'fob' ? 'FOB is up' : e.type === 'cache revealed' ? `found the cache at <b>${loc}</b>` : e.type === 'cache destroyed' ? `destroyed the cache at <b>${loc}</b>` : e.type;
+    const text = e.type === 'captured' ? `captured <b>${loc}</b>` : e.type === 'lost' ? `lost <b>${loc}</b>` : e.type === 'fob' ? 'FOB is up' : e.type === 'sandbags' ? 'dug in behind sandbags' : e.type === 'cache revealed' ? `found the cache at <b>${loc}</b>` : e.type === 'cache destroyed' ? `destroyed the cache at <b>${loc}</b>` : e.type;
     return `<div class="ev">${ico(e.type === 'fob' ? 'fob' : e.type.startsWith('cache') ? 'cache' : 'flag')}<b class="t${team}">${name}</b> ${text}</div>`;
   }
 
@@ -241,6 +241,7 @@ export class Hud {
     if (!m) return;
     const eng = list.find(u => u.kit === 'engineer' && !u.dead);
     if (eng) { const c = m.fobs.canBuild(eng); box.insertAdjacentHTML('beforeend', `<button data-act="fob" ${c.ok ? '' : 'disabled'} title="${c.reason || ''}">Build FOB (B)${c.ok ? '' : ' · ' + c.reason}</button>`); }
+    if (eng) { const c = m.fobs.canBuildSandbags(eng); box.insertAdjacentHTML('beforeend', `<button data-act="sandbags" ${c.ok ? '' : 'disabled'} title="${c.reason || ''}">Sandbags (N)${c.ok ? '' : ' · ' + c.reason}</button>`); }
     const heli = list.find(u => u.type === 'heli' && !u.dead && u.passengers.length);
     if (heli) box.insertAdjacentHTML('beforeend', `<button data-act="unload" ${heli.alt > 0.5 ? 'disabled' : ''}>Unload ${heli.passengers.length} (U)</button>`);
     const kits = m.fobs.kitsLeft(this.app.playerTeam ?? 0); if (eng) box.insertAdjacentHTML('beforeend', `<span class="hint">FOB kits left: ${kits}</span>`);
@@ -249,6 +250,7 @@ export class Hud {
   action(kind) {
     const m = this.app.match, sel = this.app.input.selected; if (!m) return;
     if (kind === 'fob') { const eng = sel.find(u => u.kit === 'engineer' && !u.dead); if (!eng) return this.toast('Select an engineer'); const r = m.fobs.startBuild(eng); this.toast(r.ok ? `Building FOB, ${Math.round(r.build.total)} s` : r.reason); if (this.app.audio) this.app.audio.ui(r.ok ? 'order' : 'deny'); }
+    if (kind === 'sandbags') { const eng = sel.find(u => u.kit === 'engineer' && !u.dead); if (!eng) return this.toast('Select an engineer'); const r = m.fobs.startSandbags(eng); this.toast(r.ok ? `Building sandbags, ${Math.round(r.build.total)} s` : r.reason); if (this.app.audio) this.app.audio.ui(r.ok ? 'order' : 'deny'); }
     if (kind === 'unload') { const heli = sel.find(u => u.type === 'heli' && u.passengers.length); if (!heli) return; if (heli.alt > 0.5) return this.toast('Land first'); heli.unload(); this.toast('Unloaded'); }
     this.showSelection(sel);
   }

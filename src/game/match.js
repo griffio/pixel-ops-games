@@ -40,6 +40,16 @@ export class Match {
     this.fobs = new Fobs(this.units, this.teams, this.world);
     this.feed = []; this.events = []; this.feedId = 0; this.history = []; this.histAcc = 5; this.elapsed = 0;
     this.fobs.onBuilt = (fob) => this.event({ type: 'fob', team: fob.team, fob });
+    // a finished sandbag position becomes low cover: obstacles for movement, cover for combat; anyone caught inside a bag steps out
+    this.fobs.onSandbags = (u, boxes) => {
+      for (const o of boxes) { this.world.obstacles.push(o); this.nav.foot.block(o, 0.3); this.nav.vehicle.block(o); this.combat.addLow(o); }   // a tighter foot pad keeps the inside of the U open
+      for (const v of this.units.units) {
+        if (v.dead || v === u || v.spec.structure || !v.spec.nav || Math.hypot(v.pos.x - u.pos.x, v.pos.z - u.pos.z) > 7) continue;
+        const nav = this.nav[v.spec.nav]; if (!nav.blocked(v.pos.x, v.pos.z)) continue;
+        const c = nav.nearest(nav.cellOf(v.pos.x), nav.cellOf(v.pos.z), 10); if (c) { v.pos.x = nav.world(c[0]); v.pos.z = nav.world(c[1]); }
+      }
+      this.event({ type: 'sandbags', team: u.team });
+    };
     this.combat.onDeath = (v, k) => {
       this.respawn.onDeath(v, k);
       const s = this.teams[v.team].stats; s.losses[v.type] = (s.losses[v.type] || 0) + 1; if (v.type === 'fob') s.fobsLost++;

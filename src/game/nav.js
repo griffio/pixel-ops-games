@@ -30,6 +30,11 @@ export class NavGrid {
   world(i) { return (i + 0.5) * this.cell - this.half; }
   passable(ix, iz) { return ix >= 0 && iz >= 0 && ix < this.n && iz < this.n && this.L[iz * this.n + ix] === 0; }
   blocked(x, z) { return !this.passable(this.cellOf(x), this.cellOf(z)); }
+  // mark one obstacle box placed after the build (sandbags)
+  block(o, pad = this.pad) {
+    const L = this.L, x0 = Math.max(0, this.cellOf(o.minX - pad)), x1 = Math.min(this.n - 1, this.cellOf(o.maxX + pad)), z0 = Math.max(0, this.cellOf(o.minZ - pad)), z1 = Math.min(this.n - 1, this.cellOf(o.maxZ + pad));
+    for (let iz = z0; iz <= z1; iz++) for (let ix = x0; ix <= x1; ix++) L[iz * this.n + ix] = 1;
+  }
 
   nearest(ix, iz, r = 8) {
     if (this.passable(ix, iz)) return [ix, iz];

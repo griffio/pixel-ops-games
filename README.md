@@ -57,7 +57,11 @@ spawn point: fallen infantry come back at whichever spawn is nearest their squad
 reinforcements panel can force main base). Destroying a FOB radio costs its owner
 20 tickets, so the CPU raids yours and defends its own. With infantry selected,
 right-click a friendly landed helicopter to board it, then order the helicopter
-somewhere: it unloads on landing (**U** unloads a parked helicopter). The CPU
+somewhere: it unloads on landing (**U** unloads a parked helicopter). An engineer
+beside a supply truck can also throw up a **sandbag position** (**N**, 12
+supplies, about 12 seconds, up to eight per side): a U of bags open to the rear
+that a squad fits inside, half as likely to be hit from the front and sides,
+and the CPU digs in the same way at locations it holds. The CPU
 commander builds a FOB one hop behind its front and lifts squads toward distant
 objectives. It is cautious: squads close to about 35 m of a defended objective
 and shoot from there, fall back when an enemy gets inside 22 m unless they hold

@@ -44,8 +44,13 @@ export class Combat {
     return false;
   }
   los(ax, az, bx, bz) { return !this.segHits(this.tall, ax, az, bx, bz); }
-  // partial cover: a low obstacle within 2.5 m of the target on the shooter's side
-  covered(e, from) { const dx = from.pos.x - e.pos.x, dz = from.pos.z - e.pos.z, d = Math.hypot(dx, dz) || 1, L = Math.min(2.5, d); return this.segHits(this.low, e.pos.x, e.pos.z, e.pos.x + dx / d * L, e.pos.z + dz / d * L); }
+  // a low obstacle added after the match started (sandbags)
+  addLow(o) {
+    const G = this.low, i = G.list.length; G.list.push(o); const st = new Int32Array(i + 1); st.set(G.stamp); G.stamp = st;
+    for (let cz = this.ci(o.minZ); cz <= this.ci(o.maxZ); cz++) for (let cx = this.ci(o.minX); cx <= this.ci(o.maxX); cx++) { const k = cz * this.nx + cx; let a = G.cells.get(k); if (!a) G.cells.set(k, a = []); a.push(i); }
+  }
+  // partial cover: a low obstacle within 3 m of the target on the shooter's side
+  covered(e, from) { const dx = from.pos.x - e.pos.x, dz = from.pos.z - e.pos.z, d = Math.hypot(dx, dz) || 1, L = Math.min(3, d); return this.segHits(this.low, e.pos.x, e.pos.z, e.pos.x + dx / d * L, e.pos.z + dz / d * L); }
   // can unit u see a point on the ground (hills and tall boxes)?
   canSeePoint(u, x, z) {
     const T = this.world.terrain;
@@ -78,7 +83,7 @@ export class Combat {
     const list = this.spatial.query(u.pos.x, u.pos.z, w.range, this.scratch);
     let best = null, bestScore = -Infinity;
     for (const e of list) {
-      if (e.team === u.team || e.dead || e.mounted) continue;
+      if (e.team === u.team || e.dead || e.mounted || e.spec.untargetable) continue;
       if (e.spec.air && e.alt > 2 && !w.air) continue;
       const d = Math.hypot(e.pos.x - u.pos.x, e.pos.z - u.pos.z);
       let score = -d;
