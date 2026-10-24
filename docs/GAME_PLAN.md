@@ -271,8 +271,25 @@ Engine changes needed in the existing core:
   match now ends by tickets at 24:55 (359 / 0) instead of the clock with 329 / 118;
   Light vs Air ends at the clock with 340 / 37. Deaths rose less than the
   lethality because the CPUs spend most of the match walking; FOB placement now
-  decides tempo. Follow-up: BLUFOR won every CPU-vs-CPU run, worth checking the
-  map or lattice for a side bias.
+  decides tempo. Follow-up: BLUFOR won every CPU-vs-CPU run; see *Side balance*.
+
+- **Side balance (2026-10-24).** Mirrored CPU-vs-CPU runs (Balanced vs Balanced,
+  `?cpu=both&swap=1` plays the sides the other way round) showed the south-west
+  side winning 13 of 16 whichever team sat there, and every match turning on who
+  took the Village first and held it (3 v 2 bleeds 12 tickets a minute). Two map
+  faults: the Village's garden walls funnelled the north-east attacker through
+  one 4 m gap into the defenders' guns, and the road-clearance filter had
+  silently removed the obstacles (not the models) of the houses on one side of
+  the road; and the river separated the Village from the Depot only, so the
+  north-east side crossed a 14 m bridge under fire while the south-west walked
+  through a 68 m ridge cut. The road now runs straight through the Village,
+  whose houses and walls stand in point-symmetric pairs along it; a second river
+  mirrors the first south-west of the Village (bridged where the road crosses
+  it, fordable further out) in place of the Airfield–Village ridge, and the
+  Airfield moved 22 m to keep its apron dry. Over 32 mirrored runs each side now
+  wins 16 (by team index BLUFOR 20, OPFOR 12: within noise, worth watching).
+  Measured with scratch runners over tools/match-test.mjs plus stepped probes
+  that logged captures, zone presence, river crossings and death positions.
 
 ## Open questions
 

@@ -8,19 +8,20 @@ export const desert1km = {
   bases: [{ team: 0, x: -400, z: -400, r: 42 }, { team: 1, x: 430, z: 430, r: 42 }],
   locations: [
     { name: 'Outpost', x: -300, z: -290, r: 22 },
-    { name: 'Airfield', x: -120, z: -150, r: 34 },
+    { name: 'Airfield', x: -140, z: -160, r: 34 },
     { name: 'Village', x: 40, z: 10, r: 30 },
     { name: 'Depot', x: 210, z: 190, r: 24 },
     { name: 'Relay', x: 310, z: 300, r: 20 },
   ],
-  roadPath: [[-400, -400], [-340, -345], [-300, -290], [-250, -250], [-205, -216], [-160, -190], [-110, -180], [-20, -80], [40, -15], [130, 110], [210, 190], [330, 330], [430, 430]],
-  tracks: [[[40, 10], [150, -50], [250, -20], [320, 150], [310, 300]], [[-300, -290], [-380, -250], [-450, -310]], [[-120, -150], [20, -240], [200, -170]], [[150, 136], [120, 220], [60, 330]]],
-  // Ridges with cut passes and a river with one bridge and one ford form the choke points.
+  roadPath: [[-400, -400], [-340, -345], [-300, -290], [-250, -250], [-205, -216], [-160, -190], [-110, -180], [-20, -80], [4, -38], [40, 10], [76, 58], [130, 110], [210, 190], [330, 330], [430, 430]],
+  tracks: [[[72, -32], [150, -50], [250, -20], [320, 150], [310, 300]], [[-300, -290], [-380, -250], [-450, -310]], [[-140, -160], [20, -240], [200, -170]], [[150, 136], [120, 220], [60, 330]]],
+  // Ridges with cut passes and two rivers form the choke points. Each river is bridged where the road
+  // crosses it and fordable further out; the village sits on the land between them, so both sides
+  // cross water to reach the centre (the layout is roughly point-symmetric about the village).
   terrain: {
     water: -3,
     features: [
       { type: 'ridge', x1: -297, z1: -96, x2: -113, z2: -334, w: 38, h: 32, p: 0.6, jag: 0.5, cuts: [{ x: -205, z: -216, r: 34 }] },   // Outpost - Airfield barrier
-      { type: 'ridge', x1: -170, z1: 160, x2: 10, z2: -170, w: 36, h: 30, p: 0.6, jag: 0.5, cuts: [{ x: -32, z: -100, r: 34 }] },      // Airfield - Village barrier
       { type: 'ridge', x1: 380, z1: 150, x2: 150, z2: 350, w: 36, h: 30, p: 0.6, jag: 0.5, cuts: [{ x: 268, z: 255, r: 34 }] },         // Depot - Relay barrier
       { type: 'ridge', x1: -470, z1: -200, x2: -300, z2: -110, w: 30, h: 22, p: 0.7, jag: 0.4 },
       { type: 'ridge', x1: 480, z1: 220, x2: 320, z2: 120, w: 30, h: 22, p: 0.7, jag: 0.4 },
@@ -33,13 +34,16 @@ export const desert1km = {
       { type: 'hill', x: -420, z: 80, r: 70, h: 18, p: 0.7, jag: 0.5 },
       { type: 'hill', x: 40, z: 420, r: 60, h: 14, p: 0.8, jag: 0.5 },
     ],
-    river: { path: [[-150, 500], [-20, 300], [80, 170], [170, 60], [290, -60], [420, -200], [500, -260]], w: 24, depth: 7 },
-    fords: [{ x: 250, z: -20, r: 24, bed: -2.2 }],
+    rivers: [
+      { path: [[-150, 500], [-20, 300], [80, 170], [170, 60], [290, -60], [420, -200], [500, -260]], w: 24, depth: 7 },      // north-east of the village
+      { path: [[240, -490], [110, -300], [10, -150], [-80, -45], [-200, 80], [-330, 220], [-420, 290]], w: 24, depth: 7 },   // its mirror south-west
+    ],
+    fords: [{ x: 250, z: -20, r: 24, bed: -2.2 }, { x: -170, z: 40, r: 24, bed: -2.2 }],
   },
-  bridges: [{ x: 130, z: 109, len: 64, w: 14, angle: 0.78, y: 1.3 }],
+  bridges: [{ x: 130, z: 109, len: 64, w: 14, angle: 0.78, y: 1.3 }, { x: -35, z: -97, len: 64, w: 14, angle: 0.733, y: 1.3 }],
   flats: [
     { x: -400, z: -400, r: 48, m: 25 }, { x: 430, z: 430, r: 48, m: 25 },
-    { x: -300, z: -290, r: 30, m: 20 }, { x: -120, z: -150, r: 84, m: 18 }, { x: 40, z: 10, r: 72, m: 22 },
+    { x: -300, z: -290, r: 30, m: 20 }, { x: -140, z: -160, r: 84, m: 18 }, { x: 40, z: 10, r: 72, m: 22 },
     { x: 210, z: 190, r: 44, m: 20 }, { x: 310, z: 300, r: 28, m: 18 }, { x: 150, z: -220, r: 40, m: 18 },
   ],
 
@@ -115,12 +119,27 @@ export const desert1km = {
     }
     // ---- Village: houses on a grid with lanes, compound walls, palms, market
     { const v = this.locations[2], vx = v.x, vz = v.z;
-      const plots = [[-22, -18], [-8, -20], [8, -18], [22, -16], [-24, -2], [-6, 2], [10, -2], [24, 0], [-20, 16], [-4, 18], [12, 16], [26, 18], [-30, 30], [4, 32], [20, 34]];
-      plots.forEach(([px, pz], i) => house(vx + px, vz + pz, 6 + (i % 3), 6 + ((i * 2) % 3), i % 4 === 0 ? 2 : 1, (r() - 0.5) * 0.2));
-      wallRun(vx - 34, vz - 28, vx - 34, vz + 12); wallRun(vx - 34, vz + 12, vx - 12, vz + 12); wallRun(vx + 32, vz - 26, vx + 36, vz + 26);
-      for (const [px, pz] of [[-40, -30], [-38, 22], [34, 40], [40, -36], [0, 44], [-14, 40]]) palm(vx + px, vz + pz);
-      for (let i = 0; i < 4; i++) box(3, 2.2, 2, 0x6f6448, vx - 2 + i * 4, vz + 8, { obstacle: false, cast: true });
-      props.push({ geo: 'cyl:1.4,1.4,1.2,8', color: 0x9a8f7a, x: vx, y: 0.6, z: vz - 8, rot: [0, 0, 0], cast: true }); obstacles.push({ minX: vx - 1.5, maxX: vx + 1.5, minZ: vz - 9.5, maxZ: vz - 6.5, h: 1.2 });
+      // Street village: the road runs straight through the centre and every house and wall is placed in
+      // point-symmetric pairs about it, so the approach from either base meets the same cover and the same
+      // openings. (The old grid put a garden wall with one 4 m gap across the north-east approach, and the
+      // road-clearance filter below silently removed the houses on one side of the road.)
+      const d = [0.6, 0.8], n = [0.8, -0.6];                                                   // along / across the road
+      const at = (s, o) => [vx + d[0] * s + n[0] * o, vz + d[1] * s + n[1] * o];
+      const pair = (fn) => (s, o, ...rest) => { fn(...at(s, o), ...rest); fn(...at(-s, -o), ...rest); };
+      const along = Math.atan2(d[0], d[1]);
+      const plots = [[-32, 15], [-12, 15], [8, 15], [28, 15], [-22, 29], [0, 29], [22, 29]];
+      plots.forEach(([s, o], i) => pair(house)(s, o, 6 + (i % 3), 6 + ((i * 2) % 3), i % 4 === 0 ? 2 : 1, along + (r() - 0.5) * 0.2));
+      const wallPair = (s0, o0, s1, o1, h) => { wallRun(...at(s0, o0), ...at(s1, o1), h); wallRun(...at(-s0, -o0), ...at(-s1, -o1), h); };
+      wallPair(-40, 37, -6, 37);                                                               // compound walls behind the outer rows, opposite corners
+      wallPair(-36, 11, -18, 11, 1.2); wallPair(-6, 11, 14, 11, 1.2);                          // low garden walls along the street (cover, not line-of-sight blockers)
+      for (const [px, pz] of [[-40, -30], [-38, 22], [0, 44], [-14, 40]]) { palm(vx + px, vz + pz); palm(vx - px, vz - pz); }
+      // market stalls in a gap of the east row: cloth awnings, poles, crates; a well in a gap of the west row
+      for (let i = 0; i < 4; i++) { const [sx, sz] = at(13 + i * 3, 15), col = [0xb04a3a, 0x3a6ab0, 0xd0b040, 0x6a9a4a][i];
+        box(3.6, 0.14, 2.8, col, sx, sz, { y: 2.5, rot: along, obstacle: false });
+        for (const [ox, oz] of [[-1.6, -1.2], [1.6, -1.2], [-1.6, 1.2], [1.6, 1.2]]) box(0.12, 2.5, 0.12, 0x5a4a3a, sx + ox, sz + oz, { obstacle: false });
+        if (i % 2) box(1, 0.9, 1, 0x8a6a3a, sx + 1, sz - 2.2, { rot: r() * 0.5 });
+      }
+      { const [wx, wz] = at(-18, -15); props.push({ geo: 'cyl:1.4,1.4,1.2,8', color: 0x9a8f7a, x: wx, y: 0.6, z: wz, rot: [0, 0, 0], cast: true }); obstacles.push({ minX: wx - 1.5, maxX: wx + 1.5, minZ: wz - 1.5, maxZ: wz + 1.5, h: 1.2 }); }
       for (let i = 0; i < 10; i++) bush(vx + (r() - 0.5) * 110, vz + (r() - 0.5) * 110);
       // mosque with a dome and minaret at the west edge
       { const mx = vx - 48, mz = vz + 2;
@@ -128,9 +147,9 @@ export const desert1km = {
         props.push({ geo: 'cyl:1.9,3.3,1.7,12', color: 0x7fa6a0, x: mx, y: 6.25, z: mz, rot: [0, 0, 0], cast: true });
         props.push({ geo: 'cyl:0.15,1.9,1.3,12', color: 0x7fa6a0, x: mx, y: 7.75, z: mz, rot: [0, 0, 0], cast: true });
         box(1.6, 2.6, 0.2, 0x4a3a2a, mx, mz + 5.05, { obstacle: false });
-        box(2.2, 16, 2.2, 0xe0d2b4, mx + 8, mz - 6); box(3.2, 0.5, 3.2, 0x7fa6a0, mx + 8, mz - 6, { y: 16, obstacle: false });
-        props.push({ geo: 'cyl:0.1,1.5,1.5,10', color: 0x7fa6a0, x: mx + 8, y: 17.25, z: mz - 6, rot: [0, 0, 0], cast: true });
-        for (let i = 0; i < 4; i++) box(0.3, 0.6, 0.3, 0x4a3a2a, mx + 8 + (i % 2 ? 0.9 : -0.9), mz - 6 + (i < 2 ? 0.9 : -0.9), { y: 15.4, obstacle: false });
+        box(2.2, 16, 2.2, 0xe0d2b4, mx - 8, mz - 6); box(3.2, 0.5, 3.2, 0x7fa6a0, mx - 8, mz - 6, { y: 16, obstacle: false });
+        props.push({ geo: 'cyl:0.1,1.5,1.5,10', color: 0x7fa6a0, x: mx - 8, y: 17.25, z: mz - 6, rot: [0, 0, 0], cast: true });
+        for (let i = 0; i < 4; i++) box(0.3, 0.6, 0.3, 0x4a3a2a, mx - 8 + (i % 2 ? 0.9 : -0.9), mz - 6 + (i < 2 ? 0.9 : -0.9), { y: 15.4, obstacle: false });
       }
       // walled compound east of the village: a courtyard house with a gap on its west side
       { const cx = vx + 54, cz = vz - 2;
@@ -138,15 +157,8 @@ export const desert1km = {
         for (let i = 0; i < 3; i++) box(1, 1, 1, 0x8a6a3a, cx - 5 + i * 1.2, cz + 5.5, { rot: r() * 0.4 });
         palm(cx - 4, cz - 4);
       }
-      // market: cloth awnings over the stalls, poles, crates
-      for (let i = 0; i < 4; i++) { const sx = vx - 2 + i * 4, sz = vz + 8, col = [0xb04a3a, 0x3a6ab0, 0xd0b040, 0x6a9a4a][i];
-        box(3.6, 0.14, 2.8, col, sx, sz, { y: 2.5, obstacle: false });
-        for (const [ox, oz] of [[-1.6, -1.2], [1.6, -1.2], [-1.6, 1.2], [1.6, 1.2]]) box(0.12, 2.5, 0.12, 0x5a4a3a, sx + ox, sz + oz, { obstacle: false });
-        if (i % 2) box(1, 0.9, 1, 0x8a6a3a, sx + 1, sz - 2.2, { rot: r() * 0.5 });
-      }
-      // low garden walls along the south lane (cover, not line-of-sight blockers) and rubble by the west wall
-      wallRun(vx - 20, vz + 26, vx + 10, vz + 26, 1.2); wallRun(vx + 14, vz + 26, vx + 30, vz + 26, 1.2);
-      for (let i = 0; i < 7; i++) { const s = 0.6 + r() * 0.9; box(s, s * 0.5, s * 0.8, [0xcbb58e, 0xb5a37c, 0x9c8b64][Math.floor(r() * 3)], vx - 37 + r() * 4, vz - 26 + r() * 36, { rot: r() * Math.PI, obstacle: false }); }
+      // rubble outside both compound walls
+      for (let i = 0; i < 7; i++) { const s = 0.6 + r() * 0.9, col = [0xcbb58e, 0xb5a37c, 0x9c8b64][Math.floor(r() * 3)], rs = -40 + r() * 36, ro = 39 + r() * 3; pair((x, z) => box(s, s * 0.5, s * 0.8, col, x, z, { rot: r() * Math.PI }))(rs, ro); }
       props.push({ geo: 'cyl:1.4,1.4,1.2,8', color: 0x9a8f7a, x: vx + 50, y: 0.6, z: vz - 22, rot: [0, 0, 0], cast: true }); obstacles.push({ minX: vx + 48.5, maxX: vx + 51.5, minZ: vz - 23.5, maxZ: vz - 20.5, h: 1.2 });
       scrub(vx, vz, 55, 120);
     }
@@ -197,10 +209,10 @@ export const desert1km = {
     const a = this.locations[1]; g.fillStyle = 'rgb(255,0,0)'; g.fillRect(X(a.x - 64), Z(a.z + 64), 128 * ppm, 128 * ppm);           // airfield apron
     const d = this.locations[3]; g.fillStyle = 'rgb(0,255,0)'; g.fillRect(X(d.x - 34), Z(d.z + 34), 68 * ppm, 68 * ppm);             // depot pad
     for (const b of this.bases) disc(b.x, b.z, 36, 'rgba(0,0,0,0.85)');                                                              // dirt bases
-    const v = this.locations[2]; disc(v.x, v.z, 60, 'rgba(0,0,0,0.9)'); for (const [ox, oz] of [[-40, -30], [-38, 22], [34, 40], [40, -36]]) disc(v.x + ox, v.z + oz, 9, 'rgba(0,0,255,0.9)');
+    const v = this.locations[2]; disc(v.x, v.z, 60, 'rgba(0,0,0,0.9)'); for (const [ox, oz] of [[-40, -30], [-38, 22], [40, 30], [38, -22]]) disc(v.x + ox, v.z + oz, 9, 'rgba(0,0,255,0.9)');
     disc(150, -220, 34, 'rgba(0,0,255,0.95)'); disc(150, -220, 48, 'rgba(0,0,0,0.5)');                                               // oasis
     // riverside greenery and a sandy ford
-    const rv = this.terrain.river.path; g.strokeStyle = 'rgba(0,0,255,0.75)'; g.lineWidth = 56 * ppm; g.lineCap = 'round'; g.lineJoin = 'round'; g.beginPath(); g.moveTo(X(rv[0][0]), Z(rv[0][1])); for (const p of rv.slice(1)) g.lineTo(X(p[0]), Z(p[1])); g.stroke();
+    for (const rv of this.terrain.rivers.map(r => r.path)) { g.strokeStyle = 'rgba(0,0,255,0.75)'; g.lineWidth = 56 * ppm; g.lineCap = 'round'; g.lineJoin = 'round'; g.beginPath(); g.moveTo(X(rv[0][0]), Z(rv[0][1])); for (const p of rv.slice(1)) g.lineTo(X(p[0]), Z(p[1])); g.stroke(); }
     for (const f of this.terrain.fords) { g.fillStyle = 'rgb(0,0,0)'; g.globalCompositeOperation = 'destination-out'; g.beginPath(); g.arc(X(f.x), Z(f.z), f.r * 1.3 * ppm, 0, Math.PI * 2); g.fill(); g.globalCompositeOperation = 'source-over'; }
     for (const t of this.tracks) { g.strokeStyle = 'rgba(0,0,0,0.8)'; g.lineWidth = 9 * ppm; g.lineCap = 'round'; g.beginPath(); g.moveTo(X(t[0][0]), Z(t[0][1])); for (const p of t.slice(1)) g.lineTo(X(p[0]), Z(p[1])); g.stroke(); }
   },

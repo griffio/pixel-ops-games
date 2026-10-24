@@ -285,7 +285,7 @@
   // WebGL2 is the game renderer; ?r=three loads the legacy three.js back end (airfield sandbox only).
   const q = new URLSearchParams(location.search);
   import(q.get('r') === 'three' ? './src/three/main.js' : './src/gl/main.js')
-    .catch(e => { console.error(e); const t = document.getElementById('toast'); t.textContent = 'Failed to start: ' + e.message; t.style.opacity = 1; });
+    .catch(e => { console.error(e.stack || e); const t = document.getElementById('toast'); t.textContent = 'Failed to start: ' + e.message; t.style.opacity = 1; });
 </script>
 </body>
 </html>

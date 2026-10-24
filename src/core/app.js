@@ -47,6 +47,8 @@ export function populate(app) {
     app.startMatch = (playerLoadout, modeOpts = {}) => {
       const cpuKey = q.get('cpuloadout') || counterPick(playerLoadout);
       const mode = q.get('mode') || modeOpts.mode || 'aas', side = q.get('side') || modeOpts.side || 'attack', difficulty = q.get('difficulty') || modeOpts.difficulty || 'normal';
+      // ?swap=1 plays the sides the other way round (BLUFOR from the NE base, lattice reversed): a balance check for CPU-vs-CPU runs
+      if (q.get('swap') === '1' && app.world.map && !app.world.map.swapped) { const mp = app.world.map; mp.bases = [...mp.bases].reverse(); mp.locations = [...mp.locations].reverse(); mp.swapped = true; }
       app.match = new Match(app, { cpu, mode, side, difficulty, loadouts: [playerLoadout, preset(cpuKey)] });
       if (app.audio) app.audio.ui('start');
       // the sun stands still during a match (a moving sun crawls every shadow edge at close zoom); ?hour= picks the time

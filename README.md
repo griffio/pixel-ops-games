@@ -26,12 +26,19 @@ loadout is saved in the browser. The CPU reads it and counter-picks, then a
 25-minute **Advance and Secure** match starts: you command BLUFOR (tan) from the
 south-west corner against OPFOR (olive) in the north-east. Five locations
 (Outpost, Airfield, Village, Depot, Relay) are captured in order; holding the
-majority bleeds the enemy's tickets, losing a location costs 10, and capturing all
+majority bleeds the enemy's tickets, losing a location costs 20, and capturing all
 five wins outright. Each side starts with 500 tickets; vehicle losses and
 infantry respawns drain them, and the first team at 0 loses. Infantry are
 expendable: 35 hit points, one ticket, back in 15 seconds in squad waves. Left-drag to select
 squads, right-click to move them, click an enemy to attack-move, click the
 minimap to jump the camera, and keep zooming out for the strategic view.
+
+*Desert Crossing* is built to be fair to both sides: the Village sits on the
+strip of land between two parallel rivers, each bridged where the road crosses
+it and fordable further out, and the village is laid out in mirrored pairs
+along the road, so both commanders cross water to reach the centre and meet
+the same cover when they get there.
+
 `?loadout=air|mechanized|light|defensive|balanced` skips the builder,
 `?cpuloadout=<preset>` fixes the CPU's pick, `?cpu=both` lets the CPU play both
 sides, `?cpu=none` disables it, `?mode=skirmish` drops the objectives, and
@@ -147,7 +154,7 @@ index.html          page, HUD markup, picks the back end from ?r=
 src/core/           renderer-agnostic engine
   math.js           Vec3, column-major Mat4, colour-space helpers, seedable rng
   layout.js         world size, props as data (hangar, containers, palms, bushes, grass tufts), obstacles, sun/moon lighting, WorldState
-  terrain.js        heightfield from ridge/hill features with noise-jagged crests and notch passes, a carved river with fords, level pads; height, normal, slope, water and line-of-sight queries
+  terrain.js        heightfield from ridge/hill features with noise-jagged crests and notch passes, carved rivers with fords, level pads; height, normal, slope, water and line-of-sight queries
   models.js         unit models (soldier, truck, APC, helicopter) built through a per-back-end factory
   geometry.js       box, cylinder, wedge, frustum, frond, ring, plane and grass-tuft generators with world-unit UVs
   textures.js       procedural tarmac (slabs, taxi lines, asphalt road, grass strip), camo and grass-tuft canvases
@@ -225,6 +232,7 @@ twist, tilt, box select, double-tap) and checks the mobile profile and manifest:
 
 ```bash
 node tools/match-test.mjs 'http://localhost:8787/?cpu=both&seed=11&warp=240&mode=invasion' 9333
+node tools/match-test.mjs 'http://localhost:8787/?cpu=both&loadout=balanced&cpuloadout=balanced&seed=3&warp=1500&swap=1' 9334   # full mirrored match, sides swapped (map-balance check)
 node tools/touch-test.mjs 'http://localhost:8787/?mobile=1&cpu=none&loadout=balanced&seed=5' 9341 /tmp/touch-profile shot.png
 ```
 

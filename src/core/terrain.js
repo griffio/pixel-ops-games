@@ -1,5 +1,5 @@
 // Heightfield from terrain features (round hills and elongated ridges with cut
-// passes), multi-octave value noise for jagged crests, a carved river with fords,
+// passes), multi-octave value noise for jagged crests, carved rivers with fords,
 // and level pads blended in. Sampled bilinearly from a 4 m grid.
 function hash(ix, iz) { let n = (ix * 374761393 + iz * 668265263) | 0; n = Math.imul(n ^ (n >>> 13), 1274126177); return ((n ^ (n >>> 16)) >>> 0) / 4294967296; }
 function vnoise(x, z) {
@@ -18,7 +18,7 @@ export class Terrain {
   constructor(size, cell = 4, def = {}) {
     this.size = size; this.cell = cell; this.half = size / 2; this.n = Math.round(size / cell) + 1;
     this.water = def.water === undefined ? -Infinity : def.water;
-    const features = def.features || [], flats = def.flats || [], river = def.river, fords = def.fords || [];
+    const features = def.features || [], flats = def.flats || [], rivers = def.rivers || (def.river ? [def.river] : []), fords = def.fords || [];
     const n = this.n, h = this.h = new Float32Array(n * n);
     const feature = (x, z, k) => {
       let t;
@@ -52,10 +52,12 @@ export class Terrain {
         const w = d <= f.r ? 1 : 1 - (d - f.r) / f.m;
         y = y + (target - y) * (w * w * (3 - 2 * w));
       }
-      if (river) {                                        // carve the channel, then raise fords into shallows
+      for (const river of rivers) {                       // carve each channel, then raise fords into shallows
         let d = Infinity; for (let i = 0; i < river.path.length - 1; i++) d = Math.min(d, segDist(x, z, ...river.path[i], ...river.path[i + 1]));
         const k = Math.max(0, 1 - (d / river.w) ** 2);
         if (k > 0) y += (-river.depth - y) * k;
+      }
+      if (rivers.length) {
         for (const f of fords) { const d2 = ((x - f.x) ** 2 + (z - f.z) ** 2) / (f.r * f.r); if (d2 < 1 && y < f.bed) y += (f.bed - y) * (1 - d2); }
       }
       h[iz * n + ix] = y;
