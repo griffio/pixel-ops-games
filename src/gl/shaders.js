@@ -126,6 +126,17 @@ uniform mat4 uViewProj; uniform float uTpu; out vec4 vC; out float vAdd;
 // an alpha of 2 + a flags an additive (glowing) particle; see core/dust.js
 void main() { float a = aParams.y; vAdd = step(1.5, a); a -= 2.0 * vAdd; vC = vec4(aColor, aLife * a); gl_PointSize = max(1.0, aSize * mix(1.0, 1.6 - aLife, aParams.x) * uTpu); gl_Position = uViewProj * vec4(aPos, 1.0); }`;
 
+// tracer streaks: additive line segments, bright at the head, dark at the tail
+export const STREAK_VS = `#version 300 es
+layout(location=0) in vec3 aPos; layout(location=1) in vec4 aCol;
+uniform mat4 uViewProj; out vec4 vC;
+void main() { vC = aCol; gl_Position = uViewProj * vec4(aPos, 1.0); }`;
+
+export const STREAK_FS = `#version 300 es
+precision mediump float;
+in vec4 vC; out vec4 frag;
+void main() { frag = vec4(vC.rgb * vC.a, 0.0); }`;
+
 export const DUST_FS = `#version 300 es
 precision mediump float;
 in vec4 vC; in float vAdd; out vec4 frag;

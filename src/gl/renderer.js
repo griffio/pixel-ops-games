@@ -31,7 +31,7 @@ export class GLRenderer {
     this.lightVP = Mat4.create(); this.lightView = Mat4.create(); this.lightProj = Mat4.create(); this.lightWorld = Mat4.create();
     this.progs = {
       main: this.program(S.MAIN_VS, S.MAIN_FS), shadow: this.program(S.SHADOW_VS, S.SHADOW_FS),
-      pick: this.program(S.PICK_VS, S.PICK_FS), comp: this.program(S.COMP_VS, S.COMP_FS), dust: this.program(S.DUST_VS, S.DUST_FS),
+      pick: this.program(S.PICK_VS, S.PICK_FS), comp: this.program(S.COMP_VS, S.COMP_FS), dust: this.program(S.DUST_VS, S.DUST_FS), streak: this.program(S.STREAK_VS, S.STREAK_FS),
     };
     this.white = this.texture('white', (() => { const c = document.createElement('canvas'); c.width = c.height = 1; const g = c.getContext('2d'); g.fillStyle = '#fff'; g.fillRect(0, 0, 1, 1); return c; })(), { mips: false });
     this.buildShadowTarget();
@@ -40,6 +40,9 @@ export class GLRenderer {
     this.dustVao = gl.createVertexArray(); this.dustBufs = [0, 1, 2, 3, 4].map(() => gl.createBuffer());
     gl.bindVertexArray(this.dustVao);
     [[0, 3], [1, 1], [2, 1], [3, 3], [4, 2]].forEach(([loc, n], i) => { gl.bindBuffer(gl.ARRAY_BUFFER, this.dustBufs[i]); gl.enableVertexAttribArray(loc); gl.vertexAttribPointer(loc, n, gl.FLOAT, false, 0, 0); });
+    this.streakVao = gl.createVertexArray(); this.streakBuf = gl.createBuffer();
+    gl.bindVertexArray(this.streakVao); gl.bindBuffer(gl.ARRAY_BUFFER, this.streakBuf);
+    gl.enableVertexAttribArray(0); gl.vertexAttribPointer(0, 3, gl.FLOAT, false, 28, 0); gl.enableVertexAttribArray(1); gl.vertexAttribPointer(1, 4, gl.FLOAT, false, 28, 12);
     gl.bindVertexArray(null);
     gl.enable(gl.DEPTH_TEST); gl.enable(gl.CULL_FACE); gl.cullFace(gl.BACK);
   }
@@ -300,6 +303,13 @@ export class GLRenderer {
       gl.bindVertexArray(this.dustVao);
       [dust.pos.subarray(0, dust.n * 3), dust.life.subarray(0, dust.n), dust.size.subarray(0, dust.n), dust.color.subarray(0, dust.n * 3), dust.params.subarray(0, dust.n * 2)].forEach((arr, i) => { gl.bindBuffer(gl.ARRAY_BUFFER, this.dustBufs[i]); gl.bufferData(gl.ARRAY_BUFFER, arr, gl.DYNAMIC_DRAW); });
       gl.drawArrays(gl.POINTS, 0, dust.n); this.stats.calls++;
+    }
+    // 3b. tracer streaks (one draw call of additive lines)
+    if (dust && dust.shots && dust.shots.segCount) {
+      const s = P.streak, sh = dust.shots; gl.useProgram(s.p); gl.uniformMatrix4fv(s.u.uViewProj, false, cam.viewProj);
+      gl.enable(gl.BLEND); gl.blendFunc(gl.ONE, gl.ONE_MINUS_SRC_ALPHA); gl.depthMask(false);
+      gl.bindVertexArray(this.streakVao); gl.bindBuffer(gl.ARRAY_BUFFER, this.streakBuf); gl.bufferData(gl.ARRAY_BUFFER, sh.segs.subarray(0, sh.segCount * 14), gl.DYNAMIC_DRAW);
+      gl.drawArrays(gl.LINES, 0, sh.segCount * 2); this.stats.calls++;
     }
     gl.depthMask(true); gl.disable(gl.BLEND); gl.enable(gl.CULL_FACE);
 

@@ -1,4 +1,5 @@
 import { hexToLinear } from './math.js';
+import { ProjectileSim } from './projectiles.js';
 
 // General point-sprite particle pool shared by both back ends: dust, smoke, fire,
 // tracers, muzzle flashes and impacts. Renderers read pos/life/size/color/params and `n`.
@@ -28,7 +29,7 @@ export class DustSim {
     this.life = new Float32Array(max); this.maxLife = new Float32Array(max); this.size = new Float32Array(max);
     this.color = new Float32Array(max * 3); this.params = new Float32Array(max * 2); // params: grow factor, max alpha
     this.damp = new Float32Array(max); this.grav = new Float32Array(max); this.free = [];   // recycled slots of dead particles
-    this.lights = [];
+    this.lights = []; this.shots = new ProjectileSim(this);   // rounds in flight; renderers draw their tracer streaks
   }
 
   emit(x, y, z, vx, vy, vz, size, life, color = PCOL.dust, grow = 1, alpha = 0.55, damp = 0.92, grav = 0) {
@@ -122,5 +123,6 @@ export class DustSim {
       if (L[i] <= 0) { p[i * 3 + 1] = -5; this.free.push(i); }
     }
     for (let i = this.lights.length - 1; i >= 0; i--) { const l = this.lights[i]; l.life -= dt; if (l.life <= 0) this.lights.splice(i, 1); }
+    this.shots.update(dt);
   }
 }

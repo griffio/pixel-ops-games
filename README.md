@@ -138,7 +138,13 @@ before smouldering out; explosions throw debris on ballistic arcs and a dust rin
 Every shot starts at the muzzle with a flash scaled to the weapon (rifle, machine
 gun, marksman, autocannon, rocket, door gun), and flashes and explosions cast a
 brief orange light on the units and ground around them; glowing particles are
-drawn additively, smoke covers.
+drawn additively, smoke covers. Rounds are in flight: the hit is decided on
+the trigger but the damage lands when the round arrives, bullets draw tracer
+streaks, cannon shells fly a gravity arc with a glowing head, rockets trail
+smoke, and misses come down on the ground around the target. Infantry fire
+bursts out to 60-110 m with low per-round accuracy that falls with range,
+walking and firing until about 30 m, then stopping; the autocannon reaches
+150 m. Line of sight (hills and tall obstacles) is required to engage.
 
 URL parameters set the initial state so the two back ends can be compared on
 identical frames: `?r=gl&seed=7&x=52&z=50&zoom=6&yaw=0.6&pitch=0.95&hour=21&pixel=0&tpu=12`
@@ -165,15 +171,16 @@ src/core/           renderer-agnostic engine
   camera.js         orthographic RTS camera (orbit, zoom-as-pixel-scale, texel snapping, follow)
   units.js          steering, obstacle sliding, separation, squads, helicopter state machine
   dust.js           particle simulation: dust, smoke, fire, tracers, muzzle flashes and brief flash lights for the renderer
+  projectiles.js    rounds in flight: straight bullets, cannon shells on a gravity arc, rockets; tracer streaks for the renderer
   input.js, hud.js  RTS input / selection and the HUD; picking delegated to the back end
   app.js            URL params, match or sandbox population, frame loop (with ?warp pre-stepping)
 src/game/           milestone 1 game layer (renderer-agnostic)
   rules.js          tickets, costs, respawn timers, fixed M1 force
-  weapons.js        weapon tables
+  weapons.js        weapon tables: range, bursts, accuracy, round speed, arcing shells
   teams.js          team state and base spawn points
   nav.js            1-unit A* grid with foot / vehicle layers and string pulling
   spatial.js        hash grid for targeting and separation
-  combat.js         targeting, line of sight, firing, damage, death callbacks
+  combat.js         targeting, line of sight (gridded obstacle test), burst fire, rounds in flight and the damage they land
   respawn.js        ticket charges and respawns at main base
   ai/strategist.js  CPU commander: objectives, logistics (FOBs), air lifts, FOB raids
   objectives.js     capture zones, lattice order, ownership events

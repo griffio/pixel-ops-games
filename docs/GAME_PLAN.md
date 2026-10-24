@@ -307,6 +307,30 @@ Engine changes needed in the existing core:
   lighter tread band. Checked with paused CDP captures of a volley, the cannon,
   a rifle and a vehicle-size explosion.
 
+- **Gunnery (2026-10-24).** Shots are rounds in flight (`src/core/projectiles.js`):
+  the hit is rolled on the trigger, the damage lands when the round arrives, and
+  a miss is aimed past the target and comes down on the ground around it, so
+  bullets, cannon shells and rockets are seen travelling and landing. Cannon
+  shells fly a gravity arc at 70 m/s (the low-angle solution for the range;
+  about two seconds to 150 m) with a glowing head and smoke; rockets trail
+  smoke; tracers are additive line streaks, bright at the head, instead of
+  dots. Ranges roughly doubled (rifle 60, MG 80, marksman 110, rocket 60,
+  autocannon 150, door gun 70); infantry fire bursts (rifle 3, MG 8, door gun
+  10) with a pause between, per-round accuracy lower and falling to a quarter
+  at full range, halved on the move and dropping through a burst, so
+  point-blank damage per second stays near the old tables while fights open
+  earlier. Infantry walk and fire until a hold range (rifle 32, MG 45, marksman
+  75), then stop. Line of sight is the same hills-plus-tall-boxes test, now
+  rechecked every half second and run through a 20 m grid of the obstacles.
+  Seed 11 Balanced vs Mechanized now ends by tickets at 24:26 for Mechanized
+  (157 left) with infantry deaths per minute 8.9 / 5.6 (was 6.7 / 7.0 and a
+  Balanced win): longer-ranged cannon and rockets favour armour more. Eight
+  mirrored Balanced runs all reach the clock with 290-420 infantry deaths a
+  match, so pacing holds, but the side that loses the Village now dies about
+  twice as fast as the holder; Light Infantry vs Air Assault (seed 7) ends at
+  6:33 by capturing every location (was a clock win at 340 / 37), a matchup
+  for the loadout-balance follow-up.
+
 ## Open questions
 
 

@@ -1,28 +1,40 @@
 import { WEAPONS } from './weapons.js';
 
-// muzzle flash class per kit (recipes in core/dust.js)
-const MUZZLE_KIND = { mg: 'mg', marksman: 'marksman', autocannon: 'cannon', at: 'rocket', doorgun: 'doorgun' };
+// Targeting, line of sight, firing and damage. Ticks at a fixed rate from Match. Each shot is a
+// round in flight (core/projectiles.js): the hit is rolled when the trigger is pulled, the damage
+// lands when the round arrives, so bullets, cannon shells and rockets are seen travelling.
+const MUZZLE_KIND = { mg: 'mg', marksman: 'marksman', autocannon: 'cannon', at: 'rocket', doorgun: 'doorgun' };   // flash class per kit (recipes in core/dust.js)
+const CELL = 20;
 
-// Targeting, line of sight, firing and damage. Ticks at a fixed rate from Match.
 export class Combat {
   constructor(units, spatial, world, dust) {
     this.units = units; this.spatial = spatial; this.world = world; this.dust = dust;
     this.onDeath = null; this.scratch = []; this.teams = null; this.audio = null;
     this.blockers = world.obstacles.filter(o => (o.h === undefined ? 2 : o.h) >= 1.5);
+    // a coarse grid over the tall obstacles so a line-of-sight test only touches the boxes near its segment
+    this.half = (world.size || 1000) / 2; this.nx = Math.ceil(this.half * 2 / CELL) + 1;
+    this.grid = new Map(); this.stamp = new Int32Array(this.blockers.length); this.gen = 0;
+    this.blockers.forEach((o, i) => { for (let cz = this.ci(o.minZ); cz <= this.ci(o.maxZ); cz++) for (let cx = this.ci(o.minX); cx <= this.ci(o.maxX); cx++) { const k = cz * this.nx + cx; let a = this.grid.get(k); if (!a) this.grid.set(k, a = []); a.push(i); } });
   }
+  ci(v) { return Math.max(0, Math.min(this.nx - 1, Math.floor((v + this.half) / CELL))); }
 
-  // 2D segment vs. the tall obstacle boxes
+  // 2D segment vs. the tall obstacle boxes near it
   los(ax, az, bx, bz) {
-    const dx = bx - ax, dz = bz - az;
-    for (const o of this.blockers) {
-      let t0 = 0, t1 = 1;
-      for (const [p, d, lo, hi] of [[ax, dx, o.minX, o.maxX], [az, dz, o.minZ, o.maxZ]]) {
-        if (Math.abs(d) < 1e-9) { if (p < lo || p > hi) { t0 = 2; break; } continue; }
-        let ta = (lo - p) / d, tb = (hi - p) / d; if (ta > tb) [ta, tb] = [tb, ta];
-        t0 = Math.max(t0, ta); t1 = Math.min(t1, tb);
-        if (t0 > t1) break;
+    const B = this.blockers, st = this.stamp, gen = ++this.gen, dx = bx - ax, dz = bz - az;
+    const x0 = this.ci(Math.min(ax, bx)), x1 = this.ci(Math.max(ax, bx)), z0 = this.ci(Math.min(az, bz)), z1 = this.ci(Math.max(az, bz));
+    for (let cz = z0; cz <= z1; cz++) for (let cx = x0; cx <= x1; cx++) {
+      const a = this.grid.get(cz * this.nx + cx); if (!a) continue;
+      for (const i of a) {
+        if (st[i] === gen) continue; st[i] = gen;
+        const o = B[i]; let t0 = 0, t1 = 1;
+        for (const [p, d, lo, hi] of [[ax, dx, o.minX, o.maxX], [az, dz, o.minZ, o.maxZ]]) {
+          if (Math.abs(d) < 1e-9) { if (p < lo || p > hi) { t0 = 2; break; } continue; }
+          let ta = (lo - p) / d, tb = (hi - p) / d; if (ta > tb) [ta, tb] = [tb, ta];
+          t0 = Math.max(t0, ta); t1 = Math.min(t1, tb);
+          if (t0 > t1) break;
+        }
+        if (t0 <= t1) return false;
       }
-      if (t0 <= t1) return false;
     }
     return true;
   }
@@ -34,6 +46,7 @@ export class Combat {
     if ((u.spec.air && u.alt > 2) || (e.spec.air && e.alt > 2)) return true;
     return this.los(u.pos.x, u.pos.z, e.pos.x, e.pos.z);
   }
+  groundAt(x, z) { return this.world.heightAt ? this.world.heightAt(x, z) : 0; }
 
   findTarget(u, w) {
     const list = this.spatial.query(u.pos.x, u.pos.z, w.range, this.scratch);
@@ -59,8 +72,10 @@ export class Combat {
       u.cooldown -= dt;
       if (u.enemy) {
         const e = u.enemy, d = Math.hypot(e.pos.x - u.pos.x, e.pos.z - u.pos.z);
-        if (e.dead || e.mounted || d > w.range * 1.15 || ((u.retarget -= dt) <= 0 && !this.canSee(u, e))) { u.enemy = null; u.retarget = 0.3; }
-        else u.hold = u.type === 'soldier' && d < w.range * 0.8;
+        let lost = e.dead || e.mounted || d > w.range * 1.15;
+        if (!lost && (u.retarget -= dt) <= 0) { u.retarget = 0.5; lost = !this.canSee(u, e); }
+        if (lost) { u.enemy = null; u.retarget = 0.3; u.burst = 0; }
+        else u.hold = u.type === 'soldier' && d < w.hold;           // infantry stop to shoot inside the hold range, fire on the move beyond it
       }
       if (!u.enemy) {
         u.hold = false;
@@ -70,28 +85,43 @@ export class Combat {
     }
   }
 
+  // one round: roll the hit now, send the round on its way, settle the damage when it lands
   fire(u, w, e) {
-    u.cooldown = w.rate * (0.85 + Math.random() * 0.3);
-    const ey = e.pos.y + (e.spec.air ? 2 : e.type === 'soldier' ? 1.1 : 2.2);
-    const d = Math.hypot(e.pos.x - u.pos.x, e.pos.z - u.pos.z);
-    const T = this.teams ? this.teams[u.team] : null;
-    let chance = w.acc * (1 - 0.6 * d / w.range) * ((T && T.acc) || 1);
+    if (!u.burst) u.burst = w.burst;
+    const first = u.burst === w.burst; u.burst--;
+    u.cooldown = u.burst > 0 ? w.burstGap * (0.8 + Math.random() * 0.4) : w.rate * (0.85 + Math.random() * 0.3);
+    const d = Math.hypot(e.pos.x - u.pos.x, e.pos.z - u.pos.z), T = this.teams ? this.teams[u.team] : null;
+    let chance = w.acc * Math.max(0.05, 1 - 0.75 * d / w.range) * ((T && T.acc) || 1);
     if (u.speed > 0.5) chance *= 0.5;
-    if (e.type !== 'soldier') chance *= 1.6;             // vehicles are big targets
+    if (!first) chance *= 0.8;                          // recoil through the burst
+    if (e.type !== 'soldier') chance *= 1.6;            // vehicles are big targets
     const hit = Math.random() < chance;
-    const sx = e.pos.x + (hit ? 0 : (Math.random() - 0.5) * 4), sz = e.pos.z + (hit ? 0 : (Math.random() - 0.5) * 4);
-    // the shot leaves the barrel: a little ahead of the unit towards the target, at gun height
+    // the round leaves the barrel a little ahead of the unit at gun height, aimed where the target will be
+    // when it arrives; a miss is aimed past the target and comes down on the ground around it
     const reach = u.type === 'soldier' ? 0.6 : u.type === 'apc' ? 3.0 : 1.6, gunY = u.pos.y + (u.type === 'soldier' ? 1.25 : u.type === 'apc' ? 3.8 : 2.0);
-    const hx = sx - u.pos.x, hz = sz - u.pos.z, hd = Math.hypot(hx, hz) || 1, mx = u.pos.x + hx / hd * reach, mz = u.pos.z + hz / hd * reach;
-    const ty = hit ? ey : e.pos.y + 0.1, vx = sx - mx, vy = ty - gunY, vz = sz - mz, vl = Math.hypot(vx, vy, vz) || 1;
+    const hx = e.pos.x - u.pos.x, hz = e.pos.z - u.pos.z, hd = Math.hypot(hx, hz) || 1, mx = u.pos.x + hx / hd * reach, mz = u.pos.z + hz / hd * reach;
+    const flight = d / (w.arc ? w.speed * 0.85 : w.speed), ev = e.speed > 0.05 && !e.dead ? e.speed : 0;
+    let tx = e.pos.x + Math.sin(e.heading) * ev * flight, tz = e.pos.z + Math.cos(e.heading) * ev * flight, ty = e.pos.y + (e.spec.air ? 2 : e.type === 'soldier' ? 1.1 : 2.2);
+    if (!hit) { const sp = (w.arc ? 2 : 1.5) + d * (w.arc ? 0.06 : 0.04); tx += (Math.random() - 0.5) * 2 * sp; tz += (Math.random() - 0.5) * 2 * sp; ty = e.spec.air && e.alt > 2 ? ty + (Math.random() - 0.5) * 6 : this.groundAt(tx, tz) + 0.1; }
+    const vx = tx - mx, vy = ty - gunY, vz = tz - mz, vl = Math.hypot(vx, vy, vz) || 1;
     this.dust.muzzle(mx, gunY, mz, vx / vl, vy / vl, vz / vl, MUZZLE_KIND[u.kit] || 'rifle');
-    this.dust.tracer(mx, gunY, mz, sx, ty, sz, u.kit === 'autocannon' ? 0.32 : 0.22);
     if (this.audio) this.audio.shot(u.kit, u.pos.x, u.pos.z);
-    if (hit) {
+    this.dust.shots.fire({ x: mx, y: gunY, z: mz, tx, ty, tz, speed: w.speed, arc: !!w.arc, kind: w.arc ? 'shell' : w.rocket ? 'rocket' : 'bullet',
+      trail: w.arc ? 6 : w.rocket ? 2 : (u.kit === 'mg' || u.kit === 'doorgun') ? 6 : 3.5, onArrive: (p) => this.arrive(p, u, w, e, hit) });
+  }
+
+  arrive(p, u, w, e, hit) {
+    const T = this.teams ? this.teams[u.team] : null;
+    const close = hit && !e.dead && !e.mounted && Math.hypot(e.pos.x - p.x, e.pos.z - p.z) < (e.type === 'soldier' ? 2.5 : 4.5);
+    if (close) {
       const dmg = (e.type === 'soldier' ? w.dmgInf : w.dmgVeh) * ((T && T.dmg) || 1);
-      if (w.explosive) this.dust.explosion(sx, ey, sz, 0.35); else this.dust.hitSpark(sx, ey, sz);
-      if (this.audio) this.audio.hit(sx, sz);
+      if (w.explosive) this.dust.explosion(p.x, p.y, p.z, 0.35); else this.dust.hitSpark(p.x, p.y, p.z);
+      if (this.audio) this.audio.hit(p.x, p.z);
       if (e.damage(dmg, u)) { this.onDeath && this.onDeath(e, u); }
-    } else { this.dust.impact(sx, e.pos.y + 0.1, sz); if (this.audio) this.audio.impact(sx, sz); }
+    } else {
+      const gy = this.groundAt(p.x, p.z), y = Math.max(p.y, gy + 0.1);
+      if (w.explosive) this.dust.explosion(p.x, y, p.z, 0.3); else this.dust.impact(p.x, y, p.z);
+      if (this.audio) this.audio.impact(p.x, p.z);
+    }
   }
 }
