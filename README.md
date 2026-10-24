@@ -242,6 +242,8 @@ spawn buttons.
 
 ## LLM commander on Cloudflare
 
+A plain-language overview is in `docs/LLM_COMMANDER.md`.
+
 The CPU sides can take their plan from a model instead of the built-in planner.
 Every 20 seconds of match time each CPU side posts a one-page JSON digest of the
 state (`src/game/ai/digest.js`: tickets, locations and who contests them, its
