@@ -30,7 +30,7 @@ export function detectTouch() {
 export function populate(app) {
   const { units, rts } = app;
   const q = new URLSearchParams(location.search);
-  // ?stage=soldier|truck|apc|heli puts one unit at the camera target and sends it forward, for close-ups
+  // ?stage=soldier|truck|apc|tank|heli puts one unit at the camera target and sends it forward, for close-ups
   const stage = q.get('stage');
   if (stage) {
     const t = rts.target, team = +(q.get('team') || 0);

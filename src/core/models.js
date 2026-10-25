@@ -9,7 +9,7 @@ import { rng } from './math.js';
 // Local +Z is forward. Sizes are world units; at 10 texels/unit a soldier is ~23 texels tall.
 export function makeBuilders(F) {
   // Material names resolve per team: OPFOR (team 1) uses the 'B' recolour when one exists.
-  const TEAMED = new Set(['uniform', 'vest', 'desert', 'desert2', 'heli']);
+  const TEAMED = new Set(['uniform', 'vest', 'desert', 'desert2', 'heli', 'tank']);
   let team = 0;
   const mat = (n) => (team === 1 && TEAMED.has(n) ? n + 'B' : n);
   const group = F.group;
@@ -173,6 +173,56 @@ export function makeBuilders(F) {
     return { group: g, parts: p, height: 1.2, radius: 3.6 };
   }
 
+  // Reference look: M1 Abrams in tri-colour camo. Low hull with a sloped glacis, side skirts over seven road wheels
+  // between checkered track runs; a wide flat turret with stowage bins and a bustle rack; a long 120 mm gun with a fume
+  // extractor; commander's and loader's machine guns, gunner's sight, smoke launchers, crosswind sensor and antennas.
+  function tank() {
+    const g = group(); const p = { wheels: [], steer: [] };
+    for (const s of [-1, 1]) {
+      const x = s * 1.42;
+      box(0.62, 0.22, 6.8, 'trackLinks', x, 0.11, 0, g);                                   // lower track run
+      box(0.62, 0.12, 6.5, 'trackLinks', x, 1.0, -0.05, g);                                 // upper track run
+      box(0.04, 0.16, 6.7, 'trackEdge', x + s * 0.32, 0.16, 0, g);                           // bright link ends
+      for (const z of [3.3, -3.35]) { const sp = mesh('cyl:0.46,0.46,0.6,10', 'trackLinks', x, 0.55, z, g); sp.rotation.z = Math.PI / 2; }   // sprocket and idler
+      for (let i = 0; i < 7; i++) { const w = wheel(0.38, 0.42, x, 0.5, -2.6 + i * 0.85, g); p.wheels.push(w); }   // road wheels
+      box(0.1, 0.62, 6.9, 'tank', s * 1.78, 0.86, 0.05, g);                                  // side skirt
+      box(0.12, 0.2, 0.9, 'tank', s * 1.79, 0.56, 3.2, g);                                    // skirt front lip
+    }
+    box(2.3, 0.75, 6.8, 'tank', 0, 0.72, 0, g);                                               // lower hull between the tracks
+    box(3.56, 0.32, 6.4, 'tank', 0, 1.2, -0.25, g);                                           // deck over hull and tracks
+    mesh('wedge:3.56,0.55,1.5,1.25,0', 'tank', 0, 1.1, 3.7, g);                               // sloped glacis
+    box(0.32, 0.16, 0.1, 'headlight', -1.35, 1.32, 4.3, g); box(0.32, 0.16, 0.1, 'headlight', 1.35, 1.32, 4.3, g);   // headlight clusters
+    box(3.4, 0.75, 0.3, 'tank', 0, 0.98, -3.55, g);                                           // rear plate
+    box(0.16, 0.12, 0.06, 'navRed', -1.45, 1.2, -3.72, g); box(0.16, 0.12, 0.06, 'navRed', 1.45, 1.2, -3.72, g);   // tail lights
+    box(2.3, 0.06, 1.6, 'grille', 0, 1.39, -2.6, g);                                          // engine deck grille
+    box(0.5, 0.3, 0.8, 'tank', -1.4, 1.48, -2.6, g); box(0.5, 0.3, 0.8, 'tank', 1.4, 1.48, -2.6, g);   // deck stowage boxes
+    p.turret = group(); p.turret.position.set(0, 1.36, -0.35); g.add(p.turret);
+    const T = p.turret;
+    mesh('wedge:3.1,0.75,2.6,1.25,0', 'tank', 0, 0.375, 0.95, T);                            // faceted turret front
+    box(3.1, 0.75, 1.9, 'tank', 0, 0.375, -1.25, T);                                          // turret rear
+    for (const s of [-1, 1]) {
+      box(0.36, 0.5, 1.7, 'tank', s * 1.7, 0.4, -0.95, T);                                    // side stowage bins
+      box(0.36, 0.28, 0.3, 'metal', s * 1.6, 0.58, 0.85, T); box(0.36, 0.28, 0.3, 'metal', s * 1.6, 0.28, 0.85, T);   // smoke launchers
+      box(0.06, 0.45, 1.05, 'metal', s * 1.5, 0.72, -2.6, T);                                 // bustle rack rails
+    }
+    box(3.0, 0.08, 1.05, 'metal', 0, 0.5, -2.6, T); box(3.0, 0.06, 0.06, 'metal', 0, 0.95, -3.1, T);   // bustle rack floor and back rail
+    box(2.5, 0.38, 0.85, 'canvas', 0, 0.73, -2.6, T); box(0.7, 0.3, 0.5, 'olive', 0.7, 1.05, -2.5, T);   // stowage in the rack
+    box(1.0, 0.55, 0.45, 'tank', 0, 0.36, 2.4, T);                                            // mantlet
+    box(0.26, 0.26, 4.4, 'tank', 0, 0.4, 4.7, T);                                             // 120 mm gun
+    box(0.4, 0.4, 0.9, 'tank', 0, 0.4, 4.1, T);                                               // fume extractor
+    box(0.32, 0.32, 0.2, 'metal', 0, 0.4, 6.95, T);                                           // muzzle
+    box(0.8, 0.35, 0.8, 'tank', 0.75, 0.92, -0.5, T); box(0.5, 0.1, 0.12, 'glass', 0.75, 0.98, -0.08, T);   // commander's cupola
+    box(0.15, 0.28, 0.15, 'metal', 0.75, 1.2, -0.45, T); box(0.09, 0.11, 1.15, 'metal', 0.75, 1.33, 0.05, T);   // commander's machine gun
+    box(0.7, 0.12, 0.7, 'tank', -0.75, 0.81, -0.35, T);                                       // loader's hatch
+    box(0.08, 0.26, 0.08, 'metal', -0.75, 0.98, -0.3, T); box(0.08, 0.1, 0.95, 'metal', -0.75, 1.1, 0.12, T);   // loader's machine gun
+    box(0.5, 0.35, 0.42, 'tank', -0.6, 0.92, 1.05, T); box(0.38, 0.2, 0.04, 'glass', -0.6, 0.94, 1.27, T);   // gunner's sight
+    box(0.32, 0.4, 0.32, 'tank', 0.35, 0.95, 0.55, T);                                         // commander's thermal viewer
+    box(0.07, 0.6, 0.07, 'metal', 0.15, 1.05, -0.95, T); box(0.16, 0.08, 0.16, 'metal', 0.15, 1.36, -0.95, T);   // crosswind sensor
+    box(0.04, 1.9, 0.04, 'metal', -1.2, 1.7, -1.7, T); box(0.04, 1.5, 0.04, 'metal', 1.25, 1.5, -1.75, T);   // antennas
+    p.ring = ring(4.4, g);
+    return { group: g, parts: p, height: 3.4, radius: 2.6 };
+  }
+
   // Rally point: a radio pack on the ground and a short pole with a pennant in the team's camo. Static structure.
   function rally() {
     const g = group(); const p = {};
@@ -184,7 +234,7 @@ export function makeBuilders(F) {
 
   // each builder takes the team so the whole model picks the right camo set
   const forTeam = (fn) => (t = 0) => { team = t; const r = fn(); team = 0; return r; };
-  return { soldier: forTeam(soldier), truck: forTeam(truck), apc: forTeam(apc), heli: forTeam(heli), fob: forTeam(fob), cache: forTeam(cache), sandbags: forTeam(sandbags), rally: forTeam(rally) };
+  return { soldier: forTeam(soldier), truck: forTeam(truck), apc: forTeam(apc), heli: forTeam(heli), fob: forTeam(fob), cache: forTeam(cache), sandbags: forTeam(sandbags), rally: forTeam(rally), tank: forTeam(tank) };
 
 
 
@@ -206,4 +256,4 @@ export const COLORS = {
   heliDark: 0x2e3330, olive: 0x5c6b3f, sandbag: 0x9c8b64, glass: 0x1d2328, tire: 0x1a1a1a, rim: 0x8a877c, metal: 0x2a2a2a, canvas: 0x6f6448,
   hub: 0xb9b5a8, tread: 0x2c2c2c, headlight: 0xf2ecd0, grille: 0x171717,
 };
-export const TEXTURED = ['uniform', 'vest', 'desert', 'desert2', 'heli', 'trunk', 'frond', 'bush', 'uniformB', 'vestB', 'desertB', 'desert2B', 'heliB', 'wreck', 'net'];
+export const TEXTURED = ['uniform', 'vest', 'desert', 'desert2', 'heli', 'trunk', 'frond', 'bush', 'uniformB', 'vestB', 'desertB', 'desert2B', 'heliB', 'wreck', 'net', 'tank', 'tankB', 'trackLinks', 'trackEdge'];

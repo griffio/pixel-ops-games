@@ -12,12 +12,13 @@ export const ITEMS = {
   truck:    { kind: 'vehicle', type: 'truck', name: 'Truck', cost: 60, desc: 'Moves fast, no weapon' },
   supply:   { kind: 'vehicle', type: 'truck', name: 'Supply truck', cost: 80, supply: true, desc: 'Carries FOB supplies' },
   apc:      { kind: 'vehicle', type: 'apc', name: 'APC', cost: 220, desc: 'Autocannon, 600 hp' },
+  tank:     { kind: 'vehicle', type: 'tank', name: 'M1 Abrams tank', cost: 380, desc: '120 mm gun, 1,200 hp; thick front armour, weak rear' },
   heli:     { kind: 'vehicle', type: 'heli', name: 'Transport helicopter', cost: 300, desc: 'Door gun, fast, fragile; carries 8' },
   fob:      { kind: 'kit', name: 'FOB kit', cost: 50, desc: 'One forward operating base an engineer can build near a supply truck' },
 };
 
 export const DOCTRINES = {
-  mechanized: { name: 'Mechanized', desc: 'APCs 25% cheaper, vehicles respawn 30% faster', costMul: { apc: 0.75 }, vehicleRespawn: 0.7, infantryRespawn: 1 },
+  mechanized: { name: 'Mechanized', desc: 'APCs 25% and tanks 15% cheaper, vehicles respawn 30% faster', costMul: { apc: 0.75, tank: 0.85 }, vehicleRespawn: 0.7, infantryRespawn: 1 },
   air:        { name: 'Air Assault', desc: 'Helicopters 35% cheaper; infantry may respawn beside an idle helicopter', costMul: { heli: 0.65 }, vehicleRespawn: 1, infantryRespawn: 1, heliSpawn: true },
   light:      { name: 'Light Infantry', desc: 'Infantry respawn halved, one extra squad slot', costMul: {}, vehicleRespawn: 1, infantryRespawn: 0.5, squadSlots: 1 },
   entrenched: { name: 'Entrenched', desc: '+20 tickets for every location captured; FOBs build twice as fast', costMul: {}, vehicleRespawn: 1, infantryRespawn: 1, captureBonus: 20, fobBuild: 0.5 },
@@ -28,6 +29,7 @@ export const PRESETS = {
   mechanized: { name: 'Mechanized', doctrine: 'mechanized', items: { rifle: 2, support: 1, at: 1, engineer: 1, apc: 2, supply: 1, fob: 1 } },
   air:        { name: 'Air Assault', doctrine: 'air', items: { rifle: 3, at: 1, medic: 1, engineer: 1, heli: 2, supply: 1, fob: 1 } },
   light:      { name: 'Light Infantry', doctrine: 'light', items: { rifle: 4, support: 1, at: 1, medic: 1, engineer: 1, truck: 1, supply: 1, fob: 1 } },
+  armoured:   { name: 'Armoured', doctrine: 'mechanized', items: { rifle: 2, at: 1, engineer: 1, tank: 1, apc: 1, supply: 1, fob: 1 } },
   defensive:  { name: 'Defensive', doctrine: 'entrenched', items: { rifle: 2, support: 1, at: 2, engineer: 1, apc: 1, supply: 1, fob: 1 } },
 };
 
@@ -60,11 +62,11 @@ export const preset = (key) => clone(PRESETS[key] || PRESETS.balanced);
 export function counterPick(player, rnd = Math.random) {
   const n = (k) => (player.items && player.items[k]) || 0;
   const squads = Object.keys(ITEMS).filter(k => ITEMS[k].kind === 'squad').reduce((s, k) => s + n(k), 0);
-  if (n('apc') >= 2) return 'defensive';
+  if (n('apc') >= 2 || n('tank') >= 1) return 'defensive';
   if (n('heli') >= 2) return 'light';
   if (player.doctrine === 'light' || squads >= 7) return 'mechanized';
   if (player.doctrine === 'entrenched') return 'air';
-  return ['balanced', 'mechanized', 'air'][Math.floor(rnd() * 3)];
+  return ['balanced', 'mechanized', 'air', 'armoured'][Math.floor(rnd() * 4)];
 }
 
 const KEY = 'pixelops.loadout';

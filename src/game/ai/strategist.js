@@ -48,7 +48,7 @@ export class Strategist {
       const foes = this.enemiesNear(attack.x, attack.z, attack.r + 20);
       if (foes.length > 1 && (attack.n ? attack.n[this.team] : 0) < 4) {   // stand off and shoot rather than walk into them, from behind something if an APC overlooks the spot
         const c = this.cluster(foes), cen = sq.centroid(); let [x, z] = this.toward(cen, c, 35);
-        const apc = this.units.units.find(f => f.type === 'apc' && !f.dead && f.team !== this.team && Math.hypot(f.pos.x - x, f.pos.z - z) < 150 && this.match.combat.canSeePoint(f, x, z));
+        const apc = this.units.units.find(f => (f.type === 'apc' || f.type === 'tank') && !f.dead && f.team !== this.team && Math.hypot(f.pos.x - x, f.pos.z - z) < 150 && this.match.combat.canSeePoint(f, x, z));
         if (apc) { const p = this.match.combat.coverPoint(x, z, apc.pos.x, apc.pos.z, 30, this.units.nav.foot); if (p) [x, z] = p; }
         this.send(sq, x, z, 'approach', attack);
       }
@@ -63,7 +63,7 @@ export class Strategist {
     const screenAt = (sq, loc) => {   // an overwatch position 50 m out from our location towards the enemy, in cover if armour overlooks it
       if (!loc) return holdAt(sq, hold);
       const to = attack || this.teams[1 - this.team].base; let [x, z] = this.toward(loc, to, Math.max(0, Math.hypot(to.x - loc.x, to.z - loc.z) - 50), 8);
-      const apc = this.units.units.find(f => f.type === 'apc' && !f.dead && f.team !== this.team && Math.hypot(f.pos.x - x, f.pos.z - z) < 150 && this.match.combat.canSeePoint(f, x, z));
+      const apc = this.units.units.find(f => (f.type === 'apc' || f.type === 'tank') && !f.dead && f.team !== this.team && Math.hypot(f.pos.x - x, f.pos.z - z) < 150 && this.match.combat.canSeePoint(f, x, z));
       if (apc) { const p = this.match.combat.coverPoint(x, z, apc.pos.x, apc.pos.z, 30, this.units.nav.foot); if (p) [x, z] = p; }
       this.send(sq, x, z, 'screen' + loc.index, loc);
     };
@@ -92,13 +92,14 @@ export class Strategist {
     });
     this.placeRallies(squads);
     for (const v of vehicles) {
-      if (v.type === 'apc') {
+      if (v.type === 'apc' || v.type === 'tank') {
         const goal = attack || hold; if (!goal) continue;
+        const standoff = v.type === 'tank' ? 90 : 70;   // the tank's gun reaches 200 m: it stands further off
         const foes = this.enemiesNear(goal.x, goal.z, goal.r + 40), c = this.cluster(foes);
         let x, z;
         // close to a 70 m standoff from the enemy cluster: outside rocket reach, well inside the cannon's; nearer than
         // that the turret does the work from where it stands, and caution() backs it off when something gets close
-        if (c) { const dx = c.x - v.pos.x, dz = c.z - v.pos.z, d = Math.hypot(dx, dz) || 1; if (d < 85) continue; const k = (d - 70) / d; x = v.pos.x + dx * k; z = v.pos.z + dz * k; }
+        if (c) { const dx = c.x - v.pos.x, dz = c.z - v.pos.z, d = Math.hypot(dx, dz) || 1; if (d < standoff + 15) continue; const k = (d - standoff) / d; x = v.pos.x + dx * k; z = v.pos.z + dz * k; }
         else [x, z] = this.inZone(goal.x, goal.z, goal, 0.8);
         if (v.dest && v.goal && Math.hypot(v.goal[0] - x, v.goal[1] - z) < 12) continue;
         v.goal = [x, z]; v.order(x, z);
@@ -142,7 +143,7 @@ export class Strategist {
   waitMet(w, waited) {
     const o = this.match.objectives, loc = w.at ? o.list.find(l => l.name === w.at) : null;
     if (w.kind === 'seconds') return waited >= w.count;
-    if (w.kind === 'apcAlive') return this.units.units.some(u => u.team === this.team && u.type === 'apc' && !u.dead);
+    if (w.kind === 'apcAlive') return this.units.units.some(u => u.team === this.team && (u.type === 'apc' || u.type === 'tank') && !u.dead);
     if (!loc) return true;
     if (w.kind === 'squadsAt') return this.units.squads.filter(s => s.team === this.team && s.leader && !s.mounted && Math.hypot(s.centroid().x - loc.x, s.centroid().z - loc.z) < loc.r + 20).length >= w.count;
     if (w.kind === 'enemyBelow') return this.match.enemiesNear(this.team, loc.x, loc.z, loc.r + 25) < w.count;
@@ -158,7 +159,7 @@ export class Strategist {
   caution() {
     const enemies = this.units.units.filter(u => !u.dead && !u.mounted && u.team !== this.team && !u.spec.structure && !(u.spec.air && u.alt > 2));
     if (!enemies.length) return;
-    const C = this.match.combat, now = this.match.elapsed, apcs = enemies.filter(e => e.type === 'apc');
+    const C = this.match.combat, now = this.match.elapsed, apcs = enemies.filter(e => e.type === 'apc' || e.type === 'tank');   // armour
     const k = this.posture === 'aggressive' ? 0.6 : this.posture === 'cautious' ? 1.3 : 1;   // posture scales every distance below
     const hideMax = this.posture === 'aggressive' ? 12 : this.posture === 'cautious' ? 45 : 25;   // seconds a squad stays hidden from armour that can no longer see it
     const nearest = (x, z) => { let b = null, bd = Infinity; for (const e of enemies) { const d = Math.hypot(e.pos.x - x, e.pos.z - z); if (d < bd) { bd = d; b = e; } } return [b, bd]; };
@@ -202,9 +203,10 @@ export class Strategist {
       best.pinUntil = now + 6;
     }
     for (const v of this.units.units) {
-      if (v.team !== this.team || v.dead || v.type !== 'apc') continue;
+      if (v.team !== this.team || v.dead || (v.type !== 'apc' && v.type !== 'tank')) continue;
+      const keep = v.type === 'tank' ? 90 : 70;
       const [e, d] = nearest(v.pos.x, v.pos.z); if (!e || d > 50 * k) continue;
-      const [x, z] = away(v.pos.x, v.pos.z, e, 70 * k - d); v.goal = [x, z]; v.order(x, z);
+      const [x, z] = away(v.pos.x, v.pos.z, e, keep * k - d); v.goal = [x, z]; v.order(x, z);
     }
   }
 
@@ -274,6 +276,6 @@ export class Strategist {
       if (i < 2 || !target) { if (!sq.busy) this.send(sq, base.x + (Math.random() - 0.5) * 16, base.z + (Math.random() - 0.5) * 16, 'home'); return; }
       const c = sq.centroid(), [x, z] = this.toward(c, target, 18); this.send(sq, x, z, 'hunt');
     });
-    for (const v of vehicles) if (v.type === 'apc' && target && !v.dest) { const [x, z] = this.toward(v.pos, target, 34); v.order(x, z); }
+    for (const v of vehicles) if ((v.type === 'apc' || v.type === 'tank') && target && !v.dest) { const [x, z] = this.toward(v.pos, target, 34); v.order(x, z); }
   }
 }

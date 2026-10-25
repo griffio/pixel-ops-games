@@ -13,6 +13,7 @@ const KITS = {
   marksman:   { dur: 0.16, lp: [4200, 500], g: 0.75, click: [2400, 150, 0.04] },
   at:         { dur: 0.6,  lp: [500, 3200], g: 0.55, click: [220, 80, 0.4] },
   autocannon: { dur: 0.16, lp: [1300, 250], g: 0.8,  click: [170, 50, 0.12] },
+  tankgun:    { dur: 0.5,  lp: [900, 120],  g: 1.0,  click: [90, 30, 0.35] },
   doorgun:    { dur: 0.06, lp: [2600, 600], g: 0.4,  click: [1400, 200, 0.02] },
 };
 
@@ -152,7 +153,7 @@ export class AudioEngine {
       if (!L) { L = u.spec.air ? this.rotorVoice() : this.engineVoice(); this.loops.set(u, L); }
       want.set(u, true);
       if (u.spec.air) { const r = u.rotor; L.lfo.frequency.setTargetAtTime(6 + 14 * r, now, 0.1); L.filter.frequency.setTargetAtTime(220 + 500 * r, now, 0.1); L.gain.gain.setTargetAtTime(s.gain * (0.12 + 0.5 * r) * Math.min(1, 0.4 + u.alt / 12), now, 0.08); }
-      else { L.osc.frequency.setTargetAtTime(48 + Math.abs(u.speed) * (u.type === 'apc' ? 4 : 6), now, 0.1); L.gain.gain.setTargetAtTime(s.gain * (u.type === 'apc' ? 0.18 : 0.12), now, 0.08); }
+      else { L.osc.frequency.setTargetAtTime((u.type === 'tank' ? 38 : 48) + Math.abs(u.speed) * (u.type === 'apc' || u.type === 'tank' ? 4 : 6), now, 0.1); L.gain.gain.setTargetAtTime(s.gain * (u.type === 'tank' ? 0.22 : u.type === 'apc' ? 0.18 : 0.12), now, 0.08); }
       L.pan.pan.setTargetAtTime(s.pan, now, 0.1);
     }
     for (const [u, L] of [...this.loops]) if (!want.has(u)) { L.gain.gain.setTargetAtTime(0, now, 0.08); this.loops.delete(u); setTimeout(() => { try { L.stop(); } catch {} }, 400); }

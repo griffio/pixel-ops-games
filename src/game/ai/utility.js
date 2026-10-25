@@ -15,7 +15,7 @@ export const PERSONAS = {
 const clamp01 = (v) => Math.max(0, Math.min(1, v));
 const sigmoid = (x, mid, width) => 1 / (1 + Math.exp(-(x - mid) / width));
 // combat weight of a unit: a pinned soldier counts half, an APC four, a helicopter two, a truck half
-const weight = (u) => u.type === 'soldier' ? (u.supp > 0.5 ? 0.5 : 1) : u.type === 'apc' ? 4 : u.type === 'heli' ? 2 : 0.5;
+const weight = (u) => u.type === 'soldier' ? (u.supp > 0.5 ? 0.5 : 1) : u.type === 'tank' ? 6 : u.type === 'apc' ? 4 : u.type === 'heli' ? 2 : 0.5;
 
 export class UtilityCommander {
   constructor(strategist, persona = 'balanced') {
@@ -45,7 +45,7 @@ export class UtilityCommander {
     const foes = U.filter(u => !u.dead && !u.mounted && u.team !== t && !u.spec.structure && !(u.spec.air && u.alt > 2));
     const enemyAt = (x, z, r) => { let s = 0; for (const u of foes) if (Math.hypot(u.pos.x - x, u.pos.z - z) < r) s += weight(u); return s; };
     let ours = 0; for (const u of U) if (!u.dead && !u.mounted && u.team === t && !u.spec.structure && !u.supply) ours += weight(u);
-    const enemyApcs = foes.filter(u => u.type === 'apc');
+    const enemyApcs = foes.filter(u => u.type === 'apc' || u.type === 'tank');   // enemy armour
     const haveAT = squads.some(sq => sq.members.some(u => !u.dead && u.kit === 'at'));
     // armour threat at a point: enemy APCs within cannon range that can see it, nearer counting more
     const armourAt = (x, z) => { let n = 0; for (const v of enemyApcs) { const d = Math.hypot(v.pos.x - x, v.pos.z - z); if (d < 150 && m.combat.canSeePoint(v, x, z)) n += 1 - d / 200; } return n; };
@@ -132,7 +132,7 @@ export class UtilityCommander {
         { value: 'none', score: 0.25 + 0.5 * nowA + 0.35 * M.urgency },
         { value: 'squadsAt', score: (0.15 + 0.8 * Math.max(0, allA - nowA)) * (1 - M.urgency) * w.wait },
       ];
-      const apcDown = !vehicles.some(v => v.type === 'apc') && m.respawn.queue.some(q => q.unit.team === t && q.unit.type === 'apc');
+      const apcDown = !vehicles.some(v => v.type === 'apc' || v.type === 'tank') && m.respawn.queue.some(q => q.unit.team === t && (q.unit.type === 'apc' || q.unit.type === 'tank'));
       if (apcDown) opts.push({ value: 'apcAlive', score: 0.55 * (1 - M.urgency) * w.wait * clamp01(theirsAtTarget / 8) });
       if (prev !== undefined && count > 2 && count < prev * 0.8) opts.push({ value: 'enemyBelow', score: 0.4 * (1 - M.urgency) * w.wait });
       const c = this.pick('wait', opts).value;

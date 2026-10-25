@@ -644,6 +644,31 @@ Engine changes needed in the existing core:
   infantry deaths up about 40% (170-300 a side), losers ending on 5-90
   tickets, so the 500 pools stay.
 
+- **M1 Abrams tank (2026-10-25).** A new `tank` unit: 1,200 hp, 7 m/s, the
+  `tankgun` kit (120 mm, 200 m, one round per 5 s, 220 to vehicles, 45 to a
+  soldier, accuracy 0.45, a flat fast shell with a long tracer). Specs carry
+  `armour: true`: explosive hits are scaled by facing in `Combat.facing`
+  (front 0.6, sides 1.25, rear 2), so 5 rear rockets kill it against 17
+  frontal. 30 tickets, 150 s respawn (105 s under Mechanized), 380 points
+  (Mechanized takes 15% off); new *Armoured* preset (2 rifle, AT, engineer,
+  tank, APC, supply truck, FOB kit, 1,078 points) and counter-pick to
+  *Defensive* against a tank. Model after a
+  voxel reference: tri-colour desert camo (BLUFOR) or olive (OPFOR) through
+  `camoCanvas`, which gains a checker pass for the track links and their
+  light link ends; seven road wheels under side skirts, a wedge-fronted turret
+  with a bustle rack and stowage, smoke launchers, commander's and loader's
+  MGs, sights and antennas, a long gun with fume extractor. Its own muzzle
+  recipe (big halo, a strong light, a dust ring kicked off the ground) and a
+  deep report and engine note. Both CPU commanders treat tanks as armour
+  wherever they handled APCs: 90 m standoff, squads hide from its sight, AT
+  squads hunt it, utility weight 6. Mirrored Armoured utility-vs-utility, 8
+  games: BLUFOR 5, OPFOR 3, every game ending on tickets at 20-23 minutes
+  with 1-5 tanks lost a side. Armoured against Balanced, sides swapped, 8
+  games: Armoured 3-5, mean ticket margin +8 for Armoured, so one tank does
+  not unbalance a match; OPFOR won 7 of 8 of these, against 5-3 BLUFOR on the
+  same seeds mirrored, which reads as variance but is worth watching. No coax
+  MG yet: against infantry the tank is a slow single shot.
+
 ## Open questions
 
 

@@ -20,6 +20,7 @@ export const MUZZLE = {
   cannon:   { halo: 2.4, core: 1.1,  life: 0.1,  light: 50, dist: 15, smoke: 3, brass: 2, sparks: 4 },
   rocket:   { halo: 2.8, core: 1.2,  life: 0.12, light: 55, dist: 17, smoke: 4, sparks: 3, backblast: true },
   doorgun:  { halo: 1.3, core: 0.6,  life: 0.06, light: 18, dist: 9,  smoke: 0, brass: 1 },
+  tank:     { halo: 3.8, core: 1.7,  life: 0.13, light: 90, dist: 22, smoke: 7, sparks: 5, ring: true },   // 120 mm: a big flash, smoke, and dust blown off the ground
 };
 
 export class DustSim {
@@ -52,6 +53,7 @@ export class DustSim {
     for (let i = 0; i < (m.sparks || 0); i++) { const s = 14 + r() * 18; this.emit(x, y, z, dx * s + (r() - 0.5) * 6, dy * s + 1 + r() * 2, dz * s + (r() - 0.5) * 6, 0.14, 0.12 + r() * 0.12, PCOL.spark, 0, ADD + 1, 0.9, 10); }
     for (let i = 0; i < m.smoke; i++) this.emit(x + dx * (0.3 + r()), y + 0.1, z + dz * (0.3 + r()), dx * 2 + (r() - 0.5), 0.8 + r() * 0.6, dz * 2 + (r() - 0.5), 0.45 + r() * 0.3, 0.5 + r() * 0.4, PCOL.smokeLight, 1, 0.45, 0.94);
     for (let i = 0; i < (m.brass || 0); i++) this.emit(x - dx * 0.8, y - 0.1, z - dz * 0.8, px * (2 + r() * 2) + (r() - 0.5), 2.5 + r() * 2, pz * (2 + r() * 2) + (r() - 0.5), 0.12, 0.8 + r() * 0.4, PCOL.brass, 0, 1, 0.99, 14);
+    if (m.ring) for (let i = 0; i < 14; i++) { const a = r() * Math.PI * 2, s = 5 + r() * 5; this.emit(x + Math.cos(a), 0.2, z + Math.sin(a), Math.cos(a) * s, 0.4, Math.sin(a) * s, 0.8 + r() * 0.5, 0.7 + r() * 0.5, PCOL.dust, 1, 0.5, 0.9); }
     if (m.backblast) for (let i = 0; i < 5; i++) this.emit(x - dx * 1.2, y - 0.3, z - dz * 1.2, -dx * (4 + r() * 4) + (r() - 0.5) * 3, 0.5 + r(), -dz * (4 + r() * 4) + (r() - 0.5) * 3, 0.7 + r() * 0.5, 0.5 + r() * 0.4, PCOL.dust, 1, 0.5, 0.9);
     this.light(x, y, z, PCOL.flashHalo, m.light, m.dist, m.life * 1.5);
   }

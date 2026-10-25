@@ -7,6 +7,7 @@ const ICON = {
   soldier: '<circle cx="3" cy="2.2" r="1.5"/><rect x="1.7" y="4" width="2.6" height="5.5"/><circle cx="8" cy="2.2" r="1.5"/><rect x="6.7" y="4" width="2.6" height="5.5"/><circle cx="13" cy="2.2" r="1.5"/><rect x="11.7" y="4" width="2.6" height="5.5"/>',
   truck: '<rect x="1" y="3.5" width="8" height="4.5"/><rect x="9" y="1.5" width="5.5" height="6.5"/><circle cx="4" cy="8.8" r="1.2"/><circle cx="12" cy="8.8" r="1.2"/>',
   apc: '<path d="M1 7.5 L3.5 3 H13 L15 7.5 Z"/><circle cx="3.5" cy="8.6" r="1.1"/><circle cx="6.8" cy="8.6" r="1.1"/><circle cx="10.2" cy="8.6" r="1.1"/><circle cx="13.5" cy="8.6" r="1.1"/>',
+  tank: '<rect x="1" y="5" width="14" height="3" rx="1.5"/><rect x="4" y="2.5" width="6.5" height="2.5"/><rect x="10" y="3.2" width="6" height="1"/>',
   heli: '<rect x="1" y="1" width="14" height="1.2"/><rect x="3" y="3" width="9" height="4.5" rx="1.5"/><rect x="11" y="4" width="4.5" height="1.3"/><rect x="14" y="2.5" width="1.2" height="3"/>',
   cache: '<rect x="2" y="4" width="12" height="5"/><path d="M1 4 L8 1 L15 4 Z"/>',
   fob: '<rect x="7.4" y="0.5" width="1.2" height="9"/><path d="M4 3 L8 1 L12 3" fill="none" stroke="currentColor" stroke-width="1.2"/><rect x="2" y="7" width="12" height="2.5"/>',
@@ -14,7 +15,7 @@ const ICON = {
   skull: '<circle cx="8" cy="4" r="3.4"/><rect x="5.6" y="6.5" width="4.8" height="2.6"/><circle cx="6.6" cy="3.8" r="0.9" fill="#111"/><circle cx="9.4" cy="3.8" r="0.9" fill="#111"/>',
 };
 const ico = (k) => `<svg class="ico" viewBox="0 0 16 10">${ICON[k] || ''}</svg>`;
-const KIT_NAME = { rifle: 'rifle', mg: 'MG', at: 'AT', marksman: 'marksman', medic: 'rifle', engineer: 'rifle', autocannon: 'autocannon', doorgun: 'door gun' };
+const KIT_NAME = { rifle: 'rifle', mg: 'MG', at: 'AT', marksman: 'marksman', medic: 'rifle', engineer: 'rifle', autocannon: 'autocannon', doorgun: 'door gun', tankgun: '120 mm' };
 
 
 // HUD + control panel. Back-end hooks on app: pixel (settings), setShadows(on),
@@ -176,8 +177,8 @@ export class Hud {
       ['Net tickets', (() => { const v = Math.round(a.tickets - m.mode.tickets(0)); return (v >= 0 ? '+' : '') + v; })(), (() => { const v = Math.round(b.tickets - m.mode.tickets(1)); return (v >= 0 ? '+' : '') + v; })()],
       ['Kills', sum(a.stats.kills), sum(b.stats.kills)],
       ['Infantry lost', L(a, 'soldier'), L(b, 'soldier')],
-      ['Vehicles lost', L(a, 'truck') + L(a, 'apc') + L(a, 'heli'), L(b, 'truck') + L(b, 'apc') + L(b, 'heli')],
-      ['Vehicles killed', S(a, 'truck') + S(a, 'apc') + S(a, 'heli'), S(b, 'truck') + S(b, 'apc') + S(b, 'heli')],
+      ['Vehicles lost', L(a, 'truck') + L(a, 'apc') + L(a, 'tank') + L(a, 'heli'), L(b, 'truck') + L(b, 'apc') + L(b, 'tank') + L(b, 'heli')],
+      ['Vehicles killed', S(a, 'truck') + S(a, 'apc') + S(a, 'tank') + S(a, 'heli'), S(b, 'truck') + S(b, 'apc') + S(b, 'tank') + S(b, 'heli')],
       ['Captures', a.stats.captures, b.stats.captures],
       ['Locations lost', a.stats.lost, b.stats.lost],
       ['FOBs built / lost', `${a.stats.fobs} / ${a.stats.fobsLost}`, `${b.stats.fobs} / ${b.stats.fobsLost}`],

@@ -4,7 +4,7 @@ import { WORLD_SIZE, HALF, rand } from './layout.js';
 // Camo: base colour, random blotches, 1-2 px specks and per-pixel noise. Geometry UVs put
 // 16 texture pixels per world unit, so at 10 render texels per unit the grain reads as
 // roughly one mottle per pixel, like the reference sprites.
-export function camoCanvas({ colors, seed = 1, size = 32, blotch = [3, 9], count = 40, specks = 80, noise = 0.1, grid = 0 }) {
+export function camoCanvas({ colors, seed = 1, size = 32, blotch = [3, 9], count = 40, specks = 80, noise = 0.1, grid = 0, checker = null }) {
   const cv = document.createElement('canvas'); cv.width = cv.height = size;
   const g = cv.getContext('2d');
   let s = seed; const r = () => (s = (s * 1664525 + 1013904223) >>> 0) / 4294967296;
@@ -18,6 +18,7 @@ export function camoCanvas({ colors, seed = 1, size = 32, blotch = [3, 9], count
   }
   for (let i = 0; i < specks; i++) { g.fillStyle = pick(); g.fillRect(Math.floor(r() * size), Math.floor(r() * size), 1 + Math.floor(r() * 2), 1); }
   if (grid) { g.fillStyle = 'rgba(0,0,0,0.4)'; for (let i = 0; i < size; i += grid) { g.fillRect(i, 0, 1, size); g.fillRect(0, i, size, 1); } }   // cargo net mesh
+  if (checker) { g.fillStyle = checker.color; for (let y = 0; y < size; y += checker.cell) for (let x = (y / checker.cell) % 2 ? checker.cell : 0; x < size; x += checker.cell * 2) g.fillRect(x, y, checker.cell, checker.cell); }   // track links
   const img = g.getImageData(0, 0, size, size), d = img.data;
   for (let i = 0; i < d.length; i += 4) { const k = 1 + (r() - 0.5) * 2 * noise; d[i] = Math.min(255, d[i] * k); d[i + 1] = Math.min(255, d[i + 1] * k); d[i + 2] = Math.min(255, d[i + 2] * k); }
   g.putImageData(img, 0, 0);
@@ -41,6 +42,11 @@ export const CAMO = {
   heliB: { colors: ['#4e5a4c', '#44503f', '#5b675a', '#3a453a', '#505c4e'], seed: 59, blotch: [4, 12], count: 28, specks: 40, noise: 0.05 },
   wreck: { colors: ['#2a2724', '#1d1b19', '#3a3531', '#171514'], seed: 61, blotch: [2, 6], count: 50, specks: 80, noise: 0.15 },
   net: { colors: ['#555a3c', '#474b30', '#636848', '#3b3f28'], seed: 71, blotch: [1, 3], count: 70, specks: 90, noise: 0.12, grid: 4 },   // cargo net over a tarp
+  // M1 Abrams: tri-colour sand, brown and green in big blocky patches (BLUFOR); a woodland olive and brown for OPFOR
+  tank: { colors: ['#cfb67d', '#dcc690', '#8a6a43', '#66793c', '#c3a96f'], seed: 81, size: 64, blotch: [9, 22], count: 20, specks: 24, noise: 0.05 },
+  tankB: { colors: ['#66724a', '#57633d', '#4a3c2a', '#7b8556', '#3f4a2c'], seed: 83, size: 64, blotch: [9, 22], count: 20, specks: 24, noise: 0.05 },
+  trackLinks: { colors: ['#2a2927', '#232220', '#33312e'], seed: 85, blotch: [1, 2], count: 8, specks: 20, noise: 0.08, checker: { cell: 2, color: '#565450' } },
+  trackEdge: { colors: ['#1b1b1b', '#1b1b1b'], seed: 87, blotch: [1, 1], count: 0, specks: 0, noise: 0.04, checker: { cell: 2, color: '#d9d6cf' } },   // the bright link ends along the track's lower edge
 };
 
 

@@ -10,6 +10,7 @@ export const SPEC = {
   fob:     { speed: 0,   turn: 0,   accel: 0, label: 'FB', air: false, hp: 300, nav: null, structure: true },
   cache:   { speed: 0,   turn: 0,   accel: 0, label: 'CA', air: false, hp: 250, nav: null, structure: true },
   sandbags: { speed: 0, turn: 0,   accel: 0, label: 'SB', air: false, hp: 1e9, nav: null, structure: true, untargetable: true },   // low cover, not a target
+  tank:     { speed: 7,   turn: 0.8, accel: 3.5, label: 'TK', air: false, hp: 1200, nav: 'vehicle', kit: 'tankgun', armour: true },   // M1 Abrams: thick front, weaker sides and rear
   rally:    { speed: 0, turn: 0,   accel: 0, label: 'RP', air: false, hp: 1e9, nav: null, structure: true, untargetable: true },   // a squad's spawn: burned by enemies close by, not shot
 };
 const counters = {}; let pickSeq = 0;
@@ -98,7 +99,7 @@ export class Unit {
   }
   becomeWreck() {
     this.wreck = true; this.wreckT = 0;
-    if (this.mgr) { this.mgr.recolor(this.group, 'wreck'); if (this.mgr.dust) this.mgr.dust.explosion(this.pos.x, 0, this.pos.z, this.type === 'apc' ? 1.5 : 1); }
+    if (this.mgr) { this.mgr.recolor(this.group, 'wreck'); if (this.mgr.dust) this.mgr.dust.explosion(this.pos.x, 0, this.pos.z, this.type === 'tank' ? 1.9 : this.type === 'apc' ? 1.5 : 1); }
     if (this.spec.air) { this.parts.blades.visible = true; this.parts.disc.visible = false; this.alt = 0; this.pos.y = this.mgr ? this.mgr.world.heightAt(this.pos.x, this.pos.z) : 0; this.parts.body.rotation.x = 0; this.parts.body.rotation.z = 0.35; }
   }
   // revive at a position (infantry respawn reuses the object so squads keep their members)
@@ -122,7 +123,7 @@ export class Unit {
       if (this.deathT > 10) this.group.visible = false;                              // body fades; object is reused on respawn
     } else if (this.wreck) {
       this.wreckT += dt;
-      const roof = this.pos.y + (this.type === 'apc' ? 3.9 : 3.3), k = this.type === 'apc' ? 1.4 : 1, dust = this.mgr && this.mgr.dust;
+      const roof = this.pos.y + (this.type === 'apc' ? 3.9 : this.type === 'tank' ? 2.6 : 3.3), k = this.type === 'apc' || this.type === 'tank' ? 1.4 : 1, dust = this.mgr && this.mgr.dust;
       if (dust && this.wreckT < 75 && rng() < dt * (this.wreckT < 45 ? 6 : 4) * (this.type === 'apc' ? 1.5 : 1)) dust.smoke(this.pos.x, roof + 0.8, this.pos.z, k);   // from above the roof, so the plume clears the hull
       if (dust && this.wreckT < 45) for (let n = dt * (this.type === 'apc' ? 18 : 12) * (1 - this.wreckT / 50); n > 0; n -= 1) if (rng() < n) dust.fire(this.pos.x, roof - 0.4, this.pos.z, k);   // flames die down over the first 45 s
       if (this.wreckT > 90) this.remove = true;

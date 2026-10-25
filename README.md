@@ -20,7 +20,7 @@ open http://localhost:8787/?r=three      # legacy three.js back end (160 m airfi
 
 By default the **force builder** opens over the 1 km *Desert Crossing* map: spend
 1,200 points on squads (rifle, support, anti-tank, medic, marksman, engineer),
-vehicles (trucks, supply trucks, APCs, transport helicopters) and one doctrine
+vehicles (trucks, supply trucks, APCs, M1 Abrams tanks, transport helicopters) and one doctrine
 (Mechanized, Air Assault, Light Infantry, Entrenched), or pick a preset. Your
 loadout is saved in the browser. The CPU reads it and counter-picks, then a
 25-minute **Advance and Secure** match starts: you command BLUFOR (tan) from the
@@ -39,7 +39,7 @@ it and fordable further out, and the village is laid out in mirrored pairs
 along the road, so both commanders cross water to reach the centre and meet
 the same cover when they get there.
 
-`?loadout=air|mechanized|light|defensive|balanced` skips the builder,
+`?loadout=air|mechanized|light|defensive|armoured|balanced` skips the builder,
 `?cpuloadout=<preset>` fixes the CPU's pick, `?cpu=both` lets the CPU play both
 sides, `?cpu=none` disables it, `?mode=skirmish` drops the objectives, and
 `?sandbox=1` restores the free-roam airfield with no combat.
@@ -75,10 +75,19 @@ and the CPU digs in the same way at locations it holds. The CPU
 commander builds a FOB one hop behind its front and lifts squads toward distant
 objectives. It is cautious: squads close to about 35 m of a defended objective
 and shoot from there, fall back when an enemy gets inside 22 m unless they hold
-the zone or clearly outnumber it, and its APCs keep a 70 m standoff, reversing
-away when something gets inside 50 m. Squads an enemy APC can see get behind
-the nearest building or hill out of its sight and stay there while it is about;
-anti-tank squads stalk it to rocket range instead.
+the zone or clearly outnumber it, and its APCs keep a 70 m standoff (tanks 90 m),
+reversing away when something gets inside 50 m. Squads an enemy APC or tank can
+see get behind the nearest building or hill out of its sight and stay there while
+it is about; anti-tank squads stalk it to rocket range instead.
+
+**M1 Abrams.** The tank (380 points, 15% off under Mechanized; the *Armoured*
+preset brings one) carries a 120 mm gun that reaches 200 m, one round every five
+seconds: 220 damage to a vehicle, a dead soldier on a hit and suppression
+around every landing, behind 1,200 hit points. Explosive hits count by facing:
+60% on the front plate, 125% on the sides and double from behind, so rockets
+kill it in five hits from the rear, eight from the side and seventeen from the
+front. It costs 30 tickets when it dies and comes back after 150 seconds
+(105 under Mechanized). BLUFOR's is in tri-colour desert camo, OPFOR's in olive.
 
 **Utility commander.** The CPU is commanded by a utility AI
 (`src/game/ai/utility.js`; `?ai=rules` brings back the older built-in planner,
@@ -191,7 +200,7 @@ aims worse and fires slower, and a kneeling or prone one is a smaller target
 URL parameters set the initial state so the two back ends can be compared on
 identical frames: `?r=gl&seed=7&x=52&z=50&zoom=6&yaw=0.6&pitch=0.95&hour=21&pixel=0&tpu=12`
 
-`?stage=soldier|truck|apc|heli` spawns just that unit at the camera target, sends it
+`?stage=soldier|truck|apc|tank|heli` spawns just that unit at the camera target, sends it
 forward and follows it, for close-up inspection of models and animation:
 `?r=gl&stage=soldier&zoom=10&yaw=1.2&pitch=0.8&hour=10`
 
@@ -207,7 +216,7 @@ src/core/           renderer-agnostic engine
   math.js           Vec3, column-major Mat4, colour-space helpers, seedable rng
   layout.js         world size, props as data (hangar, containers, palms, bushes, grass tufts), obstacles, sun/moon lighting, WorldState
   terrain.js        heightfield from ridge/hill features with noise-jagged crests and notch passes, carved rivers with fords, level pads; height, normal, slope, water and line-of-sight queries
-  models.js         unit models (soldier, truck, APC, helicopter) built through a per-back-end factory
+  models.js         unit models (soldier, truck, APC, tank, helicopter) built through a per-back-end factory
   geometry.js       box, cylinder, wedge, frustum, frond, ring, plane and grass-tuft generators with world-unit UVs
   textures.js       procedural tarmac (slabs, taxi lines, asphalt road, grass strip), camo and grass-tuft canvases
   camera.js         orthographic RTS camera (orbit, zoom-as-pixel-scale, texel snapping, follow)

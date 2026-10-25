@@ -3,7 +3,7 @@ import { WEAPONS } from './weapons.js';
 // Targeting, line of sight, firing and damage. Ticks at a fixed rate from Match. Each shot is a
 // round in flight (core/projectiles.js): the hit is rolled when the trigger is pulled, the damage
 // lands when the round arrives, so bullets, cannon shells and rockets are seen travelling.
-const MUZZLE_KIND = { mg: 'mg', marksman: 'marksman', autocannon: 'cannon', at: 'rocket', doorgun: 'doorgun' };   // flash class per kit (recipes in core/dust.js)
+const MUZZLE_KIND = { mg: 'mg', marksman: 'marksman', autocannon: 'cannon', at: 'rocket', doorgun: 'doorgun', tankgun: 'tank' };   // flash class per kit (recipes in core/dust.js)
 const CELL = 20;
 
 export class Combat {
@@ -70,7 +70,12 @@ export class Combat {
     return null;
   }
 
-  eyeY(u) { return u.pos.y + (u.type === 'soldier' ? 1.5 - 0.5 * (u.kneelK || 0) - 1.0 * (u.proneK || 0) : u.type === 'apc' ? 3.6 : 1.8); }
+  eyeY(u) { return u.pos.y + (u.type === 'soldier' ? 1.5 - 0.5 * (u.kneelK || 0) - 1.0 * (u.proneK || 0) : u.type === 'apc' ? 3.6 : u.type === 'tank' ? 2.9 : 1.8); }
+  // armoured vehicles take explosive hits by facing: 60% on the front, 125% on the sides, double from behind
+  facing(e, from) {
+    const a = Math.atan2(from.pos.x - e.pos.x, from.pos.z - e.pos.z) - e.heading, d = Math.abs(Math.atan2(Math.sin(a), Math.cos(a)));
+    return d < Math.PI / 4 ? 0.6 : d > Math.PI * 3 / 4 ? 2 : 1.25;
+  }
   // suppression: rounds landing or bursting near infantry push them down; an MG burst pins a squad, a rifle burst rattles it
   suppress(x, z, w, shooterTeam, victim = null) {
     const r = w.explosive ? 9 : 4, amount = w.explosive ? 0.4 : w.burst >= 8 ? 0.1 : w.dmgInf >= 20 ? 0.25 : 0.07;
@@ -140,7 +145,7 @@ export class Combat {
     const hit = Math.random() < chance;
     // the round leaves the barrel a little ahead of the unit at gun height, aimed where the target will be
     // when it arrives; a miss is aimed past the target and comes down on the ground around it
-    const reach = u.type === 'soldier' ? 0.6 : u.type === 'apc' ? 3.0 : 1.6, gunY = u.pos.y + (u.type === 'soldier' ? 1.25 : u.type === 'apc' ? 3.8 : 2.0);
+    const reach = u.type === 'soldier' ? 0.6 : u.type === 'apc' ? 3.0 : u.type === 'tank' ? 6.2 : 1.6, gunY = u.pos.y + (u.type === 'soldier' ? 1.25 : u.type === 'tank' ? 2.1 : u.type === 'apc' ? 3.8 : 2.0);
     const hx = e.pos.x - u.pos.x, hz = e.pos.z - u.pos.z, hd = Math.hypot(hx, hz) || 1, mx = u.pos.x + hx / hd * reach, mz = u.pos.z + hz / hd * reach;
     const flight = d / (w.arc ? w.speed * 0.85 : w.speed), ev = Math.abs(e.speed) > 0.05 && !e.dead ? e.speed : 0;
     let tx = e.pos.x + Math.sin(e.heading) * ev * flight, tz = e.pos.z + Math.cos(e.heading) * ev * flight, ty = e.pos.y + (e.spec.air ? 2 : e.type === 'soldier' ? 1.1 - 0.35 * (e.kneelK || 0) - 0.75 * (e.proneK || 0) : 2.2);
@@ -148,16 +153,17 @@ export class Combat {
     const vx = tx - mx, vy = ty - gunY, vz = tz - mz, vl = Math.hypot(vx, vy, vz) || 1;
     this.dust.muzzle(mx, gunY, mz, vx / vl, vy / vl, vz / vl, MUZZLE_KIND[u.kit] || 'rifle');
     if (this.audio) this.audio.shot(u.kit, u.pos.x, u.pos.z);
-    this.dust.shots.fire({ x: mx, y: gunY, z: mz, tx, ty, tz, speed: w.speed, arc: !!w.arc, kind: w.arc ? 'shell' : w.rocket ? 'rocket' : 'bullet',
-      trail: w.arc ? 6 : w.rocket ? 2 : (u.kit === 'mg' || u.kit === 'doorgun') ? 6 : 3.5, onArrive: (p) => this.arrive(p, u, w, e, hit) });
+    this.dust.shots.fire({ x: mx, y: gunY, z: mz, tx, ty, tz, speed: w.speed, arc: !!w.arc, kind: w.arc || u.kit === 'tankgun' ? 'shell' : w.rocket ? 'rocket' : 'bullet',
+      trail: w.arc ? 6 : u.kit === 'tankgun' ? 9 : w.rocket ? 2 : (u.kit === 'mg' || u.kit === 'doorgun') ? 6 : 3.5, onArrive: (p) => this.arrive(p, u, w, e, hit) });
   }
 
   arrive(p, u, w, e, hit) {
     const T = this.teams ? this.teams[u.team] : null;
     const close = hit && !e.dead && !e.mounted && Math.hypot(e.pos.x - p.x, e.pos.z - p.z) < (e.type === 'soldier' ? 2.5 : 4.5);
     if (close) {
-      const dmg = (e.type === 'soldier' ? w.dmgInf : w.dmgVeh) * ((T && T.dmg) || 1);
-      if (w.explosive) this.dust.explosion(p.x, p.y, p.z, 0.35); else this.dust.hitSpark(p.x, p.y, p.z);
+      let dmg = (e.type === 'soldier' ? w.dmgInf : w.dmgVeh) * ((T && T.dmg) || 1);
+      if (e.spec.armour && w.explosive) dmg *= this.facing(e, u);   // flank the tank
+      if (w.explosive) this.dust.explosion(p.x, p.y, p.z, u.kit === 'tankgun' ? 0.7 : 0.35); else this.dust.hitSpark(p.x, p.y, p.z);
       if (this.audio) this.audio.hit(p.x, p.z);
       if (e.damage(dmg, u)) { this.onDeath && this.onDeath(e, u); }
       this.suppress(p.x, p.z, w, u.team, e);

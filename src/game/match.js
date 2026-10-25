@@ -59,8 +59,8 @@ export class Match {
       const s = this.teams[v.team].stats; s.losses[v.type] = (s.losses[v.type] || 0) + 1; if (v.type === 'fob') s.fobsLost++;
       if (k) { const ks = this.teams[k.team].stats; ks.kills[v.type] = (ks.kills[v.type] || 0) + 1; }
       this.pushFeed({ kind: 'kill', v, k });
-      if (v.type !== 'soldier' && this.app.audio) this.app.audio.explosion(v.pos.x, v.pos.z, v.type === 'apc' ? 1.5 : 1);
-      if (v.type === 'apc') for (const s of this.strategists || []) if (s.remote && s.team === v.team) s.remote.nudge();
+      if (v.type !== 'soldier' && this.app.audio) this.app.audio.explosion(v.pos.x, v.pos.z, v.type === 'tank' ? 1.8 : v.type === 'apc' ? 1.5 : 1);
+      if (v.type === 'apc' || v.type === 'tank') for (const s of this.strategists || []) if (s.remote && s.team === v.team) s.remote.nudge();
     };
     this.time = this.mode.length; this.state = 'play'; this.winner = null; this.reason = ''; this.acc = 0;
     this.units.auto = false;
@@ -103,11 +103,12 @@ export class Match {
       const at = (fwd, lat) => [b.x + dx * fwd + lx * lat, b.z + dz * fwd + lz * lat];
       const place = (fwd, lat, pad, fn) => { let [x, z] = at(fwd, lat); if (w.isBlocked(x, z, pad)) [x, z] = team.spawnPoint(w, pad); return fn(x, z); };
       const force = expand(team.loadout);
-      const squads = force.filter(f => f.kind === 'squad'), apcs = force.filter(f => f.type === 'apc'), trucks = force.filter(f => f.type === 'truck'), helis = force.filter(f => f.type === 'heli');
+      const squads = force.filter(f => f.kind === 'squad'), apcs = force.filter(f => f.type === 'apc'), tanks = force.filter(f => f.type === 'tank'), trucks = force.filter(f => f.type === 'truck'), helis = force.filter(f => f.type === 'heli');
       squads.forEach((f, i) => place(4 + (i % 2) * 5, -14 + Math.floor(i / 2) * 7, 2, (x, z) => {
         const sq = this.units.spawnSquad(x, z, team.id, f.kits); sq.item = f.item; for (const m of sq.members) { m.heading = toward; m.group.rotation.y = toward; }
       }));
       apcs.forEach((f, i) => place(11, -10 + i * 10, 4, (x, z) => this.units.spawn('apc', x, z, toward, team.id)));
+      tanks.forEach((f, i) => place(18, -6 + i * 12, 5, (x, z) => this.units.spawn('tank', x, z, toward, team.id)));
       trucks.forEach((f, i) => place(-4, -12 + i * 8, 4, (x, z) => this.units.spawn('truck', x, z, toward, team.id, { supply: f.supply })));
       helis.forEach((f, i) => place(-13, -12 + i * 16, 8, (x, z) => this.units.spawn('heli', x, z, toward, team.id)));
     }

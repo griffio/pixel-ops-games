@@ -4,8 +4,8 @@
 export const RULES = {
   matchLength: 25 * 60,
   startTickets: { skirmish: 500, aas: 500 },
-  ticketCost: { soldier: 1, truck: 10, supply: 16, apc: 20, heli: 30, fob: 40, location: 20 },
-  respawnTime: { soldier: 15, truck: 60, apc: 90, heli: 120 },
+  ticketCost: { soldier: 1, truck: 10, supply: 16, apc: 20, tank: 30, heli: 30, fob: 40, location: 20 },
+  respawnTime: { soldier: 15, truck: 60, apc: 90, tank: 150, heli: 120 },
   waveSlack: 8,              // squadmates who died within this many seconds come back together
   captureRate: 1.2,          // progress per unit-second; 4 soldiers take ~21 s
   bleedEvery: 5,             // seconds per ticket while the enemy holds the majority
