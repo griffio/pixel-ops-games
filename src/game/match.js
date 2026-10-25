@@ -64,6 +64,7 @@ export class Match {
       if (v.type !== 'soldier' && this.app.audio) this.app.audio.explosion(v.pos.x, v.pos.z, v.type === 'tank' ? 1.8 : v.type === 'apc' ? 1.5 : 1);
       if (v.type === 'apc' || v.type === 'tank') for (const s of this.strategists || []) if (s.remote && s.team === v.team) s.remote.nudge();
       if (this.voices) this.voices.onDeath(v, k);
+      if (v.ejected) { const ps = v.ejected; v.ejected = null; for (const { p, dmg } of ps) if (p.damage(dmg, k)) this.combat.onDeath(p, k); }   // passengers of a destroyed carrier: hurt getting out, or killed, and counted
     };
     this.time = this.mode.length; this.state = 'play'; this.winner = null; this.reason = ''; this.acc = 0;
     this.units.auto = false;

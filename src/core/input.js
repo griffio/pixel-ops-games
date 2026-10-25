@@ -123,16 +123,20 @@ export class Input {
   }
 
   issueOrder(nx, ny, radiusPx = 0) {
-    // right-click on a friendly landed helicopter with infantry selected: board it
+    // right-click (or tap) on a friendly helicopter, truck or APC with infantry selected: board it
     const u = this.app.pick(nx, ny, radiusPx), me = this.app.playerTeam ?? 0;
-    if (u && u.type === 'heli' && u.team === me && !u.dead && this.selected.some(s => s.type === 'soldier')) {
+    if (this.canBoard(u)) {
       const squads = new Set(); for (const s of this.selected) if (s.type === 'soldier') (s.squad ? squads.add(s.squad) : s.board(u));
-      for (const sq of squads) sq.board(u); u.dropOnLand = true;
-      this.hud.toast(`Boarding ${u.label}: fly it and it unloads on landing`); return;
+      for (const sq of squads) sq.board(u);
+      const want = this.selected.filter(s => s.type === 'soldier' && !s.mounted && !s.dead).length, room = u.seats - u.passengers.length;
+      if (u.spec.air) u.dropOnLand = true;
+      this.hud.toast(`Boarding ${u.label}${want > room ? ` (${room} seat${room === 1 ? '' : 's'}; the rest stay)` : ''}: ${u.spec.air ? 'fly it and they get out where it lands' : 'drive it and they get out where it stops'}`); return;
     }
     if (u && u.team !== me && !u.dead) { this.orderAt(u.pos.x, u.pos.z); return; }   // an enemy under the finger: attack-move onto it
     const g = this.rts.screenToGround(nx, ny); this.orderAt(g.x, g.z);
   }
+  // a friendly carrier with a free seat, and infantry in the selection to put in it
+  canBoard(u) { const me = this.app.playerTeam ?? 0; return !!(u && u.seats && u.team === me && !u.dead && u.passengers.length < u.seats && this.selected.some(s => s.type === 'soldier' && !s.mounted)); }
   orderAt(gx, gz) {
     if (!this.selected.length) return;
     const g = { x: gx, z: gz };

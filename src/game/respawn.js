@@ -2,7 +2,7 @@ import { RULES } from './rules.js';
 
 // Death bookkeeping and respawns. Vehicle losses are charged at death; infantry
 // respawns are charged when the soldier comes back. Doctrines scale the timers;
-// Air Assault may put infantry down beside an idle friendly helicopter.
+// Air Assault may put infantry down beside an idle friendly helicopter, Light Infantry beside a parked truck.
 export class Respawn {
   constructor(units, teams, world) { this.units = units; this.teams = teams; this.world = world; this.queue = []; this.clock = 0; this.rallies = null; }
 
@@ -21,7 +21,7 @@ export class Respawn {
   // The squad's rally, when it is the spawn this soldier would use: the squad has no one left standing, or the rally is
   // nearer the squad than main or any FOB. Forcing main or a helicopter spawn skips it.
   rallyFor(u, team) {
-    if (u.type !== 'soldier' || !u.squad || !this.rallies || team.spawnPref === 'base' || team.spawnPref === 'heli') return null;
+    if (u.type !== 'soldier' || !u.squad || !this.rallies || team.spawnPref === 'base' || team.spawnPref === 'heli' || team.spawnPref === 'truck') return null;
     const r = this.rallies.of(u.squad); if (!r) return null;
     const live = u.squad.members.filter(m => !m.dead && m !== u && !m.mounted); if (!live.length) return r;
     const x = live.reduce((s, m) => s + m.pos.x, 0) / live.length, z = live.reduce((s, m) => s + m.pos.z, 0) / live.length, dr = Math.hypot(r.pos.x - x, r.pos.z - z);
@@ -35,7 +35,7 @@ export class Respawn {
   }
 
   // Infantry come back at the spawn point nearest their squad (main base, any live FOB,
-  // or beside an idle helicopter under Air Assault); vehicles always at main.
+  // or beside an idle helicopter under Air Assault, a parked truck under Light Infantry); vehicles always at main.
   spawnPoint(u, team) {
     const d = team.doctrine || {};
     if (u.type !== 'soldier') return team.spawnPoint(this.world, u.spec.air ? 7 : 4);
@@ -46,6 +46,12 @@ export class Respawn {
     if (team.spawnPref === 'heli' && d.heliSpawn) {
       const heli = this.units.units.find(h => h.type === 'heli' && h.team === team.id && !h.dead && h.state === 'parked');
       if (heli) return [heli.pos.x + (Math.random() - 0.5) * 8, heli.pos.z - 4 - Math.random() * 4];
+    }
+    if (team.spawnPref === 'truck' && d.truckSpawn) {   // the parked troop truck nearest the squad, not one with enemies on it
+      const trucks = this.units.units.filter(t => t.type === 'truck' && !t.supply && t.team === team.id && !t.dead && Math.abs(t.speed) < 0.3 && !t.dest
+        && !this.units.units.some(e => e.team !== team.id && !e.dead && !e.mounted && !e.spec.structure && Math.hypot(e.pos.x - t.pos.x, e.pos.z - t.pos.z) < 30));
+      const t = trucks.sort((a, b) => (ref ? Math.hypot(a.pos.x - ref.x, a.pos.z - ref.z) - Math.hypot(b.pos.x - ref.x, b.pos.z - ref.z) : 0))[0];
+      if (t) { const [x, z] = t.exitPoints(1 + Math.floor(Math.random() * 6)).pop(); return [x, z]; }
     }
     if (team.spawnPref === 'base' || !ref) return base;
     let best = base, bd = Math.hypot(base[0] - ref.x, base[1] - ref.z);

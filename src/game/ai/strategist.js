@@ -1,7 +1,7 @@
 import { RULES } from '../rules.js';
 
 // CPU commander v2: objective-aware manoeuvre, logistics (FOB one hop behind the
-// front) and air (helicopter lifts for squads far from the fight).
+// front) and lifts (helicopters, trucks and APCs carry squads far from the fight).
 export class Strategist {
   constructor(team, units, teams, match) { this.team = team; this.units = units; this.teams = teams; this.match = match; this.timer = 1 + Math.random() * 2; this.reflex = 0.5; this.plan = null; this.remote = null; this.utility = null; this.posture = 'balanced'; this.prefer = 'fob'; this.lift = true; this.lifts = new Map(); this.diff = match.difficulty || { plan: 5, attackShare: 0, logistics: true }; }
 
@@ -26,7 +26,8 @@ export class Strategist {
     this.timer -= dt; if (this.timer > 0) return; this.timer = this.diff.plan + Math.random() * 2;
     const base = this.teams[this.team].base;
     // drop lifts whose helicopter or squad is gone, so squads return to the pool
-    for (const [k, v] of [...this.lifts]) { const heli = k.type === 'heli' ? k : v, sq = k.type === 'heli' ? v.sq : k; if (!heli || heli.dead || !sq || !sq.leader) { this.lifts.delete(k); if (sq) for (const m of sq.members) m.boardTarget = null; } }
+    // (lift keys are carriers, which are units with a type, and squads)
+    for (const [k, v] of [...this.lifts]) { const heli = k.type ? k : v, sq = k.type ? v.sq : k; if (!heli || heli.dead || !sq || !sq.leader) { this.lifts.delete(k); if (sq) for (const m of sq.members) m.boardTarget = null; } }
     const squads = this.units.squads.filter(s => s.team === this.team && s.leader && !this.lifts.has(s) && !s.members.some(m => m.building) && !(s.pinUntil > this.match.elapsed));   // pinned squads (in cover from armour, or stalking it) keep doing that
     const vehicles = this.units.units.filter(u => u.team === this.team && !u.dead && !u.squad && !u.spec.structure);
     const myFobs = this.units.units.filter(u => u.type === 'fob' && u.team === this.team && !u.dead).map(f => ({ x: f.pos.x, z: f.pos.z, r: 18, index: 'fob' + f.id }));
@@ -94,6 +95,7 @@ export class Strategist {
     for (const v of vehicles) {
       if (v.type === 'apc' || v.type === 'tank') {
         const goal = attack || hold; if (!goal) continue;
+        if (v.type === 'apc' && this.ride(v, free, attack, base)) continue;   // an APC leaving base takes a squad with it
         const standoff = v.type === 'tank' ? 90 : 70;   // the tank's gun reaches 200 m: it stands further off
         const foes = this.enemiesNear(goal.x, goal.z, goal.r + 40), c = this.cluster(foes);
         let x, z;
@@ -104,7 +106,7 @@ export class Strategist {
         if (v.dest && v.goal && Math.hypot(v.goal[0] - x, v.goal[1] - z) < 12) continue;
         v.goal = [x, z]; v.order(x, z);
       } else if (v.type === 'heli') this.air(v, free, attack, base);
-      else if (!v.supply && !v.dest && Math.random() < 0.2) v.order(base.x + (Math.random() - 0.5) * 24, base.z + (Math.random() - 0.5) * 24);
+      else if (v.type === 'truck' && !v.supply) { if (!this.ride(v, free, attack, base) && !v.dest && Math.hypot(v.pos.x - base.x, v.pos.z - base.z) > 40) v.order(base.x + (Math.random() - 0.5) * 24, base.z + (Math.random() - 0.5) * 24); }   // a troop truck between runs waits at base
     }
   }
 
@@ -258,15 +260,46 @@ export class Strategist {
       return;
     }
     if (!this.lift || !attack || heli.state !== 'parked' || Math.hypot(heli.pos.x - base.x, heli.pos.z - base.z) > 50) return;
-    if (this.lifts.size > 0) return;                                                     // one lift at a time: no piecemeal drops
-    const far = Math.hypot(attack.x - base.x, attack.z - base.z);
-    if (far < 350) return;
-    const sq = squads.find(s => { const c = s.centroid(); return !s.mounted && Math.hypot(c.x - heli.pos.x, c.z - heli.pos.z) < 40 && Math.hypot(c.x - attack.x, c.z - attack.z) > 250 && !this.lifts.has(s); });
+    if ([...this.lifts.keys()].some(k => k.type === 'heli')) return;                    // one helicopter lift at a time: no piecemeal drops
+    if (Math.hypot(attack.x - heli.pos.x, attack.z - heli.pos.z) < 300) return;
+    // a squad around base (just respawned there, or not yet sent far) that would otherwise walk 250 m or more
+    const sq = squads.filter(s => { const c = s.centroid(); return !s.mounted && !this.lifts.has(s) && Math.hypot(c.x - base.x, c.z - base.z) < 150 && Math.hypot(c.x - attack.x, c.z - attack.z) > 250; })
+      .sort((p, q) => Math.hypot(p.centroid().x - heli.pos.x, p.centroid().z - heli.pos.z) - Math.hypot(q.centroid().x - heli.pos.x, q.centroid().z - heli.pos.z))[0];
     if (!sq) return;
-    let [lx, lz] = this.toward(attack, base, 70, 0);
-    for (let k = 0; k < 3 && this.enemiesNear(lx, lz, 80).length; k++) [lx, lz] = this.toward({ x: lx, z: lz }, base, 50, 0);
+    let [lx, lz] = this.toward(base, attack, 70, 0);                                     // 70 m short of the objective, on our side
+    for (let k = 0; k < 3 && this.enemiesNear(lx, lz, 80).length; k++) [lx, lz] = this.toward(base, { x: lx, z: lz }, 50, 0);   // hot: 50 m further back
     if (this.units.nav.vehicle.blocked(lx, lz) || this.enemiesNear(lx, lz, 80).length) return;   // only into a quiet landing zone
     sq.board(heli); sq.tag = 'lift'; this.lifts.set(heli, { sq, lz: [lx, lz], stage: 'board', t: 0 }); this.lifts.set(sq, heli);
+  }
+
+  // Ground lifts: a troop truck, or an APC leaving base, takes a squad that gathers at its tail toward a far objective,
+  // stops on our side of it (out of rocket range of anyone there) and lets them out; a truck then drives home for the
+  // next squad, an APC fights on. True while the lift has the vehicle, so the caller leaves it alone.
+  ride(v, squads, goal, base) {
+    const lift = this.lifts.get(v);
+    if (lift) {
+      const sq = lift.sq, done = () => { this.lifts.delete(v); this.lifts.delete(sq); for (const m of sq.members) m.boardTarget = null; sq.goal = null; };
+      if (!sq.leader || v.dead) { done(); return false; }
+      if (lift.stage === 'board') {
+        const waiting = sq.members.some(m => !m.dead && !m.mounted && m.boardTarget === v);
+        if (v.passengers.length && !waiting) { v.order(lift.drop[0], lift.drop[1]); lift.stage = 'drive'; }
+        else if ((lift.t += 5) > 60) { done(); if (v.passengers.length) v.unload(); return false; }   // the squad never made it: give up
+        return true;
+      }
+      if (!v.passengers.length) { done(); if (v.type === 'truck') v.order(base.x + (Math.random() - 0.5) * 24, base.z + (Math.random() - 0.5) * 24); return false; }
+      if (!v.dest) v.order(lift.drop[0], lift.drop[1]);   // stopped short (backed off from a threat, say): carry on
+      return true;
+    }
+    if (!this.lift || !goal || v.passengers.length || Math.hypot(v.pos.x - base.x, v.pos.z - base.z) > 60 || Math.hypot(goal.x - v.pos.x, goal.z - v.pos.z) < 250) return false;
+    // a squad around base (just respawned there, or not yet sent far) that would otherwise walk 250 m or more
+    const sq = squads.filter(s => { const c = s.centroid(); return !s.mounted && !this.lifts.has(s) && s.aliveCount <= v.seats && Math.hypot(c.x - base.x, c.z - base.z) < 150 && Math.hypot(c.x - goal.x, c.z - goal.z) > 250; })
+      .sort((p, q) => Math.hypot(p.centroid().x - v.pos.x, p.centroid().z - v.pos.z) - Math.hypot(q.centroid().x - v.pos.x, q.centroid().z - v.pos.z))[0];
+    if (!sq) return false;
+    let [dx, dz] = this.toward(base, goal, v.type === 'apc' ? 100 : 120, 0);            // short of the objective, on our side
+    for (let k = 0; k < 3 && this.enemiesNear(dx, dz, 80).length; k++) [dx, dz] = this.toward(base, { x: dx, z: dz }, 50, 0);   // hot: 50 m further back
+    if (this.units.nav.vehicle.blocked(dx, dz) || this.enemiesNear(dx, dz, 80).length) return false;   // only to a quiet drop point
+    sq.board(v); sq.tag = 'lift'; this.lifts.set(v, { sq, drop: [dx, dz], stage: 'board', t: 0 }); this.lifts.set(sq, v);
+    return true;
   }
 
   // no objectives: hunt the enemy's main cluster (milestone 1 behaviour)

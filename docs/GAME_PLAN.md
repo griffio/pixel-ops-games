@@ -876,6 +876,36 @@ Engine changes needed in the existing core:
   hold fire before the first move arrives (unrelated to this change; not an
   issue at 60 fps).
 
+- **Truck and APC transport (2026-10-25).** The user asked what a truck does:
+  nothing (fast, unarmed, carrying nothing; only helicopters took passengers).
+  Seats are now in the spec (`spec.seats`: heli 8, truck 8, APC 4; a supply
+  truck none) and boarding works for any carrier: soldiers walk to a ground
+  vehicle's tail (`boardPoint`) and mount once it is slow (or alongside it if a
+  wall is behind), a carrier given a move order lets them out where it stops
+  (`dropOnArrive`) in a fan behind it, never inside a wall (`exitPoints`), a
+  helicopter where it lands as before; right-click or tap boards
+  (`Input.canBoard`), **U** or the Unload button lets them out at once
+  (stopping a ground vehicle), the selection line shows "n/8 aboard". A
+  destroyed carrier now hands its passengers to the match (`ejected`), which
+  applies the damage through the normal death path: out of a ground vehicle or
+  a landed helicopter they take 20 and usually live, shot down in the air they
+  die; before, a downed helicopter's passengers were killed outside the match
+  and never respawned. Light Infantry may respawn beside a parked troop truck
+  without enemies within 30 m (`truckSpawn`, a reinforcements option). The CPU
+  (`Strategist.ride`): a troop truck at base, or an APC leaving it, takes the
+  nearest squad within 150 m of base that would otherwise walk 250 m or more,
+  drives it to a quiet point short of the objective (120 m truck, 100 m APC,
+  50 m further back for each nearby enemy) and lets it out; the truck goes
+  home, the APC fights on. Fixed on the way: the CPU helicopter lift's landing
+  zone used `toward(attack, base, 70)`, which is 70 m from our own base, not
+  short of the objective, so CPU Chinooks flew squads round their own base; it
+  and the ground lifts now use `toward(base, goal, keep)`, and the helicopter
+  lift takes squads from around base like the trucks (it needed one within
+  40 m of the helicopter, which rarely happened). In a 15-minute Light v Air
+  match the CPU drove one truck run (dropped 121 m short of the Airfield) and
+  flew two helicopter lifts; Air Assault still lost its three test matches, so
+  its weakness lies elsewhere. Touch tests and CPU matches ran clean.
+
 ## Open questions
 
 

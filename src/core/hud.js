@@ -71,7 +71,7 @@ export class Hud {
       this.modeShown = true; document.querySelector('#match .small').textContent = m.mode.constructor.name + (m.mode.constructor.sides ? (m.mode.attacker === (this.app.playerTeam ?? 0) ? ' · attacking' : ' · defending') : '') + (m.cpu && m.cpu.length === 1 ? ` · ${m.difficulty.name} CPU` : '');
       document.querySelector('#match .t0 .nm').innerHTML = `BLUFOR<br><em>${t0.doctrine.name}</em>`; document.querySelector('#match .t1 .nm').innerHTML = `OPFOR<br><em>${t1.doctrine.name}</em>`;
       for (const id of ['minimap', 'objs', 'match', 'reinf-h', 'reinf']) $(id).style.display = ''; this.mmHidden = false;
-      $('reinf-h').insertAdjacentHTML('afterend', `<select id="spawn-pref"><option value="auto">spawn nearest the squad</option><option value="base">spawn at main base</option>${t0.doctrine.heliSpawn ? '<option value="heli">spawn beside idle helicopter</option>' : ''}</select>`); $('spawn-pref').addEventListener('change', e => { t0.spawnPref = e.target.value; });
+      $('reinf-h').insertAdjacentHTML('afterend', `<select id="spawn-pref"><option value="auto">spawn nearest the squad</option><option value="base">spawn at main base</option>${t0.doctrine.heliSpawn ? '<option value="heli">spawn beside idle helicopter</option>' : ''}${t0.doctrine.truckSpawn ? '<option value="truck">spawn beside a parked truck</option>' : ''}</select>`); $('spawn-pref').addEventListener('change', e => { t0.spawnPref = e.target.value; });
     }
 
     const feed = $('feed'), lines = m.feed.filter(f => f.t < 10), key = lines.map(f => f.id).join(',');
@@ -236,7 +236,7 @@ export class Hud {
     $('sel-n').textContent = list.length === 1 ? list[0].label : `${list.length} UNITS`;
     const how = this.app.touch ? 'tap the ground to move · tap an enemy to attack' : 'right-click to move · F to follow';
     $('sel-d').textContent = list.length === 1
-      ? `${list[0].type} · ${list[0].spec.air ? list[0].state : (list[0].target ? 'moving' : 'idle')} · ${how}`
+      ? `${list[0].type} · ${list[0].spec.air ? list[0].state : (list[0].target ? 'moving' : 'idle')}${list[0].seats ? ` · ${list[0].passengers.length}/${list[0].seats} aboard` : ''} · ${how}`
       : desc + (this.app.touch ? ' · tap the ground to move in formation' : ' · right-click to move in formation');
     this.renderActions(list);
   }
@@ -250,8 +250,8 @@ export class Hud {
     if (sqs.length && m.rallies) { const c = sqs.map(sq => m.rallies.canPlace(sq)), ok = c.some(x => x.ok), why = c.find(x => !x.ok); box.insertAdjacentHTML('beforeend', `<button data-act="rally" ${ok ? '' : 'disabled'} title="${why ? why.reason : ''}">Rally (T)${ok ? '' : ' · ' + why.reason}</button>`); }
     if (eng) { const c = m.fobs.canBuild(eng); box.insertAdjacentHTML('beforeend', `<button data-act="fob" ${c.ok ? '' : 'disabled'} title="${c.reason || ''}">Build FOB (B)${c.ok ? '' : ' · ' + c.reason}</button>`); }
     if (eng) { const c = m.fobs.canBuildSandbags(eng); box.insertAdjacentHTML('beforeend', `<button data-act="sandbags" ${c.ok ? '' : 'disabled'} title="${c.reason || ''}">Sandbags (N)${c.ok ? '' : ' · ' + c.reason}</button>`); }
-    const heli = list.find(u => u.type === 'heli' && !u.dead && u.passengers.length);
-    if (heli) box.insertAdjacentHTML('beforeend', `<button data-act="unload" ${heli.alt > 0.5 ? 'disabled' : ''}>Unload ${heli.passengers.length} (U)</button>`);
+    const car = list.find(u => u.seats && !u.dead && u.passengers.length);
+    if (car) box.insertAdjacentHTML('beforeend', `<button data-act="unload" ${car.alt > 0.5 ? 'disabled' : ''}>Unload ${car.passengers.length} (U)</button>`);
     const kits = m.fobs.kitsLeft(this.app.playerTeam ?? 0); if (eng) box.insertAdjacentHTML('beforeend', `<span class="hint">FOB kits left: ${kits}</span>`);
     box.onclick = (e) => { const b = e.target.closest('button'); if (b) this.action(b.dataset.act); };
   }
@@ -265,7 +265,11 @@ export class Hud {
       this.toast(done.length ? `Rally ${done.join(', ')} placed` : why[0]); if (this.app.audio) this.app.audio.ui(done.length ? 'order' : 'deny');
       if (done.length && m.voices) m.voices.say('vo_sq_rally', 10);
     }
-    if (kind === 'unload') { const heli = sel.find(u => u.type === 'heli' && u.passengers.length); if (!heli) return; if (heli.alt > 0.5) return this.toast('Land first'); heli.unload(); this.toast('Unloaded'); }
+    if (kind === 'unload') {   // a helicopter has to land; a ground vehicle stops where it is
+      const cars = sel.filter(u => u.seats && !u.dead && u.passengers.length); if (!cars.length) return;
+      let n = 0; for (const c of cars) { if (c.alt > 0.5) continue; if (!c.spec.air) { c.dest = null; c.target = null; c.path = null; c.speed = 0; } n += c.passengers.length; c.unload(); }
+      this.toast(n ? `Unloaded ${n}` : 'Land first');
+    }
     this.showSelection(sel);
   }
 

@@ -9,9 +9,9 @@ export const ITEMS = {
   medic:    { kind: 'squad', name: 'Medic squad', cost: 120, kits: ['rifle', 'medic', 'rifle', 'rifle'], desc: 'Revives fallen soldiers nearby' },
   marksman: { kind: 'squad', name: 'Marksman squad', cost: 110, kits: ['marksman', 'rifle', 'rifle', 'rifle'], desc: 'Long range, picks off infantry' },
   engineer: { kind: 'squad', name: 'Engineer squad', cost: 120, kits: ['rifle', 'engineer', 'rifle', 'rifle'], desc: 'Repairs vehicles, builds FOBs' },
-  truck:    { kind: 'vehicle', type: 'truck', name: 'Truck', cost: 60, desc: 'Moves fast, no weapon' },
+  truck:    { kind: 'vehicle', type: 'truck', name: 'Truck', cost: 60, desc: 'Fast, unarmed; carries two squads' },
   supply:   { kind: 'vehicle', type: 'truck', name: 'Supply truck', cost: 80, supply: true, desc: 'Carries FOB supplies' },
-  apc:      { kind: 'vehicle', type: 'apc', name: 'APC', cost: 220, desc: 'Autocannon, 600 hp' },
+  apc:      { kind: 'vehicle', type: 'apc', name: 'APC', cost: 220, desc: 'Autocannon, 600 hp; carries a squad' },
   tank:     { kind: 'vehicle', type: 'tank', name: 'M1 Abrams tank', cost: 380, desc: '120 mm gun, 1,200 hp; thick front armour, weak rear' },
   heli:     { kind: 'vehicle', type: 'heli', name: 'Chinook helicopter', cost: 300, desc: 'Door guns, fast, fragile; carries 8' },
   fob:      { kind: 'kit', name: 'FOB kit', cost: 50, desc: 'One forward operating base an engineer can build near a supply truck' },
@@ -20,7 +20,7 @@ export const ITEMS = {
 export const DOCTRINES = {
   mechanized: { name: 'Mechanized', desc: 'APCs 25% and tanks 15% cheaper, vehicles respawn 30% faster', costMul: { apc: 0.75, tank: 0.85 }, vehicleRespawn: 0.7, infantryRespawn: 1 },
   air:        { name: 'Air Assault', desc: 'Helicopters 35% cheaper; infantry may respawn beside an idle helicopter', costMul: { heli: 0.65 }, vehicleRespawn: 1, infantryRespawn: 1, heliSpawn: true },
-  light:      { name: 'Light Infantry', desc: 'Infantry respawn halved, one extra squad slot', costMul: {}, vehicleRespawn: 1, infantryRespawn: 0.5, squadSlots: 1 },
+  light:      { name: 'Light Infantry', desc: 'Infantry respawn halved, one extra squad slot; infantry may respawn beside a parked truck', costMul: {}, vehicleRespawn: 1, infantryRespawn: 0.5, squadSlots: 1, truckSpawn: true },
   entrenched: { name: 'Entrenched', desc: '+20 tickets for every location captured; FOBs build twice as fast', costMul: {}, vehicleRespawn: 1, infantryRespawn: 1, captureBonus: 20, fobBuild: 0.5 },
 };
 

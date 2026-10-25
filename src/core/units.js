@@ -4,9 +4,9 @@ const rnd = (a, b) => a + rng() * (b - a);
 
 export const SPEC = {
   soldier: { speed: 4.6, turn: 9, accel: 18, label: 'SQ', air: false, hp: 35, nav: 'foot' },   // four rifle hits; infantry are expendable, vehicles are not
-  truck:   { speed: 9.5, turn: 1.1, accel: 5, label: 'TR', air: false, hp: 150, nav: 'vehicle' },
-  apc:     { speed: 8,   turn: 0.9, accel: 4, label: 'AP', air: false, hp: 600, nav: 'vehicle', kit: 'autocannon' },
-  heli:    { speed: 16,  turn: 1.4, accel: 6, label: 'HE', air: true, hp: 300, nav: null, kit: 'doorgun' },
+  truck:   { speed: 9.5, turn: 1.1, accel: 5, label: 'TR', air: false, hp: 150, nav: 'vehicle', seats: 8 },   // two squads (a supply truck carries cargo, not troops)
+  apc:     { speed: 8,   turn: 0.9, accel: 4, label: 'AP', air: false, hp: 600, nav: 'vehicle', kit: 'autocannon', seats: 4 },   // one squad
+  heli:    { speed: 16,  turn: 1.4, accel: 6, label: 'HE', air: true, hp: 300, nav: null, kit: 'doorgun', seats: 8 },
   fob:     { speed: 0,   turn: 0,   accel: 0, label: 'FB', air: false, hp: 300, nav: null, structure: true },
   cache:   { speed: 0,   turn: 0,   accel: 0, label: 'CA', air: false, hp: 250, nav: null, structure: true },
   sandbags: { speed: 0, turn: 0,   accel: 0, label: 'SB', air: false, hp: 1e9, nav: null, structure: true, untargetable: true },   // low cover, not a target
@@ -91,6 +91,7 @@ export class Unit {
     const first = this.path && this.path.length ? this.path[0] : [x, z];
     this.target = new Vec3(first[0], 0, first[1]);
     if (this.spec.air && (this.state === 'parked' || this.state === 'spooldown')) this.state = 'spool';
+    if (!this.spec.air && this.seats) this.dropOnArrive = true;   // passengers get out where it stops
   }
   // No route from here (a vehicle shoved into a pocket between buildings): drive straight to the nearest cell from which the goal
   // can be reached, along a line that clears buildings by half the usual margin, then follow the route from there.
@@ -113,15 +114,37 @@ export class Unit {
   }
 
   // ---- transport ---------------------------------------------------------
-  board(heli) { if (this.type !== 'soldier' || this.dead || this.mounted) return; this.boardTarget = heli; this.boardT = 0; this.order(heli.pos.x, heli.pos.z + 3); }
-  mount(heli) {
-    this.mounted = heli; heli.passengers.push(this); this.boardTarget = null; this.group.visible = false;
+  // Helicopters, trucks and APCs carry soldiers (spec.seats; a supply truck carries cargo). Soldiers walk to the carrier,
+  // a helicopter's side or a ground vehicle's tail, and get in once it has landed or stopped; a ground vehicle given a
+  // move order lets them out where it stops (dropOnArrive), a helicopter where it lands (dropOnLand).
+  get seats() { return this.supply ? 0 : this.spec.seats || 0; }
+  boardPoint(c) {
+    if (c.spec.air) return [c.pos.x, c.pos.z + 3];
+    return [c.pos.x - Math.sin(c.heading) * 4.5, c.pos.z - Math.cos(c.heading) * 4.5];   // the tail: the APC's ramp, the truck's tailgate
+  }
+  board(c) { if (this.type !== 'soldier' || this.dead || this.mounted) return; this.boardTarget = c; this.boardT = 0; const [x, z] = this.boardPoint(c); this.order(x, z); }
+  mount(c) {
+    this.mounted = c; c.passengers.push(this); this.boardTarget = null; this.group.visible = false;
     this.target = null; this.dest = null; this.path = null; this.hold = false; this.enemy = null; this.speed = 0;
   }
-  unload() {   // helicopter: put passengers down around the airframe
+  // where passengers stand once out: round a helicopter, in a fan behind a ground vehicle; never inside a wall
+  exitPoints(n) {
+    const out = [], w = this.mgr && this.mgr.world, free = (x, z) => !w || !w.isBlocked(x, z, 0.5), h = this.heading;
+    const air = this.spec.air, cands = [];
+    for (let k = 0; k < 24; k++) {
+      const ring = Math.floor(k / 8), i = k % 8;
+      if (air) { const a = i / 8 * Math.PI * 2 + ring * 0.4, r = 5 + ring * 1.5; cands.push([this.pos.x + Math.cos(a) * r, this.pos.z + Math.sin(a) * r, a]); }
+      else { const side = (i - 3.5) * 1.1, back = 4.5 + ring * 1.4; cands.push([this.pos.x - Math.sin(h) * back + Math.cos(h) * side, this.pos.z - Math.cos(h) * back - Math.sin(h) * side, h + Math.PI]); }
+    }
+    for (const c of cands) if (out.length < n && free(c[0], c[1])) out.push(c);
+    while (out.length < n) out.push([this.pos.x, this.pos.z, h]);
+    return out;
+  }
+  unload() {
     const n = this.passengers.length; if (!n) return;
-    this.passengers.forEach((p, i) => { const a = i / n * Math.PI * 2; p.mounted = null; p.group.visible = true; p.pos.set(this.pos.x + Math.cos(a) * 5, this.pos.y, this.pos.z + Math.sin(a) * 5); p.heading = a; p.group.rotation.y = a; });
-    this.passengers = [];
+    const pts = this.exitPoints(n), y = this.spec.air ? this.pos.y : (this.mgr ? this.mgr.world.heightAt(this.pos.x, this.pos.z) : this.pos.y);
+    this.passengers.forEach((p, i) => { const [x, z, a] = pts[i]; p.mounted = null; p.group.visible = true; p.pos.set(x, y, z); p.heading = a; p.group.rotation.y = a; });
+    this.passengers = []; this.dropOnArrive = false;
   }
 
   damage(amount, from) {
@@ -133,7 +156,13 @@ export class Unit {
   die(from) {
     this.dead = true; this.deathT = 0; this.enemy = null; this.target = null; this.path = null; this.dest = null; this.hold = false; this.boardTarget = null; this.building = null;
     this.killer = from || null; this.parts.ring.visible = false;
-    if (this.passengers.length) { const ps = this.passengers; this.passengers = []; for (const p of ps) { p.mounted = null; p.group.visible = true; p.pos.set(this.pos.x, this.pos.y, this.pos.z); p.damage(9999, from); } }
+    // passengers: out of a ground vehicle (or a landed helicopter) shaken and hurt, lost with a helicopter shot down in the
+    // air; the match applies the damage (Match: ejected) so a death is counted and respawned like any other
+    if (this.passengers.length) {
+      const lethal = this.spec.air && this.alt > 2, pts = this.exitPoints(this.passengers.length);
+      this.ejected = this.passengers.map((p, i) => { p.mounted = null; p.group.visible = true; p.pos.set(pts[i][0], p.pos.y, pts[i][1]); return { p, dmg: lethal ? 9999 : 20 }; });
+      this.passengers = [];
+    }
     if (this.boardTarget) this.boardTarget = null;
     if (this.spec.air && this.alt > 0.1) { this.state = 'crash'; this.speed *= 0.5; return; }
     this.speed = 0;
@@ -338,11 +367,13 @@ export class Unit {
     if (this.mounted) { this.pos.copy(this.mounted.pos); return; }
     if (this.boardTarget) {
       const h = this.boardTarget;
-      if (h.dead || h.passengers.length >= 8) this.boardTarget = null;
-      else if (Math.hypot(h.pos.x - this.pos.x, h.pos.z - this.pos.z) < 5 && h.alt < 0.5) { this.mount(h); return; }
-      else if ((this.boardT += dt) > 1.5 && !this.dest) { this.boardT = 0; this.order(h.pos.x, h.pos.z + 3); }
+      const [bx, bz] = this.boardPoint(h), settled = h.spec.air ? h.alt < 0.5 : Math.abs(h.speed) < 1.5;
+      if (h.dead || h.passengers.length >= h.seats) this.boardTarget = null;
+      else if ((Math.hypot(bx - this.pos.x, bz - this.pos.z) < 2.5 || Math.hypot(h.pos.x - this.pos.x, h.pos.z - this.pos.z) < h.radius + 2.2) && settled) { this.mount(h); return; }   // at the tail, or alongside if a wall is behind it
+      else if ((this.boardT += dt) > 1.5 && (!this.dest || Math.hypot(this.dest.x - bx, this.dest.z - bz) > 3)) { this.boardT = 0; this.order(bx, bz); }   // it moved: follow it
     }
     this.spec.air ? this.stepAir(dt, world) : this.stepGround(dt, world);
+    if (this.dropOnArrive && !this.dest && Math.abs(this.speed) < 0.3) { this.dropOnArrive = false; if (this.passengers.length) this.unload(); }   // a ground carrier stopped where it was sent
   }
 }
 
@@ -360,7 +391,7 @@ export class Squad {
     for (const m of this.members) { if (m.dead) continue; const [ox, oz] = offs[i++ % offs.length]; m.order(x + ox * c + oz * s, z - ox * s + oz * c); }
   }
   get busy() { return this.members.some(m => !m.dead && (m.dest || m.boardTarget)); }
-  board(heli) { for (const m of this.members) if (!m.dead && !m.mounted) m.board(heli); }
+  board(c) { for (const m of this.members) if (!m.dead && !m.mounted) m.board(c); }
   get mounted() { const a = this.members.filter(m => !m.dead); return a.length > 0 && a.every(m => m.mounted); }
   get engineer() { return this.members.find(m => !m.dead && m.kit === 'engineer') || null; }
   centroid() { const a = this.members.filter(m => !m.dead); const c = new Vec3(); for (const m of a) c.add(m.pos); return c.multiplyScalar(1 / (a.length || 1)); }

@@ -1,6 +1,6 @@
 // Touch gestures layered on Input. One finger: drag pans (with a fling), a tap on a
 // friendly unit selects it, a tap anywhere else orders the selection there (an enemy:
-// attack-move; a landed helicopter: board), a hold does the same, and a hold with
+// attack-move; a friendly helicopter, truck or APC with infantry selected: board), a hold does the same, and a hold with
 // nothing selected starts a box select. The toolbar's Clear drops the selection. Two fingers: pinch zoom about the
 // midpoint, twist to rotate, midpoint drag pans. Three fingers: drag up/down to tilt.
 // Pens follow the one-finger rules. Camera changes made by gestures apply at once
@@ -114,7 +114,7 @@ export class TouchInput {
     if (u && u.team === me && this.lastTap && this.lastTap.u === u && now - this.lastTap.t < this.doubleMs) { inp.selectType(u.type); this.lastTap = null; return; }   // double-tap: all of that type on screen
     this.lastTap = { t: now, u };
     // with units selected, a tap off our own units is an order (boarding a landed helicopter counts as an order too)
-    const board = u && u.type === 'heli' && u.team === me && inp.selected.some(s => s.type === 'soldier');
+    const board = inp.canBoard(u);
     if (inp.selected.length && (!u || u.team !== me || board)) { inp.issueOrder(nx, ny, PICK_RADIUS); if (navigator.vibrate) navigator.vibrate(10); return; }
     inp.clickSelect(nx, ny, false, PICK_RADIUS);
     if (u && u.team === me && !this.hinted) { this.hinted = true; this.app.hud.toast('Tap the ground to move there'); }

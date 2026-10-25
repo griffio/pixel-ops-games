@@ -66,9 +66,20 @@ the rally, or the whole squad once it is wiped out, come back there on the
 rally's 30 s wave if they have been down at least 10 s, still 1 ticket each.
 Any enemy within 18 m burns it. The CPU drops rallies once its squads reach the
 area they were sent to, so expect to hunt them. Destroying a FOB radio costs its owner
-20 tickets, so the CPU raids yours and defends its own. With infantry selected,
-right-click a friendly landed helicopter to board it, then order the helicopter
-somewhere: it unloads on landing (**U** unloads a parked helicopter). An engineer
+20 tickets, so the CPU raids yours and defends its own.
+
+**Transport.** Helicopters and trucks carry eight soldiers (two squads), an APC
+four (one squad); a supply truck carries cargo, not troops. With infantry
+selected, right-click (or tap) a friendly helicopter, truck or APC: the soldiers
+walk to it (a ground vehicle's tail) and get in once it has stopped or landed, and
+anyone past the seats stays behind. Order the vehicle somewhere and they get out
+where it stops, or where a helicopter lands; **U** (or the Unload button) lets
+them out at once, stopping a ground vehicle where it is. A truck or APC destroyed
+with troops aboard throws them out hurt; a helicopter shot down in the air takes
+them with it. Under Light Infantry, infantry may respawn beside a parked truck
+(the reinforcements panel). The CPU uses its trucks to ferry a squad from around
+base toward a far objective, stopping 120 m short, and an APC leaving base takes
+a squad with it; its helicopters do the same, landing 70 m short. An engineer
 beside a supply truck can also throw up a **sandbag position** (**N**, 12
 supplies, about 12 seconds, up to eight per side): a U of bags open to the rear
 that a squad fits inside, half as likely to be hit from the front and sides,
@@ -142,7 +153,7 @@ Touch and pen pointers go to a gesture layer; a mouse or trackpad keeps the tabl
 | Gesture | Action |
 |---|---|
 | Tap a unit | Select it (its whole squad) |
-| Tap the ground (with a selection) | Move the selection there; tap an enemy to attack-move, a landed friendly helicopter to board it |
+| Tap the ground (with a selection) | Move the selection there; tap an enemy to attack-move, a friendly helicopter, truck or APC to board it |
 | Double-tap a unit | Select every friendly unit of that type on screen |
 | Hold on the ground | The same order as a tap (the ring fills in 0.45 s) |
 | Hold with nothing selected, then drag | Box select |
