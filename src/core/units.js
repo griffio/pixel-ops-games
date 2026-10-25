@@ -14,6 +14,7 @@ export const SPEC = {
   rally:    { speed: 0, turn: 0,   accel: 0, label: 'RP', air: false, hp: 1e9, nav: null, structure: true, untargetable: true },   // a squad's spawn: burned by enemies close by, not shot
 };
 const counters = {}; let pickSeq = 0;
+const LANDED = 90;   // seconds a soldier a helicopter set down counts as freshly landed (Air Assault captures)
 
 // ---- soldier arms -------------------------------------------------------------
 // Euler XYZ rotation of a vector, in the order Mat4.fromTRS and three.js compose it (z, then y, then x).
@@ -70,7 +71,7 @@ export class Unit {
     this.kit2 = spec.kit2 || null; this.cooldown2 = 0; this.burst2 = 0;   // a second weapon on the same turret (the tank's coax MG)
     this.stance = 'stand'; this.supp = 0; this.kneelK = 0; this.proneK = 0; this.aimK = 0;   // infantry: suppression 0..1 and the pose blends it drives
     this.dead = false; this.deathT = 0; this.wreck = false; this.remove = false;
-    this.mounted = null; this.passengers = []; this.boardTarget = null; this.supplies = 0;
+    this.mounted = null; this.passengers = []; this.boardTarget = null; this.supplies = 0; this.landedT = 0;
     this.alt = 0; this.altT = 0; this.rotor = 0; this.rotorT = 0; this.state = 'parked'; this.tilt = 0; this.bank = 0;
     this.id = (counters[type] = (counters[type] || 0) + 1);
     this.label = `${spec.label}-${String(this.id).padStart(2, '0')}`;
@@ -143,7 +144,7 @@ export class Unit {
   unload() {
     const n = this.passengers.length; if (!n) return;
     const pts = this.exitPoints(n), y = this.spec.air ? this.pos.y : (this.mgr ? this.mgr.world.heightAt(this.pos.x, this.pos.z) : this.pos.y);
-    this.passengers.forEach((p, i) => { const [x, z, a] = pts[i]; p.mounted = null; p.group.visible = true; p.pos.set(x, y, z); p.heading = a; p.group.rotation.y = a; });
+    this.passengers.forEach((p, i) => { const [x, z, a] = pts[i]; p.mounted = null; p.group.visible = true; p.pos.set(x, y, z); p.heading = a; p.group.rotation.y = a; p.landedT = this.spec.air ? LANDED : 0; });
     this.passengers = []; this.dropOnArrive = false;
   }
 
@@ -176,7 +177,7 @@ export class Unit {
   // revive at a position (infantry respawn reuses the object so squads keep their members)
   revive(x, z, heading) {
     this.dead = false; this.hp = this.maxHp; this.pos.set(x, 0, z); this.heading = heading; this.group.rotation.set(0, heading, 0);
-    this.group.visible = true; this.speed = 0; this.enemy = null; this.target = null; this.path = null; this.dest = null; this.deathT = 0; this.reviveT = 0; this.hold = false; this.boardTarget = null; this.mounted = null;
+    this.group.visible = true; this.speed = 0; this.enemy = null; this.target = null; this.path = null; this.dest = null; this.deathT = 0; this.reviveT = 0; this.hold = false; this.boardTarget = null; this.mounted = null; this.landedT = 0;
   }
 
   stepDead(dt) {
@@ -365,6 +366,7 @@ export class Unit {
     if (this.dead) { this.stepDead(dt); return; }
     if (this.spec.structure) { this.pos.y = world.heightAt(this.pos.x, this.pos.z); return; }   // structures sit on the terrain
     if (this.mounted) { this.pos.copy(this.mounted.pos); return; }
+    if (this.landedT > 0) this.landedT -= dt;   // fresh off a helicopter: counts double in a capture zone under Air Assault (Objectives)
     if (this.boardTarget) {
       const h = this.boardTarget;
       const [bx, bz] = this.boardPoint(h), settled = h.spec.air ? h.alt < 0.5 : Math.abs(h.speed) < 1.5;

@@ -19,7 +19,7 @@ export const ITEMS = {
 
 export const DOCTRINES = {
   mechanized: { name: 'Mechanized', desc: 'APCs 25% and tanks 15% cheaper, vehicles respawn 30% faster', costMul: { apc: 0.75, tank: 0.85 }, vehicleRespawn: 0.7, infantryRespawn: 1 },
-  air:        { name: 'Air Assault', desc: 'Helicopters 35% cheaper; infantry may respawn beside an idle helicopter', costMul: { heli: 0.65 }, vehicleRespawn: 1, infantryRespawn: 1, heliSpawn: true },
+  air:        { name: 'Air Assault', desc: 'Helicopters 35% cheaper and back in half the time; troops a helicopter lands capture twice as fast for 90 s; +10 tickets for every location captured; infantry may respawn beside an idle helicopter', costMul: { heli: 0.65 }, vehicleRespawn: 1, heliRespawn: 0.5, infantryRespawn: 1, heliSpawn: true, airCapture: 2, captureBonus: 10 },
   light:      { name: 'Light Infantry', desc: 'Infantry respawn halved, one extra squad slot; infantry may respawn beside a parked truck', costMul: {}, vehicleRespawn: 1, infantryRespawn: 0.5, squadSlots: 1, truckSpawn: true },
   entrenched: { name: 'Entrenched', desc: '+20 tickets for every location captured; FOBs build twice as fast', costMul: {}, vehicleRespawn: 1, infantryRespawn: 1, captureBonus: 20, fobBuild: 0.5 },
 };
@@ -58,15 +58,17 @@ export function expand(l) {
 export const clone = (l) => ({ doctrine: l.doctrine, items: { ...l.items } });
 export const preset = (key) => clone(PRESETS[key] || PRESETS.balanced);
 
-// The CPU reads the player's force and answers it.
+// The CPU reads the player's force and answers it. It never picks Air Assault: that doctrine pays for landing troops
+// on undefended objectives, which the CPU does poorly, and in CPU-vs-CPU tests it lost every match (docs/GAME_PLAN.md).
 export function counterPick(player, rnd = Math.random) {
   const n = (k) => (player.items && player.items[k]) || 0;
   const squads = Object.keys(ITEMS).filter(k => ITEMS[k].kind === 'squad').reduce((s, k) => s + n(k), 0);
   if (n('apc') >= 2 || n('tank') >= 1) return 'defensive';
   if (n('heli') >= 2) return 'light';
   if (player.doctrine === 'light' || squads >= 7) return 'mechanized';
-  if (player.doctrine === 'entrenched') return 'air';
-  return ['balanced', 'mechanized', 'air', 'armoured'][Math.floor(rnd() * 4)];
+  if (player.doctrine === 'entrenched') return 'armoured';   // a tank against dug-in positions
+  const pool = ['balanced', 'mechanized', 'armoured'];
+  return pool[Math.floor(rnd() * pool.length)];
 }
 
 const KEY = 'pixelops.loadout';

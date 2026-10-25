@@ -42,6 +42,7 @@ spawn during the match and set the respawn timers.
 The CPU picks from archetype loadouts (Mechanized, Air Assault, Light Infantry,
 Defensive) and counter-picks against the player's choice (for example more
 anti-tank if the player goes Mechanized). Loadouts save to localStorage.
+(Since 2026-10-25 the CPU never picks Air Assault; see Status.)
 
 ### Combat model
 - Weapons: range, rate, damage vs infantry / vs vehicle, accuracy falloff.
@@ -905,6 +906,66 @@ Engine changes needed in the existing core:
   match the CPU drove one truck run (dropped 121 m short of the Airfield) and
   flew two helicopter lifts; Air Assault still lost its three test matches, so
   its weakness lies elsewhere. Touch tests and CPU matches ran clean.
+
+- **Why Air Assault kept losing (2026-10-25).** An in-page probe (kills by
+  killer type, ticket losses, respawn sources, helicopter time by state) over
+  Air v Mechanized and Air v Balanced found the CPU's two Chinooks parked at main
+  for 89-100% of every match (the second never flew in six matches; the first
+  flew 0-2 lifts) with no kills: a third of the budget doing nothing. The lift
+  needed a whole squad within 150 m of base, but squads walk out at the start
+  and later respawn at rallies and FOBs. The doctrine's perk was dead too: the
+  auto spawn (and the README) counted an idle helicopter as a spawn point, but
+  the code only used it when the player forced the helicopter option, so the
+  CPU never had it. Two more leaks showed up: the CPU sent its supply truck to
+  dig sandbags in a location under attack, where the enemy APC killed it, two
+  to seven times a match at 16 tickets each; and a squad wiped out with no rally
+  always came back at main base (52 of 80 Air respawns in one match), 600 m
+  from the fight. Fixes: `Respawn.carriers()` (idle helicopters under Air
+  Assault, parked troop trucks under Light Infantry, none with an enemy within
+  30 m) join main and FOBs as auto spawns and in the rally comparison, and the
+  forced options take the one nearest the squad; a wiped squad's spawn is the
+  one nearest where the soldier fell. `Strategist.air()` now ferries
+  individual soldiers from around main (`riders`: anyone whose way to their
+  squad passes the landing zone and saves 150 m, not the FOB builders), waits
+  up to 15 s to fill and sends each back to his squad on landing; under Air
+  Assault one helicopter perches 130 m short of the objective (`perchAt`: no
+  enemies within 100 m, no armour within 180 m), and `caution()` lifts it off
+  within a second when it is hit or enemies come within 70 m or armour within
+  160 m. Supply trucks drive home when enemy armour is within 120 m or enemies
+  within 40 m, and no FOB or sandbag job goes to a site within 150 m of enemy
+  armour. Result over the three test matchups: Air's truck losses 2-7 a match
+  to none, helicopter losses none, two of three went the full 25 minutes, but
+  Air still lost all three (the 47-290 to 34-240 range). Not the force mix: one
+  Chinook plus a support squad and a truck, or a second AT squad in place of
+  the medic and FOB kit, lost the same way. The doctrine: Balanced's own force
+  under Air Assault lost to Balanced from both sides (0-238, 17-256) while the
+  Balanced mirror went 169-190, so Entrenched's +20 tickets a capture and
+  faster FOBs outweigh cheaper helicopters and the helicopter spawn. Balanced v
+  Armoured over seven matches after the changes went 5-2 to Armoured (4-4
+  before): within the run-to-run noise of single matches, but worth watching.
+  The user chose to make helicopters pay off more: under Air Assault a
+  helicopter now respawns in half the time (`heliRespawn: 0.5`, 60 s), and a
+  soldier a helicopter sets down counts two toward capture for 90 s
+  (`Unit.landedT`, `airCapture: 2`, `captureWeight()` in Advance and Secure,
+  Invasion and Territory; zones still cap at eight). CPU v CPU it changed
+  nothing: Air lost all seven test matches (v Mechanized x3, Balanced x2, Light
+  x2), flying one to six lifts a match and losing at most one helicopter. The
+  perks pay only when helicopters die or land troops on a quiet objective, and
+  the CPU loses the infantry fight for the contested middle, where a zone with
+  both sides in it does not move at all.
+  On top of that, Air Assault took half of Entrenched's ticket perk (+10 a
+  location captured, `captureBonus: 10`). Still 0-7 over the same matchups: Air
+  captured only two or three locations a match (its own first two, at most one
+  more), so the perk paid 20-30 tickets, and it lost 1.3-3.8 soldiers for every
+  enemy soldier (107-34, 245-153, 186-105, 242-185, 140-37, 450-277, 351-143).
+  What decides CPU matches is the infantry fight at the middle location, and
+  forces without armour lose it to forces with an APC (Light Infantry loses to
+  Mechanized the same way).
+  Decision (user): keep both perks for human players, who can land troops on
+  undefended objectives, and stop the CPU picking a doctrine it cannot play.
+  `counterPick` now answers Entrenched with Armoured (a tank against dug-in
+  positions, was Air Assault) and draws its random pick from Balanced,
+  Mechanized and Armoured; `?cpuloadout=air` still forces it for tests.
 
 ## Open questions
 

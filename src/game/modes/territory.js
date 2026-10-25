@@ -1,5 +1,6 @@
 import { Mode } from './base.js';
 import { RULES } from '../rules.js';
+import { captureWeight } from '../objectives.js';
 
 // Territory Control: a hex grid over the map. A hex can be captured when it touches
 // one you own; holding more hexes bleeds the enemy; 80% of the land wins outright.
@@ -13,7 +14,7 @@ export class Territory extends Mode {
       const x = R * 1.5 * q, z = w * (r + q / 2);
       if (Math.abs(x) > half - 30 || Math.abs(z) > half - 30) continue;
       const land = !(m.world.terrain && m.world.terrain.underwater(x, z));
-      const h = { q, r, x, z, owner: -1, progress: 0, land, n: [0, 0] }; this.hexes.push(h); byKey.set(q + ',' + r, h);
+      const h = { q, r, x, z, owner: -1, progress: 0, land, n: [0, 0], w: 0 }; this.hexes.push(h); byKey.set(q + ',' + r, h);
     }
     for (const h of this.hexes) h.adj = [[1, 0], [-1, 0], [0, 1], [0, -1], [1, -1], [-1, 1]].map(([dq, dr]) => byKey.get((h.q + dq) + ',' + (h.r + dr))).filter(Boolean);
     for (const t of this.teams) { const b = this.hexAt(t.base.x, t.base.z); b.owner = t.id; b.progress = t.id === 0 ? 100 : -100; b.home = t.id; }
@@ -23,13 +24,13 @@ export class Territory extends Mode {
   owned(team) { return this.hexes.filter(h => h.owner === team).length; }
   capturable(team, h) { return h.home === undefined && h.land && h.adj.some(a => a.owner === team); }
   tick(dt) {
-    for (const h of this.hexes) h.n[0] = h.n[1] = 0;
-    for (const u of this.units.units) { if (u.dead || u.mounted || u.spec.structure || (u.spec.air && u.alt > 1)) continue; const h = this.hexAt(u.pos.x, u.pos.z); h.n[u.team]++; }
+    for (const h of this.hexes) h.n[0] = h.n[1] = h.w = 0;
+    for (const u of this.units.units) { if (u.dead || u.mounted || u.spec.structure || (u.spec.air && u.alt > 1)) continue; const h = this.hexAt(u.pos.x, u.pos.z); h.n[u.team]++; h.w += captureWeight(u, this.teams); }
     for (const h of this.hexes) {
       const [n0, n1] = h.n; if ((n0 && n1) || (!n0 && !n1) || h.home !== undefined) continue;
       const team = n0 ? 0 : 1; if (h.owner === team || !this.capturable(team, h)) continue;
       const sign = team === 0 ? 1 : -1;
-      h.progress = Math.max(-100, Math.min(100, h.progress + sign * Math.min(8, n0 || n1) * RULES.captureRate * 1.6 * dt));
+      h.progress = Math.max(-100, Math.min(100, h.progress + sign * Math.min(8, h.w) * RULES.captureRate * 1.6 * dt));
       if (h.owner === 1 - team && sign * h.progress >= 0) { const loser = h.owner; h.owner = -1; this.match.event({ type: 'hex lost', team: loser }); }
       if (h.owner !== team && Math.abs(h.progress) >= 100) { h.owner = team; }
     }

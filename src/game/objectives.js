@@ -1,5 +1,9 @@
 import { RULES } from './rules.js';
 
+// What a unit counts for in a capture zone: one, or the doctrine's airCapture (two under Air Assault) while it is fresh
+// off a helicopter (Unit.landedT). Zones cap the count at eight.
+export const captureWeight = (u, teams) => { const d = u.landedT > 0 && teams[u.team].doctrine; return (d && d.airCapture) || 1; };
+
 // Capture zones for Advance and Secure. progress runs -100 (OPFOR owned) .. +100
 // (BLUFOR owned); a team can only capture the next location in its lattice order.
 export class Objectives {
@@ -20,11 +24,11 @@ export class Objectives {
   tick(dt, spatial) {
     for (const loc of this.list) {
       const list = spatial.query(loc.x, loc.z, loc.r, this.scratch);
-      let n0 = 0, n1 = 0;
-      for (const u of list) { if (u.dead || u.mounted || u.spec.structure || (u.spec.air && u.alt > 1)) continue; u.team === 0 ? n0++ : n1++; }
+      let n0 = 0, n1 = 0, w = 0;
+      for (const u of list) { if (u.dead || u.mounted || u.spec.structure || (u.spec.air && u.alt > 1)) continue; u.team === 0 ? n0++ : n1++; w += captureWeight(u, this.teams); }
       loc.n[0] = n0; loc.n[1] = n1;
       if ((n0 && n1) || (!n0 && !n1)) continue;
-      const team = n0 ? 0 : 1, n = Math.min(8, n0 || n1);
+      const team = n0 ? 0 : 1, n = Math.min(8, w);
       if (!this.capturable(team, loc)) continue;
       const before = loc.progress, sign = team === 0 ? 1 : -1;
       loc.progress = Math.max(-100, Math.min(100, loc.progress + sign * n * RULES.captureRate * dt));

@@ -6,6 +6,7 @@ export class Strategist {
   constructor(team, units, teams, match) { this.team = team; this.units = units; this.teams = teams; this.match = match; this.timer = 1 + Math.random() * 2; this.reflex = 0.5; this.plan = null; this.remote = null; this.utility = null; this.posture = 'balanced'; this.prefer = 'fob'; this.lift = true; this.lifts = new Map(); this.diff = match.difficulty || { plan: 5, attackShare: 0, logistics: true }; }
 
   enemiesNear(x, z, r) { return this.units.units.filter(u => !u.dead && !u.mounted && u.team !== this.team && !(u.spec.air && u.alt > 2) && Math.hypot(u.pos.x - x, u.pos.z - z) < r); }
+  armourNear(x, z, r) { return this.units.units.some(e => !e.dead && e.team !== this.team && (e.type === 'apc' || e.type === 'tank') && Math.hypot(e.pos.x - x, e.pos.z - z) < r); }
   friendsNear(x, z, r) { return this.units.units.filter(u => !u.dead && !u.mounted && u.team === this.team && Math.hypot(u.pos.x - x, u.pos.z - z) < r); }
   cluster(list) {
     let best = null, bestN = -1;
@@ -25,9 +26,9 @@ export class Strategist {
     if ((this.reflex -= dt) <= 0) { this.reflex = 1; this.caution(); }
     this.timer -= dt; if (this.timer > 0) return; this.timer = this.diff.plan + Math.random() * 2;
     const base = this.teams[this.team].base;
-    // drop lifts whose helicopter or squad is gone, so squads return to the pool
-    // (lift keys are carriers, which are units with a type, and squads)
-    for (const [k, v] of [...this.lifts]) { const heli = k.type ? k : v, sq = k.type ? v.sq : k; if (!heli || heli.dead || !sq || !sq.leader) { this.lifts.delete(k); if (sq) for (const m of sq.members) m.boardTarget = null; } }
+    // drop lifts whose carrier or troops are gone, so squads return to the pool
+    // (lift keys are carriers, which are units with a type, and the squads riding them whole)
+    for (const [k, v] of [...this.lifts]) if (k.type && (k.dead || (v.sq ? !v.sq.leader : v.riders.length && !k.passengers.length && v.riders.every(m => m.dead)))) this.endLift(k);
     const squads = this.units.squads.filter(s => s.team === this.team && s.leader && !this.lifts.has(s) && !s.members.some(m => m.building) && !(s.pinUntil > this.match.elapsed));   // pinned squads (in cover from armour, or stalking it) keep doing that
     const vehicles = this.units.units.filter(u => u.team === this.team && !u.dead && !u.squad && !u.spec.structure);
     const myFobs = this.units.units.filter(u => u.type === 'fob' && u.team === this.team && !u.dead).map(f => ({ x: f.pos.x, z: f.pos.z, r: 18, index: 'fob' + f.id }));
@@ -92,6 +93,9 @@ export class Strategist {
       else holdAt(sq, hold);
     });
     this.placeRallies(squads);
+    // Air Assault: one helicopter parks behind the place we're pushing for, as a spawn point
+    if (this.percher && (this.percher.dead || (this.lifts.get(this.percher) || {}).stage !== 'perch')) this.percher = null;
+    const front = attack || hold, perch = this.teams[this.team].doctrine.heliSpawn && front && Math.hypot(front.x - base.x, front.z - base.z) >= 300 ? this.perchAt(base, front) : null;
     for (const v of vehicles) {
       if (v.type === 'apc' || v.type === 'tank') {
         const goal = attack || hold; if (!goal) continue;
@@ -105,7 +109,7 @@ export class Strategist {
         else [x, z] = this.inZone(goal.x, goal.z, goal, 0.8);
         if (v.dest && v.goal && Math.hypot(v.goal[0] - x, v.goal[1] - z) < 12) continue;
         v.goal = [x, z]; v.order(x, z);
-      } else if (v.type === 'heli') this.air(v, free, attack, base);
+      } else if (v.type === 'heli') this.air(v, attack, base, perch);
       else if (v.type === 'truck' && !v.supply) { if (!this.ride(v, free, attack, base) && !v.dest && Math.hypot(v.pos.x - base.x, v.pos.z - base.z) > 40) v.order(base.x + (Math.random() - 0.5) * 24, base.z + (Math.random() - 0.5) * 24); }   // a troop truck between runs waits at base
     }
   }
@@ -210,6 +214,20 @@ export class Strategist {
       const [e, d] = nearest(v.pos.x, v.pos.z); if (!e || d > 50 * k) continue;
       const [x, z] = away(v.pos.x, v.pos.z, e, keep * k - d); v.goal = [x, z]; v.order(x, z);
     }
+    // soft vehicles: the perched helicopter takes off when it is hit or enemies or armour come close, and a supply truck
+    // with enemy armour within 120 m (or enemies within 40 m) drives home, dropping its job; a lost truck costs 16 tickets
+    const base = this.teams[this.team].base, home = (v) => v.order(base.x + (Math.random() - 0.5) * 24, base.z + (Math.random() - 0.5) * 24);
+    const pl = this.percher && this.lifts.get(this.percher);
+    if (pl && pl.stage === 'perch') {
+      const h = this.percher, hit = h.hp < (pl.hp ?? h.hp); pl.hp = h.hp;
+      if (hit || this.enemiesNear(h.pos.x, h.pos.z, 70).length || this.armourNear(h.pos.x, h.pos.z, 160)) { this.endLift(h); this.percher = null; this.lifts.set(h, { stage: 'return', riders: [], squads: [] }); h.dropOnLand = true; home(h); }
+    }
+    for (const v of this.units.units) {
+      if (v.team !== this.team || v.dead || !v.supply || Math.hypot(v.pos.x - base.x, v.pos.z - base.z) < 80) continue;
+      if (!this.armourNear(v.pos.x, v.pos.z, 120) && !this.enemiesNear(v.pos.x, v.pos.z, 40).length) continue;
+      if (this.plan && this.plan.truck === v) this.plan = null;
+      if (!v.dest || Math.hypot(v.dest.x - base.x, v.dest.z - base.z) > 30) home(v);
+    }
   }
 
   // Logistics: with kits left, a supply truck and an engineer squad, build a FOB one hop
@@ -224,7 +242,7 @@ export class Strategist {
       if (anchor && fobs.kitsLeft(this.team) > 0 && this.prefer !== 'sandbags') {
         const truck = truckTo(anchor); if (!truck) return null;
         const [x, z] = this.toward(anchor, base, Math.hypot(anchor.x - base.x, anchor.z - base.z) - 45, 0);   // 45 m behind the location, towards home
-        if (this.units.nav.vehicle.blocked(x, z) || fobs.active(this.team).some(f => Math.hypot(f.pos.x - x, f.pos.z - z) < RULES.fob.minSpacing)) return null;
+        if (this.units.nav.vehicle.blocked(x, z) || this.armourNear(x, z, 150) || fobs.active(this.team).some(f => Math.hypot(f.pos.x - x, f.pos.z - z) < RULES.fob.minSpacing)) return null;
         this.plan = { kind: 'fob', sq, truck, x, z, t: 0 };
       } else if (hold && fobs.sandbagsOf(this.team).length < RULES.sandbags.max && !fobs.sandbagsOf(this.team).some(s => Math.hypot(s.pos.x - hold.x, s.pos.z - hold.z) < hold.r + 12)) {
         // no kit to spend: dig in at the location we hold, a few metres towards the enemy
@@ -232,6 +250,7 @@ export class Strategist {
         const eb = this.teams[1 - this.team].base, dx = eb.x - hold.x, dz = eb.z - hold.z, d = Math.hypot(dx, dz) || 1;
         let x = hold.x + dx / d * Math.min(10, hold.r * 0.5), z = hold.z + dz / d * Math.min(10, hold.r * 0.5);
         if (this.units.nav.foot.blocked(x, z)) { const c = this.units.nav.foot.nearest(this.units.nav.foot.cellOf(x), this.units.nav.foot.cellOf(z), 10); if (!c) return null; x = this.units.nav.foot.world(c[0]); z = this.units.nav.foot.world(c[1]); }
+        if (this.armourNear(x, z, 150)) return null;                                     // not under the guns of enemy armour: the truck would die there
         this.plan = { kind: 'sandbags', sq, truck, x, z, t: 0 };
       } else return null;
     }
@@ -244,32 +263,75 @@ export class Strategist {
     return p.sq;
   }
 
-  // Air: a parked helicopter at base lifts a squad that gathers beside it when the
-  // objective is far, lands it short of the objective on our side, and flies home.
-  air(heli, squads, attack, base) {
-    const lift = this.lifts.get(heli);
+  endLift(c) {
+    const l = this.lifts.get(c); if (!l) return; this.lifts.delete(c);
+    for (const s of l.sq ? [l.sq] : l.squads) { this.lifts.delete(s); s.goal = null; }
+    for (const m of l.sq ? l.sq.members : l.riders) if (m.boardTarget === c) m.boardTarget = null;
+  }
+  // a point `keep` metres short of `at` on our side, stepped back 50 m at a time while enemies are within r (or, with
+  // armour set, enemy armour within that distance); null when no quiet, open spot is left
+  quietSpot(base, at, keep, r, armour = 0) {
+    const hot = (x, z) => this.enemiesNear(x, z, r).length || (armour && this.armourNear(x, z, armour));
+    let [x, z] = this.toward(base, at, keep, 0);
+    for (let k = 0; k < 3 && hot(x, z); k++) [x, z] = this.toward(base, { x, z }, 50, 0);
+    return this.units.nav.vehicle.blocked(x, z) || hot(x, z) ? null : [x, z];
+  }
+  perchAt(base, at) { return this.quietSpot(base, at, 130, 100, 180); }   // out of sight of the fight, out of autocannon reach
+
+  // Air: a helicopter at base ferries whoever is around it with a long walk ahead (a squad that respawned there,
+  // stragglers going back to their squads), waiting up to 15 s for more to come aboard, lands them 70 m short of the
+  // objective on our side and flies home. Under Air Assault one helicopter instead parks 130 m short (perch) as a
+  // spawn point for the whole side (Respawn: an idle helicopter), and moves when the front moves on (or, in caution(), when threatened).
+  air(heli, attack, base, perch) {
+    const lift = this.lifts.get(heli), parked = heli.state === 'parked', home = (x = base.x, z = base.z) => { heli.dropOnLand = true; heli.order(x + (Math.random() - 0.5) * 16, z + (Math.random() - 0.5) * 16); };
+    const sit = (at) => { this.lifts.set(heli, { stage: 'perch', at, riders: [], squads: [], hp: heli.hp }); this.percher = heli; heli.order(at[0], at[1]); };
     if (lift) {
-      const sq = lift.sq;
-      if (!sq.leader || heli.dead) { this.lifts.delete(heli); this.lifts.delete(sq); return; }
       if (lift.stage === 'board') {
-        if (sq.mounted) { heli.dropOnLand = true; heli.order(lift.lz[0], lift.lz[1]); lift.stage = 'fly'; }
-        else if ((lift.t += 5) > 90) { this.lifts.delete(heli); this.lifts.delete(sq); for (const m of sq.members) m.boardTarget = null; if (heli.passengers.length) heli.unload(); }
+        if (attack && heli.passengers.length < heli.seats) this.riders(heli, lift, attack, base);   // late arrivals (a fresh wave of respawns) climb in too
+        const waiting = lift.riders.some(m => !m.dead && !m.mounted && m.boardTarget === heli), lz = attack ? this.quietSpot(base, attack, 70, 80) : null;
+        lift.t += 5;
+        if (!waiting && heli.passengers.length && (lift.t >= 15 || heli.passengers.length >= heli.seats - 1)) {
+          if (lz) { heli.dropOnLand = true; heli.order(lz[0], lz[1]); lift.stage = 'fly'; } else { this.endLift(heli); heli.unload(); }   // nowhere quiet to land: everyone out
+        } else if (lift.t > 60) { this.endLift(heli); heli.unload(); }                  // they never made it: give up
       } else if (lift.stage === 'fly') {
-        if (heli.state === 'parked' && !heli.passengers.length) { lift.stage = 'return'; sq.goal = null; this.lifts.delete(sq); heli.dropOnLand = true; heli.order(base.x + (Math.random() - 0.5) * 16, base.z + (Math.random() - 0.5) * 16); }
-      } else if (heli.state === 'parked') this.lifts.delete(heli);
+        if (parked && !heli.passengers.length) {                                         // dropped: each one rejoins his squad, then perch or fly home
+          for (const m of lift.riders) { const L = m.squad && m.squad.members.find(o => !o.dead && !o.mounted && !lift.riders.includes(o)); if (!m.dead && L) m.order(L.pos.x + (Math.random() - 0.5) * 3, L.pos.z + (Math.random() - 0.5) * 3); }
+          this.endLift(heli);
+          if (perch && !this.percher) sit(perch); else { this.lifts.set(heli, { stage: 'return', riders: [], squads: [] }); home(); }
+        }
+      } else if (lift.stage === 'perch') {                                              // the front moved on: follow it, or go home (caution() flies it off when threatened)
+        if (!perch) { this.endLift(heli); this.percher = null; this.lifts.set(heli, { stage: 'return', riders: [], squads: [] }); home(); }
+        else if (Math.hypot(perch[0] - lift.at[0], perch[1] - lift.at[1]) > 80) { lift.at = perch; heli.order(perch[0], perch[1]); }
+      } else if (parked) this.lifts.delete(heli);                                        // home again
       return;
     }
-    if (!this.lift || !attack || heli.state !== 'parked' || Math.hypot(heli.pos.x - base.x, heli.pos.z - base.z) > 50) return;
-    if ([...this.lifts.keys()].some(k => k.type === 'heli')) return;                    // one helicopter lift at a time: no piecemeal drops
-    if (Math.hypot(attack.x - heli.pos.x, attack.z - heli.pos.z) < 300) return;
-    // a squad around base (just respawned there, or not yet sent far) that would otherwise walk 250 m or more
-    const sq = squads.filter(s => { const c = s.centroid(); return !s.mounted && !this.lifts.has(s) && Math.hypot(c.x - base.x, c.z - base.z) < 150 && Math.hypot(c.x - attack.x, c.z - attack.z) > 250; })
-      .sort((p, q) => Math.hypot(p.centroid().x - heli.pos.x, p.centroid().z - heli.pos.z) - Math.hypot(q.centroid().x - heli.pos.x, q.centroid().z - heli.pos.z))[0];
-    if (!sq) return;
-    let [lx, lz] = this.toward(base, attack, 70, 0);                                     // 70 m short of the objective, on our side
-    for (let k = 0; k < 3 && this.enemiesNear(lx, lz, 80).length; k++) [lx, lz] = this.toward(base, { x: lx, z: lz }, 50, 0);   // hot: 50 m further back
-    if (this.units.nav.vehicle.blocked(lx, lz) || this.enemiesNear(lx, lz, 80).length) return;   // only into a quiet landing zone
-    sq.board(heli); sq.tag = 'lift'; this.lifts.set(heli, { sq, lz: [lx, lz], stage: 'board', t: 0 }); this.lifts.set(sq, heli);
+    if (!parked) return;
+    const atBase = Math.hypot(heli.pos.x - base.x, heli.pos.z - base.z) < 60;
+    if (atBase && this.lift && attack) {
+      const l = { stage: 'board', riders: [], squads: [], t: 0 };
+      if (this.riders(heli, l, attack, base)) { this.lifts.set(heli, l); return; }
+    }
+    if (perch && !this.percher) sit(perch);
+    else if (!atBase) { this.lifts.set(heli, { stage: 'return', riders: [], squads: [] }); home(); }   // a helicopter parked out on its own goes home
+  }
+  // Soldiers around base whose way to their squad (or to the squad's goal) runs past the landing zone, so the flight saves
+  // them 150 m or more of walking; not a squad holding base or on another lift, nor the engineers off to build a FOB.
+  // They board heli, and a squad riding whole is taken out of the plan until it lands.
+  riders(heli, lift, attack, base) {
+    const lz = this.toward(base, attack, 70, 0), room = heli.seats - heli.passengers.length - lift.riders.filter(m => !m.dead && !m.mounted && m.boardTarget === heli).length;
+    if (room <= 0) return 0;
+    const wantLz = (m) => {
+      const sq = m.squad, rest = sq ? sq.members.filter(o => !o.dead && !o.mounted && Math.hypot(o.pos.x - base.x, o.pos.z - base.z) > 150) : [];
+      const to = sq && sq.goal && sq.tag !== 'home' ? { x: sq.goal[0], z: sq.goal[1] } : rest.length ? rest[0].pos : attack;
+      return Math.hypot(to.x - lz[0], to.z - lz[1]) < Math.hypot(to.x - m.pos.x, to.z - m.pos.z) - 150;
+    };
+    const fresh = this.units.units.filter(m => m.type === 'soldier' && m.team === this.team && !m.dead && !m.mounted && !m.boardTarget && !m.building && !lift.riders.includes(m)
+      && !(m.squad && (this.lifts.has(m.squad) || m.squad.tag === 'home' || (this.plan && this.plan.sq === m.squad))) && Math.hypot(m.pos.x - base.x, m.pos.z - base.z) < 120 && wantLz(m))
+      .sort((a, b) => Math.hypot(a.pos.x - heli.pos.x, a.pos.z - heli.pos.z) - Math.hypot(b.pos.x - heli.pos.x, b.pos.z - heli.pos.z)).slice(0, room);
+    if (!fresh.length || (!lift.riders.length && fresh.length < 2)) return 0;            // not worth a flight for one straggler
+    for (const m of fresh) { m.board(heli); lift.riders.push(m); }
+    for (const s of new Set(fresh.map(m => m.squad).filter(Boolean))) if (!lift.squads.includes(s) && s.members.every(o => o.dead || lift.riders.includes(o))) { lift.squads.push(s); s.tag = 'lift'; this.lifts.set(s, heli); }
+    return fresh.length;
   }
 
   // Ground lifts: a troop truck, or an APC leaving base, takes a squad that gathers at its tail toward a far objective,
@@ -295,10 +357,8 @@ export class Strategist {
     const sq = squads.filter(s => { const c = s.centroid(); return !s.mounted && !this.lifts.has(s) && s.aliveCount <= v.seats && Math.hypot(c.x - base.x, c.z - base.z) < 150 && Math.hypot(c.x - goal.x, c.z - goal.z) > 250; })
       .sort((p, q) => Math.hypot(p.centroid().x - v.pos.x, p.centroid().z - v.pos.z) - Math.hypot(q.centroid().x - v.pos.x, q.centroid().z - v.pos.z))[0];
     if (!sq) return false;
-    let [dx, dz] = this.toward(base, goal, v.type === 'apc' ? 100 : 120, 0);            // short of the objective, on our side
-    for (let k = 0; k < 3 && this.enemiesNear(dx, dz, 80).length; k++) [dx, dz] = this.toward(base, { x: dx, z: dz }, 50, 0);   // hot: 50 m further back
-    if (this.units.nav.vehicle.blocked(dx, dz) || this.enemiesNear(dx, dz, 80).length) return false;   // only to a quiet drop point
-    sq.board(v); sq.tag = 'lift'; this.lifts.set(v, { sq, drop: [dx, dz], stage: 'board', t: 0 }); this.lifts.set(sq, v);
+    const drop = this.quietSpot(base, goal, v.type === 'apc' ? 100 : 120, 80); if (!drop) return false;   // short of the objective on our side, only to a quiet spot
+    sq.board(v); sq.tag = 'lift'; this.lifts.set(v, { sq, drop, stage: 'board', t: 0 }); this.lifts.set(sq, v);
     return true;
   }
 

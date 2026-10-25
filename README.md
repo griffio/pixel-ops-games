@@ -22,7 +22,9 @@ By default the **force builder** opens over the 1 km *Desert Crossing* map: spen
 1,200 points on squads (rifle, support, anti-tank, medic, marksman, engineer),
 vehicles (trucks, supply trucks, 8x8 APCs, M1 Abrams tanks, Chinook helicopters) and one doctrine
 (Mechanized, Air Assault, Light Infantry, Entrenched), or pick a preset. Your
-loadout is saved in the browser. The CPU reads it and counter-picks, then a
+loadout is saved in the browser. The CPU reads it and counter-picks (never Air
+Assault, which pays for landing troops on undefended objectives and needs your
+hand), then a
 25-minute **Advance and Secure** match starts: you command BLUFOR (tan) from the
 south-west corner against OPFOR (olive) in the north-east. Five locations
 (Outpost, Airfield, Village, Depot, Relay) are captured in order; holding the
@@ -53,9 +55,11 @@ main base; they drive with the canvas sides rolled up over the load, where a
 plain truck keeps them down. Select an engineer squad standing within 20 m of a supply truck and
 press **B** (or the Build FOB button) to raise a forward operating base in 20 s
 (10 s under Entrenched); each FOB kit in your loadout allows one FOB. A FOB is a
-spawn point: fallen infantry come back at whichever spawn is nearest their squad
-(main base, a FOB, the squad's rally point, or beside an idle helicopter under
-Air Assault; the reinforcements panel can force main base).
+spawn point: fallen infantry come back at whichever spawn is nearest their squad,
+or nearest where they fell once the whole squad is down (main base, a FOB, the
+squad's rally point, beside an idle helicopter under Air Assault or a parked troop
+truck under Light Infantry, never one with an enemy within 30 m); the
+reinforcements panel can force main base, a helicopter or a truck.
 
 **Rally points.** Select a squad and press **T** (or the Rally button) to drop
 its rally point where its leader stands, after Squad's rallies scaled to this
@@ -76,10 +80,13 @@ anyone past the seats stays behind. Order the vehicle somewhere and they get out
 where it stops, or where a helicopter lands; **U** (or the Unload button) lets
 them out at once, stopping a ground vehicle where it is. A truck or APC destroyed
 with troops aboard throws them out hurt; a helicopter shot down in the air takes
-them with it. Under Light Infantry, infantry may respawn beside a parked truck
-(the reinforcements panel). The CPU uses its trucks to ferry a squad from around
+them with it. The CPU uses its trucks to ferry a squad from around
 base toward a far objective, stopping 120 m short, and an APC leaving base takes
-a squad with it; its helicopters do the same, landing 70 m short. An engineer
+a squad with it; its helicopters fly anyone stranded at main base (waiting up to
+15 s for a fuller load) to 70 m short, and under Air Assault one helicopter parks
+130 m short of the objective, clear of enemies and armour, as a forward spawn,
+taking off when it is hit or threatened. Its supply trucks pull back to base when
+enemy armour comes within 120 m. An engineer
 beside a supply truck can also throw up a **sandbag position** (**N**, 12
 supplies, about 12 seconds, up to eight per side): a U of bags open to the rear
 that a squad fits inside, half as likely to be hit from the front and sides,
