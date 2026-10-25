@@ -669,6 +669,28 @@ Engine changes needed in the existing core:
   same seeds mirrored, which reads as variance but is worth watching. No coax
   MG yet: against infantry the tank is a slow single shot.
 
+- **Vehicle models from references (2026-10-25).** The APC, helicopter and
+  trucks rebuilt after the user's voxel references, in the tank's style, and
+  all vehicles now share one tri-colour camo (`camo`, olive `camoB` for
+  OPFOR) with light `sand` plates and sand wheel hubs (`rim`/`rimB`). APC: an
+  8x8 carrier with a long glacis, driver's hatch, cupola, four raised troop
+  hatches, slotted stowage rails along the roof edges, a remote weapon
+  station, width-marker posts, a rear cage and antennas; lower than before
+  (roof 2.55 m), so its gun height, eye height and wreck smoke came down with
+  it (still the autocannon kit). Helicopter: now a Chinook, a long cabin with
+  framed windows, glazed cockpit, fuel sponsons, twin-wheel gear, door guns,
+  aft pylon with two engines and tandem three-bladed rotors turning opposite
+  ways (`parts.rotors`, each blurring into its own disc); it fires from the
+  door gun on the target's side. Gameplay unchanged (8 seats, same speed and
+  hit points). Trucks: a 6x6 with a square cab, split windscreen, louvred
+  intake, spare wheel and a drop-side bed under canvas on hoops; the supply
+  truck (`builders.supplyTruck`, picked by `spawn(..., { supply })`) rolls
+  its curtains up over crates, cases, jerry cans and drums, a plain truck
+  keeps them down. Fixed on the way: a cruising helicopter's bank was
+  `turn / dt`, so a paused frame (dt 0) set it to NaN and the helicopter
+  vanished for the rest of the match. Air Assault still loses in CPU hands
+  (four of four, as it did before the change, with no helicopter losses).
+
 ## Open questions
 
 

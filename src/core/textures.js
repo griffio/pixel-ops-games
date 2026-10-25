@@ -29,8 +29,6 @@ export const CAMO = {
   uniform: { colors: ['#bfa06a', '#a08650', '#cdb27a', '#8a7244', '#b3945f'], seed: 11, blotch: [2, 5], count: 22, specks: 50, noise: 0.1 },
   vest: { colors: ['#6e664c', '#5f5842', '#7a7256'], seed: 13, blotch: [2, 4], count: 30, specks: 60, noise: 0.1 },
   desert: { colors: ['#b8a071', '#a38a5d', '#cbb485', '#8f7a52', '#d5c296'], seed: 5, blotch: [4, 10], count: 36, specks: 60, noise: 0.08 },
-  desert2: { colors: ['#a89265', '#947f55', '#bda77a', '#7f6b48'], seed: 9, blotch: [4, 10], count: 36, specks: 60, noise: 0.08 },
-  heli: { colors: ['#8d9093', '#7d8084', '#9a9da0', '#6f7275', '#858889'], seed: 23, blotch: [4, 12], count: 28, specks: 40, noise: 0.05 },
   trunk: { colors: ['#7a6a4a', '#6a5a3c', '#8a7a58', '#5e5034'], seed: 31, blotch: [1, 3], count: 60, specks: 40, noise: 0.1 },
   frond: { colors: ['#6f8c3a', '#5f7a30', '#86a347', '#4e6626'], seed: 33, blotch: [1, 3], count: 60, specks: 60, noise: 0.12 },
   bush: { colors: ['#5f7a35', '#4f6a2b', '#729044', '#3e5520'], seed: 35, blotch: [2, 4], count: 50, specks: 60, noise: 0.12 },
@@ -38,13 +36,13 @@ export const CAMO = {
   uniformB: { colors: ['#7f8a5a', '#6a7549', '#8f9a68', '#56603a', '#76804f'], seed: 51, blotch: [2, 5], count: 22, specks: 50, noise: 0.1 },
   vestB: { colors: ['#4e5538', '#434930', '#5a6142'], seed: 53, blotch: [2, 4], count: 30, specks: 60, noise: 0.1 },
   desertB: { colors: ['#6e7a4a', '#5a4a36', '#7f8c58', '#4d5a35', '#8a7a52'], seed: 55, blotch: [4, 10], count: 36, specks: 60, noise: 0.08 },
-  desert2B: { colors: ['#637046', '#524532', '#75825a', '#45523a'], seed: 57, blotch: [4, 10], count: 36, specks: 60, noise: 0.08 },
-  heliB: { colors: ['#4e5a4c', '#44503f', '#5b675a', '#3a453a', '#505c4e'], seed: 59, blotch: [4, 12], count: 28, specks: 40, noise: 0.05 },
   wreck: { colors: ['#2a2724', '#1d1b19', '#3a3531', '#171514'], seed: 61, blotch: [2, 6], count: 50, specks: 80, noise: 0.15 },
   net: { colors: ['#555a3c', '#474b30', '#636848', '#3b3f28'], seed: 71, blotch: [1, 3], count: 70, specks: 90, noise: 0.12, grid: 4 },   // cargo net over a tarp
-  // M1 Abrams: tri-colour sand, brown and green in big blocky patches (BLUFOR); a woodland olive and brown for OPFOR
-  tank: { colors: ['#cfb67d', '#dcc690', '#8a6a43', '#66793c', '#c3a96f'], seed: 81, size: 64, blotch: [9, 22], count: 20, specks: 24, noise: 0.05 },
-  tankB: { colors: ['#66724a', '#57633d', '#4a3c2a', '#7b8556', '#3f4a2c'], seed: 83, size: 64, blotch: [9, 22], count: 20, specks: 24, noise: 0.05 },
+  // every vehicle: tri-colour sand, brown and green in big blocky patches (BLUFOR); a woodland olive and brown for OPFOR
+  camo: { colors: ['#cfb67d', '#dcc690', '#8a6a43', '#66793c', '#c3a96f'], seed: 81, size: 64, blotch: [9, 22], count: 20, specks: 24, noise: 0.05 },
+  camoB: { colors: ['#66724a', '#57633d', '#4a3c2a', '#7b8556', '#3f4a2c'], seed: 83, size: 64, blotch: [9, 22], count: 20, specks: 24, noise: 0.05 },
+  tarp: { colors: ['#c4ad74', '#bba46b', '#cdb67e', '#b49c63'], seed: 91, blotch: [2, 6], count: 18, specks: 30, noise: 0.04 },   // the truck's canvas cover
+  tarpB: { colors: ['#6f7650', '#666d48', '#787f58', '#5f6642'], seed: 93, blotch: [2, 6], count: 18, specks: 30, noise: 0.04 },
   trackLinks: { colors: ['#2a2927', '#232220', '#33312e'], seed: 85, blotch: [1, 2], count: 8, specks: 20, noise: 0.08, checker: { cell: 2, color: '#565450' } },
   trackEdge: { colors: ['#1b1b1b', '#1b1b1b'], seed: 87, blotch: [1, 1], count: 0, specks: 0, noise: 0.04, checker: { cell: 2, color: '#d9d6cf' } },   // the bright link ends along the track's lower edge
 };

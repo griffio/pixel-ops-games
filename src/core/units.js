@@ -100,7 +100,7 @@ export class Unit {
   becomeWreck() {
     this.wreck = true; this.wreckT = 0;
     if (this.mgr) { this.mgr.recolor(this.group, 'wreck'); if (this.mgr.dust) this.mgr.dust.explosion(this.pos.x, 0, this.pos.z, this.type === 'tank' ? 1.9 : this.type === 'apc' ? 1.5 : 1); }
-    if (this.spec.air) { this.parts.blades.visible = true; this.parts.disc.visible = false; this.alt = 0; this.pos.y = this.mgr ? this.mgr.world.heightAt(this.pos.x, this.pos.z) : 0; this.parts.body.rotation.x = 0; this.parts.body.rotation.z = 0.35; }
+    if (this.spec.air) { for (const r of this.parts.rotors) { r.blades.visible = true; r.disc.visible = false; } this.alt = 0; this.pos.y = this.mgr ? this.mgr.world.heightAt(this.pos.x, this.pos.z) : 0; this.parts.body.rotation.x = 0; this.parts.body.rotation.z = 0.35; }
   }
   // revive at a position (infantry respawn reuses the object so squads keep their members)
   revive(x, z, heading) {
@@ -113,7 +113,7 @@ export class Unit {
     const p = this.parts;
     if (this.spec.air && this.state === 'crash') {           // falling out of the sky
       this.alt = Math.max(0, this.alt - 9 * dt); this.pos.y = this.mgr.world.heightAt(this.pos.x, this.pos.z) + this.alt; this.heading += 2.5 * dt; this.group.rotation.y = this.heading;
-      p.body.rotation.z = lerp(p.body.rotation.z, 0.6, 1 - Math.pow(0.1, dt)); p.rotor.rotation.y += 10 * dt;
+      p.body.rotation.z = lerp(p.body.rotation.z, 0.6, 1 - Math.pow(0.1, dt)); for (const r of p.rotors) r.head.rotation.y += 10 * dt * r.dir;
       const step = this.speed * dt; this.pos.x += Math.sin(this.heading) * step; this.pos.z += Math.cos(this.heading) * step;
       if (this.alt <= 0) { this.state = 'wrecked'; this.becomeWreck(); }
       return;
@@ -123,7 +123,7 @@ export class Unit {
       if (this.deathT > 10) this.group.visible = false;                              // body fades; object is reused on respawn
     } else if (this.wreck) {
       this.wreckT += dt;
-      const roof = this.pos.y + (this.type === 'apc' ? 3.9 : this.type === 'tank' ? 2.6 : 3.3), k = this.type === 'apc' || this.type === 'tank' ? 1.4 : 1, dust = this.mgr && this.mgr.dust;
+      const roof = this.pos.y + (this.type === 'apc' ? 2.7 : this.type === 'tank' ? 2.6 : 3.3), k = this.type === 'apc' || this.type === 'tank' ? 1.4 : 1, dust = this.mgr && this.mgr.dust;
       if (dust && this.wreckT < 75 && rng() < dt * (this.wreckT < 45 ? 6 : 4) * (this.type === 'apc' ? 1.5 : 1)) dust.smoke(this.pos.x, roof + 0.8, this.pos.z, k);   // from above the roof, so the plume clears the hull
       if (dust && this.wreckT < 45) for (let n = dt * (this.type === 'apc' ? 18 : 12) * (1 - this.wreckT / 50); n > 0; n -= 1) if (rng() < n) dust.fire(this.pos.x, roof - 0.4, this.pos.z, k);   // flames die down over the first 45 s
       if (this.wreckT > 90) this.remove = true;
@@ -263,8 +263,8 @@ export class Unit {
     this.alt += clamp(this.altT - this.alt, -climb * dt, climb * dt);
     if (this.state === 'land' && this.alt < 0.02) this.alt = 0;
     this.rotor += clamp(this.rotorT - this.rotor, -0.35 * dt, 0.3 * dt);
-    p.rotor.rotation.y += this.rotor * 28 * dt; p.tail.rotation.x += this.rotor * 60 * dt;
-    const blur = this.rotor > 0.8; p.blades.visible = !blur; p.disc.visible = blur;
+    const blur = this.rotor > 0.8;
+    for (const r of p.rotors) { r.head.rotation.y += this.rotor * 28 * dt * r.dir; r.blades.visible = !blur; r.disc.visible = blur; }   // tandem rotors turn opposite ways
     p.beacon.visible = (performance.now() * 0.002 + this.id) % 2 < 0.25;
     const step = this.speed * dt;
     const H = this.mgr.world.half; this.pos.x = clamp(this.pos.x + Math.sin(this.heading) * step, -H + 4, H - 4);
@@ -333,7 +333,7 @@ export class UnitManager {
   add(unit) { unit.mgr = this; this.units.push(unit); this.scene.add(unit.group); return unit; }
   spawn(type, x, z, heading, team = 0, opts = {}) {
     if (x === undefined) [x, z] = this.freePoint(SPEC[type].air ? 6 : 3);
-    const u = this.add(new Unit(type, this.builders[type], x, z, heading, team));
+    const u = this.add(new Unit(type, (opts.supply && this.builders.supplyTruck) || this.builders[type], x, z, heading, team));   // the supply truck shows its load
     u.pos.y = this.world.heightAt(x, z);
     if (opts.supply) { u.supply = true; u.supplies = 100; u.label = u.label.replace('TR', 'SP'); }
     return u;

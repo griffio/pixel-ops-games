@@ -29,10 +29,10 @@ export const F = {
     if (parent) parent.add(m); return m;
   },
   box(w, h, d, mat, x = 0, y = 0, z = 0, parent = null) { return F.mesh(`box:${w},${h},${d}`, mat, x, y, z, parent); },
-  wheel(r, w, x, y, z, parent) {
+  wheel(r, w, x, y, z, parent, rimMat = 'rim') {
     const g = new THREE.Group(); g.position.set(x, y, z);
     const m = F.mesh(`cyl:${r},${r},${w},8`, 'tire', 0, 0, 0, g); m.rotation.z = Math.PI / 2;
-    const rim = F.mesh(`cyl:${r * 0.7},${r * 0.7},${w + 0.06},6`, 'rim', 0, 0, 0, g); rim.rotation.z = Math.PI / 2; rim.castShadow = false;
+    const rim = F.mesh(`cyl:${r * 0.7},${r * 0.7},${w + 0.06},6`, rimMat, 0, 0, 0, g); rim.rotation.z = Math.PI / 2; rim.castShadow = false;
     parent.add(g); return g;
   },
   // swap every lit material in a model for the charred wreck texture (selection ring stays)

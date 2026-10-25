@@ -20,7 +20,7 @@ open http://localhost:8787/?r=three      # legacy three.js back end (160 m airfi
 
 By default the **force builder** opens over the 1 km *Desert Crossing* map: spend
 1,200 points on squads (rifle, support, anti-tank, medic, marksman, engineer),
-vehicles (trucks, supply trucks, APCs, M1 Abrams tanks, transport helicopters) and one doctrine
+vehicles (trucks, supply trucks, 8x8 APCs, M1 Abrams tanks, Chinook helicopters) and one doctrine
 (Mechanized, Air Assault, Light Infantry, Entrenched), or pick a preset. Your
 loadout is saved in the browser. The CPU reads it and counter-picks, then a
 25-minute **Advance and Secure** match starts: you command BLUFOR (tan) from the
@@ -49,7 +49,8 @@ from jsDelivr via an import map; the WebGL2 back end loads nothing external.
 The stats panel has a link that switches renderer while keeping the view.
 
 **Logistics and air.** Supply trucks carry 100 supplies and refill inside your
-main base. Select an engineer squad standing within 20 m of a supply truck and
+main base; they drive with the canvas sides rolled up over the load, where a
+plain truck keeps them down. Select an engineer squad standing within 20 m of a supply truck and
 press **B** (or the Build FOB button) to raise a forward operating base in 20 s
 (10 s under Entrenched); each FOB kit in your loadout allows one FOB. A FOB is a
 spawn point: fallen infantry come back at whichever spawn is nearest their squad
@@ -216,7 +217,7 @@ src/core/           renderer-agnostic engine
   math.js           Vec3, column-major Mat4, colour-space helpers, seedable rng
   layout.js         world size, props as data (hangar, containers, palms, bushes, grass tufts), obstacles, sun/moon lighting, WorldState
   terrain.js        heightfield from ridge/hill features with noise-jagged crests and notch passes, carved rivers with fords, level pads; height, normal, slope, water and line-of-sight queries
-  models.js         unit models (soldier, truck, APC, tank, helicopter) built through a per-back-end factory
+  models.js         unit models (soldier, truck, APC, tank, Chinook) built through a per-back-end factory
   geometry.js       box, cylinder, wedge, frustum, frond, ring, plane and grass-tuft generators with world-unit UVs
   textures.js       procedural tarmac (slabs, taxi lines, asphalt road, grass strip), camo and grass-tuft canvases
   camera.js         orthographic RTS camera (orbit, zoom-as-pixel-scale, texel snapping, follow)

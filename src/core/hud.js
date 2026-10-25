@@ -8,7 +8,7 @@ const ICON = {
   truck: '<rect x="1" y="3.5" width="8" height="4.5"/><rect x="9" y="1.5" width="5.5" height="6.5"/><circle cx="4" cy="8.8" r="1.2"/><circle cx="12" cy="8.8" r="1.2"/>',
   apc: '<path d="M1 7.5 L3.5 3 H13 L15 7.5 Z"/><circle cx="3.5" cy="8.6" r="1.1"/><circle cx="6.8" cy="8.6" r="1.1"/><circle cx="10.2" cy="8.6" r="1.1"/><circle cx="13.5" cy="8.6" r="1.1"/>',
   tank: '<rect x="1" y="5" width="14" height="3" rx="1.5"/><rect x="4" y="2.5" width="6.5" height="2.5"/><rect x="10" y="3.2" width="6" height="1"/>',
-  heli: '<rect x="1" y="1" width="14" height="1.2"/><rect x="3" y="3" width="9" height="4.5" rx="1.5"/><rect x="11" y="4" width="4.5" height="1.3"/><rect x="14" y="2.5" width="1.2" height="3"/>',
+  heli: '<rect x="0.5" y="1.6" width="7" height="0.9"/><rect x="8.5" y="0.6" width="7" height="0.9"/><rect x="1.5" y="4" width="13.5" height="3.6" rx="1.4"/><rect x="11" y="1.4" width="3" height="3"/><rect x="3.5" y="2.4" width="2" height="2"/><circle cx="4" cy="8.6" r="0.9"/><circle cx="12" cy="8.6" r="0.9"/>',
   cache: '<rect x="2" y="4" width="12" height="5"/><path d="M1 4 L8 1 L15 4 Z"/>',
   fob: '<rect x="7.4" y="0.5" width="1.2" height="9"/><path d="M4 3 L8 1 L12 3" fill="none" stroke="currentColor" stroke-width="1.2"/><rect x="2" y="7" width="12" height="2.5"/>',
   flag: '<rect x="3" y="0.5" width="1.2" height="9.5"/><path d="M4.2 1 L13 3.2 L4.2 5.6 Z"/>',

@@ -13,7 +13,7 @@ export const ITEMS = {
   supply:   { kind: 'vehicle', type: 'truck', name: 'Supply truck', cost: 80, supply: true, desc: 'Carries FOB supplies' },
   apc:      { kind: 'vehicle', type: 'apc', name: 'APC', cost: 220, desc: 'Autocannon, 600 hp' },
   tank:     { kind: 'vehicle', type: 'tank', name: 'M1 Abrams tank', cost: 380, desc: '120 mm gun, 1,200 hp; thick front armour, weak rear' },
-  heli:     { kind: 'vehicle', type: 'heli', name: 'Transport helicopter', cost: 300, desc: 'Door gun, fast, fragile; carries 8' },
+  heli:     { kind: 'vehicle', type: 'heli', name: 'Chinook helicopter', cost: 300, desc: 'Door guns, fast, fragile; carries 8' },
   fob:      { kind: 'kit', name: 'FOB kit', cost: 50, desc: 'One forward operating base an engineer can build near a supply truck' },
 };
 

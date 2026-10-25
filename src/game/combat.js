@@ -70,7 +70,7 @@ export class Combat {
     return null;
   }
 
-  eyeY(u) { return u.pos.y + (u.type === 'soldier' ? 1.5 - 0.5 * (u.kneelK || 0) - 1.0 * (u.proneK || 0) : u.type === 'apc' ? 3.6 : u.type === 'tank' ? 2.9 : 1.8); }
+  eyeY(u) { return u.pos.y + (u.type === 'soldier' ? 1.5 - 0.5 * (u.kneelK || 0) - 1.0 * (u.proneK || 0) : u.type === 'apc' ? 3.2 : u.type === 'tank' ? 2.9 : 1.8); }
   // armoured vehicles take explosive hits by facing: 60% on the front, 125% on the sides, double from behind
   facing(e, from) {
     const a = Math.atan2(from.pos.x - e.pos.x, from.pos.z - e.pos.z) - e.heading, d = Math.abs(Math.atan2(Math.sin(a), Math.cos(a)));
@@ -145,8 +145,13 @@ export class Combat {
     const hit = Math.random() < chance;
     // the round leaves the barrel a little ahead of the unit at gun height, aimed where the target will be
     // when it arrives; a miss is aimed past the target and comes down on the ground around it
-    const reach = u.type === 'soldier' ? 0.6 : u.type === 'apc' ? 3.0 : u.type === 'tank' ? 6.2 : 1.6, gunY = u.pos.y + (u.type === 'soldier' ? 1.25 : u.type === 'tank' ? 2.1 : u.type === 'apc' ? 3.8 : 2.0);
-    const hx = e.pos.x - u.pos.x, hz = e.pos.z - u.pos.z, hd = Math.hypot(hx, hz) || 1, mx = u.pos.x + hx / hd * reach, mz = u.pos.z + hz / hd * reach;
+    const reach = u.type === 'soldier' ? 0.6 : u.type === 'apc' ? 2.8 : u.type === 'tank' ? 6.2 : 1.6, gunY = u.pos.y + (u.type === 'soldier' ? 1.25 : u.type === 'tank' ? 2.1 : u.type === 'apc' ? 3.25 : 2.65);
+    const hx = e.pos.x - u.pos.x, hz = e.pos.z - u.pos.z, hd = Math.hypot(hx, hz) || 1;
+    let mx = u.pos.x + hx / hd * reach, mz = u.pos.z + hz / hd * reach;
+    if (u.type === 'heli') {   // the Chinook fires from the crew-door gun on the target's side
+      const c = Math.cos(u.heading), sn = Math.sin(u.heading), side = hx * c - hz * sn > 0 ? 1.45 : -1.45;
+      mx = u.pos.x + side * c + 3.6 * sn; mz = u.pos.z - side * sn + 3.6 * c;
+    }
     const flight = d / (w.arc ? w.speed * 0.85 : w.speed), ev = Math.abs(e.speed) > 0.05 && !e.dead ? e.speed : 0;
     let tx = e.pos.x + Math.sin(e.heading) * ev * flight, tz = e.pos.z + Math.cos(e.heading) * ev * flight, ty = e.pos.y + (e.spec.air ? 2 : e.type === 'soldier' ? 1.1 - 0.35 * (e.kneelK || 0) - 0.75 * (e.proneK || 0) : 2.2);
     if (!hit) { const sp = (w.arc ? 2 : 1.5) + d * (w.arc ? 0.06 : 0.04); tx += (Math.random() - 0.5) * 2 * sp; tz += (Math.random() - 0.5) * 2 * sp; ty = e.spec.air && e.alt > 2 ? ty + (Math.random() - 0.5) * 6 : this.groundAt(tx, tz) + 0.1; }
