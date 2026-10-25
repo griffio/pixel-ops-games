@@ -212,6 +212,7 @@ export class Hud {
   touchAction(k) {
     const a = this.app, inp = a.input, t = inp.touch;
     if (k === 'box') { t.boxArmed = !t.boxArmed; this.syncTouchbar(); this.toast(t.boxArmed ? 'Drag a box to select' : 'Box select off'); }
+    else if (k === 'clear') { inp.select([]); this.toast('Selection cleared'); }
     else if (k === 'follow') { a.rts.follow = inp.selected[0] || null; this.toast(a.rts.follow ? 'Following ' + a.rts.follow.label : 'Select a unit to follow'); }
     else if (k === 'pause') this.togglePause();
     else if (k === 'base') { const b = a.match && a.match.teams[a.playerTeam ?? 0].base; if (b) { a.rts.target.set(b.x, 0, b.z); a.rts.follow = null; } else a.rts.reset(); }
@@ -233,10 +234,10 @@ export class Hud {
     const types = {}; for (const u of list) types[u.type] = (types[u.type] || 0) + 1;
     const desc = Object.entries(types).map(([k, v]) => `${v} ${k}${v > 1 ? 's' : ''}`).join(', ');
     $('sel-n').textContent = list.length === 1 ? list[0].label : `${list.length} UNITS`;
-    const how = this.app.touch ? 'hold on the ground to move · tap an enemy to attack' : 'right-click to move · F to follow';
+    const how = this.app.touch ? 'tap the ground to move · tap an enemy to attack' : 'right-click to move · F to follow';
     $('sel-d').textContent = list.length === 1
       ? `${list[0].type} · ${list[0].spec.air ? list[0].state : (list[0].target ? 'moving' : 'idle')} · ${how}`
-      : desc + (this.app.touch ? ' · hold on the ground to move in formation' : ' · right-click to move in formation');
+      : desc + (this.app.touch ? ' · tap the ground to move in formation' : ' · right-click to move in formation');
     this.renderActions(list);
   }
   // context actions: build a FOB with a selected engineer, unload a helicopter

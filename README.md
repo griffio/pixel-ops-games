@@ -141,15 +141,16 @@ Touch and pen pointers go to a gesture layer; a mouse or trackpad keeps the tabl
 
 | Gesture | Action |
 |---|---|
-| Tap a unit | Select it (its whole squad); tap an enemy with a selection to attack-move |
+| Tap a unit | Select it (its whole squad) |
+| Tap the ground (with a selection) | Move the selection there; tap an enemy to attack-move, a landed friendly helicopter to board it |
 | Double-tap a unit | Select every friendly unit of that type on screen |
-| Hold on the ground | Order the selection there (the ring fills in 0.45 s); hold a landed helicopter to board it |
+| Hold on the ground | The same order as a tap (the ring fills in 0.45 s) |
 | Hold with nothing selected, then drag | Box select |
 | One-finger drag | Pan, with a fling on release |
 | Pinch | Zoom about the midpoint |
 | Twist | Rotate about the midpoint |
 | Three-finger drag up/down | Tilt |
-| Toolbar | **Box** arms a one-shot box select, **Follow**, **Pause**, **Base** jumps to your main, **⚙** shows the engine panels |
+| Toolbar | **Box** arms a one-shot box select, **Clear** drops the selection, **Follow**, **Pause**, **Base** jumps to your main, **⚙** shows the engine panels |
 
 Tablets and phones (a coarse primary pointer with multi-touch) get the mobile
 profile: device pixel ratio 1, a 2048 shadow map, no edge panning, keyboard hints
@@ -367,7 +368,7 @@ node tools/pick-test.mjs 'http://localhost:8787/?seed=11&zoom=2' 9352
 
 `tools/match-test.mjs` runs a CPU-vs-CPU match for a while and reports tickets,
 objectives, FOBs, lifts and the kill feed. `tools/touch-test.mjs` drives the touch
-layer with synthetic touches on an iPad-sized viewport (tap, hold, drag, pinch,
+layer with synthetic touches on an iPad-sized viewport (tap, tap-to-move, hold, Clear, drag, pinch,
 twist, tilt, box select, double-tap) and checks the mobile profile and manifest:
 
 ```bash

@@ -1,5 +1,5 @@
 // Drives the touch layer in headless Chrome over CDP with synthetic touches on an
-// iPad-sized viewport: tap-select, hold-to-order, drag pan + fling, pinch, twist,
+// iPad-sized viewport: tap-select, hold-to-order, tap-to-move, Clear, drag pan + fling, pinch, twist,
 // three-finger tilt, hold-and-drag box select, double-tap. Also checks the mobile
 // render profile and the manifest, and saves a screenshot.
 // usage: node tools/touch-test.mjs [url] [port] [profileDir] [screenshot.png]
@@ -49,10 +49,17 @@ const hx = 560, hy = 300;
 await touch('touchStart', [[hx, hy]]); await sleep(700); await touch('touchEnd', []); await sleep(150);
 results.holdOrder = { selectedBefore: sel0, moving: await ev('app.input.selected.filter(u => u.target).length'), markers: await ev('app.markers.list ? app.markers.list.length : (app.markers.items ? app.markers.items.length : -1)') };
 
-// 3. tap empty ground (no unit within 40 px): deselect
+// 3. tap empty ground (no unit within 40 px) with units selected: they move there and stay selected
 await sleep(300);
-const empty = await ev(`(() => { const pts = app.units.units.filter(u => !u.dead).map(u => app.rts.worldToScreen(u.pos.x, u.pos.y + 1, u.pos.z, innerWidth, innerHeight)); for (let y = 200; y < innerHeight - 150; y += 30) for (let x = 250; x < innerWidth - 300; x += 30) if (!pts.some(p => Math.hypot(p[0] - x, p[1] - y) < 40)) return JSON.stringify([x, y]); return null; })()`).then(v => v && JSON.parse(v));
-if (empty) await tapAt(empty[0], empty[1]); results.tapEmpty = { at: empty, selected: await ev('app.input.selected.length'), markers: await ev('app.markers.list ? app.markers.list.length : -1') };
+const empty = await ev(`(() => { const pts = app.units.units.filter(u => !u.dead).map(u => app.rts.worldToScreen(u.pos.x, u.pos.y + 1, u.pos.z, innerWidth, innerHeight)); for (let y = 200; y < innerHeight - 150; y += 30) for (let x = 250; x < innerWidth - 300; x += 30) { const g = app.rts.screenToGround(x / innerWidth, y / innerHeight); if (!pts.some(p => Math.hypot(p[0] - x, p[1] - y) < 40) && document.elementFromPoint(x, y) === app.canvas && !app.world.isBlocked(g.x, g.z, 1)) return JSON.stringify([x, y]); } return null; })()`).then(v => v && JSON.parse(v));   // open, walkable ground on the canvas
+if (empty) {
+  await ev('app.input.select(app.units.squads.find(s => s.team === 0 && s.alive).members); for (const u of app.input.selected) { u.target = null; u.dest = null; }');
+  await tapAt(empty[0], empty[1]);
+  const g = await ev(`JSON.stringify(app.rts.screenToGround(${empty[0]} / innerWidth, ${empty[1]} / innerHeight))`).then(JSON.parse);
+  results.tapMove = { at: empty, selected: await ev('app.input.selected.length'), moving: await ev('app.input.selected.filter(u => u.dest).length'), toast: await ev('document.getElementById("toast")?.textContent || ""'),
+    destOff: await ev(`Math.round(Math.min(...app.input.selected.filter(u => u.dest).map(u => Math.hypot(u.dest.x - ${g.x}, u.dest.z - ${g.z}))))`) };
+  await ev('app.hud.touchAction("clear")'); results.clear = { selected: await ev('app.input.selected.length') };
+}
 
 // 4. one-finger drag pans (finger moves left 400 px: the view shifts right along the camera's right axis)
 let c0 = await camera();

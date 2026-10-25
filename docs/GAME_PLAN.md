@@ -862,6 +862,20 @@ Engine changes needed in the existing core:
   infantry dead; toned down, mirrored seeds 1-4 split 4-4 (Armoured 2 wins as
   BLUFOR, 2 as OPFOR), Balanced losing 1.2x the infantry Armoured does.
 
+- **Tap to move on touch (2026-10-25).** On the iPad a tap selected a unit
+  but a tap on the ground did nothing visible: by design it cleared the
+  selection, and orders needed a 0.45 s hold that players did not find. Now,
+  with units selected, a tap anywhere but on a friendly unit orders them there
+  (an enemy: attack-move; a landed friendly helicopter with infantry
+  selected: board), the hold still orders, a tap on a friendly unit selects
+  it, and the touch toolbar's **Clear** drops the selection. Hints and help
+  say "tap the ground to move". `tools/touch-test.mjs` now checks tap-to-move
+  (the order lands on the tapped point and the selection stays) and Clear,
+  tapping only open, walkable ground on the canvas. Its drag-pan step passes
+  about two runs in three under software GL: a 300-500 ms frame can let the
+  hold fire before the first move arrives (unrelated to this change; not an
+  issue at 60 fps).
+
 ## Open questions
 
 
