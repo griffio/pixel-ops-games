@@ -1,10 +1,10 @@
 import { WorldState } from '../core/layout.js';
 import { groundCanvas } from '../core/textures.js';
-import { hexToLinear } from '../core/math.js';
+import { hexToLinear, smooth } from '../core/math.js';
 import { Mesh } from './scene.js';
 import { MAT } from './models.js';
 import { GROUND_TEXTURES } from '../game/maps/groundTextures.js';
-import { stripGeometry, decalGeometry, smooth } from './strips.js';
+import { stripGeometry, decalGeometry } from './strips.js';
 
 // WebGL2 world: splat-mapped tiled ground, road strips and decals, static props
 // baked into chunked instance buffers, lamps. Produces `lightState` for the renderer.

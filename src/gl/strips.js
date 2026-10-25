@@ -37,17 +37,3 @@ export function decalGeometry(w, d, y = 0.04) {
     idx: new Uint16Array([0, 1, 2, 0, 2, 3]), count: 6,
   };
 }
-
-// Smooth a polyline with Chaikin subdivision so roads bend instead of kink.
-export function smooth(points, iterations = 2) {
-  let p = points;
-  for (let k = 0; k < iterations; k++) {
-    const out = [p[0]];
-    for (let i = 0; i < p.length - 1; i++) {
-      const a = p[i], b = p[i + 1];
-      out.push([a[0] * 0.75 + b[0] * 0.25, a[1] * 0.75 + b[1] * 0.25], [a[0] * 0.25 + b[0] * 0.75, a[1] * 0.25 + b[1] * 0.75]);
-    }
-    out.push(p[p.length - 1]); p = out;
-  }
-  return p;
-}

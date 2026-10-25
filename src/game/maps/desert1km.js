@@ -1,4 +1,5 @@
 import { rand } from '../../core/layout.js';
+import { smooth } from '../../core/math.js';
 
 // "Desert Crossing": 1 km map. Bases in the SW and NE corners; five locations in
 // Advance-and-Secure order between them; an asphalt road joins the chain.
@@ -50,6 +51,17 @@ export const desert1km = {
   build() {
     const props = [], obstacles = [], lamps = [], tufts = [], decals = [], strips = [];
     const r = rand(2024);
+    // The road as drawn (Chaikin-smoothed like its strip, 12 m wide). Nothing stands on it: obstacles whose centre is
+    // within 9 m of its centre line lose their collision (roadFree, at the end), so props keep at least that far out.
+    const road = smooth(this.roadPath, 2);
+    const roadNear = (x, z) => { let best = [Infinity, x, z]; for (let i = 0; i < road.length - 1; i++) { const [ax, az] = road[i], [bx, bz] = road[i + 1], t = Math.max(0, Math.min(1, ((x - ax) * (bx - ax) + (z - az) * (bz - az)) / ((bx - ax) ** 2 + (bz - az) ** 2))), fx = ax + (bx - ax) * t, fz = az + (bz - az) * t, d = Math.hypot(x - fx, z - fz); if (d < best[0]) best = [d, fx, fz]; } return best; };
+    const ROAD_CLEAR = 9, onRoad = (x, z, clear = ROAD_CLEAR) => roadNear(x, z)[0] < clear;
+    // a point moved straight out from the road until it is `clear` metres from the centre line (towards `side` if it is on the line)
+    const offRoad = (x, z, clear, side = [1, 0]) => {
+      const [d, fx, fz] = roadNear(x, z); if (d >= clear) return [x, z];
+      const [ux, uz] = d > 0.01 ? [(x - fx) / d, (z - fz) / d] : [side[0] / Math.hypot(...side), side[1] / Math.hypot(...side)];
+      return [fx + ux * clear, fz + uz * clear];
+    };
     const box = (w, h, d, color, x, z, { y = 0, rot = 0, obstacle = true, cast = true, tex } = {}) => {
       props.push({ geo: `box:${w},${h},${d}`, color, tex, x, y: y + h / 2, z, rot: [0, rot, 0], cast });
       if (obstacle) footprint(w, d, x, z, rot, y + h);
@@ -121,11 +133,12 @@ export const desert1km = {
       obstacles.push({ minX: x - 0.5, maxX: x + 0.5, minZ: z - 0.5, maxZ: z + 0.5, h: 9 });
     };
     const bush = (x, z, s = 0.8 + r() * 0.5) => {
+      if (onRoad(x, z)) return;                                                                                          // after drawing s, so the rest of the map keeps its layout
       for (const [ox, oz, rr, h] of [[0, 0, 1.3, 1.6], [0.9, 0.5, 0.9, 1.2], [-0.8, 0.6, 1.0, 1.1]])
         props.push({ geo: 'cyl:' + (rr * s).toFixed(2) + ',' + (rr * s * 1.15).toFixed(2) + ',' + (h * s).toFixed(2) + ',7', tex: 'bush', x: x + ox * s, y: h * s / 2, z: z + oz * s, rot: [0, 0, 0], cast: true });
       obstacles.push({ minX: x - 1.5 * s, maxX: x + 1.5 * s, minZ: z - 1.5 * s, maxZ: z + 1.5 * s, h: 1.6 * s });
     };
-    const rock = (x, z) => { const s = 0.8 + r() * 2.2; box(s, s * 0.6, s * 0.8, [0x8c857a, 0x7a7368, 0x9a9388][Math.floor(r() * 3)], x, z, { rot: r() * Math.PI }); };
+    const rock = (x, z) => { const s = 0.8 + r() * 2.2, col = [0x8c857a, 0x7a7368, 0x9a9388][Math.floor(r() * 3)], rot = r() * Math.PI; if (!onRoad(x, z)) box(s, s * 0.6, s * 0.8, col, x, z, { rot }); };
     // Reference look: flat-roofed desert house in blotchy plaster, a cornice and a parapet round the roof, timber beam ends
     // under the roofline (and under the band between floors), small lattice windows with sills, and a framed plank door
     // on the side facing `toward` (the street).
@@ -366,7 +379,7 @@ export const desert1km = {
       P(0, 1.35, 0, 0.05, 0.85, 0.05, 0xb59a6a); P(0, 1.05, 0, 0.34, 0.32, 0.34, 0x5e4630);                               // rope, bucket
     };
     const sandbagRing = (cx, cz, rad, gap = 0.9) => {
-      const n = Math.round(rad * 2); for (let i = 0; i < n; i++) { const a = i / n * Math.PI * 2; if (Math.abs(a - gap) < 0.35) continue; bagStack(cx + Math.cos(a) * rad, cz + Math.sin(a) * rad, -a); }
+      const n = Math.round(rad * 2); for (let i = 0; i < n; i++) { const a = i / n * Math.PI * 2, x = cx + Math.cos(a) * rad, z = cz + Math.sin(a) * rad; if (Math.abs(Math.atan2(Math.sin(a - gap), Math.cos(a - gap))) < 0.35 || onRoad(x, z)) continue; bagStack(x, z, -a); }   // a gap at angle gap, and one where the road crosses
     };
     const containers = (x0, z0, cols, rows) => {
       const colsC = [0x6f4a3a, 0x44584a, 0x4f5a6b, 0x8a7a3a, 0x5a4a5a];
@@ -376,21 +389,21 @@ export const desert1km = {
 
     // ---- main bases: sandbag perimeter, containers, floodlights, a tower
     for (const b of this.bases) {
-      sandbagRing(b.x, b.z, 30, Math.atan2(-b.z, -b.x) < 0 ? 0.8 : 3.9);
+      sandbagRing(b.x, b.z, 30, Math.atan2(-b.z, -b.x));                                                              // the gate faces the map centre, where the road comes in
       containers(b.x - 20, b.z + 14, 3, 2);
-      floodlight(b.x - 24, b.z - 18); floodlight(b.x + 24, b.z + 18);
+      floodlight(...offRoad(b.x - 20, b.z - 15, ROAD_CLEAR + 1)); floodlight(...offRoad(b.x + 20, b.z + 15, ROAD_CLEAR + 1));   // just inside the ring
       watchtower(b.x + 22, b.z - 22, 5, 10);
     }
-    // ---- Outpost: hesco wall ring, watchtower, sandbags
-    { const o = this.locations[0]; for (let i = 0; i < 10; i++) { const a = i / 10 * Math.PI * 2; if (i === 2) continue; hesco(o.x + Math.cos(a) * 16, o.z + Math.sin(a) * 16, -a + Math.PI / 2); }
-      watchtower(o.x, o.z, 3, 8); sandbagRing(o.x + 10, o.z - 8, 5, 2.5); for (let i = 0; i < 6; i++) bush(o.x + (r() - 0.5) * 60, o.z + (r() - 0.5) * 60); }
+    // ---- Outpost: hesco wall ring (gates where the road runs through it), watchtower beside the road, sandbags
+    { const o = this.locations[0]; for (let i = 0; i < 10; i++) { const a = i / 10 * Math.PI * 2, x = o.x + Math.cos(a) * 16, z = o.z + Math.sin(a) * 16; if (i === 2 || onRoad(x, z, ROAD_CLEAR + 2.5)) continue; hesco(x, z, -a + Math.PI / 2); }
+      watchtower(...offRoad(o.x, o.z, ROAD_CLEAR + 1.5, [-1, 1]), 3, 8); sandbagRing(o.x + 10, o.z - 8, 5, 2.5); for (let i = 0; i < 6; i++) bush(o.x + (r() - 0.5) * 60, o.z + (r() - 0.5) * 60); }
     // ---- Airfield: apron props (concrete painted in the splat), hangar, tower, containers, tanks, helipads
     { const a = this.locations[1], ax = a.x, az = a.z;
       hangar(ax - 50, az + 40);
       controlTower(ax + 60, az - 60);
       barracks(ax - 62, az - 20); barracks(ax - 62, az - 8);
       containers(ax + 10, az - 45, 7, 2);
-      for (let i = 0; i < 3; i++) fuelTank(ax + 55, az + 10 + i * 6);
+      for (let i = 0; i < 3; i++) fuelTank(ax + 30, az + 5 + i * 6);                                                   // inside the apron, clear of the road across its corner
       floodlight(ax - 30, az - 60); floodlight(ax + 40, az + 65);
       for (const [hx, hz] of [[40, 40], [57, 40], [40, 57]]) decals.push({ x: ax + hx, z: az + hz, w: 14, d: 14, rot: 0, tex: 'helipad' });
       for (let i = 0; i < 6; i++) decals.push({ x: ax - 66 + i * 9, z: az - 64, w: 7, d: 12, rot: 0, tex: 'bay' });
@@ -444,13 +457,15 @@ export const desert1km = {
     }
     // ---- Depot: fuel tanks, fence posts, containers on an asphalt pad
     { const d = this.locations[3], dx = d.x, dz = d.z;
-      for (let i = 0; i < 6; i++) { const x = dx - 15 + (i % 3) * 7, z = dz - 8 + Math.floor(i / 3) * 10; fuelTank(x, z); }
+      // the road runs through the pad (north-east); six tanks in two staggered rows along its north-west side, 8 m apart along the road
+      for (let i = 0; i < 6; i++) { const k = (i % 3) - 1, out = 14 + Math.floor(i / 3) * 8; fuelTank(dx + 0.707 * (8 * k - out), dz + 0.707 * (8 * k + out)); }
       containers(dx + 10, dz - 12, 3, 3);
-      for (let i = 0; i < 14; i++) { const a = i / 14 * Math.PI * 2; box(0.3, 2.4, 0.3, 0x5a5a5a, dx + Math.cos(a) * 30, dz + Math.sin(a) * 30, { obstacle: false }); }
+      for (let i = 0; i < 14; i++) { const a = i / 14 * Math.PI * 2, x = dx + Math.cos(a) * 30, z = dz + Math.sin(a) * 30; if (!onRoad(x, z, 7)) box(0.3, 2.4, 0.3, 0x5a5a5a, x, z, { obstacle: false }); }   // fence posts, none on the road
       floodlight(dx - 26, dz + 20);
     }
     // ---- Relay: mast, hut, sandbags
-    { const l = this.locations[4]; radioMast(l.x, l.z); equipmentHut(l.x + 8, l.z - 4); sandbagRing(l.x, l.z, 9, 4.0); for (let i = 0; i < 5; i++) rock(l.x + (r() - 0.5) * 50, l.z + (r() - 0.5) * 50); }
+    { const l = this.locations[4], [mx, mz] = offRoad(l.x, l.z, ROAD_CLEAR + 4);                                       // the location sits 4 m off the road: mast and hut beside it
+      radioMast(mx, mz); equipmentHut(mx + 8, mz - 4); sandbagRing(mx, mz, 9, Math.atan2(-4, 8)); for (let i = 0; i < 5; i++) rock(l.x + (r() - 0.5) * 50, l.z + (r() - 0.5) * 50); }   // the ring opens to the hut, and to the road
     // ---- open desert: rocks, bushes, scrub patches, an oasis
     // keep the open desert clutter off the apron, the depot pad and the bases
     const a1 = this.locations[1], d1 = this.locations[3];
@@ -476,9 +491,9 @@ export const desert1km = {
     strips.push({ points: this.roadPath, width: 12, tex: 'road', vRepeat: 8, smooth: 2, y: 0.03 });
     for (const t of this.tracks) strips.push({ points: t, width: 5, tex: 'track', vRepeat: 4, smooth: 2, y: 0.02 });
     // keep obstacles off the road itself
-    const roadFree = (o) => { const cx = (o.minX + o.maxX) / 2, cz = (o.minZ + o.maxZ) / 2; for (let i = 0; i < this.roadPath.length - 1; i++) { const [ax, az] = this.roadPath[i], [bx, bz] = this.roadPath[i + 1]; const t = Math.max(0, Math.min(1, ((cx - ax) * (bx - ax) + (cz - az) * (bz - az)) / ((bx - ax) ** 2 + (bz - az) ** 2))); if (Math.hypot(cx - (ax + (bx - ax) * t), cz - (az + (bz - az) * t)) < 9) return false; } return true; };
+    const roadFree = (o) => !onRoad((o.minX + o.maxX) / 2, (o.minZ + o.maxZ) / 2);
     const keep = new Set(obstacles.filter(roadFree));
-    return { props, obstacles: [...keep], lamps, tufts: tufts.filter(t => !clear(t.x, t.z)), decals, strips, oasis };
+    return { props, obstacles: [...keep], lamps, tufts: tufts.filter(t => !clear(t.x, t.z) && !onRoad(t.x, t.z, 6.5)), decals, strips, oasis };
   },
 
   // paints the splat map: r concrete, g asphalt, b grass, a dirt (sand elsewhere)

@@ -102,6 +102,21 @@ export const linearToSrgb = (c) => c < 0.0031308 ? c * 12.92 : 1.055 * Math.pow(
 export const hexToLinear = (hex) => [srgbToLinear(((hex >> 16) & 255) / 255), srgbToLinear(((hex >> 8) & 255) / 255), srgbToLinear((hex & 255) / 255)];
 export const lerpColor = (a, b, t) => [lerp(a[0], b[0], t), lerp(a[1], b[1], t), lerp(a[2], b[2], t)];
 
+// Smooth a polyline with Chaikin subdivision so roads bend instead of kink (the strip renderer, and
+// the map keeping props off the road it draws).
+export function smooth(points, iterations = 2) {
+  let p = points;
+  for (let k = 0; k < iterations; k++) {
+    const out = [p[0]];
+    for (let i = 0; i < p.length - 1; i++) {
+      const a = p[i], b = p[i + 1];
+      out.push([a[0] * 0.75 + b[0] * 0.25, a[1] * 0.75 + b[1] * 0.25], [a[0] * 0.25 + b[0] * 0.75, a[1] * 0.25 + b[1] * 0.75]);
+    }
+    out.push(p[p.length - 1]); p = out;
+  }
+  return p;
+}
+
 // Simulation randomness goes through `rng` so a URL seed gives the same scene on
 // every back end (three.js consumes Math.random for its own object ids).
 export let rng = Math.random;

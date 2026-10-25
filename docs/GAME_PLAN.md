@@ -967,6 +967,29 @@ Engine changes needed in the existing core:
   positions, was Air Assault) and draws its random pick from Balanced,
   Mechanized and Armoured; `?cpuloadout=air` still forces it for tests.
 
+- **Nothing on the road (2026-10-25).** The road runs through the Outpost and
+  the Depot, passes 4 m from the Relay's centre and enters both main bases, and
+  props were placed without regard to it; `roadFree` then dropped the collision
+  of any obstacle within 9 m of the (unsmoothed) centre line, leaving the prop
+  drawn: vehicles drove through the Outpost watchtower, the Relay mast and part
+  of its sandbag ring, hesco walls where the road crosses the Outpost ring, the
+  Depot's six fuel tanks (which also overlapped into two long rows), one of the
+  Airfield's fuel tanks, a floodlight and a run of perimeter sandbags at each
+  base (whose gate faced the map corner: the two angle branches were swapped),
+  fence posts, a bush. The map now measures the road as drawn (`smooth()`
+  moved from `gl/strips.js` to `core/math.js`, shared by the renderer and the
+  map; `roadNear`, `onRoad`, `offRoad` in `build()`), keeps every prop at least
+  9 m from the centre line and uses the same test in `roadFree`: rings
+  (`sandbagRing`, the Outpost hescos) leave gates where the road crosses, the
+  Outpost tower, Relay mast and hut and base floodlights move straight out
+  from the road (the base floodlights also just inside the ring), the Depot
+  tanks stand in two staggered rows along its north-west side, the Airfield
+  tanks on the apron west of it, the base gate faces the road, and bushes and
+  rocks on it are skipped after drawing their random numbers, so the rest of
+  the map keeps its layout. A Node check over `build()` finds no prop centre
+  within 7.7 m of the road outside the bridges (the road is 12 m wide);
+  CPU matches capture and drive out of the bases as before.
+
 ## Open questions
 
 
