@@ -1043,6 +1043,30 @@ Engine changes needed in the existing core:
   minutes in two Entrenched matches): its truck guard keeps dig-in jobs away
   from enemy armour.
 
+- **CPU digs in more often (2026-10-25).** Measured over three 15-minute
+  matches, each CPU side built exactly one sandbag position and its commander
+  picked "no logistics" 45-90% of the time. Causes: one position per held
+  place (`logistics` skipped a place with any), the utility score for
+  sandbags rose only with the threat to the place (the worst time to park a
+  supply truck there), a FOB kit whose site was blocked just now stopped all
+  logistics, and two older bugs that left jobs to time out after four minutes:
+  a squad on the move was never redirected to the job (`!p.sq.busy` guarded
+  the order, so the engineer kept walking to an attack 250 m off), and an
+  engineer 7 m from the spot was "there" for `send()` (squad centroid within
+  10 m) but not for the build (4 m). Now: `digSpot()` gives up to three
+  positions per held place facing the enemy's side (10 m in front of the
+  middle, both flanks at 14 m, scaled to the place; stand-ins where the road
+  or a building takes one), 12 m apart, off the road, never within 150 m of
+  enemy armour or 40 m of enemies; the utility scores sandbags 0.3 + 0.35 x
+  quiet + 0.25 x threat while the place has fewer than three (x0.6 while a FOB
+  kit is left, so the FOB comes first); a blocked FOB site falls through to
+  digging; the job orders the squad to the spot whatever it was doing and the
+  engineer onto it; squads manning positions count toward the attack share as
+  holders. Result: 3-6 positions a side in 15-25 minutes (team 1 fewer, its
+  Depot and Relay sit on the road), manned for long stretches, no supply
+  trucks lost; seven full matches went to time with Balanced v Armoured 2-2,
+  Balanced v Mechanized 1-1, Balanced over Light.
+
 ## Open questions
 
 

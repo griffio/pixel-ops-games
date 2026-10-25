@@ -1,4 +1,5 @@
 import { RULES } from '../rules.js';
+import { smooth } from '../../core/math.js';
 
 // CPU commander v2: objective-aware manoeuvre, logistics (FOB one hop behind the
 // front) and lifts (helicopters, trucks and APCs carry squads far from the fight).
@@ -95,7 +96,7 @@ export class Strategist {
       else attackWith(sq);
     }
     const share = Math.min(0.95, Math.max(0.2, g.attackShare + this.diff.attackShare));
-    const nAttack = attack ? Math.ceil(rest.length * share) : 0;
+    const nAttack = attack ? Math.min(rest.length, Math.ceil((rest.length + manned.length) * share)) : 0;   // squads manning sandbags count as holders, not out of the attack
     rest.forEach((sq, i) => {
       if (enemyFob && i === 0 && attack && !assigned.length) { raid(sq); return; }   // one squad raids the nearest enemy FOB unless the commander hands out jobs itself
       if (i < nAttack && attack) attackWith(sq);
@@ -251,7 +252,8 @@ export class Strategist {
   }
 
   // Logistics: with kits left, a supply truck and an engineer squad, build a FOB one hop
-  // behind the front (towards our base) and keep the pair together until it is up.
+  // behind the front (towards our base) and keep the pair together until it is up; without a kit
+  // (or with no FOB site just now) dig sandbag positions at the place we hold (digSpot).
   logistics(squads, vehicles, anchor, hold = null) {
     const fobs = this.match.fobs, team = this.teams[this.team], base = team.base;
     if (this.plan && (this.plan.sq.engineer === null || this.plan.truck.dead || this.plan.done)) this.plan = null;
@@ -260,29 +262,50 @@ export class Strategist {
       const sq = squads.find(s => s.engineer); if (!sq) return null;
       const truckTo = (at) => vehicles.filter(v => v.supply && v.supplies >= RULES.fob.supplyCost).sort((a, b) => Math.hypot(a.pos.x - at.x, a.pos.z - at.z) - Math.hypot(b.pos.x - at.x, b.pos.z - at.z))[0];
       if (anchor && fobs.kitsLeft(this.team) > 0 && this.prefer !== 'sandbags') {
-        const truck = truckTo(anchor); if (!truck) return null;
-        const [x, z] = this.toward(anchor, base, Math.hypot(anchor.x - base.x, anchor.z - base.z) - 45, 0);   // 45 m behind the location, towards home
-        if (this.units.nav.vehicle.blocked(x, z) || this.armourNear(x, z, 150) || fobs.active(this.team).some(f => Math.hypot(f.pos.x - x, f.pos.z - z) < RULES.fob.minSpacing)) return null;
-        this.plan = { kind: 'fob', sq, truck, x, z, t: 0 };
-      } else if (hold && fobs.sandbagsOf(this.team).length < RULES.sandbags.max && !fobs.sandbagsOf(this.team).some(s => Math.hypot(s.pos.x - hold.x, s.pos.z - hold.z) < hold.r + 12)) {
-        // no kit to spend: dig in at the location we hold, a few metres towards the enemy
+        const truck = truckTo(anchor), [x, z] = this.toward(anchor, base, Math.hypot(anchor.x - base.x, anchor.z - base.z) - 45, 0);   // 45 m behind the location, towards home
+        if (truck && !this.units.nav.vehicle.blocked(x, z) && !this.armourNear(x, z, 150) && !fobs.active(this.team).some(f => Math.hypot(f.pos.x - x, f.pos.z - z) < RULES.fob.minSpacing)) this.plan = { kind: 'fob', sq, truck, x, z, t: 0 };
+      }
+      if (!this.plan && hold && fobs.sandbagsOf(this.team).length < RULES.sandbags.max) {   // no kit, or no FOB site just now: dig in at the place we hold
+        const spot = this.digSpot(hold); if (!spot) return null;
         const truck = vehicles.filter(v => v.supply && v.supplies >= RULES.sandbags.supplyCost).sort((a, b) => Math.hypot(a.pos.x - hold.x, a.pos.z - hold.z) - Math.hypot(b.pos.x - hold.x, b.pos.z - hold.z))[0]; if (!truck) return null;
-        const eb = this.teams[1 - this.team].base, dx = eb.x - hold.x, dz = eb.z - hold.z, d = Math.hypot(dx, dz) || 1;
-        let x = hold.x + dx / d * Math.min(10, hold.r * 0.5), z = hold.z + dz / d * Math.min(10, hold.r * 0.5);
-        if (this.units.nav.foot.blocked(x, z)) { const c = this.units.nav.foot.nearest(this.units.nav.foot.cellOf(x), this.units.nav.foot.cellOf(z), 10); if (!c) return null; x = this.units.nav.foot.world(c[0]); z = this.units.nav.foot.world(c[1]); }
-        if (this.armourNear(x, z, 150)) return null;                                     // not under the guns of enemy armour: the truck would die there
-        this.plan = { kind: 'sandbags', sq, truck, x, z, t: 0 };
-      } else return null;
+        this.plan = { kind: 'sandbags', sq, truck, x: spot[0], z: spot[1], t: 0 };
+      }
+      if (!this.plan) return null;
     }
     const p = this.plan; p.t += 5;
     if (p.t > 240) { this.plan = null; return null; }                                   // give up on stalled plans
     const eng = p.sq.engineer, near = (u, r) => Math.hypot(u.pos.x - p.x, u.pos.z - p.z) < r;
     if (!near(p.truck, 8) && !p.truck.dest) p.truck.order(p.x + 4, p.z + 4);
-    if (!near(eng, 4) && !p.sq.busy) this.send(p.sq, p.x, p.z, 'fob');
+    // the squad to the spot, whatever it was doing (a squad on the move used to keep its old orders), and the engineer himself
+    // onto it: his squad standing within 10 m of it counts as there for send()
+    if (!near(eng, 4)) this.send(p.sq, p.x, p.z, 'fob');
+    if (!near(eng, 4) && !eng.building && (!eng.dest || Math.hypot(eng.dest.x - p.x, eng.dest.z - p.z) > 3)) eng.order(p.x, p.z);
     if (near(eng, 4) && near(p.truck, RULES.fob.buildRange) && !eng.building) { const r = p.kind === 'sandbags' ? fobs.startSandbags(eng) : fobs.startBuild(eng); if (r.ok) p.done = true; else if (p.kind === 'sandbags') this.plan = null; }
     return p.sq;
   }
 
+  // Where to dig in at a place we hold: up to three positions facing the enemy's side, one out in front of the middle and one on
+  // each flank (scaled to the place; further spots stand in for any the road or a building takes), each 12 m or more apart; never on the road (the convoys use it), nor with enemy
+  // armour within 150 m or enemies within 40 m (the supply truck has to stand beside the engineer). Null when there is none.
+  digSpot(hold) {
+    const mine = this.match.fobs.sandbagsOf(this.team), N = this.units.nav.foot;
+    if (mine.filter(s => Math.hypot(s.pos.x - hold.x, s.pos.z - hold.z) < hold.r + 12).length >= 3) return null;
+    const eb = this.teams[1 - this.team].base, d = Math.hypot(eb.x - hold.x, eb.z - hold.z) || 1, ex = (eb.x - hold.x) / d, ez = (eb.z - hold.z) / d, k = Math.max(0.75, Math.min(1.2, hold.r / 26));
+    for (const [a, c] of [[10, 0], [6, 14], [6, -14], [16, 7], [16, -7], [-2, 18], [-2, -18]]) {   // the first three are the plan; the rest stand in where the road or a building takes one
+      let x = hold.x + (ex * a + ez * c) * k, z = hold.z + (ez * a - ex * c) * k;
+      if (N.blocked(x, z)) { const cell = N.nearest(N.cellOf(x), N.cellOf(z), 6); if (!cell) continue; x = N.world(cell[0]); z = N.world(cell[1]); }
+      if (N.inPocket(x, z)) continue;                                                   // somewhere the engineer can walk to
+      if (mine.some(s => Math.hypot(s.pos.x - x, s.pos.z - z) < RULES.sandbags.minSpacing + 1) || this.roadDist(x, z) < 10 || this.armourNear(x, z, 150) || this.enemiesNear(x, z, 40).length) continue;
+      return [x, z];
+    }
+    return null;
+  }
+  roadDist(x, z) {   // metres from the centre line of the map's road, as drawn
+    const map = this.match.world.map; if (!map || !map.roadPath) return Infinity;
+    const P = this.road || (this.road = smooth(map.roadPath, 2)); let best = Infinity;
+    for (let i = 0; i < P.length - 1; i++) { const [ax, az] = P[i], [bx, bz] = P[i + 1], t = Math.max(0, Math.min(1, ((x - ax) * (bx - ax) + (z - az) * (bz - az)) / ((bx - ax) ** 2 + (bz - az) ** 2))); best = Math.min(best, Math.hypot(x - (ax + (bx - ax) * t), z - (az + (bz - az) * t))); }
+    return best;
+  }
   endLift(c) {
     const l = this.lifts.get(c); if (!l) return; this.lifts.delete(c);
     for (const s of l.sq ? [l.sq] : l.squads) { this.lifts.delete(s); s.goal = null; }

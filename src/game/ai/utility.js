@@ -84,7 +84,7 @@ export class UtilityCommander {
 
     // 2. hold: our locations by value (the front, or one whose loss flips the majority) times threat to it
     const front = o.front(t), flips = M.ownedUs - 1 <= M.ownedThem;
-    const postsAt = (l) => m.fobs.sandbagsOf(t).some(s => Math.hypot(s.pos.x - l.x, s.pos.z - l.z) < l.r + 12);
+    const postsAt = (l) => m.fobs.sandbagsOf(t).filter(s => Math.hypot(s.pos.x - l.x, s.pos.z - l.z) < l.r + 12).length;   // our sandbag positions at a place
     const holdOpts = L.filter(l => l.owner === t).map(l => {
       const threat = 1 - Math.exp(-M.enemyAt(l.x, l.z, l.r + 120) / 6), value = l === front ? 1 : flips ? 0.75 : 0.45;
       return { value: l.name, loc: l, threat, score: value * (0.25 + 0.75 * threat) * (postsAt(l) ? 1.15 : 1) };
@@ -106,12 +106,14 @@ export class UtilityCommander {
       { value: 'cautious', score: (0.15 + 0.35 * exposure * w.armour + 0.3 * (1 - M.readiness) + 0.2 * clamp01(M.lead / 150) - 0.25 * M.urgency) / w.push },
     ]).value;
 
-    // 5. logistics: a FOB when the front is a long walk from any spawn and quiet; sandbags where a hold is threatened
+    // 5. logistics: a FOB when the front is a long walk from any spawn and quiet; sandbag positions (three to a place) at the
+    // place we hold, best dug in a lull, still worth it under pressure, after the FOB while a kit is left
     const eng = squads.some(sq => sq.engineer), truck = vehicles.find(v => v.supply && !v.dead);
     const quiet = front ? Math.exp(-M.enemyAt(front.x, front.z, 100) / 4) : 0;
     const logistics = this.pick('logistics', [
       { value: 'fob', score: m.fobs.kitsLeft(t) > 0 && eng && truck && truck.supplies >= RULES.fob.supplyCost && front ? 0.3 + 0.6 * (1 - M.travel(front)) * quiet : 0 },
-      { value: 'sandbags', score: eng && truck && truck.supplies >= RULES.sandbags.supplyCost && holdLoc && m.fobs.sandbagsOf(t).length < RULES.sandbags.max ? 0.2 + 0.6 * holdThreat * (postsAt(holdLoc) ? 0.3 : 1) : 0 },
+      { value: 'sandbags', score: eng && truck && truck.supplies >= RULES.sandbags.supplyCost && holdLoc && m.fobs.sandbagsOf(t).length < RULES.sandbags.max && postsAt(holdLoc) < 3
+        ? (0.3 + 0.35 * Math.exp(-M.enemyAt(holdLoc.x, holdLoc.z, 80) / 3) + 0.25 * holdThreat) * (m.fobs.kitsLeft(t) > 0 ? 0.6 : 1) : 0 },
       { value: 'none', score: 0.25 },
     ]).value;
 

@@ -102,7 +102,10 @@ put), hold it, and face out over the bags. Manned, a soldier is about a third as
 likely to be hit from the front and sides (against a half behind any low cover)
 and takes half the suppression; through the open rear he has no protection. Any
 other order, or **U** (the Leave position button), takes them out. The CPU digs
-in the same way at locations it holds, mans the positions and stays in them. The CPU
+in the same way at the location it holds, up to three positions there (in front
+of the middle and on both flanks, off the road), preferably in a lull and after
+its FOB while it has a kit; it mans them, keeps the manning squads in place and
+still counts them toward its attack share. The CPU
 commander builds a FOB one hop behind its front and lifts squads toward distant
 objectives. It is cautious: squads close to about 35 m of a defended objective
 and shoot from there, fall back when an enemy gets inside 22 m unless they hold
