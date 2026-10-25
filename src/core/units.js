@@ -248,7 +248,7 @@ export class Unit {
         const turn = clamp(diff, -s.turn * dt, s.turn * dt); this.heading += turn;
         const want = s.speed * clamp(dist / 14, 0.08, 1) * clamp(1.3 - Math.abs(diff), 0.15, 1);
         this.speed += clamp(want - this.speed, -s.accel * 1.5 * dt, s.accel * dt);
-        this.bank = lerp(this.bank, -turn / dt * 0.25, 1 - Math.pow(0.02, dt));
+        if (dt > 0) this.bank = lerp(this.bank, -turn / dt * 0.25, 1 - Math.pow(0.02, dt));   // a paused frame (dt 0) would make it 0/0 and lose the helicopter for good
         break;
       }
       case 'land': {
