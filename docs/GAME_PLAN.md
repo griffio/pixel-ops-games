@@ -843,6 +843,25 @@ Engine changes needed in the existing core:
   rhythm and the waveform both run straight through the seam. In play the
   slaps speed up as the rotor spools (playback 0.55-1.0).
 
+- **Tank firing fixes and coax MG (2026-10-25).** The user saw the tank not
+  firing on enemies. In open ground it did fire (every 5 s, 40-45% hits); the
+  causes found: its first round could leave before the turret had turned (39
+  degrees off in one test), so turreted vehicles now wait until the turret is
+  within 7 degrees (`Combat.onTarget`); sight lines were flat, so any box over
+  1.5 m between gun and target blocked the shot, now a box blocks only where
+  the line passes below its top (`los`/`segHits` take end heights; matches
+  barely changed, buildings do the real blocking: a tank saw about 30% of the
+  enemies within 200 m); and against infantry it fired one round per 5 s.
+  The tank now has a second weapon, `kit2: 'coax'` (7.62 mm: 90 m, bursts of
+  six 0.09 s apart every 1.4 s, 10 per hit, accuracy 0.25), fired from the
+  mantlet at the turret's target when that is infantry, with its own burst
+  and reload (`cooldown2`, `burst2`); soldiers inside 60 m score above any
+  vehicle for a tank, and on retarget it turns from armour to them. The kill
+  feed names the weapon that scored (`firedKit`). A first version (110 m,
+  12 per hit, 0.35) let Armoured beat Balanced 6-2 with up to twice the enemy
+  infantry dead; toned down, mirrored seeds 1-4 split 4-4 (Armoured 2 wins as
+  BLUFOR, 2 as OPFOR), Balanced losing 1.2x the infantry Armoured does.
+
 ## Open questions
 
 

@@ -15,7 +15,7 @@ const ICON = {
   skull: '<circle cx="8" cy="4" r="3.4"/><rect x="5.6" y="6.5" width="4.8" height="2.6"/><circle cx="6.6" cy="3.8" r="0.9" fill="#111"/><circle cx="9.4" cy="3.8" r="0.9" fill="#111"/>',
 };
 const ico = (k) => `<svg class="ico" viewBox="0 0 16 10">${ICON[k] || ''}</svg>`;
-const KIT_NAME = { rifle: 'rifle', mg: 'MG', at: 'AT', marksman: 'marksman', medic: 'rifle', engineer: 'rifle', autocannon: 'autocannon', doorgun: 'door gun', tankgun: '120 mm' };
+const KIT_NAME = { rifle: 'rifle', mg: 'MG', at: 'AT', marksman: 'marksman', medic: 'rifle', engineer: 'rifle', autocannon: 'autocannon', doorgun: 'door gun', tankgun: '120 mm', coax: 'coax MG' };
 
 
 // HUD + control panel. Back-end hooks on app: pixel (settings), setShadows(on),
@@ -95,7 +95,7 @@ export class Hud {
 
   feedLine(f) {
     if (f.kind === 'kill') {
-      const k = f.k, v = f.v, kit = k && k.kit ? KIT_NAME[k.kit] || k.kit : '';
+      const k = f.k, v = f.v, kit = k && k.kit ? KIT_NAME[k.firedKit || k.kit] || k.firedKit || k.kit : '';
       return `<div class="kill${v.type !== 'soldier' ? ' veh' : ''}"><b class="t${k ? k.team : 0}">${k ? k.label : '?'}</b><span class="w">${kit}</span>${ico(v.type === 'soldier' ? 'skull' : v.type)}<b class="t${v.team}">${v.label}</b></div>`;
     }
     const e = f.e, team = e.team, name = team === 0 ? 'BLUFOR' : 'OPFOR', loc = e.loc ? e.loc.name : '';

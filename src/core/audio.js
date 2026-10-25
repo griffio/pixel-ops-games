@@ -10,7 +10,7 @@
 // radio plays one voice line at a time (src/game/voices.js decides what). The
 // context starts on the first pointer or key event.
 const RATE = { shot: [10, 0.15], impact: [5, 0.15], hit: [6, 0.15], explosion: [4, 0.3], blast: [4, 0.2], whizz: [2, 0.5], foley: [3, 0.5] };   // max voices per window (s)
-const CLIP_OF = { medic: 'rifle', engineer: 'rifle' };   // kits that share another kit's recording
+const CLIP_OF = { medic: 'rifle', engineer: 'rifle', coax: 'mg' };   // kits that share another kit's recording
 const ENGINE = { tank: ['engine_tank', 0.5], apc: ['engine_apc', 0.45], truck: ['engine_truck', 0.35] };   // loop and gain per vehicle
 const KITS = {
   rifle:      { dur: 0.09, lp: [3200, 700], g: 0.45, click: [1800, 200, 0.03] },
@@ -22,6 +22,7 @@ const KITS = {
   autocannon: { dur: 0.16, lp: [1300, 250], g: 0.8,  click: [170, 50, 0.12] },
   tankgun:    { dur: 0.5,  lp: [900, 120],  g: 1.0,  click: [90, 30, 0.35] },
   doorgun:    { dur: 0.06, lp: [2600, 600], g: 0.4,  click: [1400, 200, 0.02] },
+  coax:       { dur: 0.06, lp: [2800, 600], g: 0.34, click: [1500, 200, 0.02] },
 };
 
 export class AudioEngine {

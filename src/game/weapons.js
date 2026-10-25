@@ -11,6 +11,7 @@ export const WEAPONS = {
   medic:      { range: 60,  rate: 1.8, burst: 3,  burstGap: 0.11, dmgInf: 9,  dmgVeh: 1.5, acc: 0.12, speed: 300, hold: 32, air: true },
   engineer:   { range: 60,  rate: 1.8, burst: 3,  burstGap: 0.11, dmgInf: 9,  dmgVeh: 1.5, acc: 0.12, speed: 300, hold: 32, air: true },
   autocannon: { range: 150, rate: 2.0, burst: 4,  burstGap: 0.16, dmgInf: 20, dmgVeh: 14,  acc: 0.24, speed: 70,  hold: 0,  air: true, explosive: true, arc: true },
+  coax:       { range: 90,  rate: 1.4, burst: 6,  burstGap: 0.09, dmgInf: 10, dmgVeh: 0,   acc: 0.25, speed: 480, hold: 0,  air: false },   // the tank's co-axial 7.62 mm MG: fires where the turret points, at infantry
   tankgun:    { range: 200, rate: 5,   burst: 1,  burstGap: 0,    dmgInf: 45, dmgVeh: 220, acc: 0.45, speed: 380, hold: 0,  air: false, prefersVehicles: true, explosive: true },   // 120 mm: three hits kill an APC, one a soldier
   doorgun:    { range: 70,  rate: 1.3, burst: 10, burstGap: 0.06, dmgInf: 6,  dmgVeh: 1,   acc: 0.14, speed: 320, hold: 0,  air: false },
 };

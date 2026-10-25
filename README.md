@@ -87,7 +87,9 @@ seconds: 220 damage to a vehicle, a dead soldier on a hit and suppression
 around every landing, behind 1,200 hit points. Explosive hits count by facing:
 60% on the front plate, 125% on the sides and double from behind, so rockets
 kill it in five hits from the rear, eight from the side and seventeen from the
-front. It costs 30 tickets when it dies and comes back after 150 seconds
+front. A co-axial machine gun fires six-round bursts at infantry the turret is on
+(out to 90 m), and soldiers inside 60 m take priority over vehicles, since they
+carry the rockets. It costs 30 tickets when it dies and comes back after 150 seconds
 (105 under Mechanized). BLUFOR's is in tri-colour desert camo, OPFOR's in olive.
 
 **Utility commander.** The CPU is commanded by a utility AI

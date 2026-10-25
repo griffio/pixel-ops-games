@@ -10,7 +10,7 @@ export const SPEC = {
   fob:     { speed: 0,   turn: 0,   accel: 0, label: 'FB', air: false, hp: 300, nav: null, structure: true },
   cache:   { speed: 0,   turn: 0,   accel: 0, label: 'CA', air: false, hp: 250, nav: null, structure: true },
   sandbags: { speed: 0, turn: 0,   accel: 0, label: 'SB', air: false, hp: 1e9, nav: null, structure: true, untargetable: true },   // low cover, not a target
-  tank:     { speed: 7,   turn: 0.8, accel: 3.5, label: 'TK', air: false, hp: 1200, nav: 'vehicle', kit: 'tankgun', armour: true },   // M1 Abrams: thick front, weaker sides and rear
+  tank:     { speed: 7,   turn: 0.8, accel: 3.5, label: 'TK', air: false, hp: 1200, nav: 'vehicle', kit: 'tankgun', kit2: 'coax', armour: true },   // M1 Abrams: thick front, weaker sides and rear
   rally:    { speed: 0, turn: 0,   accel: 0, label: 'RP', air: false, hp: 1e9, nav: null, structure: true, untargetable: true },   // a squad's spawn: burned by enemies close by, not shot
 };
 const counters = {}; let pickSeq = 0;
@@ -67,6 +67,7 @@ export class Unit {
     this.selected = false; this.squad = null; this.mgr = null;
     this.idle = rnd(0, 3); this.phase = rng() * 6;
     this.hp = this.maxHp = spec.hp; this.kit = spec.kit || null; this.enemy = null; this.cooldown = 0; this.retarget = 0;
+    this.kit2 = spec.kit2 || null; this.cooldown2 = 0; this.burst2 = 0;   // a second weapon on the same turret (the tank's coax MG)
     this.stance = 'stand'; this.supp = 0; this.kneelK = 0; this.proneK = 0; this.aimK = 0;   // infantry: suppression 0..1 and the pose blends it drives
     this.dead = false; this.deathT = 0; this.wreck = false; this.remove = false;
     this.mounted = null; this.passengers = []; this.boardTarget = null; this.supplies = 0;
