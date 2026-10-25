@@ -3,7 +3,7 @@ import { RULES } from '../rules.js';
 // CPU commander v2: objective-aware manoeuvre, logistics (FOB one hop behind the
 // front) and air (helicopter lifts for squads far from the fight).
 export class Strategist {
-  constructor(team, units, teams, match) { this.team = team; this.units = units; this.teams = teams; this.match = match; this.timer = 1 + Math.random() * 2; this.reflex = 0.5; this.plan = null; this.remote = null; this.posture = 'balanced'; this.prefer = 'fob'; this.lift = true; this.lifts = new Map(); this.diff = match.difficulty || { plan: 5, attackShare: 0, logistics: true }; }
+  constructor(team, units, teams, match) { this.team = team; this.units = units; this.teams = teams; this.match = match; this.timer = 1 + Math.random() * 2; this.reflex = 0.5; this.plan = null; this.remote = null; this.utility = null; this.posture = 'balanced'; this.prefer = 'fob'; this.lift = true; this.lifts = new Map(); this.diff = match.difficulty || { plan: 5, attackShare: 0, logistics: true }; }
 
   enemiesNear(x, z, r) { return this.units.units.filter(u => !u.dead && !u.mounted && u.team !== this.team && !(u.spec.air && u.alt > 2) && Math.hypot(u.pos.x - x, u.pos.z - z) < r); }
   friendsNear(x, z, r) { return this.units.units.filter(u => !u.dead && !u.mounted && u.team === this.team && Math.hypot(u.pos.x - x, u.pos.z - z) < r); }
@@ -31,7 +31,9 @@ export class Strategist {
     const vehicles = this.units.units.filter(u => u.team === this.team && !u.dead && !u.squad && !u.spec.structure);
     const myFobs = this.units.units.filter(u => u.type === 'fob' && u.team === this.team && !u.dead).map(f => ({ x: f.pos.x, z: f.pos.z, r: 18, index: 'fob' + f.id }));
     const g = this.match.mode.goals(this.team, myFobs);
-    if (this.remote && this.remote.fresh) this.applyPlan(g, this.remote);
+    // who sets the plan: a fresh remote commander, else the utility commander, else the mode's goals as they are
+    const adviser = this.remote && this.remote.fresh ? this.remote : this.utility && this.utility.decide(squads, vehicles) ? this.utility : null;
+    if (adviser) this.applyPlan(g, adviser);
     this.posture = g.posture || 'balanced'; this.prefer = g.logistics || 'fob'; this.lift = g.lift !== false;
     if (g.hunt) return this.skirmish(squads, vehicles, base);
     const attack = g.attack, hold = g.hold, reserve = g.reserve || null;
@@ -68,7 +70,7 @@ export class Strategist {
     const raid = (sq) => { if (enemyFob) this.send(sq, enemyFob.pos.x, enemyFob.pos.z, 'raid'); else attackWith(sq); };
     const escort = (sq) => { const truck = vehicles.filter(v => v.supply && !v.dead).sort((p, q) => Math.hypot(p.pos.x - sq.centroid().x, p.pos.z - sq.centroid().z) - Math.hypot(q.pos.x - sq.centroid().x, q.pos.z - sq.centroid().z))[0]; if (!truck) return holdAt(sq, hold); this.send(sq, truck.pos.x + 4, truck.pos.z - 4, 'escort'); };
     // a remote commander may give squads jobs by id; the rest follow the attack share
-    const roles = new Map(); if (this.remote && this.remote.fresh) for (const r of this.remote.plan.squads || []) roles.set(r.id, r);
+    const roles = new Map(); if (adviser) for (const r of adviser.plan.squads || []) roles.set(r.id, r);
     const assigned = free.filter(sq => roles.has(sq.leader.label)), rest = free.filter(sq => !roles.has(sq.leader.label));
     for (const sq of assigned) {
       const r = roles.get(sq.leader.label), at = r.at ? byName(r.at) : null, ours = at && at.owner === this.team ? at : null;
@@ -115,7 +117,7 @@ export class Strategist {
     g.attackShare = p.attackShare; g.posture = p.posture; g.logistics = p.logistics; g.lift = p.lift;
     // a wait holds the attack back: everyone gathers at the staging location until the condition holds (two minutes at most)
     if (p.waitFor && g.attack) {
-      const waited = this.match.elapsed - (remote.waitSince ?? remote.planAt), met = this.waitMet(p.waitFor, waited); remote.waitMet = met;
+      const waited = this.match.elapsed - (remote.waitSince ?? remote.planAt), met = remote.waitMet || this.waitMet(p.waitFor, waited); remote.waitMet = met;   // once met, a wait stays met until it changes, so the attack doesn't flicker as squads leave the staging point
       if (!met && waited < 120) { const stage = byName(p.waitFor.at); if (stage && stage.owner === this.team) g.hold = stage; g.attack = null; }
     }
   }
@@ -140,6 +142,7 @@ export class Strategist {
     if (!enemies.length) return;
     const C = this.match.combat, now = this.match.elapsed, apcs = enemies.filter(e => e.type === 'apc');
     const k = this.posture === 'aggressive' ? 0.6 : this.posture === 'cautious' ? 1.3 : 1;   // posture scales every distance below
+    const hideMax = this.posture === 'aggressive' ? 12 : this.posture === 'cautious' ? 45 : 25;   // seconds a squad stays hidden from armour that can no longer see it
     const nearest = (x, z) => { let b = null, bd = Infinity; for (const e of enemies) { const d = Math.hypot(e.pos.x - x, e.pos.z - z); if (d < bd) { bd = d; b = e; } } return [b, bd]; };
     const away = (x, z, e, dist) => { const dx = x - e.pos.x, dz = z - e.pos.z, d = Math.hypot(dx, dz) || 1; return [x + dx / d * dist, z + dz / d * dist]; };
     for (const sq of this.units.squads) {
@@ -150,17 +153,35 @@ export class Strategist {
         if (sq.members.some(m => !m.dead && m.kit === 'at')) { if (ad > 72) { const [x, z] = this.toward(c, apc.pos, 60); this.send(sq, x, z, 'stalk', sq.zone); } else this.halt(sq, 'stalk'); }
         else if (sq.tag !== 'cover' || (!sq.busy && (sq.seen = (sq.seen || 0) + 1) >= 2)) {   // not yet hiding, or settled in cover and still seen twice running: pick cover again
           const p = C.coverPoint(c.x, c.z, apc.pos.x, apc.pos.z, 26, this.units.nav.foot); sq.seen = 0;
-          if (p) { sq.goal = p; sq.tag = 'cover'; sq.order(p[0], p[1]); } else { const [x, z] = away(c.x, c.z, apc, 30); sq.goal = [x, z]; sq.tag = 'back'; sq.order(x, z); }
+          if (p) { if (sq.tag !== 'cover') sq.hideSince = now; sq.goal = p; sq.tag = 'cover'; sq.order(p[0], p[1]); } else { const [x, z] = away(c.x, c.z, apc, 30); sq.goal = [x, z]; sq.tag = 'back'; sq.order(x, z); }
         }
         sq.pinUntil = now + 6; continue;
       }
       sq.seen = 0;
-      if ((sq.tag === 'cover' || sq.tag === 'stalk') && apcs.some(v => Math.hypot(v.pos.x - c.x, v.pos.z - c.z) < 150)) { sq.pinUntil = now + 6; continue; }   // heads down while it is about
+      // heads down while it is about, but not for ever: after hideMax the squad rejoins the plan (and hides again if it is seen)
+      if ((sq.tag === 'stalk' || (sq.tag === 'cover' && now - (sq.hideSince || 0) < hideMax)) && apcs.some(v => Math.hypot(v.pos.x - c.x, v.pos.z - c.z) < 150)) { sq.pinUntil = now + 6; continue; }
       const [e, d] = nearest(c.x, c.z); if (!e || d > 22 * k) continue;
       if (sq.zone && Math.hypot(c.x - sq.zone.x, c.z - sq.zone.z) < sq.zone.r) continue;                     // stand and fight for the zone
       if (sq.tag && sq.tag.startsWith('post')) continue;                                                     // dug in: stay
       if (this.friendsNear(c.x, c.z, 25).length >= this.enemiesNear(c.x, c.z, 25).length * 2) continue;    // we clearly have the numbers
       const [x, z] = away(c.x, c.z, e, 28); sq.goal = [x, z]; sq.tag = 'back'; sq.order(x, z);
+    }
+    // armour that threatens our squads is hunted: for each enemy APC within 150 m of one of our squads without launchers, the
+    // nearest anti-tank squad not already on another APC closes in until it can see it inside rocket range, then stops and fires
+    const ours = this.units.squads.filter(sq => sq.team === this.team && sq.leader && !sq.mounted && !this.lifts.has(sq) && !sq.members.some(m => m.building));
+    const hasAT = (sq) => sq.members.some(m => !m.dead && m.kit === 'at');
+    for (const apc of apcs) {
+      if (!ours.some(sq => !hasAT(sq) && Math.hypot(sq.centroid().x - apc.pos.x, sq.centroid().z - apc.pos.z) < 150)) continue;
+      let best = null, bd = Infinity;
+      for (const sq of ours) {
+        if (!hasAT(sq) || sq.tag === 'stalk' || (sq.huntTarget && sq.huntTarget !== apc && !sq.huntTarget.dead)) continue;
+        const c = sq.centroid(), d = Math.hypot(c.x - apc.pos.x, c.z - apc.pos.z); if (d < bd) { bd = d; best = sq; }
+      }
+      if (!best) continue;
+      best.huntTarget = apc;
+      if (bd < 80 && C.canSeePoint(best.leader, apc.pos.x, apc.pos.z)) this.halt(best, 'hunt');
+      else { const [x, z] = this.toward(best.centroid(), apc.pos, 45); this.send(best, x, z, 'hunt', best.zone); }
+      best.pinUntil = now + 6;
     }
     for (const v of this.units.units) {
       if (v.team !== this.team || v.dead || v.type !== 'apc') continue;

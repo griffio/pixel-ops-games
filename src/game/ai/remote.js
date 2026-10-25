@@ -43,7 +43,7 @@ export class RemoteCommander {
       if (!plan) throw new Error('no usable plan');
       const sameWait = this.plan && JSON.stringify(this.plan.waitFor) === JSON.stringify(plan.waitFor);   // a re-issued wait keeps its clock, so the two-minute give-up can fire
       this.waitSince = sameWait && plan.waitFor ? this.waitSince : this.match.elapsed;
-      this.plan = plan; this.planAt = this.match.elapsed; this.stats.ok++; this.interval = plan.nextReviewIn || 20; this.acc = 0; this.waitMet = false;
+      this.plan = plan; this.planAt = this.match.elapsed; this.stats.ok++; this.interval = plan.nextReviewIn || 20; this.acc = 0; if (!sameWait) this.waitMet = false;
       // the history keeps a plan only when the orders change or a minute has passed, so three entries span real time and their outcomes mean something
       const last = this.history[this.history.length - 1], same = (a, b) => a.attack === b.attack && a.posture === b.posture && a.logistics === b.logistics && a.lift === b.lift && a.hold.join() === b.hold.join() && Math.abs(a.attackShare - b.attackShare) < 0.1;
       if (!last || !same(last.plan, plan) || this.match.elapsed - last.snap.t > 60) { this.history.push({ plan, snap: this.snapshot() }); if (this.history.length > 3) this.history.shift(); } else last.plan = plan; this.stats.lastMs = Math.round(performance.now() - t0); if (body.model) this.stats.model = body.model;

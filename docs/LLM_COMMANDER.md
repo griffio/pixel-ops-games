@@ -77,6 +77,14 @@ few cents.
 - `npm run commander-stub` is a local stand-in with a heuristic plan for
   working on the digest without a model.
 
+## The local alternative
+
+A utility AI (`?ai=utility`) makes the same nine decisions locally by scoring
+options, every few seconds, with no network. Against the built-in planner it
+won 14 of 16 mirrored matches. With `?commander=1` a fresh LLM plan takes
+precedence and the utility AI fills the gaps; the intended split is the utility
+AI for fast decisions and the LLM, if any, for slow intent and chatter.
+
 ## What it is and isn't buying us
 
 With the current model the orders mostly match what the hand-coded planner

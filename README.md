@@ -70,6 +70,22 @@ away when something gets inside 50 m. Squads an enemy APC can see get behind
 the nearest building or hill out of its sight and stay there while it is about;
 anti-tank squads stalk it to rocket range instead.
 
+**Utility commander.** `?ai=utility` swaps the CPU's built-in planner for a
+utility AI (`src/game/ai/utility.js`): every plan tick it measures shared
+considerations (force ratio at each location, enemy armour that can see a
+point, ticket pressure from the last three minutes and the majority, time
+pressure, readiness, travel from the nearest spawn), scores the options of
+each decision from them and picks the best. It decides the attack target or
+none, the locations to hold, the attack share, posture, what the engineers
+build, helicopter lifts, whether to wait before attacking, and a job for every
+squad (assault, hold, reserve, screen, raid, escort), and says what it is doing
+on the radio. A bonus for the current choice that decays over a minute stops it
+dithering, and difficulty adds noise to the scores. `?persona=aggressive` or
+`patient` changes its weights; `?ai=utility,rules` sets each side separately
+for CPU-versus-CPU tests. It works in Advance and Secure and Invasion; other
+modes keep the built-in planner. With `?commander=1` a fresh LLM plan takes
+precedence and the utility AI fills the gaps.
+
 **Game modes** (picked in the force builder, or `?mode=` with `?side=attack|defend`):
 - *Advance & Secure*: capture the five locations in order; majority bleed; take all to win.
 - *Invasion*: defenders start with every location and 300 tickets against the attackers'

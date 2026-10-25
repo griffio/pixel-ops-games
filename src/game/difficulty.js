@@ -3,8 +3,8 @@
 // interval in seconds, attackShare shifts how much of the force attacks, kits adds
 // FOB kits, logistics gates FOB building.
 export const DIFFICULTY = {
-  easy:   { name: 'Easy',   desc: 'CPU shoots worse, respawns slower, never builds FOBs', acc: 0.75, dmg: 0.85, respawn: 1.3, plan: 7, attackShare: -0.1, kits: 0, logistics: false },
-  normal: { name: 'Normal', desc: 'Even terms', acc: 1, dmg: 1, respawn: 1, plan: 5, attackShare: 0, kits: 0, logistics: true },
-  hard:   { name: 'Hard',   desc: 'CPU shoots better, respawns faster, an extra FOB kit, keener attacks', acc: 1.2, dmg: 1.15, respawn: 0.8, plan: 3.5, attackShare: 0.12, kits: 1, logistics: true },
+  easy:   { name: 'Easy',   desc: 'CPU shoots worse, respawns slower, never builds FOBs', acc: 0.75, dmg: 0.85, respawn: 1.3, plan: 7, attackShare: -0.1, kits: 0, logistics: false, noise: 0.25 },
+  normal: { name: 'Normal', desc: 'Even terms', acc: 1, dmg: 1, respawn: 1, plan: 5, attackShare: 0, kits: 0, logistics: true, noise: 0.06 },
+  hard:   { name: 'Hard',   desc: 'CPU shoots better, respawns faster, an extra FOB kit, keener attacks', acc: 1.2, dmg: 1.15, respawn: 0.8, plan: 3.5, attackShare: 0.12, kits: 1, logistics: true, noise: 0.02 },   // noise: random spread on the utility commander's scores
 };
 export const difficulty = (k) => DIFFICULTY[k] || DIFFICULTY.normal;

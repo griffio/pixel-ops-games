@@ -571,6 +571,29 @@ Engine changes needed in the existing core:
   provider stays optional: a stored key in the gateway and a second provider
   branch in the Worker if the catalogue models prove not enough.
 
+- **Utility commander (2026-10-25).** Built the local utility AI from the
+  sketch: `src/game/ai/utility.js` measures shared considerations each plan
+  tick (force ratio, armour that can see a point, ticket pressure, time
+  pressure, readiness, travel) and scores the options of the nine decisions,
+  producing a plan in the LLM commander's schema so `applyPlan` and squad roles
+  carry it out; the strategist takes a fresh remote plan first, then the
+  utility plan, then the mode's goals. Personalities are weight sets
+  (balanced, aggressive, patient), difficulty adds score noise (easy 0.25,
+  normal 0.06, hard 0.02), a decaying commitment bonus stops dithering, and a
+  location changing hands resets commitments. Met waits now latch until the
+  wait changes, for both commanders, so an attack doesn't flicker off as
+  squads leave the staging point. `?ai=utility` (or per team `utility,rules`)
+  and `?persona=` select it. Head-to-head against the built-in planner on
+  eight seeds, each played with the sides swapped: 12-4, mean ticket margin
+  +91. The probe of a loss found every squad tagged "cover" for fifteen
+  minutes: the caution pass kept squads hidden while any enemy APC was within
+  150 m, and nothing went after it. Squads now hide at most 12 / 25 / 45 s
+  (aggressive / balanced / cautious) once the APC can't see them, and the
+  nearest anti-tank squad hunts any enemy APC within 150 m of a squad without
+  launchers, closing until it can see it inside rocket range. That fix is
+  shared by both commanders; the rerun went 14-2 for the utility AI, mean
+  margin +204, winning seven of eight from each side. Not yet the default.
+
 ## Open questions
 
 
