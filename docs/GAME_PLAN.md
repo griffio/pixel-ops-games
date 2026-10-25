@@ -592,7 +592,11 @@ Engine changes needed in the existing core:
   nearest anti-tank squad hunts any enemy APC within 150 m of a squad without
   launchers, closing until it can see it inside rocket range. That fix is
   shared by both commanders; the rerun went 14-2 for the utility AI, mean
-  margin +204, winning seven of eight from each side. Not yet the default.
+  margin +204, winning seven of eight from each side. Made the default CPU
+  commander the same day (`?ai=rules` restores the old planner). Utility
+  against utility on the mirrored seeds: BLUFOR 9, OPFOR 7, every match to the
+  clock, several decided by under 40 tickets, and 4-6 captures a side where
+  the old planner managed 2-3, so the front moves more.
 
 - **Stuck vehicles and phantom obstacles (2026-10-25).** The user's APC stuck
   against a building, firing but ignoring orders. Reproduced: a vehicle whose

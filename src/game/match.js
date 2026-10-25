@@ -66,9 +66,10 @@ export class Match {
     this.mode.setup();
     this.objectives = this.mode.objectives || null;
     this.strategists = cpu.map(t => new Strategist(t, this.units, this.teams, this));
-    // the utility commander: ?ai=utility for every CPU side or ?ai=utility,rules per team; ?persona=aggressive|patient|balanced likewise
+    // the utility commander is the default; ?ai=rules gives a side the older built-in planner (per team: ?ai=utility,rules);
+    // ?persona=aggressive|patient|balanced likewise
     const perTeam = (list, t) => ((list && list.length > 1 ? list[t] : list && list[0]) || '').trim();
-    for (const s of this.strategists) if (perTeam(app.aiModes, s.team) === 'utility') s.utility = new UtilityCommander(s, perTeam(app.personas, s.team) || 'balanced');
+    for (const s of this.strategists) if ((perTeam(app.aiModes, s.team) || 'utility') === 'utility') s.utility = new UtilityCommander(s, perTeam(app.personas, s.team) || 'balanced');
     // a remote commander (?commander=1 for the Worker's /commander, or a URL) advises each CPU side; its one-liners go to the feed
     if (app.commanderUrl) for (const s of this.strategists) { s.remote = new RemoteCommander(this, s.team, app.commanderUrl, { model: app.commanderModel || null }); s.remote.onPlan = (p) => { if (p.reason) this.event({ type: 'radio', team: s.team, text: p.reason }); }; }
     this.spatial.rebuild(this.units.units);

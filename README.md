@@ -70,8 +70,9 @@ away when something gets inside 50 m. Squads an enemy APC can see get behind
 the nearest building or hill out of its sight and stay there while it is about;
 anti-tank squads stalk it to rocket range instead.
 
-**Utility commander.** `?ai=utility` swaps the CPU's built-in planner for a
-utility AI (`src/game/ai/utility.js`): every plan tick it measures shared
+**Utility commander.** The CPU is commanded by a utility AI
+(`src/game/ai/utility.js`; `?ai=rules` brings back the older built-in planner,
+which it beats 15-1 head to head): every plan tick it measures shared
 considerations (force ratio at each location, enemy armour that can see a
 point, ticket pressure from the last three minutes and the majority, time
 pressure, readiness, travel from the nearest spawn), scores the options of
