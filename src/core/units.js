@@ -9,11 +9,12 @@ export const SPEC = {
   heli:    { speed: 16,  turn: 1.4, accel: 6, label: 'HE', air: true, hp: 300, nav: null, kit: 'doorgun', seats: 8 },
   fob:     { speed: 0,   turn: 0,   accel: 0, label: 'FB', air: false, hp: 300, nav: null, structure: true },
   cache:   { speed: 0,   turn: 0,   accel: 0, label: 'CA', air: false, hp: 250, nav: null, structure: true },
-  sandbags: { speed: 0, turn: 0,   accel: 0, label: 'SB', air: false, hp: 1e9, nav: null, structure: true, untargetable: true },   // low cover, not a target
+  sandbags: { speed: 0, turn: 0,   accel: 0, label: 'SB', air: false, hp: 1e9, nav: null, structure: true, untargetable: true, hollow: true },   // low cover, not a target; soldiers stand inside it
   tank:     { speed: 7,   turn: 0.8, accel: 3.5, label: 'TK', air: false, hp: 1200, nav: 'vehicle', kit: 'tankgun', kit2: 'coax', armour: true },   // M1 Abrams: thick front, weaker sides and rear
   rally:    { speed: 0, turn: 0,   accel: 0, label: 'RP', air: false, hp: 1e9, nav: null, structure: true, untargetable: true },   // a squad's spawn: burned by enemies close by, not shot
 };
 const counters = {}; let pickSeq = 0;
+const POST_SLOTS = [[-1.0, 0.75], [1.0, 0.75], [-1.85, -0.5], [1.85, -0.5]];   // a sandbag position's firing slots (local: x across, z out over the front wall)
 const LANDED = 90;   // seconds a soldier a helicopter set down counts as freshly landed (Air Assault captures)
 
 // ---- soldier arms -------------------------------------------------------------
@@ -72,6 +73,7 @@ export class Unit {
     this.stance = 'stand'; this.supp = 0; this.kneelK = 0; this.proneK = 0; this.aimK = 0;   // infantry: suppression 0..1 and the pose blends it drives
     this.dead = false; this.deathT = 0; this.wreck = false; this.remove = false;
     this.mounted = null; this.passengers = []; this.boardTarget = null; this.supplies = 0; this.landedT = 0; this.hover = false;
+    this.post = null; this.crew = spec.hollow ? POST_SLOTS.map(() => null) : null;   // a soldier's firing slot in a sandbag position; a position's crew by slot
     this.alt = 0; this.altT = 0; this.rotor = 0; this.rotorT = 0; this.state = 'parked'; this.tilt = 0; this.bank = 0;
     this.id = (counters[type] = (counters[type] || 0) + 1);
     this.label = `${spec.label}-${String(this.id).padStart(2, '0')}`;
@@ -82,8 +84,9 @@ export class Unit {
   setSelected(s) { this.selected = s; this.parts.ring.visible = s && !this.dead; }
 
   // Move order: path through the nav grid when one is available, otherwise straight line.
-  order(x, z) {
+  order(x, z, keepPost = false) {   // any order takes a soldier out of his sandbag position, unless it is his way into it
     if (this.dead) return;
+    if (!keepPost) this.leavePost();
     const nav = this.mgr && this.mgr.nav && this.spec.nav ? this.mgr.nav[this.spec.nav] : null;
     if (nav && nav.inPocket(x, z)) { const c = nav.nearestMain(nav.cellOf(x), nav.cellOf(z)); if (c) { x = nav.world(c[0]); z = nav.world(c[1]); } }   // a goal inside a building, or in a pocket between buildings, becomes the nearest open ground
     this.dest = new Vec3(x, 0, z); this.idle = 0; this.hold = false; this.bestDist = Infinity; this.noProgress = 0;
@@ -148,6 +151,43 @@ export class Unit {
     this.passengers = []; this.dropOnArrive = false;
   }
 
+  // ---- fighting positions ---------------------------------------------------
+  // A sandbag position (spec.hollow) is manned by up to four soldiers, one per firing slot: two against the front wall, one
+  // against each side. A soldier walks to the open rear (postEntry), then straight in to his slot, since the walking grid's
+  // clearance closes the inside; settled there he holds it, faces out over the bags and is harder to hit from the front and
+  // sides (Combat.dugIn), until any other order takes him out.
+  localToWorld(lx, lz) { const c = Math.cos(this.heading), s = Math.sin(this.heading); return [this.pos.x + lx * c + lz * s, this.pos.z - lx * s + lz * c]; }
+  worldToLocal(x, z) { const c = Math.cos(this.heading), s = Math.sin(this.heading), dx = x - this.pos.x, dz = z - this.pos.z; return [dx * c - dz * s, dx * s + dz * c]; }
+  postSlot(i) { return this.localToWorld(...POST_SLOTS[i]); }
+  postEntry() { return this.localToWorld(0, -3.4); }
+  crewAt(i) { const c = this.crew[i]; return c && !c.dead && c.post && c.post.sb === this ? c : null; }
+  get freeSlots() { return this.crew ? POST_SLOTS.filter((_, i) => !this.crewAt(i)).length : 0; }
+  man(sb) {   // take the first free slot (front ones first); false when the position is full
+    if (this.type !== 'soldier' || this.dead || this.mounted || !sb.crew || sb.dead) return false;
+    if (this.post && this.post.sb === sb) return true;
+    const i = POST_SLOTS.findIndex((_, k) => !sb.crewAt(k)); if (i < 0) return false;
+    this.leavePost(); this.boardTarget = null;
+    sb.crew[i] = this; this.post = { sb, slot: i, settled: false, t: 0 };
+    const [ex, ez] = sb.postEntry(); this.order(ex, ez, true);
+    return true;
+  }
+  leavePost() { const p = this.post; if (!p) return; if (p.sb.crew[p.slot] === this) p.sb.crew[p.slot] = null; this.post = null; }
+  stepPost(dt) {
+    const p = this.post, sb = p.sb;
+    if (sb.dead) { this.leavePost(); return; }
+    const [sx, sz] = sb.postSlot(p.slot), d = Math.hypot(sx - this.pos.x, sz - this.pos.z);
+    if (p.settled && d > p.off + 0.5) p.settled = false;                                 // shoved out of it: back in
+    if (p.settled) { if (!this.enemy) this.heading += clamp(wrap(sb.heading - this.heading), -this.spec.turn * dt, this.spec.turn * dt); return; }   // face out over the bags
+    p.stuck = d < 1.2 && Math.abs(this.speed) < 0.2 ? (p.stuck || 0) + dt : 0;             // as close as the bags let him get
+    if (d < 0.6 || p.stuck > 1) { p.settled = true; p.off = d; p.stuck = 0; this.dest = this.target = this.path = null; this.speed = 0; return; }
+    const [lx, lz] = sb.worldToLocal(this.pos.x, this.pos.z);
+    if (Math.abs(lx) < 1.9 && lz > -4.6 && lz < 1.6) {                                    // in the mouth or inside: straight to the slot
+      if (!this.dest || this.path || Math.hypot(this.dest.x - sx, this.dest.z - sz) > 0.1) { this.dest = new Vec3(sx, 0, sz); this.target = new Vec3(sx, 0, sz); this.path = null; this.bestDist = Infinity; this.noProgress = 0; }
+    } else if ((p.t += dt) > 1.5 || !this.dest) {                                           // on the way to the rear of it: keep going there
+      p.t = 0; const [ex, ez] = sb.postEntry(); if (!this.dest || Math.hypot(this.dest.x - ex, this.dest.z - ez) > 2) this.order(ex, ez, true);
+    }
+  }
+
   damage(amount, from) {
     if (this.dead) return false;
     this.hp -= amount;
@@ -155,7 +195,7 @@ export class Unit {
     return false;
   }
   die(from) {
-    this.dead = true; this.deathT = 0; this.enemy = null; this.target = null; this.path = null; this.dest = null; this.hold = false; this.boardTarget = null; this.building = null;
+    this.dead = true; this.deathT = 0; this.enemy = null; this.target = null; this.path = null; this.dest = null; this.hold = false; this.boardTarget = null; this.building = null; this.leavePost();
     this.killer = from || null; this.parts.ring.visible = false;
     // passengers: out of a ground vehicle (or a landed helicopter) shaken and hurt, lost with a helicopter shot down in the
     // air; the match applies the damage (Match: ejected) so a death is counted and respawned like any other
@@ -224,7 +264,7 @@ export class Unit {
         // trying to move but getting no nearer for a while (a wall, a crowd): call the last waypoint reached, else look for a way round
         if (want !== 0) {
           if (dist < this.bestDist - 0.15) { this.bestDist = dist; this.noProgress = 0; } else this.noProgress += dt;
-          if (this.noProgress > 1.5) { if (last) this.nextWaypoint(); else { const d = this.dest; this.order(d.x, d.z); } }
+          if (this.noProgress > 1.5) { if (last) this.nextWaypoint(); else { const d = this.dest; this.order(d.x, d.z, true); } }
         }
       }
     }
@@ -382,6 +422,7 @@ export class Unit {
       else if ((Math.hypot(bx - this.pos.x, bz - this.pos.z) < 2.5 || Math.hypot(h.pos.x - this.pos.x, h.pos.z - this.pos.z) < h.radius + 2.2) && settled) { this.mount(h); return; }   // at the tail, or alongside if a wall is behind it
       else if ((this.boardT += dt) > 1.5 && (!this.dest || Math.hypot(this.dest.x - bx, this.dest.z - bz) > 3)) { this.boardT = 0; this.order(bx, bz); }   // it moved: follow it
     }
+    if (this.post) this.stepPost(dt);
     this.spec.air ? this.stepAir(dt, world) : this.stepGround(dt, world);
     if (this.dropOnArrive && !this.dest && Math.abs(this.speed) < 0.3) { this.dropOnArrive = false; if (this.passengers.length) this.unload(); }   // a ground carrier stopped where it was sent
   }
@@ -402,6 +443,8 @@ export class Squad {
   }
   get busy() { return this.members.some(m => !m.dead && (m.dest || m.boardTarget)); }
   board(c) { for (const m of this.members) if (!m.dead && !m.mounted) m.board(c); }
+  man(sb) { let n = 0; for (const m of this.members) if (!m.dead && !m.mounted && m.man(sb)) n++; return n; }   // into a sandbag position, as many as it has slots
+  get posted() { const a = this.members.filter(m => !m.dead); return a.length > 0 && a.every(m => m.post); }
   get mounted() { const a = this.members.filter(m => !m.dead); return a.length > 0 && a.every(m => m.mounted); }
   get engineer() { return this.members.find(m => !m.dead && m.kit === 'engineer') || null; }
   centroid() { const a = this.members.filter(m => !m.dead); const c = new Vec3(); for (const m of a) c.add(m.pos); return c.multiplyScalar(1 / (a.length || 1)); }
@@ -451,7 +494,7 @@ export class UnitManager {
     for (let i = this.units.length - 1; i >= 0; i--) if (this.units[i].remove) this.removeUnit(this.units[i]);
     // separation between ground units
     const push = (a, b) => {
-      if (a.dead || b.dead || a.mounted || b.mounted || (a.spec.air && a.alt > 0.1) || (b.spec.air && b.alt > 0.1)) return;
+      if (a.dead || b.dead || a.mounted || b.mounted || (a.spec.air && a.alt > 0.1) || (b.spec.air && b.alt > 0.1) || a.spec.hollow || b.spec.hollow) return;   // a sandbag position's walls are obstacles; its middle is for standing in
       const dx = b.pos.x - a.pos.x, dz = b.pos.z - a.pos.z, r = a.radius + b.radius, d2 = dx * dx + dz * dz;
       if (d2 < r * r && d2 > 1e-6) {
         const d = Math.sqrt(d2), k = (r - d) * 0.5, nx = dx / d, nz = dz / d, wa = b.radius / r, wb = a.radius / r;

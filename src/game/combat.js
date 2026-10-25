@@ -54,6 +54,8 @@ export class Combat {
     const G = this.low, i = G.list.length; G.list.push(o); const st = new Int32Array(i + 1); st.set(G.stamp); G.stamp = st;
     for (let cz = this.ci(o.minZ); cz <= this.ci(o.maxZ); cz++) for (let cx = this.ci(o.minX); cx <= this.ci(o.maxX); cx++) { const k = cz * this.nx + cx; let a = G.cells.get(k); if (!a) G.cells.set(k, a = []); a.push(i); }
   }
+  // a soldier settled in a sandbag position's firing slot, shot at from its front or sides (not through the open rear)
+  dugIn(e, from) { const p = e.post; if (!p || !p.settled) return false; const a = Math.atan2(from.pos.x - e.pos.x, from.pos.z - e.pos.z) - p.sb.heading; return Math.abs(Math.atan2(Math.sin(a), Math.cos(a))) < Math.PI * 0.6; }
   // partial cover: a low obstacle within 3 m of the target on the shooter's side
   covered(e, from) { const dx = from.pos.x - e.pos.x, dz = from.pos.z - e.pos.z, d = Math.hypot(dx, dz) || 1, L = Math.min(3, d); return this.segHits(this.low, e.pos.x, e.pos.z, e.pos.x + dx / d * L, e.pos.z + dz / d * L); }
   // can unit u see a point on the ground (hills and tall boxes)?
@@ -86,7 +88,7 @@ export class Combat {
     const r = w.explosive ? 9 : 4, amount = w.explosive ? 0.4 : w.burst >= 8 ? 0.1 : w.dmgInf >= 20 ? 0.25 : 0.07;
     for (const s of this.spatial.query(x, z, r, this.scratch)) {
       if (s.type !== 'soldier' || s.dead || s.mounted || s.team === shooterTeam) continue;
-      const d = Math.hypot(s.pos.x - x, s.pos.z - z); s.supp = Math.min(1, s.supp + amount * (1 - 0.5 * d / r) * (s === victim ? 2 : 1));
+      const d = Math.hypot(s.pos.x - x, s.pos.z - z); s.supp = Math.min(1, s.supp + amount * (1 - 0.5 * d / r) * (s === victim ? 2 : 1) * (s.post && s.post.settled ? 0.5 : 1));   // dug in: half the suppression
     }
   }
   canSee(u, e) {
@@ -162,7 +164,7 @@ export class Combat {
     if (u.type === 'soldier') chance *= 1 - 0.4 * u.supp; // a suppressed shooter aims badly
     if (e.type !== 'soldier') chance *= 1.6;            // vehicles are big targets
     if (w.rocket && e.spec.air && e.alt > 2) chance *= 0.35;   // an unguided rocket at a helicopter in the air rarely connects
-    else chance *= Math.max(0.3, (this.covered(e, u) ? 0.5 : 1) * (1 - 0.2 * (e.kneelK || 0) - 0.4 * (e.proneK || 0)));   // cover and a low stance shrink the target
+    else { const dug = this.dugIn(e, u); chance *= Math.max(dug ? 0.2 : 0.3, (dug ? 0.35 : this.covered(e, u) ? 0.5 : 1) * (1 - 0.2 * (e.kneelK || 0) - 0.4 * (e.proneK || 0))); }   // a manned position, cover and a low stance shrink the target
     const hit = Math.random() < chance;
     // the round leaves the barrel a little ahead of the unit at gun height, aimed where the target will be
     // when it arrives; a miss is aimed past the target and comes down on the ground around it

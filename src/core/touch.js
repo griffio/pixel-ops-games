@@ -113,8 +113,8 @@ export class TouchInput {
     const u = this.app.pick(nx, ny, PICK_RADIUS);
     if (u && u.team === me && this.lastTap && this.lastTap.u === u && now - this.lastTap.t < this.doubleMs) { inp.selectType(u.type); this.lastTap = null; return; }   // double-tap: all of that type on screen
     this.lastTap = { t: now, u };
-    // with units selected, a tap off our own units is an order (boarding a landed helicopter counts as an order too)
-    const board = inp.canBoard(u);
+    // with units selected, a tap off our own units is an order (boarding a carrier or manning sandbags counts as an order too)
+    const board = inp.canBoard(u) || inp.canMan(u) || inp.canMan(inp.postAt(nx, ny));
     if (inp.selected.length && (!u || u.team !== me || board)) { inp.issueOrder(nx, ny, PICK_RADIUS); if (navigator.vibrate) navigator.vibrate(10); return; }
     inp.clickSelect(nx, ny, false, PICK_RADIUS);
     if (u && u.team === me && !this.hinted) { this.hinted = true; this.app.hud.toast('Tap the ground to move there'); }

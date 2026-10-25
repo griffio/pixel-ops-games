@@ -236,11 +236,11 @@ export class Hud {
     $('sel-n').textContent = list.length === 1 ? list[0].label : `${list.length} UNITS`;
     const how = this.app.touch ? 'tap the ground to move · tap an enemy to attack' : 'right-click to move · F to follow';
     $('sel-d').textContent = list.length === 1
-      ? `${list[0].type} · ${list[0].spec.air ? list[0].state : (list[0].target ? 'moving' : 'idle')}${list[0].seats ? ` · ${list[0].passengers.length}/${list[0].seats} aboard` : ''} · ${how}`
-      : desc + (this.app.touch ? ' · tap the ground to move in formation' : ' · right-click to move in formation');
+      ? `${list[0].type} · ${list[0].post ? `manning ${list[0].post.sb.label}${list[0].post.settled ? '' : ' (on the way)'}` : list[0].spec.air ? list[0].state : (list[0].target ? 'moving' : 'idle')}${list[0].seats ? ` · ${list[0].passengers.length}/${list[0].seats} aboard` : ''}${list[0].crew ? ` · ${4 - list[0].freeSlots}/4 manned` : ''} · ${how}`
+      : desc + (list.some(u => u.post) ? ` · ${list.filter(u => u.post).length} manning sandbags` : '') + (this.app.touch ? ' · tap the ground to move in formation' : ' · right-click to move in formation');
     this.renderActions(list);
   }
-  // context actions: build a FOB with a selected engineer, unload a helicopter
+  // context actions: build a FOB or sandbags with a selected engineer, unload a carrier, leave a sandbag position
   renderActions(list) {
     const m = this.app.match, box = $('sel-actions'); box.innerHTML = '';
     if (!m) return;
@@ -252,6 +252,7 @@ export class Hud {
     if (eng) { const c = m.fobs.canBuildSandbags(eng); box.insertAdjacentHTML('beforeend', `<button data-act="sandbags" ${c.ok ? '' : 'disabled'} title="${c.reason || ''}">Sandbags (N)${c.ok ? '' : ' · ' + c.reason}</button>`); }
     const car = list.find(u => u.seats && !u.dead && u.passengers.length);
     if (car) box.insertAdjacentHTML('beforeend', `<button data-act="unload" ${car.alt > 0.5 ? 'disabled' : ''}>Unload ${car.passengers.length} (U)</button>`);
+    else if (list.some(u => u.post && !u.dead)) box.insertAdjacentHTML('beforeend', `<button data-act="unload">Leave position (U)</button>`);
     const kits = m.fobs.kitsLeft(this.app.playerTeam ?? 0); if (eng) box.insertAdjacentHTML('beforeend', `<span class="hint">FOB kits left: ${kits}</span>`);
     box.onclick = (e) => { const b = e.target.closest('button'); if (b) this.action(b.dataset.act); };
   }
@@ -265,10 +266,16 @@ export class Hud {
       this.toast(done.length ? `Rally ${done.join(', ')} placed` : why[0]); if (this.app.audio) this.app.audio.ui(done.length ? 'order' : 'deny');
       if (done.length && m.voices) m.voices.say('vo_sq_rally', 10);
     }
-    if (kind === 'unload') {   // a helicopter has to land; a ground vehicle stops where it is
-      const cars = sel.filter(u => u.seats && !u.dead && u.passengers.length); if (!cars.length) return;
-      let n = 0; for (const c of cars) { if (c.alt > 0.5) continue; if (!c.spec.air) { c.dest = null; c.target = null; c.path = null; c.speed = 0; } n += c.passengers.length; c.unload(); }
-      this.toast(n ? `Unloaded ${n}` : 'Land first');
+    if (kind === 'unload') {   // a helicopter has to land; a ground vehicle stops where it is; soldiers in sandbags step out of the back
+      const cars = sel.filter(u => u.seats && !u.dead && u.passengers.length), crew = sel.filter(u => u.post && !u.dead);
+      if (cars.length) {
+        let n = 0; for (const c of cars) { if (c.alt > 0.5) continue; if (!c.spec.air) { c.dest = null; c.target = null; c.path = null; c.speed = 0; } n += c.passengers.length; c.unload(); }
+        this.toast(n ? `Unloaded ${n}` : 'Land first');
+      } else if (crew.length) {
+        const where = new Set(crew.map(u => u.post.sb.label));
+        for (const u of crew) { const [ex, ez] = u.post.sb.postEntry(); u.order(ex + (Math.random() - 0.5) * 3, ez + (Math.random() - 0.5) * 3); }
+        this.toast(`Left ${[...where].join(', ')}`);
+      } else return;
     }
     this.showSelection(sel);
   }

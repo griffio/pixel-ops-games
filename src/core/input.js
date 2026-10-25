@@ -123,8 +123,9 @@ export class Input {
   }
 
   issueOrder(nx, ny, radiusPx = 0) {
-    // right-click (or tap) on a friendly helicopter, truck or APC with infantry selected: board it
-    const u = this.app.pick(nx, ny, radiusPx), me = this.app.playerTeam ?? 0;
+    // right-click (or tap) on a friendly helicopter, truck or APC with infantry selected: board it; on a sandbag position: man it
+    const me = this.app.playerTeam ?? 0, hit = this.app.pick(nx, ny, radiusPx);
+    const u = !hit || (hit.team === me && !hit.seats && !hit.crew) ? this.postAt(nx, ny) || hit : hit;   // the open middle of a sandbag position counts as the position
     if (this.canBoard(u)) {
       const squads = new Set(); for (const s of this.selected) if (s.type === 'soldier') (s.squad ? squads.add(s.squad) : s.board(u));
       for (const sq of squads) sq.board(u);
@@ -132,11 +133,21 @@ export class Input {
       if (u.spec.air) u.dropOnLand = true;
       this.hud.toast(`Boarding ${u.label}${want > room ? ` (${room} seat${room === 1 ? '' : 's'}; the rest stay)` : ''}: ${u.spec.air ? 'fly it and they get out where it lands' : 'drive it and they get out where it stops'}`); return;
     }
+    if (this.canMan(u)) {   // a friendly sandbag position: man it, four to a position
+      const want = this.selected.filter(s => s.type === 'soldier' && !s.mounted && !s.dead);
+      let n = 0; for (const s of want) if (s.man(u)) n++;
+      this.hud.toast(n ? `Manning ${u.label}: ${n} in${want.length > n ? `, ${want.length - n} stay (four slots)` : ''}` : `${u.label} is fully manned`);
+      if (this.app.audio) this.app.audio.ui(n ? 'order' : 'deny'); return;
+    }
     if (u && u.team !== me && !u.dead) { this.orderAt(u.pos.x, u.pos.z); return; }   // an enemy under the finger: attack-move onto it
     const g = this.rts.screenToGround(nx, ny); this.orderAt(g.x, g.z);
   }
   // a friendly carrier with a free seat, and infantry in the selection to put in it
   canBoard(u) { const me = this.app.playerTeam ?? 0; return !!(u && u.seats && u.team === me && !u.dead && u.passengers.length < u.seats && this.selected.some(s => s.type === 'soldier' && !s.mounted)); }
+  // the friendly sandbag position whose footprint holds the ground point under the cursor
+  postAt(nx, ny) { const me = this.app.playerTeam ?? 0, g = this.rts.screenToGround(nx, ny); return this.units.units.find(s => s.crew && s.team === me && !s.dead && (([lx, lz]) => Math.abs(lx) < 3.5 && lz > -2.5 && lz < 2.5)(s.worldToLocal(g.x, g.z))) || null; }
+  // a friendly sandbag position, and infantry in the selection to man it
+  canMan(u) { const me = this.app.playerTeam ?? 0; return !!(u && u.crew && u.team === me && !u.dead && this.selected.some(s => s.type === 'soldier' && !s.mounted)); }
   orderAt(gx, gz) {
     if (!this.selected.length) return;
     const g = { x: gx, z: gz };

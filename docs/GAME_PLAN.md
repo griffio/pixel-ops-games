@@ -1013,6 +1013,36 @@ Engine changes needed in the existing core:
   APCs keep it back), and lost three Chinooks in seven matches; Air Assault
   still lost all seven, so the CPU keeps not picking it.
 
+- **Manning sandbags (2026-10-25).** The user expected soldiers to get in and
+  out of sandbag positions. Before, there was no such state: protection was the
+  generic low-cover rule (a low obstacle within 3 m toward the shooter halves
+  the hit chance), and a rifle squad ordered into a position, as the CPU posted
+  its squads, ended up about 4 m behind it, one of four covered from the front
+  and none from the side. Two causes: separation pushed every soldier out to
+  the sum of the radii from the position's centre (the sandbags model has a
+  3.6 m radius), and the walking grid's clearance closed the front half of the
+  inside. Now a position (`spec.hollow`: no separation) has four firing slots
+  (`POST_SLOTS`: two against the front wall, one against each side) and a crew;
+  `Unit.man(sb)` takes the first free slot, walks to the open rear
+  (`postEntry`) on the grid, then straight in (`stepPost`), and settles at the
+  slot (or as close as the bags allow, within 1.2 m); settled he holds it and
+  faces out. `Combat.dugIn`: a settled soldier shot at from the front or sides
+  (within 108 degrees of the position's facing) has 0.35 of the hit chance
+  instead of cover's 0.5 (floor 0.2 with stance), and suppression builds at
+  half rate. Any order without `keepPost` takes him out. Right-click or tap on a
+  friendly position (or the open ground inside it: `Input.postAt`) mans it,
+  four at most, with a toast for a full one; **U** or the Leave position button
+  walks them out of the back; the selection line says who is manning. The CPU
+  mans the positions at the place it holds (`manPost`) and keeps a squad that
+  is in or on its way in out of the job share (it used to reshuffle the post
+  squad within 15 s), and `caution()` leaves manned squads in place under
+  armour. Tested: four in and settled from a player order, 0.35 from the front,
+  45 degrees and the side, 1.0 from the rear; a second squad told the position
+  is full; U walks them out; a CPU squad manned a position at the Village
+  within 30 s and held it. The CPU still rarely builds sandbags (none in 12
+  minutes in two Entrenched matches): its truck guard keeps dig-in jobs away
+  from enemy armour.
+
 ## Open questions
 
 

@@ -19,6 +19,12 @@ export class Strategist {
     const c = sq.centroid(); if (!sq.busy && Math.hypot(c.x - x, c.z - z) < 10 && sq.tag === tag) return;
     sq.goal = [x, z]; sq.tag = tag; sq.zone = zone; sq.order(x, z);
   }
+  // a squad mans a sandbag position (Unit.man: four firing slots) at the place it holds; once in, it stays
+  manPost(sq, s, zone) {
+    sq.zone = zone; sq.goal = [s.pos.x, s.pos.z];
+    if (sq.tag === 'post' + s.id && sq.members.every(m => m.dead || (m.post && m.post.sb === s))) return;
+    sq.tag = 'post' + s.id; sq.man(s);
+  }
   toward(from, to, keep, jitter = 6) { const dx = to.x - from.x, dz = to.z - from.z, d = Math.hypot(dx, dz) || 1, k = Math.max(0, d - keep) / d; return [from.x + dx * k + (Math.random() - 0.5) * jitter, from.z + dz * k + (Math.random() - 0.5) * jitter]; }
 
   tick(dt) {
@@ -41,8 +47,12 @@ export class Strategist {
     const attack = g.attack, hold = g.hold, reserve = g.reserve || null;
     const enemyFob = this.units.units.find(u => u.type === 'fob' && u.team !== this.team && !u.dead && (attack ? Math.hypot(u.pos.x - attack.x, u.pos.z - attack.z) < 160 : true));
     const logisticsSquad = this.logistics(squads, vehicles, g.fobAnchor, hold);
-    const free = squads.filter(s => s !== logisticsSquad);
-    const posts = hold ? this.match.fobs.sandbagsOf(this.team).filter(s => Math.hypot(s.pos.x - hold.x, s.pos.z - hold.z) < hold.r + 12) : []; let post = 0;   // our sandbag positions at the place we hold, one squad each
+    const allPosts = hold ? this.match.fobs.sandbagsOf(this.team).filter(s => Math.hypot(s.pos.x - hold.x, s.pos.z - hold.z) < hold.r + 12) : [];   // our sandbag positions at the place we hold, one squad each
+    // a squad manning one (or on its way in) keeps it and sits out the job share; the other positions go to squads given the hold job
+    const manned = squads.filter(sq => sq !== logisticsSquad && allPosts.some(s => sq.tag === 'post' + s.id && sq.members.some(m => m.post && m.post.sb === s)));
+    for (const sq of manned) this.manPost(sq, allPosts.find(s => sq.tag === 'post' + s.id), hold);
+    const posts = allPosts.filter(s => !manned.some(sq => sq.tag === 'post' + s.id)); let post = 0;
+    const free = squads.filter(s => s !== logisticsSquad && !manned.includes(s));
     const byName = (n) => (this.match.objectives ? this.match.objectives.list.find(l => l.name === n) : null) || null;
     // what each job means on the ground
     const attackWith = (sq) => {
@@ -58,7 +68,7 @@ export class Strategist {
     };
     const holdAt = (sq, loc) => {
       if (!loc) return this.send(sq, base.x + (Math.random() - 0.5) * 20, base.z + (Math.random() - 0.5) * 20, 'home');
-      if (loc === hold && post < posts.length) { const s = posts[post++]; return this.send(sq, s.pos.x - Math.sin(s.heading) * 0.4, s.pos.z - Math.cos(s.heading) * 0.4, 'post' + s.id, hold); }
+      if (loc === hold && post < posts.length) return this.manPost(sq, posts[post++], hold);
       const [x, z] = this.inZone(loc.x, loc.z, loc, 0.7); this.send(sq, x, z, 'hold' + loc.index, loc);
     };
     const reserveAt = (sq, loc) => { if (!loc) return holdAt(sq, hold); const [x, z] = this.inZone(loc.x, loc.z, loc, 0.6); this.send(sq, x, z, 'reserve' + loc.index, loc); };
@@ -159,8 +169,8 @@ export class Strategist {
   // Caution, once a second. Armour first: a squad an enemy APC can see within 110 m stalks it to rocket range if
   // it carries launchers, otherwise it moves behind the nearest building or hill out of the APC's sight (or falls
   // back if there is none) and stays there while the APC is about. Then infantry: a squad with an enemy inside 22 m
-  // falls back unless it stands in the zone it was sent to take or hold, or clearly has the numbers. An APC with an
-  // enemy inside 50 m backs off to 70 m.
+  // falls back unless it stands in the zone it was sent to take or hold, or clearly has the numbers. Squads manning
+  // sandbags stay put through all of it. An APC with an enemy inside 50 m backs off to 70 m.
   halt(sq, tag) { for (const m of sq.members) if (!m.dead) { m.dest = null; m.target = null; m.path = null; } sq.tag = tag; sq.goal = null; }
   caution() {
     const enemies = this.units.units.filter(u => !u.dead && !u.mounted && u.team !== this.team && !u.spec.structure && !(u.spec.air && u.alt > 2));
@@ -172,6 +182,7 @@ export class Strategist {
     const away = (x, z, e, dist) => { const dx = x - e.pos.x, dz = z - e.pos.z, d = Math.hypot(dx, dz) || 1; return [x + dx / d * dist, z + dz / d * dist]; };
     for (const sq of this.units.squads) {
       if (sq.team !== this.team || !sq.leader || sq.mounted || this.lifts.has(sq) || sq.members.some(m => m.building)) continue;
+      if (sq.posted) continue;                                                                               // manning sandbags: they stay, armour or not
       const c = sq.centroid();
       let apc = null, ad = 1e9; for (const v of apcs) { const d = Math.hypot(v.pos.x - c.x, v.pos.z - c.z); if (d < 150 && d < ad && C.canSeePoint(v, c.x, c.z)) { apc = v; ad = d; } }
       if (apc) {
@@ -193,7 +204,7 @@ export class Strategist {
     }
     // armour that threatens our squads is hunted: for each enemy APC within 150 m of one of our squads without launchers, the
     // nearest anti-tank squad not already on another APC closes in until it can see it inside rocket range, then stops and fires
-    const ours = this.units.squads.filter(sq => sq.team === this.team && sq.leader && !sq.mounted && !this.lifts.has(sq) && !sq.members.some(m => m.building));
+    const ours = this.units.squads.filter(sq => sq.team === this.team && sq.leader && !sq.mounted && !sq.posted && !this.lifts.has(sq) && !sq.members.some(m => m.building));
     const hasAT = (sq) => sq.members.some(m => !m.dead && m.kit === 'at');
     for (const apc of apcs) {
       if (!ours.some(sq => !hasAT(sq) && Math.hypot(sq.centroid().x - apc.pos.x, sq.centroid().z - apc.pos.z) < 150)) continue;

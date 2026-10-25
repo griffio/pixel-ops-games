@@ -95,8 +95,14 @@ helicopter in the air hits a third as often as at a ground vehicle. Its supply t
 enemy armour comes within 120 m. An engineer
 beside a supply truck can also throw up a **sandbag position** (**N**, 12
 supplies, about 12 seconds, up to eight per side): a U of bags open to the rear
-that a squad fits inside, half as likely to be hit from the front and sides,
-and the CPU digs in the same way at locations it holds. The CPU
+with four firing slots, two against the front wall and one against each side.
+With infantry selected, right-click (or tap) a friendly position to **man** it:
+up to four soldiers walk in through the back and take a slot each (the rest stay
+put), hold it, and face out over the bags. Manned, a soldier is about a third as
+likely to be hit from the front and sides (against a half behind any low cover)
+and takes half the suppression; through the open rear he has no protection. Any
+other order, or **U** (the Leave position button), takes them out. The CPU digs
+in the same way at locations it holds, mans the positions and stays in them. The CPU
 commander builds a FOB one hop behind its front and lifts squads toward distant
 objectives. It is cautious: squads close to about 35 m of a defended objective
 and shoot from there, fall back when an enemy gets inside 22 m unless they hold
@@ -150,7 +156,8 @@ precedence and the utility AI fills the gaps.
 | Input | Action |
 |---|---|
 | Left click / drag | Select unit or squad / box-select |
-| Right click | Move order (selected squads and vehicles move in formation) |
+| Right click | Move order (selected squads and vehicles move in formation); on a friendly carrier, board it; on a friendly sandbag position, man it |
+| `U` | Unload a selected carrier, or take selected soldiers out of their sandbag position |
 | Right drag, `Q` / `E` | Rotate camera (yaw + pitch) |
 | Wheel | Zoom (changes pixel scale, keeps the point under the cursor fixed) |
 | `WASD` / arrows / screen edge / middle drag | Pan |
@@ -166,7 +173,7 @@ Touch and pen pointers go to a gesture layer; a mouse or trackpad keeps the tabl
 | Gesture | Action |
 |---|---|
 | Tap a unit | Select it (its whole squad) |
-| Tap the ground (with a selection) | Move the selection there; tap an enemy to attack-move, a friendly helicopter, truck or APC to board it |
+| Tap the ground (with a selection) | Move the selection there; tap an enemy to attack-move, a friendly helicopter, truck or APC to board it, a friendly sandbag position to man it |
 | Double-tap a unit | Select every friendly unit of that type on screen |
 | Hold on the ground | The same order as a tap (the ring fills in 0.45 s) |
 | Hold with nothing selected, then drag | Box select |
