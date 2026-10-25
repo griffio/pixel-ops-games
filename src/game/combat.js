@@ -161,6 +161,7 @@ export class Combat {
     if (!first) chance *= 0.8;                          // recoil through the burst
     if (u.type === 'soldier') chance *= 1 - 0.4 * u.supp; // a suppressed shooter aims badly
     if (e.type !== 'soldier') chance *= 1.6;            // vehicles are big targets
+    if (w.rocket && e.spec.air && e.alt > 2) chance *= 0.35;   // an unguided rocket at a helicopter in the air rarely connects
     else chance *= Math.max(0.3, (this.covered(e, u) ? 0.5 : 1) * (1 - 0.2 * (e.kneelK || 0) - 0.4 * (e.proneK || 0)));   // cover and a low stance shrink the target
     const hit = Math.random() < chance;
     // the round leaves the barrel a little ahead of the unit at gun height, aimed where the target will be

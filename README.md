@@ -85,7 +85,13 @@ base toward a far objective, stopping 120 m short, and an APC leaving base takes
 a squad with it; its helicopters fly anyone stranded at main base (waiting up to
 15 s for a fuller load) to 70 m short, and under Air Assault one helicopter parks
 130 m short of the objective, clear of enemies and armour, as a forward spawn,
-taking off when it is hit or threatened. Its supply trucks pull back to base when
+taking off when it is hit or threatened. A CPU helicopter with nothing to carry
+flies fire support: it hovers 40 m from the biggest knot of enemy infantry near
+the fight, broadside so a door gun (an M240: 80 m, 14-round bursts) bears, never
+within reach of an APC's autocannon and with at most two launchers in reach, and
+goes home when it drops below 70%. A helicopter landed in its own main base is
+repaired by the ground crew (full in a minute), and an unguided rocket at a
+helicopter in the air hits a third as often as at a ground vehicle. Its supply trucks pull back to base when
 enemy armour comes within 120 m. An engineer
 beside a supply truck can also throw up a **sandbag position** (**N**, 12
 supplies, about 12 seconds, up to eight per side): a U of bags open to the rear

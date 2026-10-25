@@ -71,7 +71,7 @@ export class Unit {
     this.kit2 = spec.kit2 || null; this.cooldown2 = 0; this.burst2 = 0;   // a second weapon on the same turret (the tank's coax MG)
     this.stance = 'stand'; this.supp = 0; this.kneelK = 0; this.proneK = 0; this.aimK = 0;   // infantry: suppression 0..1 and the pose blends it drives
     this.dead = false; this.deathT = 0; this.wreck = false; this.remove = false;
-    this.mounted = null; this.passengers = []; this.boardTarget = null; this.supplies = 0; this.landedT = 0;
+    this.mounted = null; this.passengers = []; this.boardTarget = null; this.supplies = 0; this.landedT = 0; this.hover = false;
     this.alt = 0; this.altT = 0; this.rotor = 0; this.rotorT = 0; this.state = 'parked'; this.tilt = 0; this.bank = 0;
     this.id = (counters[type] = (counters[type] || 0) + 1);
     this.label = `${spec.label}-${String(this.id).padStart(2, '0')}`;
@@ -326,9 +326,17 @@ export class Unit {
       case 'spool': this.rotorT = 1; if (this.rotor > 0.95) { this.state = 'takeoff'; this.altT = rnd(7, 11); } break;
       case 'takeoff': if (this.alt > this.altT - 0.5) this.state = 'cruise'; break;
       case 'cruise': {
-        if (!this.target) { this.state = 'land'; break; }
+        if (!this.target) {
+          if (!this.hover) { this.state = 'land'; break; }
+          // hovering (CPU fire support): hold here and turn broadside to the target so a door gun bears on it
+          this.speed = Math.max(0, this.speed - s.accel * 1.5 * dt);
+          const e = this.enemy;
+          if (e && !e.dead) { const to = Math.atan2(e.pos.x - this.pos.x, e.pos.z - this.pos.z), a = wrap(to + Math.PI / 2 - this.heading), b = wrap(to - Math.PI / 2 - this.heading), diff = Math.abs(a) < Math.abs(b) ? a : b; this.heading += clamp(diff, -s.turn * 0.5 * dt, s.turn * 0.5 * dt); }
+          if (dt > 0) this.bank = lerp(this.bank, 0, 1 - Math.pow(0.02, dt));
+          break;
+        }
         const dx = this.target.x - this.pos.x, dz = this.target.z - this.pos.z, dist = Math.hypot(dx, dz);
-        if (dist < 1.2 && this.speed < 1.5) { this.state = 'land'; this.target = null; this.dest = null; break; }
+        if (dist < 1.2 && this.speed < 1.5) { this.target = null; this.dest = null; if (!this.hover) this.state = 'land'; break; }
         const desired = Math.atan2(dx, dz), diff = wrap(desired - this.heading);
         const turn = clamp(diff, -s.turn * dt, s.turn * dt); this.heading += turn;
         const want = s.speed * clamp(dist / 14, 0.08, 1) * clamp(1.3 - Math.abs(diff), 0.15, 1);

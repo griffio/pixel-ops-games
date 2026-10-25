@@ -990,6 +990,29 @@ Engine changes needed in the existing core:
   within 7.7 m of the road outside the bridges (the road is 12 m wide);
   CPU matches capture and drive out of the bases as before.
 
+- **CPU Chinooks fly fire support (2026-10-25).** A CPU helicopter with nothing
+  to carry and at 95% health or more takes off for `gunSpot()`: the three
+  biggest knots of enemy infantry within 100 m of the places it attacks and
+  holds or of any of its squads, and for each eight bearings 40 m out (our side
+  first); a point within 165 m of an enemy APC is out (tank guns can't shoot
+  up), launchers within 95 m count against it, more than two rule it out, and
+  the fewest wins. It hovers there (`Unit.hover`: a helicopter that arrives
+  stays in the air, turning broadside to its target so a door gun bears) and
+  follows the fight every plan tick, home after two ticks with nothing to
+  shoot; `caution()` sends it home below 70% or moves it when the point gets
+  exposed. Ferrying and the Air Assault perch come first. Needed alongside:
+  every enemy force has an AT squad, rockets reach 90 m and the door gun 70, so
+  at first no point was ever safe (126 of 142 searches in one match), and with
+  launchers allowed it fired 793 rounds for 4 kills. So an unguided rocket at a
+  helicopter in the air now hits 0.35 as often (`Combat.fire`), the door gun
+  is an M240 on a steady mount (80 m, 14-round bursts 0.05 s apart, 7 damage,
+  0.18 accuracy; was 70 m, 10 rounds, 6, 0.14), and a helicopter landed in its
+  main base is repaired, full in a minute (`Support`). Over the seven Air
+  Assault test matchups it killed 34-35 a match against Light Infantry (about
+  20 minutes on station), 4-8 against Balanced, 0-2 against Mechanized (its
+  APCs keep it back), and lost three Chinooks in seven matches; Air Assault
+  still lost all seven, so the CPU keeps not picking it.
+
 ## Open questions
 
 
