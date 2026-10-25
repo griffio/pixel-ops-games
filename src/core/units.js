@@ -198,10 +198,10 @@ export class Unit {
       }
     }
     if (this.hold && this.type === 'soldier') want = 0;
-    // infantry stance: standing on the move, a knee when still, flat when suppressed (and only crawling then)
+    // infantry stance: standing on the move or at rest, a knee to shoot from when still, flat when suppressed (and only crawling then)
     if (this.type === 'soldier') {
       this.supp *= Math.exp(-dt / 2.5);
-      this.stance = this.supp > 0.5 ? 'prone' : (this.supp > 0.25 && want === 0) ? 'prone' : want === 0 ? 'kneel' : 'stand';
+      this.stance = this.supp > 0.5 ? 'prone' : (this.supp > 0.25 && want === 0) ? 'prone' : want === 0 && this.enemy ? 'kneel' : 'stand';
       if (this.stance === 'prone' && want !== 0) want *= 0.3;
       const kk = this.stance === 'kneel' ? 1 : 0, pk = this.stance === 'prone' ? 1 : 0, r1 = Math.min(1, dt * 4), r2 = Math.min(1, dt * 3);
       this.kneelK += (kk - this.kneelK) * r1; this.proneK += (pk - this.proneK) * r2;
@@ -247,13 +247,13 @@ export class Unit {
       p.torso.position.y = p.legL.position.y = p.legR.position.y = bob;
       p.torso.rotation.x = 0.22 * run + 0.1 * ak * (1 - run);   // lean into the run / into the rifle
       p.torso.rotation.y = Math.sin(this.phase) * 0.08 * run - 0.25 * ak;   // bladed to the target when aiming
-      // stance on top of the walk: kneel drops the hips with the left thigh forward and the right knee down,
-      // prone lays the body flat with the legs straight back
+      // stance on top of the walk: kneel drops the hips onto the right knee with that shin flat behind, the left thigh
+      // forward and its shin upright; prone lays the body flat with the legs straight back
       if (k > 0.01 || pr > 0.01) {
-        p.torso.position.y = p.legL.position.y = p.legR.position.y = bob - 0.45 * k - 0.8 * pr;
+        p.torso.position.y = p.legL.position.y = p.legR.position.y = bob - 0.5 * k - 0.8 * pr;
         p.torso.rotation.x += 0.15 * k + 1.45 * pr;
         p.legL.rotation.x += -1.5 * k + 1.5 * pr; p.kneeL.rotation.x += 1.5 * k;
-        p.legR.rotation.x += 0.9 * k + 1.5 * pr; p.kneeR.rotation.x += 1.3 * k;
+        p.legR.rotation.x += 0.1 * k + 1.5 * pr; p.kneeR.rotation.x += 1.55 * k;
       }
       // the rifle between its poses, then both hands onto it; the head drops to the sight, or lifts to look ahead when prone
       // machine gunners hold the machine gun; anti-tank soldiers swap the carbine for the launcher once they have a target

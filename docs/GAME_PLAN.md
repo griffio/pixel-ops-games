@@ -719,6 +719,14 @@ Engine changes needed in the existing core:
   whichever weapon is held (`HOLD`), and the muzzle flash starts at that
   weapon's muzzle; the rocket's existing backblast lands behind the venturi.
 
+- **Standing at rest, a real kneel (2026-10-25).** Soldiers that stopped
+  without a target went into the kneel stance, and the kneel pose (rear thigh
+  swung back 0.9 rad, hips down 0.45 m) left the rear knee in the air with the
+  foot kicked up, so a halted squad looked mid-stride. Now soldiers kneel only
+  when stopped with a target (stand otherwise), and the kneel drops the hips
+  0.5 m onto the right knee with that shin flat behind and the left shin
+  upright.
+
 ## Open questions
 
 
