@@ -83,7 +83,9 @@ export class World extends WorldState {
       if (p.tex) mat = MAT[p.tex];
       else if (p.emissive !== undefined) { mat = { color: [...hexToLinear(p.color), 1], tex: null, emissive: hexToLinear(p.emissive), emissiveI: 0, cast: p.cast }; this.heads.push(mat); }
       else { const k = p.color + ':' + p.cast; if (!mats.has(k)) mats.set(k, { color: [...hexToLinear(p.color), 1], tex: null, emissive: [0, 0, 0], cast: p.cast }); mat = mats.get(k); }
-      const m = new Mesh(p.geo, mat); m.position.set(p.x, p.absY ? p.y : p.y + this.heightAt(p.x, p.z), p.z); m.rotation.set(p.rot[0], p.rot[1], p.rot[2]);
+      // multi-part props share their anchor's ground height; a scaled unit box stands in for a plain-coloured part
+      const m = new Mesh(p.geo, mat); m.position.set(p.x, p.absY ? p.y : p.y + this.heightAt(p.ax ?? p.x, p.az ?? p.z), p.z); m.rotation.set(p.rot[0], p.rot[1], p.rot[2]);
+      if (p.scale) m.scale.set(p.scale[0], p.scale[1], p.scale[2]);
       p.lampHead ? this.scene.add(m) : r.addStatic(m);   // lamp heads change emissive at night, so they stay dynamic
     }
     for (const t of this.layout.tufts) {

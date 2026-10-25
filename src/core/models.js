@@ -16,6 +16,24 @@ export function makeBuilders(F) {
   const box = (w, h, d, m, x, y, z, parent) => F.box(w, h, d, mat(m), x, y, z, parent);
   const mesh = (geo, m, x, y, z, parent) => F.mesh(geo, mat(m), x, y, z, parent);
   const wheel = (r, w, x, y, z, parent) => F.wheel(r, w, x, y, z, parent, mat('rim')), ring = F.ring;
+  // Sandbags laid lengthways in a running bond (len along the stack's x), the top course two bags deep, the same as the
+  // map's sandbag walls (maps/desert1km.js bagStack).
+  const BAGS = ['sandbag', 'sandbag2', 'sandbag3'];
+  function bagStack(len, h, depth, x, z, rotY, parent) {
+    const s = group(); s.position.set(x, 0, z); s.rotation.y = rotY; parent.add(s);
+    const rows = Math.round(h / 0.24), rh = h / rows, bh = +(rh - 0.05).toFixed(3);
+    const ch = +(h - rh + 0.02).toFixed(2); box(+(len - 0.08).toFixed(2), ch, +(depth - 0.1).toFixed(2), 'bagCore', 0, ch / 2, 0, s);   // dark core up to the top course, behind the joints
+    for (let row = 0; row < rows; row++) {
+      const top = row === rows - 1;
+      for (let u = -len / 2 - (row % 2 ? 0.3 : 0); u < len / 2 - 1e-3; u += 0.6) {
+        const a = Math.max(u, -len / 2), b = Math.min(u + 0.6, len / 2), w = +(b - a - 0.06).toFixed(2); if (w < 0.1) continue;
+        const m = BAGS[Math.floor(rng() * 3)], y = row * rh + rh / 2;
+        if (top) for (const k of [-1, 1]) box(w, bh, +(depth / 2 - 0.03).toFixed(2), m, (a + b) / 2, y, k * depth / 4, s);
+        else box(w, bh, depth, m, (a + b) / 2, y, 0, s);
+      }
+    }
+    return s;
+  }
 
 
   // Reference look: modern infantryman in multicam. High-cut helmet with an NVG shroud, rails and ear defenders,
@@ -251,7 +269,7 @@ export function makeBuilders(F) {
     box(0.3, 6, 0.3, 'metal', -2.2, 3, -1.5, g); box(1.2, 0.08, 1.2, 'metal', -2.2, 6, -1.5, g); box(0.5, 0.5, 0.5, 'rifle', -2.2, 1.0, -1.5, g);   // mast, dish, radio
     mesh('wedge:6,2.6,4.4,1.2,1.2', 'canvas', 1.2, 1.3, 0.2, g);                                                                                     // tent
     box(2.2, 1.0, 1.4, 'olive', -2.4, 0.5, 1.8, g); box(1.2, 0.7, 0.9, 'canvas', 1.0, 0.35, -2.8, g);                                               // crates
-    for (let i = 0; i < 12; i++) { const a = i / 12 * Math.PI * 2; if (i === 9) continue; const h = group(); h.position.set(Math.cos(a) * 5.2, 0, Math.sin(a) * 5.2); h.rotation.y = -a; box(2.6, 1.0, 0.9, 'sandbag', 0, 0.5, 0, h); g.add(h); }
+    for (let i = 0; i < 12; i++) { const a = i / 12 * Math.PI * 2; if (i === 9) continue; bagStack(2.6, 1.0, 0.9, Math.cos(a) * 5.2, Math.sin(a) * 5.2, -a, g); }
     p.ring = ring(6.5, g);
     return { group: g, parts: p, height: 6.4, radius: 5.5 };
   }
@@ -270,8 +288,8 @@ export function makeBuilders(F) {
   // its obstacle boxes come from sandbagBoxes() below.
   function sandbags() {
     const g = group(); const p = {};
-    for (const x of [-2, 0, 2]) box(2, 1.0, 0.9, 'sandbag', x, 0.5, 2.0, g);                                                       // front
-    for (const z of [1.0, -0.9]) { box(0.9, 1.0, 2.0, 'sandbag', -3.0, 0.5, z, g); box(0.9, 1.0, 2.0, 'sandbag', 3.0, 0.5, z, g); }   // sides
+    bagStack(6, 1.0, 0.9, 0, 2.0, 0, g);                                                       // front
+    for (const x of [-3, 3]) bagStack(3.9, 1.0, 0.9, x, 0.05, Math.PI / 2, g);                // sides
     box(0.6, 0.35, 0.6, 'olive', 1.2, 0.17, -0.6, g); box(0.5, 0.3, 0.5, 'canvas', -1.4, 0.15, -0.9, g);                             // ammo boxes
     p.ring = ring(4.2, g);
     return { group: g, parts: p, height: 1.2, radius: 3.6 };
@@ -357,8 +375,8 @@ export function sandbagBoxes(x, z, h) {
 // sRGB hex colours shared by both back ends' material tables
 export const COLORS = {
   skin: 0xc9966b, skin2: 0x7a5236, hair: 0x1a1512, belt: 0x3b3127, boots: 0x8a7350, bootsB: 0x2f2a24, rifle: 0x1f1f1f, gun: 0x34373a, medRed: 0xb3261e, launcher: 0x56603c,
-  heliDark: 0x2e3330, olive: 0x5c6b3f, sandbag: 0x9c8b64, glass: 0x1d2328, tire: 0x1a1a1a, rim: 0xb09a64, rimB: 0x6c7550, metal: 0x2a2a2a, canvas: 0x6f6448,
+  heliDark: 0x2e3330, olive: 0x5c6b3f, sandbag: 0x9c8b64, sandbag2: 0xa8976f, sandbag3: 0x8f7f5a, bagCore: 0x5e5139, glass: 0x1d2328, tire: 0x1a1a1a, rim: 0xb09a64, rimB: 0x6c7550, metal: 0x2a2a2a, canvas: 0x6f6448,
   hub: 0x5e5340, tread: 0x2c2c2c, headlight: 0xf2ecd0, grille: 0x171717, amber: 0xd9822b,
   sand: 0xd6c08a, sandB: 0x87915f, engine: 0x6b6e6c, wood: 0x8a6a43, drum: 0x3e4a33, case: 0x3a3d40,   // vehicle plates, engines, cargo
 };
-export const TEXTURED = ['uniform', 'vest', 'desert', 'camo', 'tarp', 'trunk', 'frond', 'bush', 'uniformB', 'vestB', 'desertB', 'camoB', 'tarpB', 'wreck', 'net', 'trackLinks', 'trackEdge'];
+export const TEXTURED = ['uniform', 'vest', 'desert', 'camo', 'tarp', 'trunk', 'frond', 'bush', 'uniformB', 'vestB', 'desertB', 'camoB', 'tarpB', 'wreck', 'net', 'trackLinks', 'trackEdge', 'plaster1', 'plaster2', 'plaster3', 'render', 'liner'];

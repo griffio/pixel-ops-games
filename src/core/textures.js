@@ -43,6 +43,12 @@ export const CAMO = {
   camoB: { colors: ['#66724a', '#57633d', '#4a3c2a', '#7b8556', '#3f4a2c'], seed: 83, size: 64, blotch: [9, 22], count: 20, specks: 24, noise: 0.05 },
   tarp: { colors: ['#c4ad74', '#bba46b', '#cdb67e', '#b49c63'], seed: 91, blotch: [2, 6], count: 18, specks: 30, noise: 0.04 },   // the truck's canvas cover
   tarpB: { colors: ['#6f7650', '#666d48', '#787f58', '#5f6642'], seed: 93, blotch: [2, 6], count: 18, specks: 30, noise: 0.04 },
+  // house plaster: three tints, each with darker blotches where it has worn and been patched (map props)
+  plaster1: { colors: ['#d2bb8b', '#bf9c6c', '#b48f63', '#c8a87a'], seed: 95, blotch: [5, 12], count: 5, specks: 20, noise: 0.03 },
+  plaster2: { colors: ['#c8ae80', '#b39065', '#a9875d', '#bd9e72'], seed: 97, blotch: [5, 12], count: 5, specks: 20, noise: 0.03 },
+  plaster3: { colors: ['#dac7a0', '#c8aa80', '#bf9f75', '#d0b88e'], seed: 99, blotch: [5, 12], count: 5, specks: 20, noise: 0.03 },
+  liner: { colors: ['#9d9a91', '#8b8880', '#aeaba2', '#7d7a73', '#b3a587'], seed: 103, blotch: [1, 2], count: 40, specks: 140, noise: 0.06 },   // Hesco fabric
+  render: { colors: ['#d9c69c', '#d2bd92', '#dfcda6'], seed: 101, blotch: [2, 4], count: 6, specks: 16, noise: 0.025 },   // smooth render: the control tower
   trackLinks: { colors: ['#2a2927', '#232220', '#33312e'], seed: 85, blotch: [1, 2], count: 8, specks: 20, noise: 0.08, checker: { cell: 2, color: '#565450' } },
   trackEdge: { colors: ['#1b1b1b', '#1b1b1b'], seed: 87, blotch: [1, 1], count: 0, specks: 0, noise: 0.04, checker: { cell: 2, color: '#d9d6cf' } },   // the bright link ends along the track's lower edge
 };

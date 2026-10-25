@@ -727,7 +727,66 @@ Engine changes needed in the existing core:
   0.5 m onto the right knee with that shin flat behind and the left shin
   upright.
 
-## Open questions
+- **Map props from references (2026-10-25).** Five voxel references: sandbag
+  wall, concrete block wall, one- and two-storey desert houses, airfield
+  control tower. In `maps/desert1km.js`, multi-part props are placed with
+  `part()` in the object's own frame, every part taking the ground height at
+  the object's anchor (`ax`/`az`, read by `gl/world.js`) so a building stays
+  rigid on a slope; decoration draws from its own generator (`rd`), so `r()`
+  and with it every prop position and obstacle are unchanged. Sandbag walls
+  (`bagStack`: base perimeters, the Outpost and Relay rings) are bags in a
+  running bond in three tints with a doubled top course over a dark core, and
+  the FOB ring and the engineer's sandbag position use the same stack from
+  `models.js`. Village and compound walls (`blockWall`) are grey concrete
+  blocks in a running bond over mortar, with stained patches. Houses are
+  plaster (`plaster1-3`, blotchy) with a cornice and parapet, timber beam ends
+  under the roofline and the band between floors, lattice windows with sills,
+  and a framed door on the side facing the street (the compound house's faces
+  its gate). The control tower has a plinth, a shaft with slit windows, a
+  glazed cab, a roof hatch, antennas and a dish (`render` texture); the mosque
+  takes the plaster too. Plain-coloured parts are a unit box scaled to size
+  (`scale` on a prop), so each colour is one batch: props went from 972 to
+  8,186 but draw calls only from 844 to 874 over the village, and frame time
+  is about the same. Obstacles are as before (the tower's footprint grew from
+  7 to 7.6 m).
+
+- **Generated references (2026-10-25).** The remaining props get their
+  references from Workers AI. The user's prompt ("Create a 3dsprite - crudely
+  pixel drawn suitable for simple 3d rendered game. No background. Blocky
+  pixels.") on a Hesco wall and a container across the nine text-to-image
+  models: FLUX.2 klein 4B was the only one to get the Hesco right and matched
+  the voxel look on both, and the user chose it (runner-up FLUX.2 dev; klein
+  9B failed four of five calls; schnell, Lucid Origin, Phoenix and the SDXL
+  family drew the wrong object or a scene). `tools/make-refs.mjs` generates
+  the rest (output under `refs/`, ignored). From its images: the Outpost ring
+  is Hesco (`hesco`: speckled `liner` cells with sand tops in a dark steel
+  mesh) and every container is a 20 ft box (`container`: ribs, rails, rusty
+  corner castings, locking bars, rust spots) in the same five colours,
+  positions and stacks. Obstacles unchanged (compared in Node against the
+  previous commit: all 1,454 identical but the control tower's). The free
+  plan's 10,000 neurons a day ran out on the comparison; the user supplied a
+  temporary key for the last eight references (used inline for that one run,
+  not stored). From them: the Outpost watchtower and both main-base guard
+  towers (`watchtower`: concrete shaft with pilasters, ladder, sandbagged post
+  on the platform using `bagStack` raised with `y0`, stepped tin roof), the
+  Airfield hangar (blue ribbed walls, stepped barrel roof with arch ribs and
+  rust, open doorway behind telescoping doors), the two barracks huts (sage
+  prefab, framed windows, doors with steps, stepped gable roof), every fuel
+  tank (saddles, bands, end rims, railed walkway, end ladder), every
+  floodlight (round pole with collars, four-panel lamp housing, the lamp core
+  still glowing at night), the Relay mast and hut (lattice with zig-zag
+  braces, panel antennas, dishes and whips; concrete hut with door, vent, air
+  conditioner, cable tray), the market stalls (checked awnings, crates of
+  fruit) and the wells (stone ring, timber frame, rope, bucket). Obstacles are
+  identical in value and order to before (bar the control tower). Parts
+  thinner than 0.25 m (and shorter than 3 m) no longer cast shadows. The map
+  now has 14,677 prop pieces against 972; draw calls 873/1,192/759 over the
+  village, a wide view and the Airfield against 844/1,145/734. On this Mac
+  mini's Intel UHD 630 with vsync off, frame time is about 5-9% above the
+  previous commit (village 11 ms against 10, wide 14.8 against 14.3, Airfield
+  11.0 against 10.1); with vsync on, both builds sit at the same 60/30 fps
+  steps.
+
 
 
 
