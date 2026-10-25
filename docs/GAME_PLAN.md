@@ -709,6 +709,16 @@ Engine changes needed in the existing core:
   (gun height 1.85 m standing, 1.31 kneeling, 0.2 prone). A full CPU match
   ran clean; at normal zoom the soldiers read about as before.
 
+- **Kit weapons (2026-10-25).** The soldier model carries all three weapons
+  and units.js shows the ones a kit uses: `mg` holds a belt-fed gun (feed
+  cover, carry handle, heavy barrel, ammo pouch, a bipod that folds down when
+  prone) in the carbine's poses; `at` keeps a recoilless launcher (olive tube,
+  venturi, grips, shoulder pad, sight on the left) slung diagonally across the
+  pack while it has no target, then swaps it onto the right shoulder (prone:
+  alongside the head) and slings the carbine across the pack. Hands follow
+  whichever weapon is held (`HOLD`), and the muzzle flash starts at that
+  weapon's muzzle; the rocket's existing backblast lands behind the venturi.
+
 ## Open questions
 
 

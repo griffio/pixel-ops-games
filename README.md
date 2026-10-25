@@ -198,7 +198,10 @@ suppression (machine guns and cannon far more than rifles), a suppressed soldier
 aims worse and fires slower, and a kneeling or prone one is a smaller target
 (80% and 60% of the hit chance) and only crawls until the fire lifts. Soldiers
 carry the carbine across the chest and shoulder it while they have a target,
-standing, kneeling or prone, with both hands kept on the weapon.
+standing, kneeling or prone, with both hands kept on the weapon. Machine
+gunners carry a belt-fed gun whose bipod comes down when they go prone;
+anti-tank soldiers keep the launcher slung across the pack until they have a
+target, then put it on the shoulder and sling the carbine.
 
 URL parameters set the initial state so the two back ends can be compared on
 identical frames: `?r=gl&seed=7&x=52&z=50&zoom=6&yaw=0.6&pitch=0.95&hour=21&pixel=0&tpu=12`

@@ -45,7 +45,15 @@ function reach(arm, el, T, pole) {
 // (pitch and yaw are set each frame to cancel the torso's, so the barrel points where the soldier faces), out in front
 // prone; and where the hands hold it in the rifle's own frame
 const CARRY = [0, 0.5, 0.36, 0.35, 0.9, 0.15], AIM = [-0.11, 0.8, 0.46], PRONE = [-0.1, 1.0, 0.12];
-const GRIP = { x: 0, y: -0.1, z: -0.07 }, GUARD = { x: 0, y: -0.07, z: 0.17 };
+const HOLD = {   // trigger hand and support hand per weapon
+  rifle: [{ x: 0, y: -0.1, z: -0.07 }, { x: 0, y: -0.07, z: 0.17 }],
+  mg: [{ x: 0, y: -0.11, z: -0.08 }, { x: 0, y: -0.08, z: 0.18 }],
+  launcher: [{ x: 0, y: -0.17, z: 0 }, { x: 0, y: -0.17, z: 0.27 }],
+};
+// the launcher is only ever held up: over the right shoulder standing or kneeling, alongside the head prone; whatever
+// the soldier isn't holding rides diagonally across the pack
+const TUBE_AIM = [-0.2, 0.86, 0.15], TUBE_PRONE = [-0.2, 0.75, -0.12];
+const SLUNG_TUBE = [0, 0.55, -0.5, -1.75, 0.5, 0], SLUNG_RIFLE = [0, 0.5, -0.47, -1.75, -0.5, 0];
 const POLE_TRIGGER = { x: -0.6, y: -1, z: -0.2 }, POLE_SUPPORT = { x: 0.4, y: -1, z: 0 };
 
 export class Unit {
@@ -248,11 +256,19 @@ export class Unit {
         p.legR.rotation.x += 0.9 * k + 1.5 * pr; p.kneeR.rotation.x += 1.3 * k;
       }
       // the rifle between its poses, then both hands onto it; the head drops to the sight, or lifts to look ahead when prone
-      const tp = p.torso.rotation.x, ty = p.torso.rotation.y, R = p.rifle, up = 1 - pr, c = 1 - ak;
-      R.position.set((CARRY[0] * c + AIM[0] * ak) * up + PRONE[0] * pr, (CARRY[1] * c + AIM[1] * ak) * up + PRONE[1] * pr, (CARRY[2] * c + AIM[2] * ak) * up + PRONE[2] * pr);
-      R.rotation.set((CARRY[3] * c - tp * ak) * up - tp * pr, (CARRY[4] * c - ty * ak) * up - ty * pr, CARRY[5] * c * up);
+      // machine gunners hold the machine gun; anti-tank soldiers swap the carbine for the launcher once they have a target
+      const tp = p.torso.rotation.x, ty = p.torso.rotation.y, up = 1 - pr, c = 1 - ak, kit = this.kit;
+      const tube = kit === 'at' && ak > 0.5, R = kit === 'mg' ? p.mg : tube ? p.launcher : p.rifle;
+      p.rifle.visible = kit !== 'mg'; p.mg.visible = kit === 'mg'; p.launcher.visible = kit === 'at';
+      if (tube) R.position.set(TUBE_AIM[0] * up + TUBE_PRONE[0] * pr, TUBE_AIM[1] * up + TUBE_PRONE[1] * pr, TUBE_AIM[2] * up + TUBE_PRONE[2] * pr);
+      else R.position.set((CARRY[0] * c + AIM[0] * ak) * up + PRONE[0] * pr, (CARRY[1] * c + AIM[1] * ak) * up + PRONE[1] * pr, (CARRY[2] * c + AIM[2] * ak) * up + PRONE[2] * pr);
+      if (tube) R.rotation.set(-tp, -ty, 0);
+      else R.rotation.set((CARRY[3] * c - tp * ak) * up - tp * pr, (CARRY[4] * c - ty * ak) * up - ty * pr, CARRY[5] * c * up);
+      if (kit === 'at') { const B = tube ? p.rifle : p.launcher, P = tube ? SLUNG_RIFLE : SLUNG_TUBE; B.position.set(P[0], P[1], P[2]); B.rotation.set(P[3], P[4], P[5]); }
+      if (kit === 'mg') p.bipod.rotation.x = -Math.PI / 2 * clamp((pr - 0.5) * 3, 0, 1);   // bipod down when prone
       const at = (h) => { const v = rotXYZ(h, R.rotation); return { x: R.position.x + v.x, y: R.position.y + v.y, z: R.position.z + v.z }; };
-      reach(p.armL, p.elbowL, at(GRIP), POLE_TRIGGER); reach(p.armR, p.elbowR, at(GUARD), POLE_SUPPORT);
+      const [grip, guard] = HOLD[tube ? 'launcher' : kit === 'mg' ? 'mg' : 'rifle'];
+      reach(p.armL, p.elbowL, at(grip), POLE_TRIGGER); reach(p.armR, p.elbowR, at(guard), POLE_SUPPORT);
       p.head.rotation.set(0.15 * ak * up - 1.2 * pr, -ty * 0.8, 0.12 * ak * up);
     } else {
       const spin = this.speed * dt / 0.6;

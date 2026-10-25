@@ -21,7 +21,9 @@ export function makeBuilders(F) {
   // Reference look: modern infantryman in multicam. High-cut helmet with an NVG shroud, rails and ear defenders,
   // tinted glasses; a plate carrier with magazine pouches over the jacket, a first-aid pouch with a red cross on the
   // belt, thigh pouches, knee pads and coyote boots; a pack with a radio antenna. The arms have elbows so both hands
-  // stay on a carbine with an optic and foregrip (units.js solves them per pose: carried, shouldered, prone).
+  // stay on a carbine with an optic and foregrip (units.js solves them per pose: carried, shouldered, prone). Machine
+  // gunners carry a belt-fed gun with a bipod instead; anti-tank soldiers add a recoilless launcher, slung until they
+  // have a target (units.js shows the weapons each kit carries).
   function soldier() {
     const g = group(); const p = {};
     const skin = rng() < 0.5 ? 'skin' : 'skin2';
@@ -70,6 +72,22 @@ export function makeBuilders(F) {
     box(0.05, 0.12, 0.06, 'gun', 0, -0.1, -0.08, R);                                // pistol grip
     box(0.06, 0.08, 0.12, 'gun', 0, 0.1, 0.02, R);                                  // optic
     box(0.04, 0.1, 0.05, 'gun', 0, -0.09, 0.3, R);                                  // foregrip
+    p.mg = group(); T.add(p.mg); const M = p.mg;                                    // belt-fed machine gun, the same butt as the carbine
+    box(0.09, 0.15, 0.42, 'gun', 0, 0, 0, M);                                       // receiver
+    box(0.09, 0.04, 0.22, 'gun', 0, 0.09, 0.02, M); box(0.03, 0.05, 0.13, 'gun', 0, 0.14, 0.1, M);   // feed cover, carry handle
+    box(0.08, 0.08, 0.18, 'gun', 0, 0.01, 0.3, M);                                  // handguard
+    box(0.045, 0.045, 0.34, 'gun', 0, 0.01, 0.55, M); box(0.06, 0.06, 0.05, 'gun', 0, 0.01, 0.74, M);   // barrel, flash hider
+    box(0.08, 0.13, 0.22, 'gun', 0, -0.03, -0.31, M);                               // stock
+    box(0.05, 0.12, 0.06, 'gun', 0, -0.11, -0.08, M);                               // pistol grip
+    box(0.14, 0.16, 0.16, 'olive', 0.02, -0.14, 0.05, M);                           // ammo pouch
+    p.bipod = group(); p.bipod.position.set(0, -0.03, 0.62); M.add(p.bipod);
+    for (const s of [-1, 1]) box(0.025, 0.025, 0.3, 'gun', s * 0.035, 0, -0.15, p.bipod);   // bipod legs, folded back under the barrel
+    p.launcher = group(); T.add(p.launcher); const L = p.launcher;                  // recoilless launcher: +z out of the muzzle
+    box(0.14, 0.14, 1.1, 'launcher', 0, 0, 0, L);                                   // tube
+    box(0.2, 0.2, 0.2, 'gun', 0, 0, -0.62, L); box(0.17, 0.17, 0.06, 'gun', 0, 0, 0.56, L);   // venturi, muzzle ring
+    box(0.05, 0.12, 0.06, 'gun', 0, -0.12, 0, L); box(0.05, 0.12, 0.06, 'gun', 0, -0.12, 0.27, L);   // trigger and front grips
+    box(0.1, 0.1, 0.2, 'gun', 0, -0.1, -0.16, L);                                   // shoulder pad
+    box(0.06, 0.1, 0.14, 'gun', 0.1, 0.06, 0.12, L);                                // sight, on the left of the tube
     p.ring = ring(0.8, g);
     return { group: g, parts: p, height: 2.4, radius: 0.45 };
   }
@@ -338,7 +356,7 @@ export function sandbagBoxes(x, z, h) {
 
 // sRGB hex colours shared by both back ends' material tables
 export const COLORS = {
-  skin: 0xc9966b, skin2: 0x7a5236, hair: 0x1a1512, belt: 0x3b3127, boots: 0x8a7350, bootsB: 0x2f2a24, rifle: 0x1f1f1f, gun: 0x34373a, medRed: 0xb3261e,
+  skin: 0xc9966b, skin2: 0x7a5236, hair: 0x1a1512, belt: 0x3b3127, boots: 0x8a7350, bootsB: 0x2f2a24, rifle: 0x1f1f1f, gun: 0x34373a, medRed: 0xb3261e, launcher: 0x56603c,
   heliDark: 0x2e3330, olive: 0x5c6b3f, sandbag: 0x9c8b64, glass: 0x1d2328, tire: 0x1a1a1a, rim: 0xb09a64, rimB: 0x6c7550, metal: 0x2a2a2a, canvas: 0x6f6448,
   hub: 0x5e5340, tread: 0x2c2c2c, headlight: 0xf2ecd0, grille: 0x171717, amber: 0xd9822b,
   sand: 0xd6c08a, sandB: 0x87915f, engine: 0x6b6e6c, wood: 0x8a6a43, drum: 0x3e4a33, case: 0x3a3d40,   // vehicle plates, engines, cargo

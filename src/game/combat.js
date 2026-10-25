@@ -145,7 +145,7 @@ export class Combat {
     const hit = Math.random() < chance;
     // the round leaves the barrel a little ahead of the unit at gun height, aimed where the target will be
     // when it arrives; a miss is aimed past the target and comes down on the ground around it
-    const reach = u.type === 'soldier' ? 1.16 + 0.1 * (u.kneelK || 0) + 0.46 * (u.proneK || 0) : u.type === 'apc' ? 2.8 : u.type === 'tank' ? 6.2 : 1.6, gunY = u.pos.y + (u.type === 'soldier' ? 1.85 - 0.54 * (u.kneelK || 0) - 1.65 * (u.proneK || 0) : u.type === 'tank' ? 2.1 : u.type === 'apc' ? 3.25 : 2.65);
+    const reach = u.type === 'soldier' ? (u.kit === 'at' ? 0.75 : u.kit === 'mg' ? 1.28 : 1.16) + 0.1 * (u.kneelK || 0) + 0.46 * (u.proneK || 0) : u.type === 'apc' ? 2.8 : u.type === 'tank' ? 6.2 : 1.6, gunY = u.pos.y + (u.type === 'soldier' ? 1.85 - 0.54 * (u.kneelK || 0) - 1.65 * (u.proneK || 0) : u.type === 'tank' ? 2.1 : u.type === 'apc' ? 3.25 : 2.65);
     const hx = e.pos.x - u.pos.x, hz = e.pos.z - u.pos.z, hd = Math.hypot(hx, hz) || 1;
     let mx = u.pos.x + hx / hd * reach, mz = u.pos.z + hz / hd * reach;
     if (u.type === 'heli') {   // the Chinook fires from the crew-door gun on the target's side
