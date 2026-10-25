@@ -1,8 +1,8 @@
 # Sound credits
 
-Gunshots, explosions and impacts are cut from CC0 (public domain) recordings: no attribution is required,
+Gunshots, explosions, impacts and the helicopter rotor are cut from CC0 (public domain) recordings: no attribution is required,
 but the sources are listed here with thanks. UI stings (select, order, captured, lost, fob, start, win, lose)
-were generated with ElevenLabs (`tools/make-sounds.mjs`), and so were the radio voices, engine and rotor loops,
+were generated with ElevenLabs (`tools/make-sounds.mjs`), and so were the radio voices, engine loops,
 ambience and foley (last section).
 
 | Clip | Source | Author | Licence |
@@ -36,6 +36,7 @@ ambience and foley (last section).
 | `hit_2.mp3` | [bullet ricochet.wav](https://freesound.org/s/30932/) (Freesound) | aust_paul | CC0 1.0 |
 | `hit_3.mp3` | [bullet ricochet.wav](https://freesound.org/s/30932/) (Freesound) | aust_paul | CC0 1.0 |
 | `hit_4.mp3` | [Ricochet 2.wav](https://freesound.org/s/392975/) (Freesound) | morganpurkis | CC0 1.0 |
+| `rotor.wav` | [230608 Helicopter, various overhead passes, clear blade chop](https://freesound.org/s/717847/) (Freesound), 106 s in, slowed to 78% (deeper, the Chinook's ~11 slaps a second) and looped on a whole number of blade beats | TRP | CC0 1.0 |
 
 ## ElevenLabs (generated for this project)
 
@@ -71,7 +72,6 @@ loops have their tail crossfaded into their head and are stored as WAV so they r
 | Sound effect | Prompt |
 |---|---|
 | `squelch (in every voice line)` | military radio push-to-talk click with a short burst of static squelch / radio release click, short static tail, squelch closes |
-| `rotor.wav` | CH-47 Chinook tandem rotor helicopter hovering, heavy twin rotor blade thump, turbine whine, steady loop, exterior |
 | `engine_tank.wav` | M1 Abrams tank driving, gas turbine engine whine with clanking steel tracks, steady loop, exterior |
 | `engine_apc.wav` | 8x8 armoured personnel carrier driving, big diesel engine rumble and tyres on gravel, steady loop, exterior |
 | `engine_truck.wav` | military 6x6 cargo truck driving, diesel engine and gearbox hum, steady loop, exterior |

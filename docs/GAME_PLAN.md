@@ -830,6 +830,19 @@ Engine changes needed in the existing core:
   shot, FOB and sandbag builds dig. `Match.attachAudio` creates the radio, also
   when the engine is made after a match started at boot.
 
+- **Chinook blade slap (2026-10-25).** The user found the rotor not realistic
+  enough: it should chop. Measured as the spectrum of the loudness envelope,
+  the ElevenLabs loop did chop (12.9 Hz) but softly (modulation depth 0.52),
+  and its 0.6 s crossfade blended out-of-step beats at every repeat. The
+  rotor is now a CC0 recording of real blade chop (TRP on Freesound, picked
+  by sliding a window for strong, regular chop at a steady level: depth 0.94),
+  slowed to 78% so it beats at the Chinook's ~11 slaps a second (two
+  three-bladed rotors at 225 rpm) and sounds heavier, and looped on a whole
+  number of blade beats starting on a beat, with a one-beat in-phase
+  crossfade, a wrap-around level curve and an FFT resample (periodic), so the
+  rhythm and the waveform both run straight through the seam. In play the
+  slaps speed up as the rotor spools (playback 0.55-1.0).
+
 ## Open questions
 
 

@@ -5,7 +5,8 @@
 // synthesized one-shots: guns, explosions and impacts cut from CC0 recordings
 // (sounds/CREDITS.md), UI stings from ElevenLabs (tools/make-sounds.mjs). A name
 // may list several takes; one is picked at random each time. Engines, rotors and
-// the desert ambience loop recorded clips where they exist (ElevenLabs), and the
+// the desert ambience loop recorded clips where they exist (ElevenLabs; the rotor is
+// a CC0 recording of real blade chop), and the
 // radio plays one voice line at a time (src/game/voices.js decides what). The
 // context starts on the first pointer or key event.
 const RATE = { shot: [10, 0.15], impact: [5, 0.15], hit: [6, 0.15], explosion: [4, 0.3], blast: [4, 0.2], whizz: [2, 0.5], foley: [3, 0.5] };   // max voices per window (s)
