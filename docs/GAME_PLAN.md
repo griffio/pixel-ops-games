@@ -691,6 +691,24 @@ Engine changes needed in the existing core:
   vanished for the rest of the match. Air Assault still loses in CPU hands
   (four of four, as it did before the change, with no helicopter losses).
 
+- **Soldier model from references (2026-10-25).** After two voxel references
+  (low ready, and aiming with a muzzle flash): multicam uniform (`uniform`
+  reworked to tan with green and brown; OPFOR keeps olive), a high-cut helmet
+  with NVG shroud, rails and ear defenders, glasses, a coyote plate carrier
+  with three magazine pouches, a belt with a red-cross first-aid pouch, thigh
+  pouches, knee pads, coyote boots (`boots`/`bootsB`, dark for OPFOR), a pack
+  with a radio antenna, and a shorter carbine (about 1 m) with an optic and
+  foregrip in gun grey. Arms now have elbows, and units.js solves both arms
+  each frame (two-bone reach, `reach()`) so the hands stay on the pistol grip
+  and foregrip. The rifle blends between three poses in the torso's frame:
+  carried across the chest muzzle down to the left, shouldered while the
+  soldier has an enemy (`aimK`, the torso bladed a quarter turn and the
+  rifle's pitch and yaw cancelling the torso's so it points at the target,
+  head dropped to the sight), and out in front when prone (head lifted). The
+  muzzle flash now starts at the shouldered rifle's muzzle for each stance
+  (gun height 1.85 m standing, 1.31 kneeling, 0.2 prone). A full CPU match
+  ran clean; at normal zoom the soldiers read about as before.
+
 ## Open questions
 
 

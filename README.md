@@ -196,7 +196,9 @@ to be hit from across it, so walls are worth holding. Infantry stand to move, ta
 shoot, and go flat under heavy fire: rounds landing or bursting nearby build
 suppression (machine guns and cannon far more than rifles), a suppressed soldier
 aims worse and fires slower, and a kneeling or prone one is a smaller target
-(80% and 60% of the hit chance) and only crawls until the fire lifts.
+(80% and 60% of the hit chance) and only crawls until the fire lifts. Soldiers
+carry the carbine across the chest and shoulder it while they have a target,
+standing, kneeling or prone, with both hands kept on the weapon.
 
 URL parameters set the initial state so the two back ends can be compared on
 identical frames: `?r=gl&seed=7&x=52&z=50&zoom=6&yaw=0.6&pitch=0.95&hour=21&pixel=0&tpu=12`

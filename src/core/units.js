@@ -15,6 +15,39 @@ export const SPEC = {
 };
 const counters = {}; let pickSeq = 0;
 
+// ---- soldier arms -------------------------------------------------------------
+// Euler XYZ rotation of a vector, in the order Mat4.fromTRS and three.js compose it (z, then y, then x).
+function rotXYZ(v, r) {
+  let { x, y, z } = v, c = Math.cos(r.z), s = Math.sin(r.z); [x, y] = [x * c - y * s, x * s + y * c];
+  c = Math.cos(r.y); s = Math.sin(r.y); [x, z] = [x * c + z * s, -x * s + z * c];
+  c = Math.cos(r.x); s = Math.sin(r.x); [y, z] = [y * c - z * s, y * s + z * c];
+  return { x, y, z };
+}
+const UPPER = 0.38, FORE = 0.39;   // shoulder to elbow, elbow to the middle of the hand (models.js soldier)
+// Two-bone reach in the torso's frame: turn the shoulder joint `arm` (the arm hangs along its -y) and bend the elbow
+// joint `el` (about its x) so the hand lands on T, with the elbow pushed toward `pole`. Out of reach, the arm points at T.
+function reach(arm, el, T, pole) {
+  const S = arm.position; let dx = T.x - S.x, dy = T.y - S.y, dz = T.z - S.z;
+  const d0 = Math.hypot(dx, dy, dz) || 1e-6, d = Math.min(d0, UPPER + FORE - 1e-3); dx /= d0; dy /= d0; dz /= d0;
+  const pu = pole.x * dx + pole.y * dy + pole.z * dz; let wx = pole.x - pu * dx, wy = pole.y - pu * dy, wz = pole.z - pu * dz;
+  const wl = Math.hypot(wx, wy, wz) || 1; wx /= wl; wy /= wl; wz /= wl;   // toward the pole, square to the reach
+  const ca = clamp((UPPER * UPPER + d * d - FORE * FORE) / (2 * UPPER * d), -1, 1), sa = Math.sqrt(1 - ca * ca);
+  const ax = dx * ca + wx * sa, ay = dy * ca + wy * sa, az = dz * ca + wz * sa;   // upper arm
+  let fx = dx * d - ax * UPPER, fy = dy * d - ay * UPPER, fz = dz * d - az * UPPER; const fl = Math.hypot(fx, fy, fz) || 1; fx /= fl; fy /= fl; fz /= fl;   // forearm
+  // shoulder frame: y back up the upper arm, x the elbow hinge (normal to the arm's plane), z = x × y; then its Euler XYZ
+  const Yx = -ax, Yy = -ay, Yz = -az;
+  let Xx = dy * wz - dz * wy, Xy = dz * wx - dx * wz, Xz = dx * wy - dy * wx; const xl = Math.hypot(Xx, Xy, Xz) || 1; Xx /= xl; Xy /= xl; Xz /= xl;
+  const Zx = Xy * Yz - Xz * Yy, Zy = Xz * Yx - Xx * Yz, Zz = Xx * Yy - Xy * Yx;
+  arm.rotation.set(Math.atan2(-Zy, Zz), Math.asin(clamp(Zx, -1, 1)), Math.atan2(-Yx, Xx));
+  el.rotation.set(Math.atan2(-(Zx * fx + Zy * fy + Zz * fz), -(Yx * fx + Yy * fy + Yz * fz)), 0, 0);
+}
+// rifle poses in the torso's frame [x, y, z, rx, ry, rz]: carried across the chest muzzle down to the left, shouldered
+// (pitch and yaw are set each frame to cancel the torso's, so the barrel points where the soldier faces), out in front
+// prone; and where the hands hold it in the rifle's own frame
+const CARRY = [0, 0.5, 0.36, 0.35, 0.9, 0.15], AIM = [-0.11, 0.8, 0.46], PRONE = [-0.1, 1.0, 0.12];
+const GRIP = { x: 0, y: -0.1, z: -0.07 }, GUARD = { x: 0, y: -0.07, z: 0.17 };
+const POLE_TRIGGER = { x: -0.6, y: -1, z: -0.2 }, POLE_SUPPORT = { x: 0.4, y: -1, z: 0 };
+
 export class Unit {
   constructor(type, build, x, z, heading = rng() * Math.PI * 2, team = 0) {
     const spec = SPEC[type]; this.type = type; this.spec = spec; this.team = team;
@@ -26,7 +59,7 @@ export class Unit {
     this.selected = false; this.squad = null; this.mgr = null;
     this.idle = rnd(0, 3); this.phase = rng() * 6;
     this.hp = this.maxHp = spec.hp; this.kit = spec.kit || null; this.enemy = null; this.cooldown = 0; this.retarget = 0;
-    this.stance = 'stand'; this.supp = 0; this.kneelK = 0; this.proneK = 0;   // infantry: suppression 0..1 and the pose blends it drives
+    this.stance = 'stand'; this.supp = 0; this.kneelK = 0; this.proneK = 0; this.aimK = 0;   // infantry: suppression 0..1 and the pose blends it drives
     this.dead = false; this.deathT = 0; this.wreck = false; this.remove = false;
     this.mounted = null; this.passengers = []; this.boardTarget = null; this.supplies = 0;
     this.alt = 0; this.altT = 0; this.rotor = 0; this.rotorT = 0; this.state = 'parked'; this.tilt = 0; this.bank = 0;
@@ -196,26 +229,31 @@ export class Unit {
     if (this.type === 'soldier') {
       const run = clamp(this.speed / this.spec.speed, 0, 1);
       this.phase += dt * (3 + 10 * run);
+      this.aimK += ((this.enemy ? 1 : 0) - this.aimK) * Math.min(1, dt * 6);   // shoulder the rifle while engaged
+      const ak = this.aimK, k = this.kneelK, pr = this.proneK;
       const sw = Math.sin(this.phase) * 0.85 * run;              // +x rotation swings a leg backward
       p.legL.rotation.x = sw; p.legR.rotation.x = -sw;
       p.kneeL.rotation.x = Math.max(0, sw) * 1.4 + 0.12 * run;   // heel kicks up on the trailing leg
       p.kneeR.rotation.x = Math.max(0, -sw) * 1.4 + 0.12 * run;
       const bob = 1.1 + Math.abs(Math.cos(this.phase)) * 0.08 * run;
       p.torso.position.y = p.legL.position.y = p.legR.position.y = bob;
-      p.torso.rotation.x = 0.22 * run + (this.enemy && run < 0.2 ? 0.12 : 0);   // lean into the run / into the rifle
-      p.torso.rotation.y = Math.sin(this.phase) * 0.08 * run;
-      p.armL.rotation.x = -1.35 + Math.sin(this.phase) * 0.12 * run; p.armL.rotation.z = 0.35;
-      p.armR.rotation.x = -1.0 - Math.sin(this.phase) * 0.12 * run; p.armR.rotation.z = -0.25;
+      p.torso.rotation.x = 0.22 * run + 0.1 * ak * (1 - run);   // lean into the run / into the rifle
+      p.torso.rotation.y = Math.sin(this.phase) * 0.08 * run - 0.25 * ak;   // bladed to the target when aiming
       // stance on top of the walk: kneel drops the hips with the left thigh forward and the right knee down,
-      // prone lays the body flat with the legs straight back and the arms forward on the rifle
-      const k = this.kneelK, pr = this.proneK;
+      // prone lays the body flat with the legs straight back
       if (k > 0.01 || pr > 0.01) {
         p.torso.position.y = p.legL.position.y = p.legR.position.y = bob - 0.45 * k - 0.8 * pr;
         p.torso.rotation.x += 0.15 * k + 1.45 * pr;
         p.legL.rotation.x += -1.5 * k + 1.5 * pr; p.kneeL.rotation.x += 1.5 * k;
         p.legR.rotation.x += 0.9 * k + 1.5 * pr; p.kneeR.rotation.x += 1.3 * k;
-        p.armL.rotation.x += 1.1 * pr; p.armR.rotation.x += 0.8 * pr;
       }
+      // the rifle between its poses, then both hands onto it; the head drops to the sight, or lifts to look ahead when prone
+      const tp = p.torso.rotation.x, ty = p.torso.rotation.y, R = p.rifle, up = 1 - pr, c = 1 - ak;
+      R.position.set((CARRY[0] * c + AIM[0] * ak) * up + PRONE[0] * pr, (CARRY[1] * c + AIM[1] * ak) * up + PRONE[1] * pr, (CARRY[2] * c + AIM[2] * ak) * up + PRONE[2] * pr);
+      R.rotation.set((CARRY[3] * c - tp * ak) * up - tp * pr, (CARRY[4] * c - ty * ak) * up - ty * pr, CARRY[5] * c * up);
+      const at = (h) => { const v = rotXYZ(h, R.rotation); return { x: R.position.x + v.x, y: R.position.y + v.y, z: R.position.z + v.z }; };
+      reach(p.armL, p.elbowL, at(GRIP), POLE_TRIGGER); reach(p.armR, p.elbowR, at(GUARD), POLE_SUPPORT);
+      p.head.rotation.set(0.15 * ak * up - 1.2 * pr, -ty * 0.8, 0.12 * ak * up);
     } else {
       const spin = this.speed * dt / 0.6;
       for (const w of p.wheels) w.rotation.x += spin;

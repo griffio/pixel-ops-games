@@ -9,7 +9,7 @@ import { rng } from './math.js';
 // Local +Z is forward. Sizes are world units; at 10 texels/unit a soldier is ~23 texels tall.
 export function makeBuilders(F) {
   // Material names resolve per team: OPFOR (team 1) uses the 'B' recolour when one exists.
-  const TEAMED = new Set(['uniform', 'vest', 'desert', 'camo', 'sand', 'tarp', 'rim']);
+  const TEAMED = new Set(['uniform', 'vest', 'desert', 'camo', 'sand', 'tarp', 'rim', 'boots']);
   let team = 0;
   const mat = (n) => (team === 1 && TEAMED.has(n) ? n + 'B' : n);
   const group = F.group;
@@ -18,37 +18,58 @@ export function makeBuilders(F) {
   const wheel = (r, w, x, y, z, parent) => F.wheel(r, w, x, y, z, parent, mat('rim')), ring = F.ring;
 
 
-  // Reference look: realistic proportions, bare dark hair, chest rig, rifle held
-  // diagonally across the body with both hands, knees that bend while running.
+  // Reference look: modern infantryman in multicam. High-cut helmet with an NVG shroud, rails and ear defenders,
+  // tinted glasses; a plate carrier with magazine pouches over the jacket, a first-aid pouch with a red cross on the
+  // belt, thigh pouches, knee pads and coyote boots; a pack with a radio antenna. The arms have elbows so both hands
+  // stay on a carbine with an optic and foregrip (units.js solves them per pose: carried, shouldered, prone).
   function soldier() {
     const g = group(); const p = {};
     const skin = rng() < 0.5 ? 'skin' : 'skin2';
     for (const side of ['L', 'R']) {
-      const hip = group(); hip.position.set(side === 'L' ? -0.15 : 0.15, 1.1, 0);
-      box(0.22, 0.52, 0.26, 'uniform', 0, -0.26, 0, hip);
+      const s = side === 'L' ? -1 : 1;
+      const hip = group(); hip.position.set(s * 0.15, 1.1, 0);
+      box(0.22, 0.52, 0.26, 'uniform', 0, -0.26, 0, hip);                          // thigh
+      box(0.08, 0.2, 0.18, 'vest', s * 0.14, -0.28, 0, hip);                       // thigh pouch
       const knee = group(); knee.position.set(0, -0.52, 0); hip.add(knee);
-      box(0.2, 0.5, 0.23, 'uniform', 0, -0.25, 0, knee);
-      box(0.24, 0.14, 0.34, 'boots', 0, -0.55, 0.04, knee);
+      box(0.2, 0.5, 0.23, 'uniform', 0, -0.25, 0, knee);                           // shin
+      box(0.2, 0.15, 0.06, 'vest', 0, -0.06, 0.13, knee);                          // knee pad
+      box(0.24, 0.14, 0.34, 'boots', 0, -0.55, 0.04, knee); box(0.22, 0.1, 0.25, 'boots', 0, -0.45, 0, knee);   // boot
       g.add(hip); p['leg' + side] = hip; p['knee' + side] = knee;
     }
-    p.torso = group(); p.torso.position.y = 1.1; g.add(p.torso);
-    box(0.56, 0.78, 0.3, 'uniform', 0, 0.39, 0, p.torso);        // shirt
-    box(0.5, 0.52, 0.12, 'vest', 0, 0.42, 0.18, p.torso);         // chest rig
-    box(0.48, 0.3, 0.1, 'vest', 0, 0.5, -0.18, p.torso);          // back pouch
-    box(0.58, 0.1, 0.32, 'belt', 0, 0.05, 0, p.torso);            // belt
-    box(0.3, 0.3, 0.3, skin, 0, 0.98, 0.02, p.torso);             // head
-    box(0.32, 0.12, 0.32, 'hair', 0, 1.17, -0.01, p.torso);       // hair top
-    box(0.32, 0.18, 0.1, 'hair', 0, 1.0, -0.14, p.torso);         // hair back
+    p.torso = group(); p.torso.position.y = 1.1; g.add(p.torso); const T = p.torso;
+    box(0.54, 0.78, 0.3, 'uniform', 0, 0.39, 0, T);                                 // jacket
+    box(0.5, 0.48, 0.1, 'vest', 0, 0.47, 0.18, T); box(0.48, 0.5, 0.08, 'vest', 0, 0.47, -0.18, T);   // plate carrier, front and back
+    box(0.58, 0.2, 0.32, 'vest', 0, 0.3, 0, T);                                     // cummerbund
+    for (const x of [-0.15, 0, 0.15]) box(0.12, 0.18, 0.07, 'vest', x, 0.33, 0.255, T);   // magazine pouches
+    box(0.58, 0.09, 0.33, 'belt', 0, 0.06, 0, T);                                   // belt
+    box(0.16, 0.12, 0.08, 'olive', 0.06, 0.07, 0.2, T); box(0.07, 0.07, 0.02, 'medRed', 0.06, 0.08, 0.245, T);   // first-aid pouch
+    box(0.08, 0.14, 0.12, 'vest', 0.3, 0.05, 0.05, T);                              // hip pouch
+    box(0.42, 0.5, 0.2, 'uniform', 0, 0.5, -0.32, T); box(0.38, 0.12, 0.18, 'uniform', 0, 0.8, -0.31, T);   // pack and its lid
+    box(0.03, 0.6, 0.03, 'gun', 0.14, 1.05, -0.37, T);                              // radio antenna
+    box(0.14, 0.08, 0.14, skin, 0, 0.82, 0.02, T);                                  // neck
+    p.head = group(); p.head.position.set(0, 0.84, 0.02); T.add(p.head); const H = p.head;
+    box(0.3, 0.3, 0.3, skin, 0, 0.14, 0, H);                                        // face
+    box(0.26, 0.07, 0.03, 'glass', 0, 0.17, 0.16, H);                               // glasses
+    box(0.36, 0.17, 0.38, 'uniform', 0, 0.3, -0.01, H); box(0.37, 0.12, 0.3, 'uniform', 0, 0.21, -0.05, H);   // helmet
+    box(0.1, 0.09, 0.05, 'gun', 0, 0.29, 0.2, H);                                   // NVG shroud
+    for (const s of [-1, 1]) { box(0.03, 0.06, 0.2, 'gun', s * 0.19, 0.24, 0, H); box(0.05, 0.12, 0.12, 'gun', s * 0.165, 0.12, 0, H); }   // rails, ear defenders
     for (const side of ['L', 'R']) {
-      const arm = group(); arm.position.set(side === 'L' ? -0.36 : 0.36, 0.72, 0); p.torso.add(arm);
-      box(0.18, 0.62, 0.2, 'uniform', 0, -0.3, 0, arm);
-      box(0.16, 0.14, 0.16, skin, 0, -0.66, 0, arm);              // hand
-      p['arm' + side] = arm;
+      const arm = group(); arm.position.set(side === 'L' ? -0.34 : 0.34, 0.72, 0); T.add(arm);
+      box(0.18, 0.4, 0.2, 'uniform', 0, -0.19, 0, arm);                            // upper arm
+      const el = group(); el.position.set(0, -0.38, 0); arm.add(el);
+      box(0.17, 0.32, 0.19, 'uniform', 0, -0.16, 0, el);                           // forearm
+      box(0.15, 0.13, 0.16, skin, 0, -0.38, 0, el);                                // hand
+      p['arm' + side] = arm; p['elbow' + side] = el;
     }
-    p.rifle = group(); p.rifle.position.set(0.05, 0.3, 0.3); p.rifle.rotation.set(-0.25, -0.55, 0); p.torso.add(p.rifle);
-    box(0.07, 0.11, 1.05, 'rifle', 0, 0, 0.1, p.rifle);           // receiver + barrel
-    box(0.07, 0.2, 0.09, 'rifle', 0, -0.14, 0.05, p.rifle);       // magazine
-    box(0.08, 0.14, 0.3, 'rifle', 0, -0.03, -0.45, p.rifle);      // stock
+    p.rifle = group(); T.add(p.rifle); const R = p.rifle;                           // carbine: +z down the barrel, the stock butt at z -0.4
+    box(0.07, 0.12, 0.36, 'gun', 0, 0, 0, R);                                       // receiver
+    box(0.075, 0.09, 0.26, 'gun', 0, 0, 0.31, R);                                   // handguard
+    box(0.035, 0.035, 0.14, 'gun', 0, 0, 0.51, R); box(0.05, 0.05, 0.05, 'gun', 0, 0, 0.6, R);   // barrel, flash hider
+    box(0.07, 0.12, 0.22, 'gun', 0, -0.03, -0.29, R);                               // stock
+    box(0.06, 0.17, 0.09, 'gun', 0, -0.13, 0.06, R);                                // magazine
+    box(0.05, 0.12, 0.06, 'gun', 0, -0.1, -0.08, R);                                // pistol grip
+    box(0.06, 0.08, 0.12, 'gun', 0, 0.1, 0.02, R);                                  // optic
+    box(0.04, 0.1, 0.05, 'gun', 0, -0.09, 0.3, R);                                  // foregrip
     p.ring = ring(0.8, g);
     return { group: g, parts: p, height: 2.4, radius: 0.45 };
   }
@@ -317,7 +338,7 @@ export function sandbagBoxes(x, z, h) {
 
 // sRGB hex colours shared by both back ends' material tables
 export const COLORS = {
-  skin: 0xc9966b, skin2: 0x7a5236, hair: 0x1a1512, belt: 0x3b3127, boots: 0x3a3127, rifle: 0x1f1f1f,
+  skin: 0xc9966b, skin2: 0x7a5236, hair: 0x1a1512, belt: 0x3b3127, boots: 0x8a7350, bootsB: 0x2f2a24, rifle: 0x1f1f1f, gun: 0x34373a, medRed: 0xb3261e,
   heliDark: 0x2e3330, olive: 0x5c6b3f, sandbag: 0x9c8b64, glass: 0x1d2328, tire: 0x1a1a1a, rim: 0xb09a64, rimB: 0x6c7550, metal: 0x2a2a2a, canvas: 0x6f6448,
   hub: 0x5e5340, tread: 0x2c2c2c, headlight: 0xf2ecd0, grille: 0x171717, amber: 0xd9822b,
   sand: 0xd6c08a, sandB: 0x87915f, engine: 0x6b6e6c, wood: 0x8a6a43, drum: 0x3e4a33, case: 0x3a3d40,   // vehicle plates, engines, cargo

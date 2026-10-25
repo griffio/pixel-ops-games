@@ -26,8 +26,8 @@ export function camoCanvas({ colors, seed = 1, size = 32, blotch = [3, 9], count
 }
 
 export const CAMO = {
-  uniform: { colors: ['#bfa06a', '#a08650', '#cdb27a', '#8a7244', '#b3945f'], seed: 11, blotch: [2, 5], count: 22, specks: 50, noise: 0.1 },
-  vest: { colors: ['#6e664c', '#5f5842', '#7a7256'], seed: 13, blotch: [2, 4], count: 30, specks: 60, noise: 0.1 },
+  uniform: { colors: ['#bcaa7a', '#a8945f', '#c9b98a', '#7f8d55', '#97a265', '#8e784b'], seed: 11, blotch: [2, 5], count: 20, specks: 40, noise: 0.08 },   // multicam: tan with green and brown
+  vest: { colors: ['#8b8158', '#7a714c', '#988e64', '#6d6644'], seed: 13, blotch: [2, 4], count: 30, specks: 60, noise: 0.1 },   // coyote-green kit
   desert: { colors: ['#b8a071', '#a38a5d', '#cbb485', '#8f7a52', '#d5c296'], seed: 5, blotch: [4, 10], count: 36, specks: 60, noise: 0.08 },
   trunk: { colors: ['#7a6a4a', '#6a5a3c', '#8a7a58', '#5e5034'], seed: 31, blotch: [1, 3], count: 60, specks: 40, noise: 0.1 },
   frond: { colors: ['#6f8c3a', '#5f7a30', '#86a347', '#4e6626'], seed: 33, blotch: [1, 3], count: 60, specks: 60, noise: 0.12 },
