@@ -40,12 +40,27 @@ export class Unit {
   order(x, z) {
     if (this.dead) return;
     const nav = this.mgr && this.mgr.nav && this.spec.nav ? this.mgr.nav[this.spec.nav] : null;
-    if (nav && nav.blocked(x, z)) { const c = nav.nearest(nav.cellOf(x), nav.cellOf(z), 12); if (c) { x = nav.world(c[0]); z = nav.world(c[1]); } }   // a goal inside a building becomes the nearest open ground
+    if (nav && nav.inPocket(x, z)) { const c = nav.nearestMain(nav.cellOf(x), nav.cellOf(z)); if (c) { x = nav.world(c[0]); z = nav.world(c[1]); } }   // a goal inside a building, or in a pocket between buildings, becomes the nearest open ground
     this.dest = new Vec3(x, 0, z); this.idle = 0; this.hold = false; this.bestDist = Infinity; this.noProgress = 0;
     this.path = nav ? nav.findPath(this.pos.x, this.pos.z, x, z) : null;
+    if (nav && !this.path) this.path = this.escapeRoute(nav, x, z);
     const first = this.path && this.path.length ? this.path[0] : [x, z];
     this.target = new Vec3(first[0], 0, first[1]);
     if (this.spec.air && (this.state === 'parked' || this.state === 'spooldown')) this.state = 'spool';
+  }
+  // No route from here (a vehicle shoved into a pocket between buildings): drive straight to the nearest cell from which the goal
+  // can be reached, along a line that clears buildings by half the usual margin, then follow the route from there.
+  escapeRoute(nav, x, z) {
+    const want = nav.region(nav.cellOf(x), nav.cellOf(z)) || nav.main, w = this.mgr.world, half = this.radius * 0.45, x0 = this.pos.x, z0 = this.pos.z, cx0 = nav.cellOf(x0), cz0 = nav.cellOf(z0);
+    const deep0 = w.penetration(x0, z0, half) + 1e-3;   // like movement: the line may start inside a clearance but never go deeper
+    const clear = (px, pz) => { const steps = Math.ceil(Math.hypot(px - x0, pz - z0) * 2); for (let i = 1; i <= steps; i++) { const t = i / steps, sx = x0 + (px - x0) * t, sz = z0 + (pz - z0) * t; if (w.isBlocked(sx, sz, half) && w.penetration(sx, sz, half) > deep0) return false; } return true; };
+    for (let r = 1; r <= 20; r++) for (let dz = -r; dz <= r; dz++) for (let dx = -r; dx <= r; dx++) {
+      if (Math.abs(dx) !== r && Math.abs(dz) !== r) continue;
+      const ix = cx0 + dx, iz = cz0 + dz; if (nav.region(ix, iz) !== want) continue;
+      const px = nav.world(ix), pz = nav.world(iz); if (!clear(px, pz)) continue;
+      const rest = nav.findPath(px, pz, x, z); return [[px, pz], ...(rest || [[x, z]])];
+    }
+    return null;
   }
   nextWaypoint() {
     this.bestDist = Infinity; this.noProgress = 0;
@@ -158,9 +173,13 @@ export class Unit {
     const step = this.speed * dt, sx = Math.sin(this.heading) * step, sz = Math.cos(this.heading) * step;
     let nx = this.pos.x + sx, nz = this.pos.z + sz;
     const pad = this.radius * 0.9;
-    if (world.isBlocked(nx, nz, pad)) {
-      if (!world.isBlocked(this.pos.x + sx, this.pos.z, pad)) nz = this.pos.z;
-      else if (!world.isBlocked(this.pos.x, this.pos.z + sz, pad)) nx = this.pos.x;
+    // a unit already inside a wall's clearance (shoved there, or sandbags went up beside it) squeezes out with half the
+    // clearance, so it can leave a slot narrower than its full clearance, and any step that doesn't take it deeper is allowed
+    const p = world.isBlocked(this.pos.x, this.pos.z, pad) ? pad * 0.5 : pad, deep = world.penetration(this.pos.x, this.pos.z, p);
+    const free = (x, z) => !world.isBlocked(x, z, p) || (deep > 0 && world.penetration(x, z, p) <= deep + 1e-3);
+    if (!free(nx, nz)) {
+      if (free(this.pos.x + sx, this.pos.z)) nz = this.pos.z;
+      else if (free(this.pos.x, this.pos.z + sz)) nx = this.pos.x;
       else { nx = this.pos.x; nz = this.pos.z; this.speed *= 0.5; }   // boxed in: stop (the no-progress rule above releases the order)
     }
     this.dist += Math.hypot(nx - this.pos.x, nz - this.pos.z);
@@ -338,8 +357,9 @@ export class UnitManager {
       const dx = b.pos.x - a.pos.x, dz = b.pos.z - a.pos.z, r = a.radius + b.radius, d2 = dx * dx + dz * dz;
       if (d2 < r * r && d2 > 1e-6) {
         const d = Math.sqrt(d2), k = (r - d) * 0.5, nx = dx / d, nz = dz / d, wa = b.radius / r, wb = a.radius / r;
-        if (!a.spec.air && !a.spec.structure) { a.pos.x -= nx * k * wa; a.pos.z -= nz * k * wa; }
-        if (!b.spec.air && !b.spec.structure) { b.pos.x += nx * k * wb; b.pos.z += nz * k * wb; }
+        // never shove a unit deeper into a wall's clearance: that is how vehicles used to end up pinned against buildings
+        const shove = (u, sx, sz) => { if (u.spec.air || u.spec.structure) return; const p = u.radius * 0.9, x = u.pos.x + sx, z = u.pos.z + sz; if (w.isBlocked(x, z, p) && w.penetration(x, z, p) > w.penetration(u.pos.x, u.pos.z, p)) return; u.pos.x = x; u.pos.z = z; };
+        shove(a, -nx * k * wa, -nz * k * wa); shove(b, nx * k * wb, nz * k * wb);
       }
     };
     if (this.spatial) this.spatial.forEachPair(6, push);

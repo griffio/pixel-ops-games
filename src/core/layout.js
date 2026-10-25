@@ -144,8 +144,23 @@ export class WorldState {
     if (this.time >= 24) { this.time -= 24; this.day++; }
     this.light = lighting(this.time); this.night = this.light.night;
   }
-  isBlocked(x, z, pad = 0) {
-    for (const o of this.obstacles) if (x > o.minX - pad && x < o.maxX + pad && z > o.minZ - pad && z < o.maxZ + pad) return true;
+  // obstacles bucketed in 8 m cells, rebuilt whenever the list grows (sandbags), so a query only touches the boxes nearby
+  obstacleGrid() {
+    if (this._grid && this._gridN === this.obstacles.length) return this._grid;
+    const g = new Map();
+    for (const o of this.obstacles) for (let cz = Math.floor(o.minZ / 8); cz <= Math.floor(o.maxZ / 8); cz++) for (let cx = Math.floor(o.minX / 8); cx <= Math.floor(o.maxX / 8); cx++) { const k = cx * 4096 + cz; let a = g.get(k); if (!a) g.set(k, a = []); a.push(o); }
+    this._grid = g; this._gridN = this.obstacles.length; return g;
+  }
+  obstaclesNear(x, z, pad, fn) {
+    const g = this.obstacleGrid();
+    for (let cz = Math.floor((z - pad) / 8); cz <= Math.floor((z + pad) / 8); cz++) for (let cx = Math.floor((x - pad) / 8); cx <= Math.floor((x + pad) / 8); cx++) { const a = g.get(cx * 4096 + cz); if (a) for (const o of a) if (fn(o)) return true; }
     return false;
+  }
+  isBlocked(x, z, pad = 0) { return this.obstaclesNear(x, z, pad, (o) => x > o.minX - pad && x < o.maxX + pad && z > o.minZ - pad && z < o.maxZ + pad); }
+  // how deep a point sits inside the padded obstacles (0 when clear): lets a unit that ended up too close to a wall back out
+  penetration(x, z, pad = 0) {
+    let deepest = 0;
+    this.obstaclesNear(x, z, pad, (o) => { if (x > o.minX - pad && x < o.maxX + pad && z > o.minZ - pad && z < o.maxZ + pad) deepest = Math.max(deepest, Math.min(x - (o.minX - pad), o.maxX + pad - x, z - (o.minZ - pad), o.maxZ + pad - z)); return false; });
+    return deepest;
   }
 }

@@ -594,6 +594,31 @@ Engine changes needed in the existing core:
   shared by both commanders; the rerun went 14-2 for the utility AI, mean
   margin +204, winning seven of eight from each side. Not yet the default.
 
+- **Stuck vehicles and phantom obstacles (2026-10-25).** The user's APC stuck
+  against a building, firing but ignoring orders. Reproduced: a vehicle whose
+  centre ends up inside a wall's clearance (radius x 0.9) had every step
+  rejected, even straight away from the wall. Root cause: rotated map boxes
+  blocked their whole axis-aligned bounding box, so the street village's
+  diagonal walls and turned houses (and other rotated props) blocked 21,000 m2
+  for 4,500 m2 of real footprint, and vehicles wedged themselves against
+  invisible ground beside buildings; one garden wall alone blocked a 21 x 28 m
+  rectangle. Fixes: the map builder cuts any rotated box into 0.5-1 m rows that
+  span only its footprint (1,454 boxes, 5,819 m2 blocked in total), with an
+  8 m grid behind `isBlocked`; separation pushes never shove a unit into a
+  clearance; a unit already inside one moves with half the clearance and may
+  take any step that doesn't go deeper (`penetration`); orders snap to the
+  nearest cell of the open map's main connected region (the nav grid labels
+  regions; pockets between houses are excluded), and a unit with no route
+  drives straight, along a line that never goes deeper, to the nearest cell
+  of the goal's region and routes from there. Tests: at three depths against
+  a house wall the committed code never moved; now every case leaves, along
+  the wall or 50 m round the houses. Forty random jammed spots around the
+  Village: 0 of 40 reached reachable goals before, 32 of 40 after; the misses
+  are inside the walled compound and narrow alleys a vehicle cannot enter.
+  Regression: utility against the built-in planner on the corrected map went
+  15-1, mean margin about +175, and a 25-minute warp now takes 27-48 s
+  instead of 45-90 s thanks to the obstacle grid.
+
 ## Open questions
 
 

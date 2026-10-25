@@ -52,10 +52,21 @@ export const desert1km = {
     const r = rand(2024);
     const box = (w, h, d, color, x, z, { y = 0, rot = 0, obstacle = true, cast = true, tex } = {}) => {
       props.push({ geo: `box:${w},${h},${d}`, color, tex, x, y: y + h / 2, z, rot: [0, rot, 0], cast });
-      if (obstacle) {
-        const c = Math.abs(Math.cos(rot)), s = Math.abs(Math.sin(rot)), hw = (w * c + d * s) / 2, hd = (w * s + d * c) / 2;
-        obstacles.push({ minX: x - hw, maxX: x + hw, minZ: z - hd, maxZ: z + hd, h: y + h });
+      if (obstacle) footprint(w, d, x, z, rot, y + h);
+    };
+    // A box blocks its own footprint. Axis-aligned (or nearly) it is one obstacle; rotated, it is cut into rows 0.5-1 m deep, each
+    // spanning only the part of the box inside that row, so a diagonal wall or a turned house no longer blocks its whole
+    // bounding box (rotated props used to block 4.7x their real area, invisible solid ground beside them).
+    const footprint = (w, d, x, z, rot, top) => {
+      const c = Math.cos(rot), s = Math.sin(rot);
+      if (Math.abs(Math.sin(2 * rot)) < 0.1) { const hw = (w * Math.abs(c) + d * Math.abs(s)) / 2, hd = (w * Math.abs(s) + d * Math.abs(c)) / 2; obstacles.push({ minX: x - hw, maxX: x + hw, minZ: z - hd, maxZ: z + hd, h: top }); return; }
+      const rowH = Math.min(1, Math.max(0.5, Math.min(w, d))), su = Math.min(0.25, w / 2), sv = Math.min(0.25, d / 2), rows = new Map();
+      for (let u = -w / 2; u <= w / 2 + 1e-6; u += su) for (let v = -d / 2; v <= d / 2 + 1e-6; v += sv) {
+        const px = x + u * c + v * s, pz = z - u * s + v * c, k = Math.floor(pz / rowH);   // the props' rotation about y
+        let r = rows.get(k); if (!r) rows.set(k, r = { minX: Infinity, maxX: -Infinity, minZ: Infinity, maxZ: -Infinity });
+        r.minX = Math.min(r.minX, px); r.maxX = Math.max(r.maxX, px); r.minZ = Math.min(r.minZ, pz); r.maxZ = Math.max(r.maxZ, pz);
       }
+      for (const r of rows.values()) obstacles.push({ minX: r.minX - 0.15, maxX: r.maxX + 0.15, minZ: r.minZ - 0.15, maxZ: r.maxZ + 0.15, h: top });
     };
     const palm = (x, z, tilt = (r() - 0.5) * 0.12) => {
       props.push({ geo: 'cyl:0.2,0.32,9,6', tex: 'trunk', x, y: 4.5, z, rot: [tilt, 0, tilt * 0.6], cast: true });

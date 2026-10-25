@@ -30,8 +30,35 @@ export class NavGrid {
   world(i) { return (i + 0.5) * this.cell - this.half; }
   passable(ix, iz) { return ix >= 0 && iz >= 0 && ix < this.n && iz < this.n && this.L[iz * this.n + ix] === 0; }
   blocked(x, z) { return !this.passable(this.cellOf(x), this.cellOf(z)); }
+  // connected regions of passable cells (8-neighbour without corner cutting is the same as 4-neighbour), labelled lazily
+  region(ix, iz) { if (!this.passable(ix, iz)) return 0; if (!this.labels) this.labelRegions(); return this.labels[iz * this.n + ix]; }
+  labelRegions() {
+    const n = this.n, L = this.L, lab = this.labels = new Int32Array(n * n), stack = new Int32Array(n * n); let next = 0; const sizes = this.sizes = [0];
+    for (let i = 0; i < n * n; i++) {
+      if (L[i] || lab[i]) continue;
+      lab[i] = ++next; sizes[next] = 0; let sp = 0; stack[sp++] = i;
+      while (sp) {
+        const c = stack[--sp], cx = c % n; sizes[next]++;
+        if (cx > 0 && !L[c - 1] && !lab[c - 1]) { lab[c - 1] = next; stack[sp++] = c - 1; }
+        if (cx < n - 1 && !L[c + 1] && !lab[c + 1]) { lab[c + 1] = next; stack[sp++] = c + 1; }
+        if (c >= n && !L[c - n] && !lab[c - n]) { lab[c - n] = next; stack[sp++] = c - n; }
+        if (c < n * n - n && !L[c + n] && !lab[c + n]) { lab[c + n] = next; stack[sp++] = c + n; }
+      }
+    }
+    this.main = sizes.indexOf(Math.max(...sizes));   // the open map; everything else is a pocket between obstacles
+  }
+  // is (x, z) in a pocket cut off from the open map (or blocked)? orders never end there
+  inPocket(x, z) { const r = this.region(this.cellOf(x), this.cellOf(z)); return !r || r !== this.main; }
+  // the nearest cell of the open map, out to r cells
+  nearestMain(ix, iz, r = 15) {
+    if (!this.labels) this.labelRegions();
+    for (let d = 0; d <= r; d++) for (let dz = -d; dz <= d; dz++) for (let dx = -d; dx <= d; dx++)
+      if ((Math.abs(dx) === d || Math.abs(dz) === d) && this.region(ix + dx, iz + dz) === this.main) return [ix + dx, iz + dz];
+    return null;
+  }
   // mark one obstacle box placed after the build (sandbags)
   block(o, pad = this.pad) {
+    this.labels = null;
     const L = this.L, x0 = Math.max(0, this.cellOf(o.minX - pad)), x1 = Math.min(this.n - 1, this.cellOf(o.maxX + pad)), z0 = Math.max(0, this.cellOf(o.minZ - pad)), z1 = Math.min(this.n - 1, this.cellOf(o.maxZ + pad));
     for (let iz = z0; iz <= z1; iz++) for (let ix = x0; ix <= x1; ix++) L[iz * this.n + ix] = 1;
   }
