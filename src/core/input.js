@@ -146,6 +146,7 @@ export class Input {
       t.order(g.x + (c - (cols - 1) / 2) * gap, g.z + (rw - (Math.ceil(n / cols) - 1) / 2) * gap);
     });
     this.app.markers.add(g.x, g.z); if (this.app.audio) this.app.audio.ui('order');
+    if (this.app.match && this.app.match.voices) this.app.match.voices.ordered(this.selected);
     this.hud.toast(`Move order: ${this.selected.length} unit${this.selected.length > 1 ? 's' : ''}`);
   }
 }

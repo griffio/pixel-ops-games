@@ -787,6 +787,51 @@ Engine changes needed in the existing core:
   11.0 against 10.1); with vsync on, both builds sit at the same 60/30 fps
   steps.
 
+- **Recorded weapon sounds (2026-10-25).** The user asked for better gun and
+  explosion sounds from free libraries. All sources are CC0: rifles, the MG,
+  marksman and door gun from the Free Firearm Sound Library (OpenGameArt; AR-15
+  for BLUFOR rifles, AK-47 for OPFOR, Mosin-Nagant 7.62x54R for the MG, Tikka
+  .30-06 for the marksman, Savage .300 BLK for the door gun), and the
+  autocannon, tank gun, rocket launch, explosions, shell blasts, ground impacts
+  and ricochets from Freesound, each licence read from its page. Single shots
+  were found by onset detection, cut with their echo, faded and set to a
+  per-category level (peak 50 ms RMS: guns -18 to -9 dBFS, explosions -6,
+  impacts -24; the old ElevenLabs clips ranged from -47 to clipping), 2-4
+  takes a sound (`sounds/CREDITS.md`). The engine takes a list of takes per
+  name, picks one at random, plays OPFOR rifles from `rifleB`, gives the tank
+  gun its own clip and plays a `blast` where rockets and shells land (they
+  used to make the bullet-impact tick). Fixed on the way: a clip's output was
+  disconnected after the synthesized sound's length, so recorded clips were
+  cut short (a rifle at 0.34 s, the explosion at 1.55 s).
+
+- **Radio voices and recorded loops (2026-10-25).** With the user's ElevenLabs
+  credits (4,500): a voice audition (8 voices, 404 credits) from which the user
+  chose Adam for the squads and Brian for HQ; 31 lines on `eleven_v3` (717
+  credits; shouted lines tagged), each trimmed, levelled, radio-coloured and
+  wrapped in a push-to-talk click and squelch tail; and sound effects on
+  `eleven_text_to_sound_v2` at about 10 credits a second (565): Chinook rotor,
+  tank, APC and truck engine loops, desert wind and distant battle ambience,
+  two bullet whizzes, digging and an AT reload. Loops have their tail
+  crossfaded into their head and are WAV (MP3 padding clicks at every repeat).
+  About 1,690 credits spent, about 2,810 left. `src/game/voices.js`
+  (`VoiceDirector`) watches the match for the player's side: contact on a
+  squad's first engagement, taking fire at mean suppression 0.55, man down
+  (medic if the squad has one), enemy armour once per vehicle per squad within
+  70 m, target down on a vehicle kill, reloading on some AT shots, moving on
+  orders, rally down and digging in from the HUD; HQ on objective, FOB and
+  rally events, armour first seen within 200 m, FOB damage, tickets at 100,
+  vehicles back from respawn, and the result. `AudioEngine.voice()` plays one
+  line at a time (HQ lines queue, two at most; squad chatter is dropped while
+  busy), cooldowns per line plus a 10 s gap after any squad line: a 15-minute
+  CPU match logged about 5 lines a minute with the radio never busy, so fewer
+  in play. Engines and rotors use the loops (playback rate with speed or rotor
+  spin, synthesis kept as the fallback), the ambience swells with recent
+  shooting, near misses on soldiers whizz, AT gunners reload 1.6 s after a
+  shot, FOB and sandbag builds dig. `Match.attachAudio` creates the radio, also
+  when the engine is made after a match started at boot.
+
+## Open questions
+
 
 
 

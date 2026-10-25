@@ -1,21 +1,154 @@
 {
  "clips": {
   "select": "select.mp3",
-  "rifle": "rifle.mp3",
-  "mg": "mg.mp3",
-  "marksman": "marksman.mp3",
-  "at": "at.mp3",
-  "autocannon": "autocannon.mp3",
-  "doorgun": "doorgun.mp3",
-  "explosion": "explosion.mp3",
-  "impact": "impact.mp3",
-  "hit": "hit.mp3",
   "captured": "captured.mp3",
   "lost": "lost.mp3",
   "fob": "fob.mp3",
   "start": "start.mp3",
   "win": "win.mp3",
   "lose": "lose.mp3",
-  "order": "order.mp3"
+  "order": "order.mp3",
+  "rifle": [
+   "rifle_1.mp3",
+   "rifle_2.mp3",
+   "rifle_3.mp3"
+  ],
+  "rifleB": [
+   "rifleB_1.mp3",
+   "rifleB_2.mp3",
+   "rifleB_3.mp3"
+  ],
+  "mg": [
+   "mg_1.mp3",
+   "mg_2.mp3",
+   "mg_3.mp3"
+  ],
+  "marksman": [
+   "marksman_1.mp3",
+   "marksman_2.mp3"
+  ],
+  "doorgun": [
+   "doorgun_1.mp3",
+   "doorgun_2.mp3"
+  ],
+  "autocannon": [
+   "autocannon_1.mp3",
+   "autocannon_2.mp3"
+  ],
+  "tankgun": [
+   "tankgun_1.mp3",
+   "tankgun_2.mp3"
+  ],
+  "at": [
+   "at_1.mp3",
+   "at_2.mp3"
+  ],
+  "explosion": [
+   "explosion_1.mp3",
+   "explosion_2.mp3"
+  ],
+  "blast": [
+   "blast_1.mp3",
+   "blast_2.mp3"
+  ],
+  "impact": [
+   "impact_1.mp3",
+   "impact_2.mp3"
+  ],
+  "hit": [
+   "hit_1.mp3",
+   "hit_2.mp3",
+   "hit_3.mp3",
+   "hit_4.mp3"
+  ],
+  "vo_hq_armour": [
+   "vo_hq_armour.mp3"
+  ],
+  "vo_hq_captured": [
+   "vo_hq_captured.mp3"
+  ],
+  "vo_hq_fob": [
+   "vo_hq_fob.mp3"
+  ],
+  "vo_hq_fob_attack": [
+   "vo_hq_fob_attack.mp3"
+  ],
+  "vo_hq_fob_lost": [
+   "vo_hq_fob_lost.mp3"
+  ],
+  "vo_hq_lose": [
+   "vo_hq_lose.mp3"
+  ],
+  "vo_hq_lost": [
+   "vo_hq_lost.mp3"
+  ],
+  "vo_hq_rally_lost": [
+   "vo_hq_rally_lost.mp3"
+  ],
+  "vo_hq_reinforce": [
+   "vo_hq_reinforce.mp3"
+  ],
+  "vo_hq_tickets": [
+   "vo_hq_tickets.mp3"
+  ],
+  "vo_hq_win": [
+   "vo_hq_win.mp3"
+  ],
+  "vo_sq_armour": [
+   "vo_sq_armour_1.mp3",
+   "vo_sq_armour_2.mp3"
+  ],
+  "vo_sq_contact": [
+   "vo_sq_contact_1.mp3",
+   "vo_sq_contact_2.mp3"
+  ],
+  "vo_sq_dig": [
+   "vo_sq_dig_1.mp3",
+   "vo_sq_dig_2.mp3"
+  ],
+  "vo_sq_fire": [
+   "vo_sq_fire_1.mp3",
+   "vo_sq_fire_2.mp3"
+  ],
+  "vo_sq_kill": [
+   "vo_sq_kill_1.mp3",
+   "vo_sq_kill_2.mp3"
+  ],
+  "vo_sq_mandown": [
+   "vo_sq_mandown_1.mp3",
+   "vo_sq_mandown_2.mp3"
+  ],
+  "vo_sq_medic": [
+   "vo_sq_medic_1.mp3",
+   "vo_sq_medic_2.mp3"
+  ],
+  "vo_sq_moving": [
+   "vo_sq_moving_1.mp3",
+   "vo_sq_moving_2.mp3"
+  ],
+  "vo_sq_rally": [
+   "vo_sq_rally_1.mp3",
+   "vo_sq_rally_2.mp3"
+  ],
+  "vo_sq_reload": [
+   "vo_sq_reload_1.mp3",
+   "vo_sq_reload_2.mp3"
+  ],
+  "rotor": "rotor.wav",
+  "engine_tank": "engine_tank.wav",
+  "engine_apc": "engine_apc.wav",
+  "engine_truck": "engine_truck.wav",
+  "amb_wind": "amb_wind.wav",
+  "amb_battle": "amb_battle.wav",
+  "whizz": [
+   "whizz_1.mp3",
+   "whizz_2.mp3"
+  ],
+  "dig": [
+   "dig.mp3"
+  ],
+  "reload": [
+   "reload.mp3"
+  ]
  }
 }

@@ -163,12 +163,25 @@ explosions, impacts, looping rotor and engine voices for the nearest six
 vehicles, and cues for selection, orders, captures, FOBs and the match result.
 Everything positional is attenuated and panned around the camera target. The
 context starts on the first click or touch; the Render panel has a mute box and
-volume slider, the touch toolbar a note button, and `M` mutes. The one-shots and
-cues ship as ElevenLabs clips in `sounds/` (listed in `sounds/manifest.json`), which
-the engine prefers over its own synthesis; delete the manifest to hear the
-synthesized set. To regenerate them, put an ElevenLabs key in `.env` as
-`ELEVEN_LABS_API=...` (ignored by git) and run `node tools/make-sounds.mjs`, or name
-the clips to redo: `node tools/make-sounds.mjs explosion rifle`.
+volume slider, the touch toolbar a note button, and `M` mutes. Recorded clips in
+`sounds/` (listed in `sounds/manifest.json`) replace the synthesis where they exist,
+and a sound may have several takes, one picked at random. Gunshots, the tank gun,
+rockets, explosions, shell blasts and impacts are cut from CC0 recordings (the Free
+Firearm Sound Library and Freesound; sources in `sounds/CREDITS.md`): BLUFOR
+riflemen fire M4s, OPFOR AKs. The UI cues are ElevenLabs clips; to regenerate them,
+put an ElevenLabs key in `.env` as `ELEVEN_LABS_API=...` (ignored by git) and run
+`node tools/make-sounds.mjs`, or name the clips to redo: `node tools/make-sounds.mjs
+win lose`. Delete the manifest to hear the synthesized set.
+
+**Radio.** Your side has radio chatter (ElevenLabs voices, a radio filter and a
+push-to-talk click): squads call contact, taking fire, man down or medic, enemy
+armour, target down, reloading, moving, rally down and digging in; HQ reports
+objectives secured or lost, the FOB up, under attack or lost, rallies overrun,
+armour sighted, tickets running low, reinforcements and the result. One line plays
+at a time and each has a cooldown, about four a minute in a busy fight. Vehicles
+and helicopters loop recorded engines and rotors, bullets whizz past near misses,
+AT gunners reload, engineers dig, and a desert wind and distant battle ambience
+plays under the match, the battle swelling with the shooting.
 
 The force builder picks the CPU difficulty. Easy CPU shoots and hits softer,
 respawns slower and never builds FOBs; Hard shoots and hits harder, respawns

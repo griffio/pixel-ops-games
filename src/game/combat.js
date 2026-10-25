@@ -157,7 +157,12 @@ export class Combat {
     if (!hit) { const sp = (w.arc ? 2 : 1.5) + d * (w.arc ? 0.06 : 0.04); tx += (Math.random() - 0.5) * 2 * sp; tz += (Math.random() - 0.5) * 2 * sp; ty = e.spec.air && e.alt > 2 ? ty + (Math.random() - 0.5) * 6 : this.groundAt(tx, tz) + 0.1; }
     const vx = tx - mx, vy = ty - gunY, vz = tz - mz, vl = Math.hypot(vx, vy, vz) || 1;
     this.dust.muzzle(mx, gunY, mz, vx / vl, vy / vl, vz / vl, MUZZLE_KIND[u.kit] || 'rifle');
-    if (this.audio) this.audio.shot(u.kit, u.pos.x, u.pos.z);
+    if (this.audio) {
+      this.audio.shot(u.kit, u.pos.x, u.pos.z, u.team);
+      if (u.kit === 'at') { const x = u.pos.x, z = u.pos.z; setTimeout(() => this.audio.foley('reload', x, z, 0.5), 1600); }   // the loader's next round
+      if (!hit && e.type === 'soldier' && Math.random() < 0.3) this.audio.whizz(e.pos.x, e.pos.z);                        // a near miss
+    }
+    if (this.onShot) this.onShot(u, w, e, hit);
     this.dust.shots.fire({ x: mx, y: gunY, z: mz, tx, ty, tz, speed: w.speed, arc: !!w.arc, kind: w.arc || u.kit === 'tankgun' ? 'shell' : w.rocket ? 'rocket' : 'bullet',
       trail: w.arc ? 6 : u.kit === 'tankgun' ? 9 : w.rocket ? 2 : (u.kit === 'mg' || u.kit === 'doorgun') ? 6 : 3.5, onArrive: (p) => this.arrive(p, u, w, e, hit) });
   }
@@ -169,13 +174,13 @@ export class Combat {
       let dmg = (e.type === 'soldier' ? w.dmgInf : w.dmgVeh) * ((T && T.dmg) || 1);
       if (e.spec.armour && w.explosive) dmg *= this.facing(e, u);   // flank the tank
       if (w.explosive) this.dust.explosion(p.x, p.y, p.z, u.kit === 'tankgun' ? 0.7 : 0.35); else this.dust.hitSpark(p.x, p.y, p.z);
-      if (this.audio) this.audio.hit(p.x, p.z);
+      if (this.audio) w.explosive ? this.audio.blast(p.x, p.z, u.kit === 'tankgun' ? 1.4 : 1) : this.audio.hit(p.x, p.z);
       if (e.damage(dmg, u)) { this.onDeath && this.onDeath(e, u); }
       this.suppress(p.x, p.z, w, u.team, e);
     } else {
       const gy = this.groundAt(p.x, p.z), y = Math.max(p.y, gy + 0.1);
       if (w.explosive) this.dust.explosion(p.x, y, p.z, 0.3); else this.dust.impact(p.x, y, p.z);
-      if (this.audio) this.audio.impact(p.x, p.z);
+      if (this.audio) w.explosive ? this.audio.blast(p.x, p.z, u.kit === 'tankgun' ? 1.4 : 1) : this.audio.impact(p.x, p.z);
       this.suppress(p.x, p.z, w, u.team);
     }
   }

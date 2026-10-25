@@ -77,7 +77,7 @@ export function runLoop(app) {
   // ?warp=N pre-steps the simulation N seconds so screenshots can start mid-action (silently)
   const warp = +(new URLSearchParams(location.search).get('warp') || 0);
   for (let t = 0; t < warp; t += 0.05) { app.world.update(0.05); app.units.update(0.05); if (app.match) app.match.update(0.05); app.dust.update(0.05); app.markers.update(0.05); }
-  app.audio = new AudioEngine(app); if (app.match) app.match.combat.audio = app.audio;
+  app.audio = new AudioEngine(app); if (app.match) app.match.attachAudio(app.audio);
 
   let W = 0, H = 0;
   const resize = () => { W = window.innerWidth; H = window.innerHeight; app.resize(W, H); };

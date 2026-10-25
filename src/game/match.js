@@ -10,6 +10,7 @@ import { Strategist } from './ai/strategist.js';
 import { RemoteCommander } from './ai/remote.js';
 import { UtilityCommander } from './ai/utility.js';
 import { Rallies } from './rally.js';
+import { VoiceDirector } from './voices.js';
 import { DOCTRINES, PRESETS, expand, preset } from './loadout.js';
 import { createMode } from './modes/index.js';
 import { difficulty } from './difficulty.js';
@@ -42,6 +43,7 @@ export class Match {
     this.support = new Support(this.units, this.respawn, this.teams);
     this.fobs = new Fobs(this.units, this.teams, this.world);
     this.rallies = new Rallies(this.units, this.teams, this); this.respawn.rallies = this.rallies;
+    this.voices = null; if (app.audio) this.attachAudio(app.audio);
     this.feed = []; this.events = []; this.feedId = 0; this.history = []; this.histAcc = 5; this.elapsed = 0; this.log = [];   // log: captures and losses with times
     this.fobs.onBuilt = (fob) => this.event({ type: 'fob', team: fob.team, fob });
     // a finished sandbag position becomes low cover: obstacles for movement, cover for combat; anyone caught inside a bag steps out
@@ -61,6 +63,7 @@ export class Match {
       this.pushFeed({ kind: 'kill', v, k });
       if (v.type !== 'soldier' && this.app.audio) this.app.audio.explosion(v.pos.x, v.pos.z, v.type === 'tank' ? 1.8 : v.type === 'apc' ? 1.5 : 1);
       if (v.type === 'apc' || v.type === 'tank') for (const s of this.strategists || []) if (s.remote && s.team === v.team) s.remote.nudge();
+      if (this.voices) this.voices.onDeath(v, k);
     };
     this.time = this.mode.length; this.state = 'play'; this.winner = null; this.reason = ''; this.acc = 0;
     this.units.auto = false;
@@ -91,6 +94,13 @@ export class Match {
     if (e.type !== 'hex lost') this.pushFeed({ kind: 'event', e });
     if (e.type === 'captured' || e.type === 'lost') for (const s of this.strategists || []) if (s.remote) s.remote.nudge();   // a remote commander hears about it at once
     if (this.app.audio) this.app.audio.event(e.type, e.team === (this.app.playerTeam ?? 0));
+    if (this.voices) this.voices.onEvent(e);
+  }
+  // combat sounds and the player's radio (also called by app.js when the engine is made after a match that started at boot)
+  attachAudio(audio) {
+    this.combat.audio = audio; const pt = this.app.playerTeam ?? 0;
+    this.voices = this.cpu.includes(pt) ? null : new VoiceDirector(this, audio, pt);
+    this.combat.onShot = this.voices ? (u) => this.voices.onShot(u) : null;
   }
   pushFeed(f) { f.t = 0; f.id = ++this.feedId; this.feed.unshift(f); this.feed.length = Math.min(this.feed.length, 7); }
   // live enemy ground units of `team` within r of a point
@@ -137,6 +147,7 @@ export class Match {
     this.fobs.tick(dt);
     this.mode.tick(dt);
     for (const s of this.strategists) s.tick(dt);
+    if (this.voices) this.voices.tick(dt);
   }
   end(winner, reason) {
     this.state = 'over'; this.winner = winner; this.reason = reason;

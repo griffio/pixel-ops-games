@@ -189,6 +189,7 @@ export class Hud {
     $('end-again').onclick = () => location.reload();
     $('end-lobby').onclick = () => { location.href = location.pathname; };
     if (this.app.audio) this.app.audio.ui(m.winner === null ? 'lose' : won ? 'win' : 'lose');
+    if (m.voices) m.voices.end(won);
   }
   drawTickets(m, cv) {
     const g = cv.getContext('2d'), W = cv.width, H = cv.height, h = m.history, pl = 34, pr = 10, pt = 12, pb = 22;
@@ -255,12 +256,13 @@ export class Hud {
   }
   action(kind) {
     const m = this.app.match, sel = this.app.input.selected; if (!m) return;
-    if (kind === 'fob') { const eng = sel.find(u => u.kit === 'engineer' && !u.dead); if (!eng) return this.toast('Select an engineer'); const r = m.fobs.startBuild(eng); this.toast(r.ok ? `Building FOB, ${Math.round(r.build.total)} s` : r.reason); if (this.app.audio) this.app.audio.ui(r.ok ? 'order' : 'deny'); }
-    if (kind === 'sandbags') { const eng = sel.find(u => u.kit === 'engineer' && !u.dead); if (!eng) return this.toast('Select an engineer'); const r = m.fobs.startSandbags(eng); this.toast(r.ok ? `Building sandbags, ${Math.round(r.build.total)} s` : r.reason); if (this.app.audio) this.app.audio.ui(r.ok ? 'order' : 'deny'); }
+    if (kind === 'fob') { const eng = sel.find(u => u.kit === 'engineer' && !u.dead); if (!eng) return this.toast('Select an engineer'); const r = m.fobs.startBuild(eng); this.toast(r.ok ? `Building FOB, ${Math.round(r.build.total)} s` : r.reason); if (this.app.audio) { this.app.audio.ui(r.ok ? 'order' : 'deny'); if (r.ok) this.app.audio.foley('dig', eng.pos.x, eng.pos.z); } }
+    if (kind === 'sandbags') { const eng = sel.find(u => u.kit === 'engineer' && !u.dead); if (!eng) return this.toast('Select an engineer'); const r = m.fobs.startSandbags(eng); this.toast(r.ok ? `Building sandbags, ${Math.round(r.build.total)} s` : r.reason); if (this.app.audio) { this.app.audio.ui(r.ok ? 'order' : 'deny'); if (r.ok) this.app.audio.foley('dig', eng.pos.x, eng.pos.z); } if (r.ok && m.voices) m.voices.say('vo_sq_dig', 10); }
     if (kind === 'rally') {
       const sqs = [...new Set(sel.filter(u => u.type === 'soldier' && u.squad && !u.dead).map(u => u.squad))]; if (!sqs.length) return this.toast('Select a squad');
       const done = [], why = []; for (const sq of sqs) { const r = m.rallies.place(sq); if (r.ok) done.push(r.rally.label); else why.push(r.reason); }
       this.toast(done.length ? `Rally ${done.join(', ')} placed` : why[0]); if (this.app.audio) this.app.audio.ui(done.length ? 'order' : 'deny');
+      if (done.length && m.voices) m.voices.say('vo_sq_rally', 10);
     }
     if (kind === 'unload') { const heli = sel.find(u => u.type === 'heli' && u.passengers.length); if (!heli) return; if (heli.alt > 0.5) return this.toast('Land first'); heli.unload(); this.toast('Unloaded'); }
     this.showSelection(sel);

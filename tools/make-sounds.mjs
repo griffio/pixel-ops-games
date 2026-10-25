@@ -2,6 +2,7 @@
 // Reads the key from ELEVENLABS_API_KEY or ELEVEN_LABS_API in the environment or
 // from a .env file next to package.json. Without the clips the game synthesizes
 // every sound itself (src/core/audio.js), so this is a quality upgrade.
+// Gunshots, explosions and impacts are not made here: they are cut from CC0 recordings (sounds/CREDITS.md).
 // usage: node tools/make-sounds.mjs [names...]   (no names: every clip)
 import { writeFileSync, mkdirSync, readFileSync, existsSync } from 'node:fs';
 const env = { ...process.env };
@@ -9,15 +10,6 @@ if (existsSync('.env')) for (const line of readFileSync('.env', 'utf8').split('\
 const KEY = env.ELEVENLABS_API_KEY || env.ELEVEN_LABS_API; if (!KEY) { console.error('set ELEVENLABS_API_KEY (or ELEVEN_LABS_API) in the environment or .env'); process.exit(1); }
 const credits = async () => { try { const r = await fetch('https://api.elevenlabs.io/v1/user/subscription', { headers: { 'xi-api-key': KEY } }); const j = await r.json(); return typeof j.character_limit === 'number' ? j.character_limit - j.character_count : null; } catch { return null; } };   // null for keys without the user_read permission
 const CLIPS = {
-  rifle:      ['single assault rifle shot, dry, distant battlefield, short', 0.6],
-  mg:         ['single machine gun shot, mechanical, dry, short', 0.5],
-  marksman:   ['single sniper rifle shot with a sharp crack and short echo', 0.9],
-  at:         ['rocket launcher firing, whoosh with ignition thump, short', 1.2],
-  autocannon: ['20mm autocannon single shot, heavy mechanical thump, short', 0.7],
-  doorgun:    ['helicopter door gun single shot, dry, short', 0.5],
-  explosion:  ['vehicle explosion with debris, deep boom, open desert, 1.5 seconds', 1.8],
-  impact:     ['bullet hitting sand, tiny thud, very short', 0.4],
-  hit:        ['bullet ricochet off metal, very short ping', 0.4],
   captured:   ['short positive two-note military radio chime, 8-bit', 0.8],
   lost:       ['short negative two-note military radio chime, 8-bit', 0.8],
   fob:        ['short three-note confirmation chime, radio, 8-bit', 0.9],
