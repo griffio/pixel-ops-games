@@ -81,6 +81,7 @@ export class Input {
       if (e.code === 'KeyR') { this.rts.reset(); return; }
       if (e.code === 'KeyB') { this.hud.action('fob'); return; }
       if (e.code === 'KeyN') { this.hud.action('sandbags'); return; }
+      if (e.code === 'KeyT') { this.hud.action('rally'); return; }
       if (e.code === 'KeyU') { this.hud.action('unload'); return; }
       if (e.code === 'KeyM') { this.hud.toggleSound(); return; }
     }

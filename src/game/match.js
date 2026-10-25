@@ -9,6 +9,7 @@ import { Fobs } from './fob.js';
 import { Strategist } from './ai/strategist.js';
 import { RemoteCommander } from './ai/remote.js';
 import { UtilityCommander } from './ai/utility.js';
+import { Rallies } from './rally.js';
 import { DOCTRINES, PRESETS, expand, preset } from './loadout.js';
 import { createMode } from './modes/index.js';
 import { difficulty } from './difficulty.js';
@@ -40,6 +41,7 @@ export class Match {
     this.respawn = new Respawn(this.units, this.teams, this.world);
     this.support = new Support(this.units, this.respawn, this.teams);
     this.fobs = new Fobs(this.units, this.teams, this.world);
+    this.rallies = new Rallies(this.units, this.teams, this); this.respawn.rallies = this.rallies;
     this.feed = []; this.events = []; this.feedId = 0; this.history = []; this.histAcc = 5; this.elapsed = 0; this.log = [];   // log: captures and losses with times
     this.fobs.onBuilt = (fob) => this.event({ type: 'fob', team: fob.team, fob });
     // a finished sandbag position becomes low cover: obstacles for movement, cover for combat; anyone caught inside a bag steps out
@@ -128,6 +130,7 @@ export class Match {
   }
   tick(dt) {
     this.combat.tick(dt);
+    this.rallies.tick(dt);   // before respawns: burned rallies are gone and due waves are flagged
     this.respawn.tick(dt);
     this.support.tick(dt);
     this.fobs.tick(dt);

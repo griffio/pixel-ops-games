@@ -623,6 +623,27 @@ Engine changes needed in the existing core:
   15-1, mean margin about +175, and a 25-minute warp now takes 27-48 s
   instead of 45-90 s thanks to the obstacle grid.
 
+- **Rally points (2026-10-25).** The first port from the Squad research
+  (`reports/`), with its scaled values. `src/game/rally.js`: each squad's
+  leader drops one rally (`T` or the Rally button) with a squadmate within
+  8 m; not with an enemy within 30 m (the attempt restarts the cooldown) or
+  within 120 m of the enemy main; a 60 s cooldown per squad, a new rally
+  replaces the old. A soldier whose nearest spawn is the squad's rally (or
+  whose squad is wiped out) ignores his own 15 s timer and returns on the
+  rally's 30 s wave if he has been down at least 10 s, still 1 ticket; forcing
+  main base skips rallies. Any enemy within 18 m burns it, with a feed line.
+  Minimap triangle, `RP-xx` label, reinforcements panel shows the wave
+  countdown, the digest reports each squad's rally. Both CPU commanders share a
+  placement rule: within 160 m of the squad's zone (or hiding from or hunting
+  armour), more than 200 m from home, no enemy within 40 m, no rally of its own
+  within 70 m. Tests: two squadmates killed beside a fresh rally were back on
+  its first wave (30 s); a wiped squad came back together; an enemy at 25 m
+  left it, at 15 m burned it; forcing main skipped it. A CPU side places 23-33
+  rallies a match, loses 3-14, and does most of its respawning at them.
+  Mirrored utility-vs-utility: BLUFOR 9, OPFOR 7, every match to the clock,
+  infantry deaths up about 40% (170-300 a side), losers ending on 5-90
+  tickets, so the 500 pools stay.
+
 ## Open questions
 
 

@@ -90,6 +90,7 @@ export class Strategist {
       else if (reserve && hold && i >= nAttack + Math.ceil((rest.length - nAttack) * 0.7)) reserveAt(sq, reserve);
       else holdAt(sq, hold);
     });
+    this.placeRallies(squads);
     for (const v of vehicles) {
       if (v.type === 'apc') {
         const goal = attack || hold; if (!goal) continue;
@@ -103,6 +104,23 @@ export class Strategist {
         v.goal = [x, z]; v.order(x, z);
       } else if (v.type === 'heli') this.air(v, free, attack, base);
       else if (!v.supply && !v.dest && Math.random() < 0.2) v.order(base.x + (Math.random() - 0.5) * 24, base.z + (Math.random() - 0.5) * 24);
+    }
+  }
+
+  // Rally points: a squad that has reached the area it was sent to (within 160 m of its zone, or dug in hiding from or hunting
+  // armour), clear of enemies, more than 200 m from home, drops a rally when it has none within 70 m and the cooldown allows.
+  placeRallies(squads) {
+    const R = this.match.rallies; if (!R) return;
+    const base = this.teams[this.team].base;
+    for (const sq of squads) {
+      if (!sq.leader || sq.mounted || R.cooldownLeft(sq) > 0) continue;
+      const c = sq.centroid(), zone = sq.zone;
+      if (Math.hypot(c.x - base.x, c.z - base.z) < 200) continue;
+      const there = zone ? Math.hypot(c.x - zone.x, c.z - zone.z) < 160 : ['cover', 'stalk', 'hunt'].includes(sq.tag) || (sq.tag || '').startsWith('screen');
+      if (!there) continue;
+      const r = R.of(sq); if (r && Math.hypot(r.pos.x - c.x, r.pos.z - c.z) < 70) continue;
+      if (this.enemiesNear(c.x, c.z, 40).length) continue;
+      if (R.canPlace(sq).ok) R.place(sq);
     }
   }
 

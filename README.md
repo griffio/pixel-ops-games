@@ -53,8 +53,18 @@ main base. Select an engineer squad standing within 20 m of a supply truck and
 press **B** (or the Build FOB button) to raise a forward operating base in 20 s
 (10 s under Entrenched); each FOB kit in your loadout allows one FOB. A FOB is a
 spawn point: fallen infantry come back at whichever spawn is nearest their squad
-(main base, a FOB, or beside an idle helicopter under Air Assault; the
-reinforcements panel can force main base). Destroying a FOB radio costs its owner
+(main base, a FOB, the squad's rally point, or beside an idle helicopter under
+Air Assault; the reinforcements panel can force main base).
+
+**Rally points.** Select a squad and press **T** (or the Rally button) to drop
+its rally point where its leader stands, after Squad's rallies scaled to this
+map: it needs a squadmate within 8 m, can't go down with an enemy within 30 m
+(trying restarts the cooldown) or within 120 m of the enemy main, and a squad
+can place one every 60 s, moving the old one. Squadmates whose nearest spawn is
+the rally, or the whole squad once it is wiped out, come back there on the
+rally's 30 s wave if they have been down at least 10 s, still 1 ticket each.
+Any enemy within 18 m burns it. The CPU drops rallies once its squads reach the
+area they were sent to, so expect to hunt them. Destroying a FOB radio costs its owner
 20 tickets, so the CPU raids yours and defends its own. With infantry selected,
 right-click a friendly landed helicopter to board it, then order the helicopter
 somewhere: it unloads on landing (**U** unloads a parked helicopter). An engineer

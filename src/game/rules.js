@@ -11,6 +11,9 @@ export const RULES = {
   bleedEvery: 5,             // seconds per ticket while the enemy holds the majority
   fob: { hp: 300, buildTime: 20, supplyCost: 50, truckSupplies: 100, resupplyRate: 10, buildRange: 20, minSpacing: 80, enemyBaseDistance: 140, spawnRadius: 8 },
   sandbags: { buildTime: 12, supplyCost: 12, max: 8, minSpacing: 12, enemyBaseDistance: 60 },   // improvised fighting positions: no kit, an engineer by a supply truck
+  // a squad's own forward spawn (Squad's rally, scaled): spawns on a wave, needs a squadmate within placeRange to drop,
+  // can't be dropped with an enemy inside blockRadius, burns with any enemy inside burnRadius
+  rally: { wave: 30, cutoff: 10, cooldown: 60, placeRange: 8, blockRadius: 30, burnRadius: 18, enemyBaseDistance: 120 },
   heli: { capacity: 8, boardRange: 5 },
   force: { squads: 8, truck: 3, apc: 3, heli: 2 },
 };

@@ -88,7 +88,7 @@ export class Hud {
     // reinforcements for the player's team
     const me = this.app.playerTeam ?? 0, q = m.respawn.queue.filter(x => x.unit.team === me).sort((a, b) => a.t - b.t).slice(0, 6);
     const fobs = m.fobs.active(me).length, kits = m.fobs.kitsLeft(me), build = m.fobs.builds.find(b => b.team === me);
-    $('reinf').innerHTML = `<div>FOBs ${fobs} · kits ${kits}${build ? ` · building ${Math.ceil(build.t)}s` : ''}</div>` + (q.length ? q.map(x => `<div><b>${x.unit.label}</b> ${x.unit.type} ${Math.ceil(x.t)}s</div>`).join('') : '<div>all units deployed</div>');
+    $('reinf').innerHTML = `<div>FOBs ${fobs} · kits ${kits}${build ? ` · building ${Math.ceil(build.t)}s` : ''}</div>` + (q.length ? q.map(x => { const r = m.rallies && m.respawn.rallyFor(x.unit, m.teams[me]); return `<div><b>${x.unit.label}</b> ${x.unit.type} ${r ? 'rally ' + Math.ceil(m.rallies.nextWaveIn(r)) : Math.max(0, Math.ceil(x.t))}s</div>`; }).join('') : '<div>all units deployed</div>');
     this.drawMinimap(m);
   }
 
@@ -98,7 +98,7 @@ export class Hud {
       return `<div class="kill${v.type !== 'soldier' ? ' veh' : ''}"><b class="t${k ? k.team : 0}">${k ? k.label : '?'}</b><span class="w">${kit}</span>${ico(v.type === 'soldier' ? 'skull' : v.type)}<b class="t${v.team}">${v.label}</b></div>`;
     }
     const e = f.e, team = e.team, name = team === 0 ? 'BLUFOR' : 'OPFOR', loc = e.loc ? e.loc.name : '';
-    const text = e.type === 'captured' ? `captured <b>${loc}</b>` : e.type === 'lost' ? `lost <b>${loc}</b>` : e.type === 'fob' ? 'FOB is up' : e.type === 'sandbags' ? 'dug in behind sandbags' : e.type === 'radio' ? `<i>${String(e.text).replace(/[&<>]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;' }[c]))}</i>` : e.type === 'cache revealed' ? `found the cache at <b>${loc}</b>` : e.type === 'cache destroyed' ? `destroyed the cache at <b>${loc}</b>` : e.type;
+    const text = e.type === 'captured' ? `captured <b>${loc}</b>` : e.type === 'lost' ? `lost <b>${loc}</b>` : e.type === 'fob' ? 'FOB is up' : e.type === 'sandbags' ? 'dug in behind sandbags' : e.type === 'rally lost' ? `lost rally point <b>${e.rally || ''}</b>` : e.type === 'radio' ? `<i>${String(e.text).replace(/[&<>]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;' }[c]))}</i>` : e.type === 'cache revealed' ? `found the cache at <b>${loc}</b>` : e.type === 'cache destroyed' ? `destroyed the cache at <b>${loc}</b>` : e.type;
     return `<div class="ev">${ico(e.type === 'fob' ? 'fob' : e.type.startsWith('cache') ? 'cache' : 'flag')}<b class="t${team}">${name}</b> ${text}</div>`;
   }
 
@@ -153,6 +153,8 @@ export class Hud {
       if (u.dead || u.mounted) continue;
       g.fillStyle = u.team === me ? '#9fd0ff' : '#ff8a7a';
       if (u.type === 'fob') { g.strokeStyle = g.fillStyle; g.lineWidth = 1.5; g.strokeRect(X(u.pos.x) - 3, Z(u.pos.z) - 3, 6, 6); continue; }
+      if (u.type === 'rally') { g.strokeStyle = g.fillStyle; g.lineWidth = 1.2; const x = X(u.pos.x), z = Z(u.pos.z); g.beginPath(); g.moveTo(x, z - 3.5); g.lineTo(x + 3, z + 2); g.lineTo(x - 3, z + 2); g.closePath(); g.stroke(); continue; }
+      if (u.type === 'sandbags') continue;
       const s = u.type === 'soldier' ? 2 : 3; g.fillRect(X(u.pos.x) - s / 2, Z(u.pos.z) - s / 2, s, s);
     }
     // camera footprint
@@ -240,6 +242,9 @@ export class Hud {
     const m = this.app.match, box = $('sel-actions'); box.innerHTML = '';
     if (!m) return;
     const eng = list.find(u => u.kit === 'engineer' && !u.dead);
+    // rally points for the squads in the selection
+    const sqs = [...new Set(list.filter(u => u.type === 'soldier' && u.squad && u.team === (this.app.playerTeam ?? 0)).map(u => u.squad))];
+    if (sqs.length && m.rallies) { const c = sqs.map(sq => m.rallies.canPlace(sq)), ok = c.some(x => x.ok), why = c.find(x => !x.ok); box.insertAdjacentHTML('beforeend', `<button data-act="rally" ${ok ? '' : 'disabled'} title="${why ? why.reason : ''}">Rally (T)${ok ? '' : ' · ' + why.reason}</button>`); }
     if (eng) { const c = m.fobs.canBuild(eng); box.insertAdjacentHTML('beforeend', `<button data-act="fob" ${c.ok ? '' : 'disabled'} title="${c.reason || ''}">Build FOB (B)${c.ok ? '' : ' · ' + c.reason}</button>`); }
     if (eng) { const c = m.fobs.canBuildSandbags(eng); box.insertAdjacentHTML('beforeend', `<button data-act="sandbags" ${c.ok ? '' : 'disabled'} title="${c.reason || ''}">Sandbags (N)${c.ok ? '' : ' · ' + c.reason}</button>`); }
     const heli = list.find(u => u.type === 'heli' && !u.dead && u.passengers.length);
@@ -251,6 +256,11 @@ export class Hud {
     const m = this.app.match, sel = this.app.input.selected; if (!m) return;
     if (kind === 'fob') { const eng = sel.find(u => u.kit === 'engineer' && !u.dead); if (!eng) return this.toast('Select an engineer'); const r = m.fobs.startBuild(eng); this.toast(r.ok ? `Building FOB, ${Math.round(r.build.total)} s` : r.reason); if (this.app.audio) this.app.audio.ui(r.ok ? 'order' : 'deny'); }
     if (kind === 'sandbags') { const eng = sel.find(u => u.kit === 'engineer' && !u.dead); if (!eng) return this.toast('Select an engineer'); const r = m.fobs.startSandbags(eng); this.toast(r.ok ? `Building sandbags, ${Math.round(r.build.total)} s` : r.reason); if (this.app.audio) this.app.audio.ui(r.ok ? 'order' : 'deny'); }
+    if (kind === 'rally') {
+      const sqs = [...new Set(sel.filter(u => u.type === 'soldier' && u.squad && !u.dead).map(u => u.squad))]; if (!sqs.length) return this.toast('Select a squad');
+      const done = [], why = []; for (const sq of sqs) { const r = m.rallies.place(sq); if (r.ok) done.push(r.rally.label); else why.push(r.reason); }
+      this.toast(done.length ? `Rally ${done.join(', ')} placed` : why[0]); if (this.app.audio) this.app.audio.ui(done.length ? 'order' : 'deny');
+    }
     if (kind === 'unload') { const heli = sel.find(u => u.type === 'heli' && u.passengers.length); if (!heli) return; if (heli.alt > 0.5) return this.toast('Land first'); heli.unload(); this.toast('Unloaded'); }
     this.showSelection(sel);
   }

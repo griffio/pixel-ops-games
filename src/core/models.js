@@ -173,9 +173,18 @@ export function makeBuilders(F) {
     return { group: g, parts: p, height: 1.2, radius: 3.6 };
   }
 
+  // Rally point: a radio pack on the ground and a short pole with a pennant in the team's camo. Static structure.
+  function rally() {
+    const g = group(); const p = {};
+    box(0.5, 0.35, 0.3, 'canvas', 0, 0.17, 0, g); box(0.3, 0.25, 0.2, 'rifle', 0.05, 0.47, 0, g);   // pack and radio
+    box(0.06, 1.8, 0.06, 'metal', -0.45, 0.9, 0, g); box(0.5, 0.32, 0.04, 'desert', -0.2, 1.62, 0, g);   // pole and pennant
+    p.ring = ring(1.4, g);
+    return { group: g, parts: p, height: 1.9, radius: 0.6 };
+  }
+
   // each builder takes the team so the whole model picks the right camo set
   const forTeam = (fn) => (t = 0) => { team = t; const r = fn(); team = 0; return r; };
-  return { soldier: forTeam(soldier), truck: forTeam(truck), apc: forTeam(apc), heli: forTeam(heli), fob: forTeam(fob), cache: forTeam(cache), sandbags: forTeam(sandbags) };
+  return { soldier: forTeam(soldier), truck: forTeam(truck), apc: forTeam(apc), heli: forTeam(heli), fob: forTeam(fob), cache: forTeam(cache), sandbags: forTeam(sandbags), rally: forTeam(rally) };
 
 
 
