@@ -375,6 +375,14 @@ src/gl/             WebGL2 back end
   ends produce the same image from the same `lighting(time)` values.
 - Picking renders instance ids into a small colour buffer on click and reads
   one pixel; no CPU raycasting.
+- Water is a plane at the water level drawn after the opaque pass, lit like the
+  ground and blended over the bed. Its shader reads a depth map built from the
+  terrain: teal paling in the shallows, a broken foam rim at the shore and curling
+  foam lines running out from it, measured as distance from the shore so steep
+  banks get the same foam as gentle ones, and drifting ripples on a ford. The ground
+  shader reads the same map for wet sand at the waterline.
+- Fog of war darkens what the player's side cannot see from a per-cell texture,
+  eased as it changes; enemies out of sight are skipped by the renderer.
 
 ## Tuning knobs (right panel)
 

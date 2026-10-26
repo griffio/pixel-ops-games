@@ -141,10 +141,10 @@ export class GLRenderer {
   geometry(key) { return this.geos.get(key) || this.uploadGeometry(key, buildGeometry(key)); }
   registerGeometry(key, src) { if (!this.geos.has(key)) this.uploadGeometry(key, src); return key; }
 
-  batchKey(geo, m) { return `${geo}|${m.tex || ''}|${m.unlit ? 1 : 0}|${m.cast ? 1 : 0}|${m.cutout ? 1 : 0}|${m.ground ? 1 : 0}`; }
+  batchKey(geo, m) { return `${geo}|${m.tex || ''}|${m.unlit ? 1 : 0}|${m.cast ? 1 : 0}|${m.cutout ? 1 : 0}|${m.ground ? 1 : 0}|${m.water ? 1 : 0}`; }
   makeBatch(geoKey, m, cap) {
     const gl = this.gl, geo = this.geometry(geoKey);
-    const b = { geo, tex: m.tex, unlit: !!m.unlit, cast: !!m.cast, cutout: !!m.cutout, ground: !!m.ground, vao: gl.createVertexArray(), ibo: gl.createBuffer(), cap, n: 0, data: new Float32Array(cap * STRIDE) };
+    const b = { geo, tex: m.tex, unlit: !!m.unlit, cast: !!m.cast, cutout: !!m.cutout, ground: !!m.ground, water: !!m.water, vao: gl.createVertexArray(), ibo: gl.createBuffer(), cap, n: 0, data: new Float32Array(cap * STRIDE) };
     gl.bindVertexArray(b.vao);
     gl.bindBuffer(gl.ARRAY_BUFFER, geo.vbo);
     [[0, 3, 0], [1, 3, 12], [2, 2, 24]].forEach(([loc, n, off]) => { gl.enableVertexAttribArray(loc); gl.vertexAttribPointer(loc, n, gl.FLOAT, false, 32, off); });
@@ -185,6 +185,17 @@ export class GLRenderer {
     this.chunks.clear();
   }
   setGround(g) { this.ground = g; }
+  // water: the depth map (one byte per terrain vertex, n x n from -half, cell apart: (depth + 0.5) / 4.5), for the water's
+  // colour and foam and the wet banks
+  setWater(data, n, cell, half) {
+    const gl = this.gl; this.waterTex = gl.createTexture(); gl.bindTexture(gl.TEXTURE_2D, this.waterTex);
+    gl.pixelStorei(gl.UNPACK_ALIGNMENT, 1); gl.pixelStorei(gl.UNPACK_FLIP_Y_WEBGL, false);   // rows go up in z as given
+    gl.texImage2D(gl.TEXTURE_2D, 0, gl.R8, n, n, 0, gl.RED, gl.UNSIGNED_BYTE, data);
+    gl.pixelStorei(gl.UNPACK_ALIGNMENT, 4); gl.pixelStorei(gl.UNPACK_FLIP_Y_WEBGL, true);
+    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR); gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.LINEAR);
+    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE); gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
+    const scale = 1 / (cell * n); this.waterMap = [scale, half * scale + 0.5 / n];
+  }
   // fog of war: one byte per cell (255 seen) over a grid starting at -half; null switches the shading off
   setFog(data, n, cell, half) {
     if (!data) { this.fog = null; return; }
@@ -301,14 +312,20 @@ export class GLRenderer {
       gl.uniform4f(u.uTileInv, 1 / g.tileSize[0], 1 / g.tileSize[1], 1 / g.tileSize[2], 1 / g.tileSize[3]);
       gl.uniform1f(u.uBaseInv, 1 / g.baseSize); gl.uniform1f(u.uMapInv, 1 / g.mapSize);
     }
+    gl.uniform1i(u.uWater, 9); gl.uniform1f(u.uWaterOn, this.waterTex ? 1 : 0); gl.uniform1f(u.uTime, (performance.now() / 1000) % 3600);
+    if (this.waterTex) { gl.activeTexture(gl.TEXTURE9); gl.bindTexture(gl.TEXTURE_2D, this.waterTex); gl.uniform2f(u.uWaterMap, this.waterMap[0], this.waterMap[1]); }
     gl.uniform1i(u.uFog, 8); gl.uniform1f(u.uFogOn, this.fog ? 1 : 0);
     if (this.fog) { gl.activeTexture(gl.TEXTURE8); gl.bindTexture(gl.TEXTURE_2D, this.fogTex); gl.uniform2f(u.uFogMap, this.fog.inv, this.fog.off); }
     gl.activeTexture(gl.TEXTURE0);
     gl.uniform1f(u.uUnlit, 0); gl.depthMask(true); gl.disable(gl.BLEND);
-    for (const b of this.eachBatch(mainChunks)) if (!b.unlit) {
+    for (const b of this.eachBatch(mainChunks)) if (!b.unlit && !b.water) {
       gl.uniform1i(u.uMode, b.ground ? 1 : 0); gl.uniform1f(u.uCutout, b.cutout ? 1 : 0);
       gl.bindTexture(gl.TEXTURE_2D, b.tex ? this.textures.get(b.tex) : this.white); this.drawBatch(b);
     }
+    // water: lit like the ground (shadows, the night, fog of war) but blended over the bed, without writing depth
+    gl.uniform1i(u.uMode, 2); gl.uniform1f(u.uCutout, 0); gl.enable(gl.BLEND); gl.blendFunc(gl.SRC_ALPHA, gl.ONE_MINUS_SRC_ALPHA); gl.depthMask(false);
+    for (const b of this.eachBatch(mainChunks)) if (b.water) { gl.bindTexture(gl.TEXTURE_2D, this.white); this.drawBatch(b); }
+    gl.depthMask(true); gl.disable(gl.BLEND);
     gl.uniform1i(u.uMode, 0); gl.uniform1f(u.uUnlit, 1); gl.uniform1f(u.uCutout, 0); gl.depthMask(false); gl.enable(gl.BLEND); gl.blendFunc(gl.SRC_ALPHA, gl.ONE_MINUS_SRC_ALPHA); gl.disable(gl.CULL_FACE);
     for (const b of this.eachBatch(mainChunks)) if (b.unlit) { gl.bindTexture(gl.TEXTURE_2D, b.tex ? this.textures.get(b.tex) : this.white); this.drawBatch(b); }
 
@@ -352,7 +369,7 @@ export class GLRenderer {
     gl.bindFramebuffer(gl.FRAMEBUFFER, this.pickFb.fb); gl.viewport(0, 0, w, h);
     gl.clearColor(0, 0, 0, 0); gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
     const p = this.progs.pick; gl.useProgram(p.p); gl.uniformMatrix4fv(p.u.uViewProj, false, this.lastViewProj);
-    for (const b of this.batches.values()) if (b.n && !b.unlit) this.drawBatch(b);
+    for (const b of this.batches.values()) if (b.n && !b.unlit && !b.water) this.drawBatch(b);
     const cx = Math.min(w - 1, Math.floor(nx * w)), cy = Math.min(h - 1, Math.floor((1 - ny) * h));
     const r = Math.min(24, Math.round(radiusPx * w / (this.canvas.clientWidth || w)));
     const x0 = Math.max(0, cx - r), y0 = Math.max(0, cy - r), bw = Math.min(w - 1, cx + r) - x0 + 1, bh = Math.min(h - 1, cy + r) - y0 + 1;

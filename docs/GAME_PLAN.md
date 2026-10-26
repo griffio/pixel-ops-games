@@ -1346,6 +1346,30 @@ Engine changes needed in the existing core:
   pairs closing the ford. Desert Crossing lists no chokes: its matches replay exactly.
   The field manual's sandbag page covers traps, and a hint flags the first enemy row.
 
+- **River, road and bridge graphics (2026-10-26).** The user asked for all three, the
+  river after a reference picture (deep teal, a bright broken foam rim at the shore,
+  squiggly foam lines trailing into the water). Water: a depth map from the terrain
+  (one byte per terrain vertex, (depth + 0.5) / 4.5, uploaded unflipped) and a water
+  mode in the main shader (uMode 2), drawn lit after the opaque pass (blended, no depth
+  write, not picked), so bridges shadow it and the night and fog of war darken it.
+  Colour from pale to deep teal with depth; foam by distance to the shore (depth over the
+  bank's slope, so steep and gentle banks get the same widths): a ragged rim broken into
+  brighter chunks, curling lines running out over 7 m along the slope (spaced 4.6 m,
+  warped by noise, animated), drifting ripples on the ford's shallows. Ground mode reads
+  the same map: wet sand within 0.45 m above the water and a darker bed under it. Grass
+  tufts under the water are left out. First versions: foam by depth gave a 1-pixel band
+  on steep banks and grainy speckle where the lines' direction flipped on flat water;
+  the lines came out as an even comb, then too pale in narrow channels. Roads: asphalt
+  and dirt-track textures redrawn at about 10 pixels a metre (patches, cracks, polished
+  wheel tracks, broken edge lines, faded dashes; ruts, pebbles and a paler hump), with
+  sand drifted over ragged cut-out edges so they blend into the ground. Bridges: one
+  builder in maps/kit.js for both maps: a concrete deck on girders, kerbs, railings on
+  posts, two-column piers with caps on the river bed, abutments and wing walls; the
+  footbridge in planks on stringers with rope rails and piles. The railing obstacles are
+  unchanged, so Desert Crossing still replays exactly. Road strips now ride a deck out to
+  3 m past its sides: Desert Crossing's road bends as it leaves its bridge and used to
+  drop under the deck there.
+
 ## Open questions
 
 

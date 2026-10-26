@@ -327,5 +327,43 @@ export function makeKit({ r, rd, onRoad = () => false }) {
     for (let i = 0; i < cols * rows; i++) { const x = x0 + (i % cols) * 7, z = z0 + Math.floor(i / cols) * 4, rot = (r() - 0.5) * 0.15; container(x, z, rot, colsC[i % 5]); if (r() < 0.4) container(x, z, rot, colsC[(i + 2) % 5], 2.6, false); }
   };
   const scrub = (cx, cz, rad, n) => { for (let i = 0; i < n; i++) { const a = r() * Math.PI * 2, d = Math.sqrt(r()) * rad; tufts.push({ x: cx + Math.cos(a) * d, z: cz + Math.sin(a) * d, yaw: r() * Math.PI, size: [0.7, 0.9, 1.15][Math.floor(r() * 3)] }); } };
-  return { props, obstacles, lamps, tufts, decals, box, footprint, part, BAG, bagStack, BLOCK, blockWall, palm, bush, rock, PLASTER, house, controlTower, wallRun, MESH, hesco, shade, container, cyl, tilt, CONC, stains, watchtower, hangar, barracks, fuelTank, floodlight, radioMast, equipmentHut, FRUIT, stall, STONE, well, sandbagRing, containers, scrub, TRIM, WOOD, DOOR, DARK, STAIN, TIN, TIMBER, STEEL, DARKM };
+  // Reference look: a concrete road bridge (a deck slab on two girders, kerbs, steel railings on posts with two rails,
+  // two-column piers with caps standing on the river bed, an abutment and wing walls at each end) or, with b.foot, a
+  // timber footbridge (planks on two stringers, rope rails at two heights on posts, piles). Absolute heights: the deck's top
+  // is at b.y. The railings are the obstacles, inset from the deck's edge, exactly as they always were; the rest is for the
+  // eye. Local frame as part(): x across the deck, z along it.
+  const bridge = (b, inset = 0.3, bed = -7.5) => {
+    const c = Math.cos(b.angle), s = Math.sin(b.angle), L = b.len, W = b.w;
+    const P = (lx, ly, lz, w, h, d, color) => props.push({ geo: 'box:1,1,1', color, scale: [w, h, d], x: b.x + lx * c + lz * s, y: ly + h / 2, z: b.z - lx * s + lz * c, rot: [0, b.angle, 0], cast: Math.min(w, h, d) >= 0.25 || Math.max(w, h, d) >= 3, absY: true });
+    const pile = (lx, lz, r, y0, h, color) => props.push({ geo: `cyl:${r},${r},${+h.toFixed(2)},8`, color, x: b.x + lx * c + lz * s, y: y0 + h / 2, z: b.z - lx * s + lz * c, rot: [0, 0, 0], cast: true, absY: true });
+    if (b.foot) {
+      const WOODS = [0x8a6a46, 0x7a5c3c, 0x957552];
+      for (const sx of [-1, 1]) P(sx * (W / 2 - 0.5), b.y - 0.55, 0, 0.3, 0.35, L, TIMBER);                                           // stringers
+      for (let k = -L / 2 + 0.25, i = 0; k < L / 2; k += 0.46, i++) P(+((rd() - 0.5) * 0.06).toFixed(3), b.y - 0.2, +k.toFixed(2), W - 0.1, 0.2, 0.4, WOODS[i % 3]);   // planks, the odd one askew
+      for (let k = -L / 2 + 0.5; k <= L / 2 - 0.5 + 1e-6; k += 4) for (const sx of [-1, 1]) P(sx * (W / 2 - 0.15), b.y, +k.toFixed(2), 0.14, 1.05, 0.14, TIMBER);   // posts
+      for (const y of [0.5, 0.95]) for (const sx of [-1, 1]) P(sx * (W / 2 - 0.15), b.y + y, 0, 0.06, 0.06, L - 1, 0xb59a6a);         // rope rails
+      for (const k of [-L / 4, L / 4]) for (const sx of [-1, 1]) pile(sx * 1.4, +k.toFixed(2), 0.22, bed, b.y - 0.55 - bed, TIMBER);   // piles
+    } else {
+      P(0, b.y - 1.0, 0, W, 1.0, L, CONC[0]);                                                                                        // deck slab
+      for (const sx of [-1, 1]) P(+(sx * W / 3).toFixed(2), b.y - 1.9, 0, 1.2, 0.9, L, CONC[1]);                                     // girders
+      for (const sx of [-1, 1]) P(sx * (W / 2 - 0.25), b.y, 0, 0.5, 0.3, L, 0xb5b2aa);                                              // kerbs
+      for (const sx of [-1, 1]) {                                                                                                     // railings
+        for (let k = -L / 2 + 1; k <= L / 2 - 1 + 1e-6; k += 2) P(sx * (W / 2 - inset), b.y + 0.3, +k.toFixed(2), 0.12, 0.8, 0.12, STEEL);
+        P(sx * (W / 2 - inset), b.y + 1.05, 0, 0.14, 0.1, L, STEEL); P(sx * (W / 2 - inset), b.y + 0.65, 0, 0.08, 0.08, L, STEEL);
+      }
+      for (const k of [-L / 3, 0, L / 3].map(v => +v.toFixed(2))) {                                                                  // piers on the bed, and their caps
+        for (const sx of [-1, 1]) P(sx * W / 4, bed, k, 1.6, +(b.y - 2.0 - bed).toFixed(2), 1.6, CONC[1]);
+        P(0, b.y - 2.6, k, W - 1, 0.7, 2.0, CONC[0]);
+      }
+      for (const sz of [-1, 1]) {                                                                                                     // abutments and wing walls
+        P(0, -2.5, sz * (L / 2 - 1.0), W + 1.2, +(b.y + 1.5).toFixed(2), 2.0, CONC[1]);
+        for (const sx of [-1, 1]) P(sx * (W / 2 + 0.6), -2.5, sz * (L / 2 + 2.5), 1.0, +(b.y + 2.9).toFixed(2), 5.0, CONC[0]);
+      }
+    }
+    for (const side of [-1, 1]) {   // the railings block movement
+      const ox = c * side * (W / 2 - inset), oz = -s * side * (W / 2 - inset), hw = 0.15, ac = Math.abs(c), as = Math.abs(s);
+      obstacles.push({ minX: b.x + ox - (hw * ac + L / 2 * as), maxX: b.x + ox + (hw * ac + L / 2 * as), minZ: b.z + oz - (hw * as + L / 2 * ac), maxZ: b.z + oz + (hw * as + L / 2 * ac), h: b.y + 1.1 });
+    }
+  };
+  return { props, obstacles, lamps, tufts, decals, bridge, box, footprint, part, BAG, bagStack, BLOCK, blockWall, palm, bush, rock, PLASTER, house, controlTower, wallRun, MESH, hesco, shade, container, cyl, tilt, CONC, stains, watchtower, hangar, barracks, fuelTank, floodlight, radioMast, equipmentHut, FRUIT, stall, STONE, well, sandbagRing, containers, scrub, TRIM, WOOD, DOOR, DARK, STAIN, TIN, TIMBER, STEEL, DARKM };
 }

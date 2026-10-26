@@ -29,18 +29,23 @@ export class World extends WorldState {
     r.setGround({ splat: 'splat', base: tile(g.base), tiles: g.tiles.map(tile), tileSize: g.tileSize, baseSize: g.baseSize, mapSize: this.size });
     if (this.terrain) {
       this.buildTerrainChunks();
-      if (this.terrain.water > -Infinity) {   // water surface: unlit translucent plane, visible only where the ground is carved below it
-        const water = new Mesh(`plane:${this.size},${this.size}`, {   // (it was 'plane:,', a 0 x 0 plane: no map ever showed its water)
-         color: [...hexToLinear(0x2b5468), 0.82], tex: null, emissive: [0, 0, 0], unlit: true, cast: false });
+      if (this.terrain.water > -Infinity) {   // water surface: a plane at the water level, seen only where the ground is carved below it
+        const T = this.terrain, n = T.n, depth = new Uint8Array(n * n);   // its depth map: shading, foam and the wet banks (shaders.js)
+        for (let i = 0; i < n * n; i++) depth[i] = Math.round(Math.max(0, Math.min(1, (T.water - T.h[i] + 0.5) / 4.5)) * 255);
+        r.setWater(depth, n, T.cell, T.half);
+        const water = new Mesh(`plane:${this.size},${this.size}`, { color: [1, 1, 1, 1], tex: null, emissive: [0, 0, 0], cast: false, water: true });
         water.rotation.x = -Math.PI / 2; water.position.y = this.terrain.water; this.scene.add(water);
       }
     }
     else { const ground = new Mesh(`plane:${this.size},${this.size}`, { color: [1, 1, 1, 1], tex: null, emissive: [0, 0, 0], cast: false, ground: true }); ground.rotation.x = -Math.PI / 2; this.scene.add(ground); }
     const H = this.heightAt;
+    // a road strip rides a bridge deck out to 3 m past its sides, so a road that bends as it leaves the bridge stays on top
+    // of the deck instead of dropping to the ground under it (looks only: units use heightAt)
+    const HS = (x, z) => { let h = H(x, z); for (const b of this.bridges) { const dx = x - b.x, dz = z - b.z, c = Math.cos(b.angle), sn = Math.sin(b.angle); if (Math.abs(dx * sn + dz * c) <= b.len / 2 && Math.abs(dx * c - dz * sn) <= b.w / 2 + 3) h = Math.max(h, b.y); } return h; };
     // roads and painted lines follow the terrain; long strips stay dynamic (always drawn), decals are static
     this.layout.strips.forEach((s, i) => {
       const pts = s.smooth ? smooth(s.points, s.smooth) : s.points;
-      const key = r.registerGeometry('strip#' + i, stripGeometry(pts, s.width, s.vRepeat, s.y + 0.4, H));
+      const key = r.registerGeometry('strip#' + i, stripGeometry(pts, s.width, s.vRepeat, s.y + 0.4, HS));
       const mesh = new Mesh(key, { color: [1, 1, 1, 1], tex: tile(s.tex), emissive: [0, 0, 0], cast: false, cutout: !!s.cutout });
       this.scene.add(mesh);
     });
@@ -90,6 +95,7 @@ export class World extends WorldState {
       p.lampHead ? this.scene.add(m) : r.addStatic(m);   // lamp heads change emissive at night, so they stay dynamic
     }
     for (const t of this.layout.tufts) {
+      if (this.terrain && this.terrain.height(t.x, t.z) < this.terrain.water) continue;   // none under the water
       const m = new Mesh('tuft:' + t.size + ',' + (t.size * 1.1).toFixed(2), MAT.tuft); m.position.set(t.x, this.heightAt(t.x, t.z), t.z); m.rotation.y = t.yaw; r.addStatic(m);
     }
   }

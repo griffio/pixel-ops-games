@@ -190,23 +190,12 @@ export const valley2km = {
     const nt = tufts.length; for (let i = 0; i < nt; i++) { const t = tufts[i]; tufts.push({ ...t, z: -t.z, yaw: Math.PI - t.yaw }); }
     const nl = lamps.length; for (let i = 0; i < nl; i++) lamps.push({ ...lamps[i], z: -lamps[i].z });
 
-    // ---- bridges (absolute heights; the decks are walkable via WorldState.heightAt): deck, railings, piers. The footbridge
-    // is planked, with rope rails on posts; its narrow deck between the rails keeps vehicles off it anyway
-    for (const b of this.bridges) {
-      const sn = Math.sin(b.angle), cs = Math.cos(b.angle), foot = !!b.foot;
-      props.push({ geo: `box:${b.w},${foot ? 0.5 : 1.2},${b.len}`, color: foot ? 0x8a6a46 : 0x6a6a6c, x: b.x, y: b.y - (foot ? 0.25 : 0.6), z: b.z, rot: [0, b.angle, 0], cast: true, absY: true });
-      for (const side of [-1, 1]) {
-        const ox = cs * side * (b.w / 2 - 0.15), oz = -sn * side * (b.w / 2 - 0.15);
-        props.push({ geo: `box:${foot ? 0.12 : 0.3},${foot ? 0.1 : 1.1},${b.len}`, color: foot ? 0x6b5236 : 0x8a8a8a, x: b.x + ox, y: b.y + (foot ? 1 : 0.55), z: b.z + oz, rot: [0, b.angle, 0], cast: true, absY: true });
-        if (foot) for (let k = -b.len / 2 + 1; k <= b.len / 2 - 1; k += 4) props.push({ geo: 'box:0.14,1.05,0.14', color: 0x6b5236, x: b.x + ox + sn * k, y: b.y + 0.5, z: b.z + oz + cs * k, rot: [0, b.angle, 0], cast: true, absY: true });
-        const len = b.len, hw = 0.15, c = Math.abs(cs), s = Math.abs(sn);
-        obstacles.push({ minX: b.x + ox - (hw * c + len / 2 * s), maxX: b.x + ox + (hw * c + len / 2 * s), minZ: b.z + oz - (hw * s + len / 2 * c), maxZ: b.z + oz + (hw * s + len / 2 * c), h: b.y + 1.1 });
-      }
-      for (const k of foot ? [-10, 10] : [-18, 0, 18]) props.push({ geo: foot ? 'box:0.5,8,0.5' : 'box:2.6,10,2.6', color: foot ? 0x6b5236 : 0x7a7a7c, x: b.x + sn * k, y: b.y - (foot ? 4.25 : 5.6), z: b.z + cs * k, rot: [0, b.angle, 0], cast: true, absY: true });
-    }
+    // ---- bridges (absolute heights; the decks are walkable via WorldState.heightAt): kit.js bridge(), the road bridge in
+    // concrete, the footbridge in timber; railings inset 0.15 m
+    for (const b of this.bridges) K.bridge(b, 0.15);
 
     // ---- roads and tracks
-    for (const rd of this.roads) strips.push({ points: rd.points, width: rd.width, tex: rd.tex, vRepeat: rd.tex === 'road' ? 8 : 4, smooth: 2, y: rd.tex === 'road' ? 0.03 : 0.02 });
+    for (const rd of this.roads) strips.push({ points: rd.points, width: rd.width, tex: rd.tex, vRepeat: rd.tex === 'road' ? 12 : 5, smooth: 2, y: rd.tex === 'road' ? 0.03 : 0.02, cutout: true });   // cutouts: sand-drifted ragged edges
     return { props, obstacles, lamps, tufts, decals: K.decals, strips };
   },
 

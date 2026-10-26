@@ -63,7 +63,7 @@ export const desert1km = {
       const [ux, uz] = d > 0.01 ? [(x - fx) / d, (z - fz) / d] : [side[0] / Math.hypot(...side), side[1] / Math.hypot(...side)];
       return [fx + ux * clear, fz + uz * clear];
     };
-    const { props, obstacles, lamps, tufts, decals, box, footprint, part, BAG, bagStack, BLOCK, blockWall, palm, bush, rock, PLASTER, house, controlTower, wallRun, MESH, hesco, shade, container, cyl, tilt, CONC, stains, watchtower, hangar, barracks, fuelTank, floodlight, radioMast, equipmentHut, FRUIT, stall, STONE, well, sandbagRing, containers, scrub, TRIM, WOOD, DOOR, DARK, STAIN, TIN, TIMBER, STEEL, DARKM } = makeKit({ r, rd: rand(4242), onRoad });
+    const { props, obstacles, lamps, tufts, decals, bridge, box, footprint, part, BAG, bagStack, BLOCK, blockWall, palm, bush, rock, PLASTER, house, controlTower, wallRun, MESH, hesco, shade, container, cyl, tilt, CONC, stains, watchtower, hangar, barracks, fuelTank, floodlight, radioMast, equipmentHut, FRUIT, stall, STONE, well, sandbagRing, containers, scrub, TRIM, WOOD, DOOR, DARK, STAIN, TIN, TIMBER, STEEL, DARKM } = makeKit({ r, rd: rand(4242), onRoad });
 
     // ---- main bases: sandbag perimeter, containers, floodlights, a tower
     for (const b of this.bases) {
@@ -152,22 +152,12 @@ export const desert1km = {
     for (let i = 0; i < 90; i++) { const x = -470 + r() * 940, z = -470 + r() * 940; if (!clear(x, z)) bush(x, z); }
     for (let i = 0; i < 48; i++) { const x = -460 + r() * 920, z = -460 + r() * 920; if (!clear(x, z)) scrub(x, z, 14 + r() * 22, 90); }
     const oasis = { x: 150, z: -220 }; for (let i = 0; i < 6; i++) palm(oasis.x + (r() - 0.5) * 30, oasis.z + (r() - 0.5) * 30); scrub(oasis.x, oasis.z, 30, 260);
-    // ---- bridge: deck, railings and piers (absolute heights; the deck is walkable via WorldState.heightAt)
-    for (const b of this.bridges) {
-      const sn = Math.sin(b.angle), cs = Math.cos(b.angle);
-      props.push({ geo: `box:${b.w},1.2,${b.len}`, color: 0x6a6a6c, x: b.x, y: b.y - 0.6, z: b.z, rot: [0, b.angle, 0], cast: true, absY: true });
-      for (const side of [-1, 1]) {
-        const ox = cs * side * (b.w / 2 - 0.3), oz = -sn * side * (b.w / 2 - 0.3);
-        props.push({ geo: `box:0.3,1.1,${b.len}`, color: 0x8a8a8a, x: b.x + ox, y: b.y + 0.55, z: b.z + oz, rot: [0, b.angle, 0], cast: true, absY: true });
-        const len = b.len, hw = 0.15, c = Math.abs(cs), s = Math.abs(sn);
-        obstacles.push({ minX: b.x + ox - (hw * c + len / 2 * s), maxX: b.x + ox + (hw * c + len / 2 * s), minZ: b.z + oz - (hw * s + len / 2 * c), maxZ: b.z + oz + (hw * s + len / 2 * c), h: b.y + 1.1 });
-      }
-      for (const k of [-18, 0, 18]) props.push({ geo: 'box:2.6,10,2.6', color: 0x7a7a7c, x: b.x + sn * k, y: b.y - 5.6, z: b.z + cs * k, rot: [0, b.angle, 0], cast: true, absY: true });
-    }
+    // ---- bridges (absolute heights; the deck is walkable via WorldState.heightAt): kit.js bridge(), railings inset 0.3 m
+    for (const b of this.bridges) bridge(b, 0.3);
     // ---- roads
 
-    strips.push({ points: this.roadPath, width: 12, tex: 'road', vRepeat: 8, smooth: 2, y: 0.03 });
-    for (const t of this.tracks) strips.push({ points: t, width: 5, tex: 'track', vRepeat: 4, smooth: 2, y: 0.02 });
+    strips.push({ points: this.roadPath, width: 12, tex: 'road', vRepeat: 12, smooth: 2, y: 0.03, cutout: true });   // cutouts: sand-drifted ragged edges
+    for (const t of this.tracks) strips.push({ points: t, width: 5, tex: 'track', vRepeat: 5, smooth: 2, y: 0.02, cutout: true });
     // keep obstacles off the road itself
     const roadFree = (o) => !onRoad((o.minX + o.maxX) / 2, (o.minZ + o.maxZ) / 2);
     const keep = new Set(obstacles.filter(roadFree));

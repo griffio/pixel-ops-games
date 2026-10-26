@@ -33,7 +33,13 @@ uniform int uMode; uniform sampler2D uSplat; uniform sampler2D uBase; uniform sa
 uniform vec4 uTileInv; uniform float uBaseInv; uniform float uMapInv;
 // fog of war: one value per cell over the map (1 seen), uFogMap = (1 / grid extent, half the map / grid extent)
 uniform sampler2D uFog; uniform float uFogOn; uniform vec2 uFogMap;
+// water (mode 2) and wet banks: the map's water depth (r: (metres below the surface + 0.5) / 4.5, so the bank up to 0.5 m
+// above the water reads below 0.5 / 4.5), at uWaterMap = (scale, offset) over the world; uTime animates the foam
+uniform sampler2D uWater; uniform float uWaterOn; uniform vec2 uWaterMap; uniform float uTime;
 out vec4 frag;
+float hash2(vec2 p) { return fract(sin(dot(p, vec2(127.1, 311.7))) * 43758.5453); }
+float vnoise2(vec2 p) { vec2 i = floor(p), f = fract(p), u = f * f * (3.0 - 2.0 * f); return mix(mix(hash2(i), hash2(i + vec2(1.0, 0.0)), u.x), mix(hash2(i + vec2(0.0, 1.0)), hash2(i + vec2(1.0, 1.0)), u.x), u.y); }
+float depthAt(vec2 w) { return texture(uWater, w * uWaterMap.x + uWaterMap.y).r * 4.5 - 0.5; }
 void main() {
   vec4 albedo;
   if (uMode == 1) {
@@ -42,7 +48,25 @@ void main() {
     float rest = max(0.0, 1.0 - (s.r + s.g + s.b + s.a));
     vec3 c = texture(uBase, w * uBaseInv).rgb * rest + texture(uT0, w * uTileInv.x).rgb * s.r + texture(uT1, w * uTileInv.y).rgb * s.g
            + texture(uT2, w * uTileInv.z).rgb * s.b + texture(uT3, w * uTileInv.w).rgb * s.a;
+    if (uWaterOn > 0.5) { float above = -depthAt(w); c = mix(c, c * vec3(0.62, 0.66, 0.64), 1.0 - smoothstep(0.0, 0.45, above)); }   // wet sand at the water's edge, and the bed under it
     albedo = vec4(c * vColor.rgb, 1.0);
+  } else if (uMode == 2) {
+    // Teal water, paler where it is shallow; at the edge a ragged band of foam, and from it wavering foam lines run out
+    // across the water (along the depth's slope), fading over 7 m; faint drifting ripples on the shallows (the ford). Foam
+    // goes by distance from the shore (depth over the bank's slope), so a steep bank gets as wide a band as a gentle one.
+    vec2 w = vWorld.xz; float d = depthAt(w);
+    vec2 g = vec2(depthAt(w + vec2(1.5, 0.0)) - depthAt(w - vec2(1.5, 0.0)), depthAt(w + vec2(0.0, 1.5)) - depthAt(w - vec2(0.0, 1.5)));
+    float slope = max(length(g) / 3.0, 0.04), dist = max(d, 0.0) / slope;                       // metres to the shore
+    vec2 out1 = length(g) > 1e-4 ? normalize(g) : vec2(1.0, 0.0), along = vec2(-out1.y, out1.x);
+    vec3 c = mix(vec3(0.03, 0.19, 0.18), vec3(0.014, 0.117, 0.122), smoothstep(0.1, 2.2, d));
+    vec2 q = w + vec2(vnoise2(w * 0.45 + uTime * 0.12), vnoise2(w * 0.45 + 9.0 - uTime * 0.1)) * 3.6;   // curls
+    float line = 1.0 - smoothstep(0.07, 0.18, abs(fract(dot(q, along) / 4.6) - 0.5) * 2.0);
+    float tendril = line * (1.0 - smoothstep(1.2, 7.0, dist)) * step(0.42, vnoise2(w * 0.3 + 3.0));
+    float band = (1.0 - smoothstep(0.8, 1.15, dist + (vnoise2(w * 0.7 + uTime * 0.25) - 0.5) * 1.2)) * (0.55 + 0.45 * step(0.3, vnoise2(w * 0.18 + 5.0)));   // a crisp band, broken into brighter chunks
+    vec2 rw = w + vec2(vnoise2(w * 0.2 + uTime * 0.1), vnoise2(w * 0.2 - uTime * 0.1)) * 4.0;
+    float ripple = smoothstep(0.8, 1.0, sin(dot(rw, vec2(0.9, 0.5)) * 1.3 + uTime * 0.8)) * (1.0 - smoothstep(0.3, 1.4, d)) * 0.3;
+    float foam = max(max(band, tendril * 0.85), ripple);
+    albedo = vec4(mix(c, vec3(0.78, 0.9, 0.86), foam), mix(0.66 + 0.26 * smoothstep(0.0, 1.2, d), 0.96, foam));
   } else albedo = vColor * texture(uTex, vUv);
   if (uCutout > 0.5 && albedo.a < 0.5) discard;
 

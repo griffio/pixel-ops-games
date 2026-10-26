@@ -35,17 +35,46 @@ export function grassTile() {
 }
 export function dirtTile() { const [c, g] = canvas(64, 64); noisy(g, 64, 64, '#a38e66', 0.14, prng(51)); return c; }
 
-// road strip: u across the width, v along 8 m. White edges, dashed lanes, double yellow centre.
+// sand drifted over a strip's edges: each row of the texture gets its own ragged edge from both sides, sand-coloured
+// pixels over the edge and nothing at all past it (alpha 0: the strip is drawn as a cutout, so the ground shows through)
+function driftEdges(g, w, h, r, reach, sand = [196, 176, 136]) {
+  const img = g.getImageData(0, 0, w, h), d = img.data;
+  for (let y = 0; y < h; y++) for (const side of [0, 1]) {
+    const k = Math.sin(y / h * Math.PI * 2 * (2 + side)) * 0.5 + 0.5, gone = Math.floor(r() * 2 + k * 2), drift = gone + Math.floor(r() * reach * 0.6 + k * reach * 0.6);
+    for (let i = 0; i < drift; i++) {
+      const x = side ? w - 1 - i : i, o = (y * w + x) * 4;
+      if (i < gone) { d[o + 3] = 0; continue; }
+      const t = (drift - i) / (drift - gone + 1), n = 0.9 + r() * 0.2;   // thicker sand towards the edge
+      for (let ch = 0; ch < 3; ch++) d[o + ch] = Math.round(d[o + ch] * (1 - t) + sand[ch] * n * t);
+    }
+  }
+  g.putImageData(img, 0, 0);
+}
+// road strip: u across the width (12 m), v along 12 m, about 10 pixels a metre each way. Worn asphalt: patches, cracks,
+// lighter wheel tracks in each lane; broken white edge lines, faded lane dashes, a double yellow centre line; sand drifted
+// over ragged edges.
 export function roadStrip() {
-  const [c, g] = canvas(64, 128); noisy(g, 64, 128, '#58585a', 0.12, prng(61), 2000);
-  g.fillStyle = '#d8d6cf'; g.fillRect(2, 0, 2, 128); g.fillRect(60, 0, 2, 128);
-  g.fillRect(15, 0, 2, 48); g.fillRect(47, 0, 2, 48);
-  g.fillStyle = '#d4ad3a'; g.fillRect(29, 0, 2, 128); g.fillRect(33, 0, 2, 128);
+  const W = 128, H = 128, [c, g] = canvas(W, H), r = prng(61);
+  noisy(g, W, H, '#5a5a5c', 0.1, r, 6000);
+  for (let i = 0; i < 7; i++) { const v = 78 + Math.floor(r() * 16); g.fillStyle = `rgba(${v},${v},${v + 2},0.55)`; g.fillRect(10 + Math.floor(r() * 100), Math.floor(r() * H), 8 + Math.floor(r() * 18), 6 + Math.floor(r() * 16)); }   // repair patches
+  for (const x of [26, 44, 84, 102]) { g.fillStyle = 'rgba(120,120,120,0.16)'; g.fillRect(x - 3, 0, 7, H); }               // the wheels' polish
+  g.strokeStyle = 'rgba(30,30,32,0.75)'; g.lineWidth = 1;
+  for (let i = 0; i < 9; i++) { let x = 8 + r() * 112, y = r() * H; g.beginPath(); g.moveTo(x, y); for (let k = 0; k < 6; k++) { x += (r() - 0.5) * 10; y += 3 + r() * 6; g.lineTo(x, y); } g.stroke(); }   // cracks
+  const paint = (x, w, col, from, to, wear) => { for (let y = from; y < to; y++) if (r() > wear) { g.fillStyle = col; g.fillRect(x, y, w, 1); } };
+  paint(5, 2, '#d8d6cf', 0, H, 0.12); paint(121, 2, '#d8d6cf', 0, H, 0.12);                                              // edge lines
+  for (const x of [34, 93]) { paint(x, 2, '#d8d6cf', 8, 48, 0.25); paint(x, 2, '#d8d6cf', 72, 112, 0.25); }               // lane dashes, 4 m on, 2 m off
+  paint(61, 2, '#d4ad3a', 0, H, 0.08); paint(65, 2, '#d4ad3a', 0, H, 0.08);                                              // centre line
+  driftEdges(g, W, H, r, 7);
   return c;
 }
+// dirt track: 5 m across, v along 5 m. Two darker wheel ruts with pebbles, a paler hump between them, ragged sandy edges.
 export function trackStrip() {
-  const [c, g] = canvas(32, 64); noisy(g, 32, 64, '#a08a62', 0.14, prng(71), 800);
-  g.fillStyle = 'rgba(90,75,50,0.45)'; g.fillRect(6, 0, 4, 64); g.fillRect(22, 0, 4, 64);
+  const W = 64, H = 64, [c, g] = canvas(W, H), r = prng(71);
+  noisy(g, W, H, '#a28c64', 0.13, r, 1600);
+  g.fillStyle = 'rgba(214,196,152,0.35)'; g.fillRect(24, 0, 16, H);                                                     // the hump, paler
+  for (const x of [11, 46]) { g.fillStyle = 'rgba(84,70,48,0.5)'; g.fillRect(x, 0, 7, H); g.fillStyle = 'rgba(60,50,34,0.35)'; g.fillRect(x + 2, 0, 3, H); }   // ruts
+  for (let i = 0; i < 40; i++) { const v = 120 + Math.floor(r() * 60); g.fillStyle = `rgb(${v},${v - 8},${v - 24})`; g.fillRect(Math.floor(r() * W), Math.floor(r() * H), 1, 1); }   // pebbles
+  driftEdges(g, W, H, r, 5);
   return c;
 }
 export function lineStrip() { const [c, g] = canvas(8, 8); g.fillStyle = '#d4ad3a'; g.fillRect(0, 0, 8, 8); return c; }
