@@ -118,9 +118,10 @@ truck or APC, or right-click it (on a touch screen, hold on it; a plain tap on a
 vehicle selects it). Infantry and a vehicle selected together board at once on
 **L**. After Load the vehicle becomes the selection, ready to drive. The soldiers
 walk to it (a ground vehicle's tail) and get in once it has stopped or landed, and
-anyone past the seats stays behind. Order the vehicle somewhere and they get out
-where it stops, or where a helicopter lands; **U** (or the Unload button) lets
-them out at once, stopping a ground vehicle where it is. A truck or APC destroyed
+anyone past the seats stays behind. They stay aboard however often the vehicle
+stops or lands, until **U** (or the Unload button) lets them out, stopping a ground
+vehicle where it is (a helicopter has to land first). The CPU's own rides still drop
+their squad where the vehicle stops or lands. A truck or APC destroyed
 with troops aboard throws them out hurt; a helicopter shot down in the air takes
 them with it. The CPU uses its trucks to ferry a squad from around
 base toward a far objective, stopping 120 m short, and an APC leaving base takes

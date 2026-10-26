@@ -73,7 +73,7 @@ export class Unit {
     this.kit2 = spec.kit2 || null; this.cooldown2 = 0; this.burst2 = 0;   // a second weapon on the same turret (the tank's coax MG)
     this.stance = 'stand'; this.supp = 0; this.kneelK = 0; this.proneK = 0; this.aimK = 0;   // infantry: suppression 0..1 and the pose blends it drives
     this.dead = false; this.deathT = 0; this.wreck = false; this.remove = false;
-    this.mounted = null; this.passengers = []; this.boardTarget = null; this.supplies = 0; this.landedT = 0; this.hover = false;
+    this.mounted = null; this.passengers = []; this.boardTarget = null; this.turnT = 0; this.supplies = 0; this.landedT = 0; this.hover = false;
     this.post = null; this.crew = spec.hollow ? POST_SLOTS.map(() => null) : null;   // a soldier's firing slot in a sandbag position; a position's crew by slot
     this.alt = 0; this.altT = 0; this.rotor = 0; this.rotorT = 0; this.state = 'parked'; this.tilt = 0; this.bank = 0;
     this.id = (counters[type] = (counters[type] || 0) + 1);
@@ -90,7 +90,7 @@ export class Unit {
     if (!keepPost) this.leavePost();
     const nav = this.mgr && this.mgr.nav && this.spec.nav ? this.mgr.nav[this.spec.nav] : null;
     if (nav && nav.inPocket(x, z)) { const c = nav.nearestMain(nav.cellOf(x), nav.cellOf(z)); if (c) { x = nav.world(c[0]); z = nav.world(c[1]); } }   // a goal inside a building, or in a pocket between buildings, becomes the nearest open ground
-    this.dest = new Vec3(x, 0, z); this.idle = 0; this.hold = false; this.bestDist = Infinity; this.noProgress = 0;
+    this.dest = new Vec3(x, 0, z); this.idle = 0; this.hold = false; this.bestDist = Infinity; this.noProgress = 0; this.turnT = 0;
     this.path = nav ? nav.findPath(this.pos.x, this.pos.z, x, z) : null;
     if (nav && !this.path) this.path = this.escapeRoute(nav, x, z);
     const first = this.path && this.path.length ? this.path[0] : [x, z];
@@ -113,7 +113,7 @@ export class Unit {
     return null;
   }
   nextWaypoint() {
-    this.bestDist = Infinity; this.noProgress = 0;
+    this.bestDist = Infinity; this.noProgress = 0; this.turnT = 0;
     if (this.path && this.path.length > 1) { this.path.shift(); this.target.set(this.path[0][0], 0, this.path[0][1]); return true; }
     this.target = null; this.path = null; this.dest = null; return false;
   }
@@ -121,7 +121,8 @@ export class Unit {
   // ---- transport ---------------------------------------------------------
   // Helicopters, trucks and APCs carry soldiers (spec.seats; a supply truck carries cargo). Soldiers walk to the carrier,
   // a helicopter's side or a ground vehicle's tail, and get in once it has landed or stopped; a ground vehicle given a
-  // move order lets them out where it stops (dropOnArrive), a helicopter where it lands (dropOnLand).
+  // move order lets them out where it stops (dropOnArrive), a helicopter where it lands (dropOnLand): the CPU's rides. The
+  // player's orders clear both (input.js), so the player's passengers stay aboard until Unload.
   get seats() { return this.supply ? 0 : this.spec.seats || 0; }
   boardPoint(c) {
     if (c.spec.air) return [c.pos.x, c.pos.z + 3];
@@ -248,7 +249,9 @@ export class Unit {
     const s = this.spec; let want = 0;
     if (this.target) {
       const dx = this.target.x - this.pos.x, dz = this.target.z - this.pos.z, dist = Math.hypot(dx, dz);
-      const last = !this.path || this.path.length <= 1, arrive = last ? (this.type === 'soldier' ? 0.5 : 1.5) : 1.2;
+      // a vehicle takes a waypoint on the way within 3 m: one closer than its turning circle (a truck starting beside the
+      // first point of its route) would have it circling the point for ever
+      const last = !this.path || this.path.length <= 1, arrive = last ? (this.type === 'soldier' ? 0.5 : 1.5) : (this.type === 'soldier' ? 1.2 : 3);
       if (dist < arrive) { this.nextWaypoint(); }
       else {
         const desired = Math.atan2(dx, dz); let diff = wrap(desired - this.heading);
@@ -262,10 +265,17 @@ export class Unit {
         want = s.speed * align * (last ? clamp(dist / (vehicle ? 6 : 1.5), 0.25, 1) : 1);
         if (reverse) want = -want * 0.7;
         else if (vehicle && last && dist < 10 && Math.abs(diff) > 0.9) want = 0;
-        // trying to move but getting no nearer for a while (a wall, a crowd): call the last waypoint reached, else look for a way round
-        if (want !== 0) {
-          if (dist < this.bestDist - 0.15) { this.bestDist = dist; this.noProgress = 0; } else this.noProgress += dt;
-          if (this.noProgress > 1.5) { if (last) this.nextWaypoint(); else { const d = this.dest; this.order(d.x, d.z, true); } }
+        // trying to move but getting no nearer for a while (a wall, a crowd): call the last waypoint reached, else look for a way round.
+        // A vehicle still turning towards the waypoint is not stuck: swinging round to a goal behind it takes it further away
+        // for a few seconds, which used to cancel the order (a truck told to drive back out the way it came would not move);
+        // still turning after 8 s it is circling something it cannot reach, and is released like one making no progress
+        // (a vehicle short of its goal on a straight route, its way blocked after swinging round, finds another way first, three tries)
+        const release = () => { const d = this.dest; if (!last || (vehicle && dist > 8 && (this.retry = (this.retry || 0) + 1) <= 3)) this.order(d.x, d.z, true); else { this.retry = 0; this.nextWaypoint(); } };
+        if (vehicle && Math.abs(diff) > 0.6) { this.bestDist = dist; this.noProgress = 0; if ((this.turnT += dt) > 8) { this.turnT = 0; release(); } }
+        else if (want !== 0) {
+          this.turnT = 0;
+          if (dist < this.bestDist - 0.15) { if (this.bestDist - dist > 3) this.retry = 0; this.bestDist = dist; this.noProgress = 0; } else this.noProgress += dt;
+          if (this.noProgress > 1.5) release();
         }
       }
     }

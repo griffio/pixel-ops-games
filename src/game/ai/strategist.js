@@ -181,9 +181,14 @@ export class Strategist {
   applyPlan(g, remote) {
     const p = remote.plan, o = this.match.objectives; if (!o) return;
     const byName = (n) => o.list.find(l => l.name === n) || null;
-    if (p.attack) { const a = byName(p.attack); if (a && a.owner !== this.team && o.capturable(this.team, a)) { g.attack = a; g.fobAnchor = o.front(this.team, a) || g.fobAnchor; } }   // the FOB goes behind the place we push from
-    else if (p.hold.length) g.attack = null;
+    const target = p.attack ? byName(p.attack) : null;
+    // a remote commander's target taken since it planned: hold it until the next plan (asked for at once on the capture)
+    // rather than following the mode's next goal in the seconds the answer takes
+    const taken = remote === this.remote && target && target.owner === this.team ? target : null;
+    if (target && target.owner !== this.team && o.capturable(this.team, target)) { g.attack = target; g.fobAnchor = o.front(this.team, target) || g.fobAnchor; }   // the FOB goes behind the place we push from
+    else if (taken || (!p.attack && p.hold.length)) g.attack = null;
     const h = p.hold.map(byName).filter(l => l && l.owner === this.team); if (h.length) g.hold = h[0];
+    if (taken) g.hold = taken;
     g.attackShare = p.attackShare; g.posture = p.posture; g.logistics = p.logistics; g.lift = p.lift;
     // a wait holds the attack back: everyone gathers at the staging location until the condition holds (two minutes at most)
     if (p.waitFor && g.attack) {

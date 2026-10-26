@@ -1526,6 +1526,34 @@ Engine changes needed in the existing core:
   150 px on touch). Measured after: no overlaps with or without a selection on either
   layout; the iPad panel fits its five buttons on one row.
 
+- **Vehicles that would not move; passengers stay aboard; captures hold (2026-10-26).**
+  Three things from the user. (1) A supply truck "stuck" by a fuel tank and a floodlight
+  at Palm Valley's Depot. Not the props (the floodlight has no obstacle, and 603 drives
+  from three directions to points all round the Depot all arrived) but orders: a vehicle
+  sent to a point behind it swings round in an arc and gets further away for a second or
+  two, and the no-progress rule (1.5 s) then cancelled a straight-line order outright;
+  parked at 1,062 spots beside the Depot's props and told to drive out north or south,
+  119 moved about 3.7 m and stopped. Now a vehicle turning towards its waypoint (more
+  than 0.6 rad off) is not counted as stuck; that exposed a second fault the old rule had
+  hidden, a truck circling for ever a route point 2 to 5 m from where it started (inside
+  its turning circle), so vehicles take a waypoint on the way within 3 m (was 1.2), and
+  one still turning after 8 s is released like one making no progress; and a vehicle
+  more than 8 m short of its goal on a straight route, its way blocked after swinging
+  round (beside the Depot's containers), re-plans from where it is up to three times
+  before giving up. The exit test: 119, then 192 (circling), then 2, then none of the
+  1,062. (2) Passengers no longer leave the player's vehicles when they stop or land
+  (accidental unloads while still driving): the player's orders and boarding clear
+  `dropOnArrive` and `dropOnLand`, so only Unload (U) lets them out; the CPU's rides still
+  drop their squad where the vehicle stops. Test: four aboard, the APC drove 42 m and
+  stopped with four still in, Unload emptied it. (3) The capture gap: a remote plan's
+  attack target that is ours by the time it is applied is now held (attack none, that
+  place the hold) until the next plan, instead of the mode's next goal; test: plan says
+  attack Bridge, already ours, and both APCs and all five squads stay at the Bridge.
+  Balance (vehicle movement changes every match): Desert Crossing's 16, five winners
+  flipped both ways (mechanized 6 of 8, was 5; balanced 2 of 8, was 3; by base 5-11, was
+  6-10); Palm Valley's 12, two flipped, both against mechanized (by base 9-3, was 7-5,
+  in a batch where the base follows the preset). No consistent shift.
+
 ## Open questions
 
 

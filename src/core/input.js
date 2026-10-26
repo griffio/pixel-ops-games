@@ -147,8 +147,8 @@ export class Input {
     const squads = new Set(); for (const s of this.selected) if (s.type === 'soldier') (s.squad ? squads.add(s.squad) : s.board(u));
     for (const sq of squads) sq.board(u);
     const want = this.selected.filter(s => s.type === 'soldier' && !s.mounted && !s.dead).length, room = u.seats - u.passengers.length;
-    if (u.spec.air) u.dropOnLand = true;
-    this.hud.toast(`Boarding ${u.label}${want > room ? ` (${room} seat${room === 1 ? '' : 's'}; the rest stay)` : ''}: ${u.spec.air ? 'fly it and they get out where it lands' : 'drive it and they get out where it stops'}`);
+    u.dropOnArrive = false; u.dropOnLand = false;   // aboard until Unload (U), however often it stops or lands
+    this.hud.toast(`Boarding ${u.label}${want > room ? ` (${room} seat${room === 1 ? '' : 's'}; the rest stay)` : ''}: ${u.spec.air ? 'fly it, land, then Unload (U)' : 'drive it, then Unload (U)'}`);
   }
   // Load (L or the button): soldiers selected with a vehicle that has room board it at once; otherwise the next tap or click on
   // one of our vehicles is the one they board (pressing Load again, or Esc, cancels)
@@ -182,6 +182,7 @@ export class Input {
     all.forEach((t, i) => {
       const c = i % cols, rw = Math.floor(i / cols);
       t.order(g.x + (c - (cols - 1) / 2) * gap, g.z + (rw - (Math.ceil(n / cols) - 1) / 2) * gap);
+      t.dropOnArrive = false;   // the player's passengers stay aboard until Unload (U): a stop on the way is not a drop
     });
     this.app.markers.add(g.x, g.z); if (this.app.audio) this.app.audio.ui('order');
     if (this.app.match && this.app.match.voices) this.app.match.voices.ordered(this.selected);
