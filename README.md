@@ -431,15 +431,32 @@ variable to call Workers AI directly. Measured, it answers in 2 to 9 seconds
 for about 1,800 prompt tokens and 40 neurons a call, so a full match costs each
 side roughly 3,000 neurons.
 
+Claude answers on the same route with `?model=haiku`, `sonnet` or `opus` (Claude
+Haiku 5.5, Sonnet 5.5, Opus 5.5). Those calls go through the gateway's Anthropic
+endpoint with the official `@anthropic-ai/sdk`, on the Anthropic key stored in
+the gateway (BYOK, alias `default`): the Worker sends only the gateway token
+(`CF_AIG_TOKEN`, a Worker secret) and the gateway adds the key. The models think
+before answering; `:low`, `:medium`, `:high`, `:xhigh` or `:max` after the key
+sets the effort (`?model=opus:high`), otherwise each model's default applies. The
+plan schema goes as a structured output (its numeric and length limits move into
+the descriptions, and `validatePlan` enforces them). Measured on a Palm Valley
+digest of 4,850 input tokens: Haiku in 3 to 5 s with 370 output tokens (about
+$0.0007 a call), Sonnet in 7 s with 880 (540 of them thinking, about $0.019),
+Opus in 12 s with 880 (about $0.037). At a call every 20 to 25 s a 20-minute
+match costs a side about 3 cents on Haiku, $1 on Sonnet and $2 on Opus. The game
+waits 60 s for an answer.
+
 ```bash
 npm install                      # wrangler
-# .env holds CLOUDFLARE_API_KEY (an account API token with Workers AI) and CLOUDFLARE_API_ACCOUNT
+# .env holds CLOUDFLARE_API_KEY (an account API token with Workers AI), CLOUDFLARE_API_ACCOUNT
+# and CF_AIG_TOKEN (the gateway's token, for Claude; wrangler dev reads it from .env, and
+# `npx wrangler secret put CF_AIG_TOKEN` stores it for the deployed Worker)
 set -a; . ./.env; set +a; export CLOUDFLARE_API_TOKEN="$CLOUDFLARE_API_KEY" CLOUDFLARE_ACCOUNT_ID="$CLOUDFLARE_API_ACCOUNT"
 npm run dev:cf                   # the game and /commander on http://localhost:8789, AI binding remote
 ```
 
-Add `&model=gpt-oss-120b`, `qwen3-30b` or `mistral-small` to try another catalogue
-model from the Worker's allow-list for that match (`llama` is the default).
+Add `&model=gpt-oss-120b`, `qwen3-30b`, `mistral-small`, `haiku`, `sonnet` or `opus`
+to try another model from the Worker's allow-list for that match (`llama` is the default).
 Then open `http://localhost:8789/?commander=1`, or keep playing from the Python
 server and point it at the Worker with `?commander=http://localhost:8789/commander`
 (the endpoint allows cross-origin calls). `npm run commander-stub` starts

@@ -556,7 +556,8 @@ Engine changes needed in the existing core:
   and plan pair, queryable over the API. The new API token also covers the
   gateway API and expires 2026-10-31. Next on this thread: an `anthropic`
   provider mode in the Worker posting the same prompt to Claude through the
-  gateway with a stored key, then mirrored batches per model.
+  gateway with a stored key (built 2026-10-26, "Claude commander"), then mirrored
+  batches per model.
 
 - **Model comparison (2026-10-24).** The Worker's handler was run in Node
   against eleven Workers AI models on the same two digests (an Airfield held
@@ -1369,6 +1370,31 @@ Engine changes needed in the existing core:
   unchanged, so Desert Crossing still replays exactly. Road strips now ride a deck out to
   3 m past its sides: Desert Crossing's road bends as it leaves its bridge and used to
   drop under the deck there.
+
+- **Claude commander (2026-10-26).** The user stored an Anthropic key in the `pixel-ops`
+  gateway (BYOK, alias `default`) to try thinking models. `env.AI.run` only reaches Workers
+  AI, so the Worker has a second branch: `?model=haiku`, `sonnet` or `opus` (Claude Haiku
+  5.5, Sonnet 5.5, Opus 5.5) call `messages.create` through the official `@anthropic-ai/sdk`
+  against the gateway's Anthropic endpoint (`env.AI.gateway(id).getUrl('anthropic')`, so no
+  account id in the Worker). The gateway adds the stored key when a request carries none:
+  the SDK gets a placeholder key and a fetch wrapper drops the auth headers, so only
+  `cf-aig-authorization` (the `CF_AIG_TOKEN` secret) and `cf-aig-metadata` (side, minute,
+  mode, model) go out. Request: the system prompt as `system`, the digest as the user turn,
+  adaptive thinking, the plan schema as a structured output (`jsonSchemaOutputFormat` moves
+  the numeric and length limits into the descriptions; `validatePlan` still enforces them),
+  no temperature (the API rejects it now), 16,000 tokens; a refusal or running out of tokens
+  is an error and the CPU carries on with its own plan. `:low` to `:max` after the key sets
+  the effort. The game's timeout went from 30 s to 60 s. The system prompt stopped
+  describing Desert Crossing (five locations in a line, 1 km): the digest now carries the
+  map's name and size, both bases, and each location's links and the base it touches.
+  Checks: the handler in Node and in `wrangler dev`, and a match served by the local Worker
+  with both CPU sides on Haiku. On one Palm Valley digest (4,850 tokens in) Haiku answered
+  in 3 to 5 s with 370 tokens out and no thinking, Sonnet in 7 s with 880 (540 thinking),
+  Opus in 12 s with 880 (530 thinking): about $0.0007, $0.019 and $0.037 a call. Opus read
+  the board (bleeding them with 4 of 7, Depot contested by about 13 and an APC, pull back to
+  Bridge if the APCs drop below 40 hp, no kits left so sandbags only); Sonnet sent two MG
+  squads to grab Kasbah and Quarry, both enemy-held, against the role's description. The
+  Worker bundle is 971 KB (171 KB gzipped) with the SDK.
 
 ## Open questions
 

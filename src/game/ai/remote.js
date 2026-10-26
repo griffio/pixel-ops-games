@@ -7,7 +7,7 @@ import { validatePlan } from './plan.js';
 // stalls the match. ?commander=1 uses /commander on the serving origin (the Cloudflare Worker),
 // ?commander=<url> any endpoint that speaks the same JSON (tools/commander-stub.mjs for local work).
 export class RemoteCommander {
-  constructor(match, team, url, { interval = 20, timeout = 30, maxAge = 90, model = null } = {}) {
+  constructor(match, team, url, { interval = 20, timeout = 60, maxAge = 90, model = null } = {}) {   // timeout: thinking models take tens of seconds
     this.match = match; this.team = team; this.url = url; this.interval = interval; this.timeout = timeout; this.maxAge = maxAge; this.model = model;   // model: a key from the Worker's allow-list, for comparisons
     this.acc = interval - 4; this.plan = null; this.planAt = -Infinity; this.pending = false; this.onPlan = null; this.history = [];   // the last plans with the state they were made in
     this.stats = { calls: 0, ok: 0, failed: 0, lastMs: 0, lastError: '', model: '' };

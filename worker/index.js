@@ -1,10 +1,12 @@
 // Cloudflare Worker: serves the game as static assets and answers POST /commander with a plan from a
-// Workers AI model. The game posts its state digest (src/game/ai/digest.js); the model answers in the
-// plan schema (src/game/ai/plan.js); the same validator the game runs cleans the answer here too.
+// Workers AI model or Claude. The game posts its state digest (src/game/ai/digest.js); the model answers in
+// the plan schema (src/game/ai/plan.js); the same validator the game runs cleans the answer here too.
+import Anthropic from '@anthropic-ai/sdk';
+import { jsonSchemaOutputFormat } from '@anthropic-ai/sdk/helpers/json-schema';
 import { PLAN_SCHEMA, validatePlan } from '../src/game/ai/plan.js';
 
-const SYSTEM = `You are the commanding officer of one side in Pixel Ops, a 1v1 tactical game played on a 1 km desert map.
-Rules: five locations lie in a line (Outpost, Airfield, Village, Depot, Relay) and each side can only capture the next one along from the ones it holds ("capturable" in the digest). Holding the majority of locations bleeds the enemy 1 ticket every 5 s; losing a location costs 20 tickets; each side has about 500 tickets and loses at 0 or when the 25-minute clock runs out with fewer. Infantry die easily (4 rifle hits) and return in 15 s for 1 ticket; vehicles cost 10-30 tickets. APCs outrange infantry (150 m) and are killed by anti-tank rockets from inside 90 m. A FOB (needs a kit, an engineer and a supply truck) is a forward spawn point; sandbags (engineer and supply truck, no kit) give half cover. Squads approach defended places to 35 m and shoot; "cover" and "stalk" orders mean they are hiding from or hunting enemy armour.
+const SYSTEM = `You are the commanding officer of one side in Pixel Ops, a 1v1 tactical game. The digest's map gives the map's name and size in metres; positions are [x, z] metres from its centre, and bases gives both main bases.
+Rules: the locations form a network: each lists its links (the locations next to it) and base (whose main base it touches), and a side can only capture a location next to its own base or linked to one it holds ("capturable" in the digest). Holding the majority of locations bleeds the enemy 1 ticket every 5 s; losing a location costs 20 tickets; each side has about 500 tickets and loses at 0 or when the 25-minute clock runs out with fewer. Infantry die easily (4 rifle hits) and return in 15 s for 1 ticket; vehicles cost 10-30 tickets. APCs outrange infantry (150 m) and are killed by anti-tank rockets from inside 90 m. A FOB (needs a kit, an engineer and a supply truck) is a forward spawn point; sandbags (engineer and supply truck, no kit) give half cover. Squads approach defended places to 35 m and shoot; "cover" and "stalk" orders mean they are hiding from or hunting enemy armour.
 Fog of war: you see only what your units see. "enemy" lists the enemy groups you know of: those in sight now, and those seen before with lastSeen (seconds since, up to 30), which may have moved. A location's "theirs" counts only the enemies you can see in it, and "contested" (both sides in the zone) shows whether you see them or not. A place the enemy holds may hold more than you see: a screen squad or a helicopter finds out before the attack does.
 You receive the current state as JSON and answer with ONE JSON object matching the schema: attack (the single next location to take, or "none" to hold), hold (up to three of our locations to keep squads at, most important first), attackShare (0-1 share of free squads for the attack), posture (cautious, balanced or aggressive), logistics (fob, sandbags or none), lift (helicopter lifts allowed), reason (one line of radio chatter, under 160 characters, addressed to the player as if over the radio).
 The digest also carries trends (tickets now and 1, 2, 3 minutes ago; deaths and vehicle losses per minute over the last three minutes), the locations that changed hands in the last five minutes, your last three plans with what followed each (ticket swing, captures, losses, our casualties), and the notes you wrote last time. Read the trends before the snapshot: a side bleeding tickets faster must change something. Change the plan when a plan's outcome was bad or the situation changed, keep it when it is working. Write fresh notes: what you intend over the next minutes, what you are waiting for, and why.
@@ -17,9 +19,38 @@ const MODELS = {
   'gpt-oss-120b': { model: '@cf/openai/gpt-oss-120b', maxTokens: 2500 },
   'qwen3-30b': { model: '@cf/qwen/qwen3-30b-a3b-fp8', maxTokens: 2500 },
   'mistral-small': { model: '@cf/mistralai/mistral-small-3.1-24b-instruct', maxTokens: 800 },
+  // Claude through the gateway on the key stored there; they think before answering, at the effort a key may add (?model=opus:high)
+  'haiku': { model: 'claude-haiku-5-5', claude: true, maxTokens: 16000 },
+  'sonnet': { model: 'claude-sonnet-5-5', claude: true, maxTokens: 16000 },
+  'opus': { model: 'claude-opus-5-5', claude: true, maxTokens: 16000 },
 };
+const EFFORTS = ['low', 'medium', 'high', 'xhigh', 'max'];
 const json = (obj, status = 200) => new Response(JSON.stringify(obj), { status, headers: { 'content-type': 'application/json', 'cache-control': 'no-store', ...CORS } });
 const extractJson = (text) => { const m = /\{[\s\S]*\}/.exec(text || ''); if (!m) return null; try { return JSON.parse(m[0]); } catch { return null; } };
+// Claude's structured outputs take no numeric, length or item limits: the SDK moves them into the descriptions and validatePlan enforces them
+const PLAN_FORMAT = (({ type, schema }) => ({ type, schema }))(jsonSchemaOutputFormat(PLAN_SCHEMA));
+
+// One plan from Claude through AI Gateway's Anthropic endpoint. The gateway adds the Anthropic key stored in it (BYOK,
+// the "default" alias) when a request carries none, so the SDK's placeholder key is stripped on the way out and the
+// request is authorised by the gateway token alone. Returns the raw answer and usage, or throws with the reason.
+async function askClaude(env, pick, effort, digestBody, metadata) {
+  if (!env.CF_AIG_TOKEN || !env.GATEWAY) throw new Error('Claude needs the gateway and its CF_AIG_TOKEN secret');
+  const client = new Anthropic({
+    apiKey: 'stored-in-gateway', baseURL: await env.AI.gateway(env.GATEWAY).getUrl('anthropic'), maxRetries: 0, timeout: 55000,   // the game gives up at 60 s and asks again later
+    defaultHeaders: { 'cf-aig-authorization': `Bearer ${env.CF_AIG_TOKEN}`, 'cf-aig-metadata': JSON.stringify(metadata) },
+    fetch: (url, init) => { const headers = new Headers(init.headers); headers.delete('authorization'); headers.delete('x-api-key'); return fetch(url, { ...init, headers }); },
+  });
+  const msg = await client.messages.create({
+    model: pick.model, max_tokens: pick.maxTokens, system: SYSTEM,
+    messages: [{ role: 'user', content: JSON.stringify(digestBody) }],
+    thinking: { type: 'adaptive' }, output_config: effort ? { effort, format: PLAN_FORMAT } : { format: PLAN_FORMAT },
+  });
+  if (msg.stop_reason === 'refusal') throw new Error('refused' + (msg.stop_details && msg.stop_details.category ? ': ' + msg.stop_details.category : ''));
+  if (msg.stop_reason === 'max_tokens') throw new Error('ran out of tokens');
+  const text = msg.content.filter(b => b.type === 'text').map(b => b.text).join('');
+  let raw; try { raw = JSON.parse(text); } catch { raw = extractJson(text); }
+  return { raw, usage: msg.usage };
+}
 
 export default {
   async fetch(req, env) {
@@ -32,12 +63,20 @@ export default {
     try { const text = await req.text(); if (text.length > 48000) throw new Error('too large'); digest = JSON.parse(text); } catch { return json({ error: 'bad digest' }, 400); }
     const names = Array.isArray(digest.locations) ? digest.locations.map(l => l && l.name).filter(Boolean) : [];
     if (!names.length) return json({ error: 'digest has no locations' }, 400);
-    const pick = typeof digest.model === 'string' && MODELS[digest.model] ? MODELS[digest.model] : { model: env.MODEL, maxTokens: +env.MAX_TOKENS || 400 };
+    const [key, effortKey] = typeof digest.model === 'string' ? digest.model.split(':') : [];
+    const pick = MODELS[key] || { model: env.MODEL, maxTokens: +env.MAX_TOKENS || 400 }, effort = EFFORTS.includes(effortKey) ? effortKey : null;   // none: the model's own default
     const t0 = Date.now();
     try {
       // through AI Gateway when one is configured: every digest and plan is logged there, with the side and minute as metadata
-      const gateway = env.GATEWAY ? { gateway: { id: env.GATEWAY, collectLog: true, metadata: { side: String(digest.side || ''), minute: String(digest.minute ?? ''), mode: String(digest.mode || ''), model: pick.model } } } : undefined;
+      const metadata = { side: String(digest.side || ''), minute: String(digest.minute ?? ''), mode: String(digest.mode || ''), model: pick.model + (effort ? ':' + effort : '') };
+      const gateway = env.GATEWAY ? { gateway: { id: env.GATEWAY, collectLog: true, metadata } } : undefined;
       const { model: _m, ...digestBody } = digest;
+      if (pick.claude) {
+        const { raw, usage } = await askClaude(env, pick, effort, digestBody, metadata);
+        const plan = validatePlan(raw, names, Array.isArray(digest.squads) ? digest.squads.map(s => s && s.id).filter(Boolean) : null);
+        if (!plan) return json({ error: 'no usable plan', raw: raw && typeof raw === 'object' ? JSON.stringify(raw).slice(0, 300) : null, ms: Date.now() - t0 }, 502);
+        return json({ plan, model: metadata.model, ms: Date.now() - t0, usage });
+      }
       const out = await env.AI.run(pick.model, {
         messages: [{ role: 'system', content: SYSTEM }, { role: 'user', content: JSON.stringify(digestBody) }],
         response_format: { type: 'json_schema', json_schema: PLAN_SCHEMA }, max_tokens: pick.maxTokens, temperature: 0.4,   // reasoning models spend output tokens thinking first: they get 2000+

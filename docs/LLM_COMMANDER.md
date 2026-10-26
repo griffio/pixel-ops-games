@@ -66,14 +66,18 @@ model's plan stays in force for 90 seconds or until the next one arrives.
 
 The game is served by a Cloudflare Worker, and the same Worker owns a
 `/commander` route. Calls go to a Workers AI model, Llama 3.3 70B by default,
-through the `pixel-ops` AI Gateway, which logs every question and answer with
-cost and timing. No API keys live in the browser. A match costs each side a
-few cents.
+or to Claude, through the `pixel-ops` AI Gateway, which logs every question and
+answer with cost and timing. No API keys live in the browser, and the Anthropic
+key lives in the gateway, not the Worker. A match costs each side a few cents
+on Llama or Claude Haiku, about $1 on Claude Sonnet and $2 on Claude Opus.
 
 - `?commander=1` turns the model commander on for the CPU sides.
 - `?model=gpt-oss-120b` (or `qwen3-30b`, `mistral-small`) tries another
   catalogue model for that match; gpt-oss-120b reasoned noticeably better in
   the comparison, at the price of slower answers.
+- `?model=haiku`, `sonnet` or `opus` asks Claude (Haiku 5.5, Sonnet 5.5,
+  Opus 5.5), which thinks before it answers: 3 to 12 seconds a plan. Add an
+  effort to think harder or less, for example `?model=opus:high`.
 - `npm run commander-stub` is a local stand-in with a heuristic plan for
   working on the digest without a model.
 
