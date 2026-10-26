@@ -97,7 +97,7 @@ export class UtilityCommander {
 
     // 2. hold: our locations by value (the front, or one whose loss flips the majority) times threat to it
     const front = o.front(t, target), flips = M.ownedUs - 1 <= M.ownedThem;   // our place next to the target: the one to hold first, the staging point
-    const postsAt = (l) => m.fobs.sandbagsOf(t).filter(s => Math.hypot(s.pos.x - l.x, s.pos.z - l.z) < l.r + 12).length;   // our sandbag positions at a place
+    const postsAt = (l) => m.fobs.sandbagsOf(t).filter(s => Math.hypot(s.pos.x - l.x, s.pos.z - l.z) < this.s.postRange(l)).length;   // our sandbag positions at a place
     const holdOpts = L.filter(l => l.owner === t).map(l => {
       const threat = 1 - Math.exp(-M.enemyAt(l.x, l.z, l.r + 120) / 6), value = l === front ? 1 : flips ? 0.75 : 0.45;
       return { value: l.name, loc: l, threat, score: value * (0.25 + 0.75 * threat) * (postsAt(l) ? 1.15 : 1) };

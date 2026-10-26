@@ -1275,6 +1275,31 @@ Engine changes needed in the existing core:
   majority's pivot, is still the main fight (3,733). Mirror matches (Balanced and
   Mechanized, seeds 1-6): south-west 5, north-east 7, average margin 16 tickets.
 
+- **Palm Valley buildings and defensive positions (2026-10-26).** Desert Crossing's
+  prop builders moved to `maps/kit.js` (`makeKit({ r, rd, onRoad })`: houses, walls,
+  hesco, containers, towers, hangar, barracks, fuel tanks, floodlights, masts, huts,
+  stalls, wells, sandbags, palms, bushes, rocks, scrub); its build output is
+  byte-identical (FNV hash of the JSON, 14,170 props, 1,518 obstacles). Palm Valley's
+  south half, mirrored north: a base like Desert Crossing's; Kasbah, a round town of
+  flat-roofed houses on a 12 m grid round an open square (gaps of 2.5 m or more for the
+  1.5 m grid; houses big enough to block sight), a mosque and minaret, stalls, a well,
+  palm yards and a ruined wall on its south-west side; Depot, fuel tanks either side of
+  the track in from Kasbah, containers and a barracks hut east of the road, a pump
+  house, a fence, floodlights; Quarry, a crusher fed by a conveyor, gravel heaps, a site
+  office, a tower and containers beside the pit (its floor is below the river, so it
+  is a flooded pit); the bridgehead, hesco walls, sandbags, a guard hut and a light;
+  ruined walls along the town lane. 24,400 props, 5,100 obstacles. Each place lists
+  sandbag positions round its approaches (`locations[].defend`; the north places get
+  the mirror images); `digSpot` takes those facing the enemy first (flanks next, never
+  the ones behind) with the usual tests, and `postRange(loc)` (out to the map's spots,
+  or 12 m past the zone as before) decides which positions belong to a place for
+  digging, manning and the utility's count. Checks: every spot walkable and
+  reachable, every place reachable on foot and by vehicle; 12 matches without errors,
+  infantry deaths 209 a match, 9.6 sandbag positions a match, all on the map's spots;
+  mirror matches 6-6, margin 18, positions 4.7 and 4.5 a side; Desert Crossing
+  replays exactly. A match takes about three minutes in the balance tool now (one to
+  two before the buildings): more obstacles for the sight and cover tests.
+
 ## Open questions
 
 

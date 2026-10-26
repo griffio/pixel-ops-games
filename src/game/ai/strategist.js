@@ -51,7 +51,7 @@ export class Strategist {
     const attack = g.attack, hold = g.hold, reserve = g.reserve || null;
     const enemyFob = this.contacts().find(u => u.type === 'fob' && (attack ? Math.hypot(u.pos.x - attack.x, u.pos.z - attack.z) < 160 : true));
     const logisticsSquad = this.logistics(squads, vehicles, g.fobAnchor, hold);
-    const allPosts = hold ? this.match.fobs.sandbagsOf(this.team).filter(s => Math.hypot(s.pos.x - hold.x, s.pos.z - hold.z) < hold.r + 12) : [];   // our sandbag positions at the place we hold, one squad each
+    const allPosts = hold ? this.match.fobs.sandbagsOf(this.team).filter(s => Math.hypot(s.pos.x - hold.x, s.pos.z - hold.z) < this.postRange(hold)) : [];   // our sandbag positions at the place we hold, one squad each
     // a squad manning one (or on its way in) keeps it and sits out the job share; the other positions go to squads given the hold job
     const manned = squads.filter(sq => sq !== logisticsSquad && allPosts.some(s => sq.tag === 'post' + s.id && sq.members.some(m => m.post && m.post.sb === s)));
     for (const sq of manned) this.manPost(sq, allPosts.find(s => sq.tag === 'post' + s.id), hold);
@@ -314,10 +314,23 @@ export class Strategist {
   // each flank (scaled to the place; further spots stand in for any the road or a building takes), each 12 m or more apart; never on the road (the convoys use it), nor with enemy
   // armour within 150 m or enemies within 40 m (the supply truck has to stand beside the engineer). Null when there is none.
   // The spot keeps 4 m more than the build rule's road clearance: the engineer starts digging within 4 m of it.
+  // How far from a place its sandbag positions stand: out to the map's own spots for it, or 12 m past the zone.
+  postRange(loc) { return loc.defend ? Math.max(...loc.defend.map(([x, z]) => Math.hypot(x - loc.x, z - loc.z))) + 8 : loc.r + 12; }
   digSpot(hold) {
     const mine = this.match.fobs.sandbagsOf(this.team), N = this.units.nav.foot;
-    if (mine.filter(s => Math.hypot(s.pos.x - hold.x, s.pos.z - hold.z) < hold.r + 12).length >= 3) return null;
+    if (mine.filter(s => Math.hypot(s.pos.x - hold.x, s.pos.z - hold.z) < this.postRange(hold)).length >= 3) return null;
     const eb = this.teams[1 - this.team].base, d = Math.hypot(eb.x - hold.x, eb.z - hold.z) || 1, ex = (eb.x - hold.x) / d, ez = (eb.z - hold.z) / d, k = Math.max(0.75, Math.min(1.2, hold.r / 26));
+    // a map may give a place its own positions (map.locations[].defend, covering its approaches): the ones facing the
+    // enemy's side first, flanks next, never the ones behind; the same tests as below, but a spot is used where it is
+    if (hold.defend) {
+      const face = ([x, z]) => ((x - hold.x) * ex + (z - hold.z) * ez) / (Math.hypot(x - hold.x, z - hold.z) || 1);
+      for (const [x, z] of hold.defend.filter(p => face(p) > -0.35).sort((a, b) => face(b) - face(a))) {
+        if (N.blocked(x, z) || N.inPocket(x, z)) continue;
+        if (mine.some(s => Math.hypot(s.pos.x - x, s.pos.z - z) < RULES.sandbags.minSpacing + 1) || roadDist(this.match.world.map, x, z) < RULES.sandbags.roadClear + 4 || this.armourNear(x, z, 150) || this.enemiesNear(x, z, 40).length) continue;
+        return [x, z];
+      }
+      return null;
+    }
     for (const [a, c] of [[10, 0], [6, 14], [6, -14], [16, 7], [16, -7], [-2, 18], [-2, -18]]) {   // the first three are the plan; the rest stand in where the road or a building takes one
       let x = hold.x + (ex * a + ez * c) * k, z = hold.z + (ez * a - ex * c) * k;
       if (N.blocked(x, z)) { const cell = N.nearest(N.cellOf(x), N.cellOf(z), 6); if (!cell) continue; x = N.world(cell[0]); z = N.world(cell[1]); }
