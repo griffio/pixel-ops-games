@@ -97,7 +97,7 @@ the rally, or the whole squad once it is wiped out, come back there on the
 rally's 30 s wave if they have been down at least 10 s, still 1 ticket each.
 Any enemy within 18 m burns it. The CPU drops rallies once its squads reach the
 area they were sent to, so expect to hunt them. Destroying a FOB radio costs its owner
-20 tickets, so the CPU raids yours and defends its own.
+40 tickets, so the CPU raids yours and defends its own.
 
 **Transport.** Helicopters and trucks carry eight soldiers (two squads), an APC
 four (one squad); a supply truck carries cargo, not troops. With infantry
@@ -183,11 +183,23 @@ precedence and the utility AI fills the gaps.
 
 ## Controls
 
+**Field manual and hints.** `H` (the Field manual button, or `?` on a touch screen)
+opens the field manual: how to win, the controls, squads and kits, what FOBs and
+rally points are for and when to use which, sandbags, transport, vehicles and fog
+of war, with the numbers read from the game's rules. The game pauses while it is
+open, and it opens by itself on the objective page at your first match. Short hints
+appear the first time something becomes useful (engineers beside a supply truck, a
+squad far from home, an empty sandbag position, enemy armour in sight, a place of
+yours being taken); each shows once per browser, and the Hints setting turns them
+off. On a touch screen both name the buttons instead of the keys
+(`src/core/guide.js`).
+
 | Input | Action |
 |---|---|
 | Left click / drag | Select unit or squad / box-select |
 | Right click | Move order (selected squads and vehicles move in formation); on a friendly carrier, board it; on a friendly sandbag position, man it |
 | `U` | Unload a selected carrier, or take selected soldiers out of their sandbag position |
+| `H` | Open or close the field manual (pauses the game) |
 | Right drag, `Q` / `E` | Rotate camera (yaw + pitch) |
 | Wheel | Zoom (changes pixel scale, keeps the point under the cursor fixed) |
 | `WASD` / arrows / screen edge / middle drag | Pan |

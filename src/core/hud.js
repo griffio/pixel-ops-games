@@ -47,6 +47,8 @@ export class Hud {
     if (a.fog) { $('c-fogshade').checked = a.fog.shade; $('c-fogshade').addEventListener('change', e => { a.fog.shade = e.target.checked; }); }
     $('c-auto').addEventListener('change', e => a.units.auto = e.target.checked);
     $('b-pause').addEventListener('click', () => this.togglePause());
+    $('b-manual').addEventListener('click', () => { if (a.guide) a.guide.toggle(); });
+    if (a.guide) { $('c-hints').checked = a.guide.store.hints; $('c-hints').addEventListener('change', e => a.guide.setHints(e.target.checked)); }
     for (const b of document.querySelectorAll('[data-tb]')) b.addEventListener('click', () => this.touchAction(b.dataset.tb));
     $('c-sound').addEventListener('change', e => { if (a.audio) { a.audio.setEnabled(e.target.checked); this.syncSound(); } });
     $('c-vol').addEventListener('input', e => { if (a.audio) { a.audio.setVolume(+e.target.value / 100); this.syncSound(); } });
@@ -213,8 +215,9 @@ export class Hud {
     g.fillStyle = '#9a958a'; g.textAlign = 'left'; g.fillText('tickets', pl + 4, pt + 8);
   }
 
-  togglePause() {
-    this.paused = !this.paused; $('b-pause').textContent = this.paused ? 'Resume' : 'Pause'; this.toast(this.paused ? 'Paused' : 'Running');
+  togglePause() { this.setPaused(!this.paused); }
+  setPaused(on, quiet = false) {   // quiet: the field manual pausing behind itself, no toast
+    this.paused = on; $('b-pause').textContent = this.paused ? 'Resume' : 'Pause'; if (!quiet) this.toast(this.paused ? 'Paused' : 'Running');
     const tb = document.querySelector('[data-tb=pause]'); if (tb) tb.textContent = this.paused ? 'Resume' : 'Pause';
   }
   // touch toolbar (bottom left on tablets): box select, follow, pause, jump to base, dev panels
@@ -224,6 +227,7 @@ export class Hud {
     else if (k === 'clear') { inp.select([]); this.toast('Selection cleared'); }
     else if (k === 'follow') { a.rts.follow = inp.selected[0] || null; this.toast(a.rts.follow ? 'Following ' + a.rts.follow.label : 'Select a unit to follow'); }
     else if (k === 'pause') this.togglePause();
+    else if (k === 'help') { if (this.app.guide) this.app.guide.toggle(); }
     else if (k === 'base') { const b = a.match && a.match.teams[a.playerTeam ?? 0].base; if (b) { a.rts.target.set(b.x, 0, b.z); a.rts.follow = null; } else a.rts.reset(); }
     else if (k === 'dev') document.body.classList.toggle('dev');
     else if (k === 'sound') this.toggleSound();
@@ -292,7 +296,8 @@ export class Hud {
   update(dt, w, h) {
     const a = this.app;
     if (a.match) this.updateMatch(a.match);
-    else if (!this.mmHidden) { this.mmHidden = true; for (const id of ['minimap', 'objs', 'match', 'reinf-h', 'reinf']) $(id).style.display = 'none'; }
+    if (a.guide) a.guide.tick(dt);
+    if (!a.match && !this.mmHidden) { this.mmHidden = true; for (const id of ['minimap', 'objs', 'match', 'reinf-h', 'reinf']) $(id).style.display = 'none'; }
 
     this.fpsAcc += dt; this.fpsN++; if (this.fpsAcc > 0.5) { this.fps = Math.round(this.fpsN / this.fpsAcc); this.fpsAcc = 0; this.fpsN = 0; }
     $('s-fps').textContent = this.fps; $('s-units').textContent = a.units.units.length;

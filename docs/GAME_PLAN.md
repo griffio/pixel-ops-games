@@ -1300,6 +1300,26 @@ Engine changes needed in the existing core:
   replays exactly. A match takes about three minutes in the balance tool now (one to
   two before the buildings): more obstacles for the sight and cover tests.
 
+- **Player onboarding (2026-10-26).** The README explained FOBs and rally points for
+  developers; the game explained nothing beyond key hints. `core/guide.js`: a field
+  manual (H, a panel button, ? on touch; the game pauses while it is open; Esc closes
+  it) with eight pages: objective, controls (touch or desktop), squads, spawns (what a
+  FOB and a rally point are for: every fallen soldier walks back from his spawn, so
+  spawns decide how fast an attack refills; a FOB serves every squad and lasts but
+  costs 40 tickets to lose, a rally serves one squad and is cheap), sandbags,
+  transport, vehicles and fog of war; every number in it is read from RULES. A
+  briefing opens it on the objective page at the player's first match. One-time hints
+  (localStorage `pixelops.guide`; a Hints setting): the objective first, then moving,
+  engineers beside a supply truck (B, N), a squad 250 m from base without a rally (T),
+  soldiers near a vehicle with seats, an empty sandbag position near a squad, enemy
+  armour in sight, the first last-known outline, a place of ours being drained, the
+  first squad wiped out; one at a time, 16 s each, the Manual button on the card opens
+  the page that explains it. Checked in a fresh profile by stepping frames by hand
+  (headless Chrome runs no animation frames without input): the briefing opens at
+  0.5 s paused, closing resumes, the objective hint comes first, the engineer hint
+  fires beside the truck, the touch wording names the buttons. The README had a FOB
+  costing 20 tickets; it costs 40 since the balance pass (fixed).
+
 ## Open questions
 
 

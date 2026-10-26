@@ -6,7 +6,7 @@ import { RULES } from './rules.js';
 export class Respawn {
   constructor(units, teams, world) { this.units = units; this.teams = teams; this.world = world; this.queue = []; this.clock = 0; this.rallies = null; }
 
-  cost(u) { return u.supply ? RULES.ticketCost.supply : (RULES.ticketCost[u.type] || 0); }   // fob: 20; caches are charged by the mode
+  cost(u) { return u.supply ? RULES.ticketCost.supply : (RULES.ticketCost[u.type] || 0); }   // fob: 40; caches are charged by the mode
   timer(u) { const t = this.teams[u.team], d = t.doctrine || {}; return RULES.respawnTime[u.type] * (u.type === 'soldier' ? (d.infantryRespawn || 1) : (d.vehicleRespawn || 1)) * (u.type === 'heli' ? d.heliRespawn || 1 : 1) * (t.respawnMul || 1); }
 
   onDeath(victim, killer) {

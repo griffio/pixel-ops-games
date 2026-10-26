@@ -4,6 +4,7 @@ import { World } from './world.js';
 import { builders, registerTextures, F } from './models.js';
 import { Markers } from './markers.js';
 import { FogView } from './fog.js';
+import { Guide } from '../core/guide.js';
 import { RtsCamera } from '../core/camera.js';
 import { UnitManager } from '../core/units.js';
 import { DustSim } from '../core/dust.js';
@@ -40,6 +41,7 @@ const app = {
 };
 applyUrlParams(app);
 app.fog = new FogView(app);   // before the HUD, which wires the Fog shading setting to it
+app.guide = new Guide(app);   // the field manual and hints, before the HUD too
 app.hud = new Hud(app);
 app.input = new Input(app);
 populate(app);

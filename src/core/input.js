@@ -77,7 +77,8 @@ export class Input {
     if (down) {
       if (e.code === 'Space') { e.preventDefault(); this.hud.togglePause(); return; }
       if (e.code === 'KeyF') { this.rts.follow = this.selected[0] || null; if (this.rts.follow) this.hud.toast('Following ' + this.rts.follow.label); return; }
-      if (e.code === 'Escape') { this.select([]); return; }
+      if (e.code === 'Escape') { if (this.app.guide && this.app.guide.isOpen) this.app.guide.close(); else this.select([]); return; }
+      if (e.code === 'KeyH') { if (this.app.guide) this.app.guide.toggle(); return; }
       if (e.code === 'KeyR') { this.rts.reset(); return; }
       if (e.code === 'KeyB') { this.hud.action('fob'); return; }
       if (e.code === 'KeyN') { this.hud.action('sandbags'); return; }
