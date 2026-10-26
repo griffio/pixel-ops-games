@@ -46,6 +46,14 @@ the same cover when they get there.
 sides, `?cpu=none` disables it, `?mode=skirmish` drops the objectives, and
 `?sandbox=1` restores the free-roam airfield with no combat.
 
+**Maps.** `?map=valley2km` plays *Palm Valley* (work in progress: terrain, river,
+crossings and roads, no buildings yet), a 2 km map mirrored about a river: three
+lanes, each side's home row of three places capturable from the start, a place
+capturable from any held neighbour, four of seven for the majority. The town lane
+crosses by a footbridge only infantry can use, the road lane by the one vehicle
+bridge, the open lane by a ford units wade at half speed. Without `?map` the game
+plays Desert Crossing.
+
 **Fog of war.** Your side sees what its units see: soldiers 120 m, APCs 160 m,
 tanks 210 m, trucks 100 m, a landed helicopter 120 m and one in the air 250 m
 (over buildings), FOBs and sandbag positions 100 m. Hills and buildings block

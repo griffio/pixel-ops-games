@@ -23,14 +23,15 @@ export class World extends WorldState {
   buildMapGround() {
     const m = this.map, r = this.renderer, g = m.ground;
     const tile = (n) => this.tex(n, { nearest: true, repeat: true, mips: false });
-    const splat = document.createElement('canvas'); splat.width = splat.height = 512;
-    m.paintSplat(splat.getContext('2d'), 512, this.half);
+    const res = m.splatRes || 512, splat = document.createElement('canvas'); splat.width = splat.height = res;   // a 2 km map asks for 1024 (2 m a texel)
+    m.paintSplat(splat.getContext('2d'), res, this.half);
     r.dataTexture('splat', splat);
     r.setGround({ splat: 'splat', base: tile(g.base), tiles: g.tiles.map(tile), tileSize: g.tileSize, baseSize: g.baseSize, mapSize: this.size });
     if (this.terrain) {
       this.buildTerrainChunks();
       if (this.terrain.water > -Infinity) {   // water surface: unlit translucent plane, visible only where the ground is carved below it
-        const water = new Mesh(`plane:,`, { color: [...hexToLinear(0x2b5468), 0.82], tex: null, emissive: [0, 0, 0], unlit: true, cast: false });
+        const water = new Mesh(`plane:${this.size},${this.size}`, {   // (it was 'plane:,', a 0 x 0 plane: no map ever showed its water)
+         color: [...hexToLinear(0x2b5468), 0.82], tex: null, emissive: [0, 0, 0], unlit: true, cast: false });
         water.rotation.x = -Math.PI / 2; water.position.y = this.terrain.water; this.scene.add(water);
       }
     }

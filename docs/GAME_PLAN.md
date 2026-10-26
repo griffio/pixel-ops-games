@@ -1221,6 +1221,35 @@ Engine changes needed in the existing core:
   vehicles; `Terrain` no longer takes `Math.max(...h)`, which overflows the stack
   at 2 km (250,000 heights).
 
+- **Palm Valley, terrain and roads (2026-10-26).** `maps/valley2km.js`: bases at
+  (0, -820) and (0, 820); Kasbah, Depot, Quarry / Bridge / Mine, Pumps, Souk; a
+  river along z = 0 narrow at the footbridge and the bridge, wide at the ford, two
+  sandbars; bluffs at 230 m with a pass per lane; hinterland hills, a quarry pit,
+  dunes; asphalt to the town and over the bridge, dirt tracks along each row and
+  through the ford; a palm belt and fields along the banks; scattered rocks and
+  bushes. Engine support: `Terrain` `mirrorZ` (builds the south half and copies it:
+  heights match to the last bit), per-point river widths (`ws`), capsule fords with
+  a level bed, a wading depth (`wade`: the ford's bed is 0.6 m under the water and
+  units wade it at half speed; Desert Crossing keeps its rule, ground 0.3 m clear of
+  the water, and its matches still replay exactly); footbridges (`foot: true`) left
+  out of the vehicle grid; `roads` (several, `kind: 'track'` for dirt) in the road
+  rules, the minimap and the strips; `splatRes` (1024 at 2 km). Route-finding:
+  across the river or the bluffs a search used to flood a whole bank looking for the
+  way over (a vehicle detour found nothing at the 80,000-cell cap, 50-160 ms
+  uncapped), so a map can declare gates (`gates`: barrier lines and their crossings,
+  footbridges for infantry only); a route goes crossing to crossing, the shortest
+  chain in straight lines, each leg a search on one side; the cap is per map (200,000
+  here). 800 random routes: none fails, 2.6 ms (vehicles) and 5.4 ms (infantry) on
+  average, 36 ms at worst. Found on the way: the water surface had always been a
+  0 x 0 plane (`plane:,`), so no map ever drew its water; it is the map's size now.
+  CPU check, 12 matches: no errors, about a minute each, south-west 7 north-east 5.
+  But each side only ever takes its middle place at the start (Depot, Pumps, about
+  80 s), leaves its town and quarry neutral for most of the match, and sends
+  everything at the Bridge: the footbridge and the ford see 0-9 unit-minutes a match
+  against 100-250 at the bridge. The utility commander picks one attack target, which
+  was all a chain ever offered; on a network it never spreads out. Next: let it take
+  free places with a detachment and pick lanes.
+
 ## Open questions
 
 

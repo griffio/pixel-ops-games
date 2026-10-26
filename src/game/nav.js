@@ -9,13 +9,14 @@ export class NavGrid {
     this.g = new Float32Array(N); this.f = new Float32Array(N); this.parent = new Int32Array(N);
     this.stamp = new Int32Array(N); this.closed = new Int32Array(N); this.gen = 0;
     this.heap = new Int32Array(N); this.heapN = 0;
+    this.cap = 80000;   // cells a search may expand; a map with a bigger grid sets more (map.nav.cap)
   }
   build(obstacles, terrain = null, maxSlope = 1, passable = null) {
     const L = this.L, pad = this.pad; L.fill(0);
     if (terrain) for (let iz = 0; iz < this.n; iz++) for (let ix = 0; ix < this.n; ix++) {   // steep ground and water are impassable, bridges always pass
       const x = this.world(ix), z = this.world(iz);
       if (passable && passable(x, z)) continue;
-      if (terrain.slope(x, z) > maxSlope || terrain.height(x, z) < terrain.water + 0.3) L[iz * this.n + ix] = 1;
+      if (terrain.slope(x, z) > maxSlope || terrain.height(x, z) < terrain.water - terrain.wade) L[iz * this.n + ix] = 1;
     }
     const border = Math.ceil(3 / this.cell);
     for (let iz = 0; iz < this.n; iz++) for (let ix = 0; ix < this.n; ix++)
@@ -82,7 +83,39 @@ export class NavGrid {
   }
 
   // world start/end -> array of [x, z] waypoints (excluding start), or null if unreachable
-  findPath(sx, sz, tx, tz, maxExpand = 80000) {
+  // Gates: a map's long barriers (a river, a line of bluffs) that run the width of the map along z = at and are crossed only
+  // at a few portals ({ x, d, foot }: crossed from d metres before the line to d metres past it; foot: infantry only). A
+  // route from one side to the other goes portal to portal, the shortest chain in straight lines, each leg a search that
+  // stays on one side, so a search never floods a whole river bank looking for the way over.
+  setGates(gates, vehicle) { this.gates = gates.map(g => ({ at: g.at, portals: g.portals.filter(p => !(vehicle && p.foot)) })).sort((a, b) => a.at - b.at); }
+  zone(z) { let k = 0; for (const g of this.gates) if (z > g.at) k++; return k; }
+  gatedPath(sx, sz, tx, tz, a, b, maxExpand) {
+    const dir = b > a ? 1 : -1, lines = []; for (let k = a; k !== b; k += dir) lines.push(this.gates[dir > 0 ? k : k - 1]);
+    const inside = (x, z, g, p) => Math.abs(z - g.at) <= p.d && Math.abs(x - p.x) <= 25;   // already in the pass or on the bridge
+    let best = null, bestLen = Infinity;
+    const walk = (i, px, pz, len, picks) => {
+      if (len >= bestLen) return;
+      if (i === lines.length) { len += Math.hypot(tx - px, tz - pz); if (len < bestLen) { bestLen = len; best = picks.slice(); } return; }
+      const g = lines[i];
+      for (const p of g.portals) { picks.push(p); walk(i + 1, p.x, g.at + dir * p.d, len + Math.hypot(p.x - px, g.at - dir * p.d - pz) + 2 * p.d, picks); picks.pop(); }
+    };
+    walk(0, sx, sz, 0, []);
+    if (!best) return null;
+    const out = []; let px = sx, pz = sz;
+    const leg = (x0, z0, x1, z1) => { const p = this.findPath(x0, z0, x1, z1, maxExpand, true); if (!p) throw new Error('leg'); out.push(...p); };
+    try {
+      best.forEach((p, i) => {
+        const g = lines[i], ez = g.at - dir * p.d, xz = g.at + dir * p.d;
+        if (!(i === 0 && inside(sx, sz, g, p))) leg(px, pz, p.x, ez);
+        leg(i === 0 && inside(sx, sz, g, p) ? sx : p.x, i === 0 && inside(sx, sz, g, p) ? sz : ez, p.x, xz);   // over the bridge, through the pass
+        px = p.x; pz = xz;
+      });
+      leg(px, pz, tx, tz);
+    } catch { return null; }
+    return out;
+  }
+  findPath(sx, sz, tx, tz, maxExpand = this.cap, oneSide = false) {
+    if (this.gates && !oneSide) { const a = this.zone(sz), b = this.zone(tz); if (a !== b) return this.gatedPath(sx, sz, tx, tz, a, b, maxExpand); }
     const n = this.n;
     const s = this.nearest(this.cellOf(sx), this.cellOf(sz)), t = this.nearest(this.cellOf(tx), this.cellOf(tz));
     if (!s || !t) return null;

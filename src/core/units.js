@@ -282,6 +282,7 @@ export class Unit {
       const diff = wrap(Math.atan2(this.enemy.pos.x - this.pos.x, this.enemy.pos.z - this.pos.z) - this.heading);
       this.heading += clamp(diff, -s.turn * dt, s.turn * dt);
     }
+    const W = this.mgr.world; if (want && W.terrain && W.terrain.wade > 0 && W.heightAt(this.pos.x, this.pos.z) < W.terrain.water) want *= 0.5;   // wading (a ford, on a map with wadable water): half speed
     this.speed += clamp(want - this.speed, -s.accel * 2 * dt, s.accel * dt);
     if (Math.abs(this.speed) < 0.01) this.speed = 0;
     const step = this.speed * dt, sx = Math.sin(this.heading) * step, sz = Math.cos(this.heading) * step;

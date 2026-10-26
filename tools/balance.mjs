@@ -14,6 +14,7 @@
 //   --url http://localhost:8787                   where the game is served
 //   --extra 'ai=rules&persona=aggressive'         extra query parameters for every match
 //   --json results.json                           also save the raw results
+//   --port 9450                                   first DevTools port (one per match at once; two runs side by side need different ones)
 // CHROME=/path/to/chrome overrides the browser.
 import { spawn } from 'node:child_process';
 import { mkdtempSync, rmSync, writeFileSync } from 'node:fs';
@@ -23,7 +24,7 @@ import { join } from 'node:path';
 const args = process.argv.slice(2), opt = (k, d) => { const i = args.indexOf('--' + k); return i < 0 ? d : args[i + 1]; };
 const pairs = opt('pairs', 'balanced:armoured,balanced:mechanized,light:mechanized,air:light').split(',').map(p => p.split(':'));
 const seeds = opt('seeds', '1,2').split(',').map(Number), both = !args.includes('--one-side');
-const mode = opt('mode', 'aas'), length = +opt('length', 1600), parallel = +opt('parallel', 4), base = opt('url', 'http://localhost:8787'), extra = opt('extra', ''), jsonOut = opt('json', '');
+const mode = opt('mode', 'aas'), length = +opt('length', 1600), parallel = +opt('parallel', 4), base = opt('url', 'http://localhost:8787'), extra = opt('extra', ''), jsonOut = opt('json', ''), port0 = +opt('port', 9450);
 const CHROME = process.env.CHROME || '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome';
 const sleep = (ms) => new Promise(r => setTimeout(r, ms));
 
@@ -78,7 +79,8 @@ async function run(match, port) {
     if (!ready) throw new Error('no CPU-vs-CPU match started');
     await sleep(1500);   // let the page finish loading before the match is stepped
     const r = await send('Runtime.evaluate', { expression: play(length, match.seed), awaitPromise: true, returnByValue: true });
-    const v = r.result?.result?.value; if (!v) throw new Error(JSON.stringify(r.result?.exceptionDetails || r).slice(0, 300));
+    const ex = r.result?.exceptionDetails; if (ex) throw new Error('page: ' + ((ex.exception && ex.exception.description) || ex.text || '').split('\n').slice(0, 2).join(' '));   // the match threw
+    const v = r.result?.result?.value; if (typeof v !== 'string') throw new Error(JSON.stringify(r).slice(0, 300));
     ws.close();
     return { ...match, ...JSON.parse(v), wall: Math.round((Date.now() - t0) / 1000), errors };
   } catch (e) { return { ...match, failed: String(e.message || e), wall: Math.round((Date.now() - t0) / 1000), errors }; }
@@ -101,7 +103,7 @@ try { await fetch(base); } catch { console.error(`Nothing is served at ${base}: 
 console.log(`${matches.length} matches (${pairs.map(p => p.join(' v ')).join(', ')}; seeds ${seeds.join(',')}${both ? '; both ways round' : ''}), ${parallel} at a time\n`);
 const results = [], queue = matches.map((m, i) => ({ m, i }));
 await Promise.all(Array.from({ length: Math.min(parallel, queue.length) }, async (_, w) => {
-  while (queue.length) { const { m, i } = queue.shift(); const r = await run(m, 9450 + w); results[i] = r; console.log(line(r)); }
+  while (queue.length) { const { m, i } = queue.shift(); const r = await run(m, port0 + w); results[i] = r; console.log(line(r)); }
 }));
 
 // win tables: per pairing (either base), and per preset over everything it played

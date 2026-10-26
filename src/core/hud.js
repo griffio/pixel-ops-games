@@ -134,7 +134,9 @@ export class Hud {
     const k = S / map.size, X = (x) => (x + map.size / 2) * k, Z = (z) => (map.size / 2 - z) * k;
     const line = (pts, w, col) => { g.strokeStyle = col; g.lineWidth = w; g.lineJoin = 'round'; g.beginPath(); g.moveTo(X(pts[0][0]), Z(pts[0][1])); for (const p of pts.slice(1)) g.lineTo(X(p[0]), Z(p[1])); g.stroke(); };
     for (const t of map.tracks || []) line(t, 1.5, '#8a7450');
+    for (const r of map.roads || []) if (r.kind === 'track') line(r.points, 1.5, '#8a7450');
     if (map.roadPath) line(map.roadPath, 2.5, '#4a4a4c');
+    for (const r of map.roads || []) if (r.kind !== 'track') line(r.points, r.width >= 10 ? 2.5 : 2, '#4a4a4c');
     this.mmX = X; this.mmZ = Z; this.mmK = k;
     return bg;
   }

@@ -1,6 +1,9 @@
 // Heightfield from terrain features (round hills and elongated ridges with cut
 // passes), multi-octave value noise for jagged crests, carved rivers with fords,
-// and level pads blended in. Sampled bilinearly from a 4 m grid.
+// and level pads blended in. Sampled bilinearly from a 4 m grid. A river may give a
+// width per path point (ws); a ford may run across its river as a capsule (x1, z1 to
+// x2, z2) with a level bed out to r and a margin m. mirrorZ builds the south half
+// (z <= 0) and copies it north, so a mirror-symmetric map is exactly symmetric.
 function hash(ix, iz) { let n = (ix * 374761393 + iz * 668265263) | 0; n = Math.imul(n ^ (n >>> 13), 1274126177); return ((n ^ (n >>> 16)) >>> 0) / 4294967296; }
 function vnoise(x, z) {
   const ix = Math.floor(x), iz = Math.floor(z), fx = x - ix, fz = z - iz, sx = fx * fx * (3 - 2 * fx), sz = fz * fz * (3 - 2 * fz);
@@ -9,15 +12,17 @@ function vnoise(x, z) {
 }
 export function fbm(x, z, oct = 4) { let s = 0, amp = 0.5, f = 1, norm = 0; for (let i = 0; i < oct; i++) { s += amp * vnoise(x * f, z * f); norm += amp; amp *= 0.5; f *= 2.1; } return s / norm; }
 
-function segDist(x, z, x1, z1, x2, z2) {
+function segDist(x, z, x1, z1, x2, z2) { return segNear(x, z, x1, z1, x2, z2)[0]; }
+function segNear(x, z, x1, z1, x2, z2) {   // [distance, t along the segment]
   const dx = x2 - x1, dz = z2 - z1, l2 = dx * dx + dz * dz || 1, t = Math.max(0, Math.min(1, ((x - x1) * dx + (z - z1) * dz) / l2));
-  return Math.hypot(x - (x1 + dx * t), z - (z1 + dz * t));
+  return [Math.hypot(x - (x1 + dx * t), z - (z1 + dz * t)), t];
 }
 
 export class Terrain {
   constructor(size, cell = 4, def = {}) {
     this.size = size; this.cell = cell; this.half = size / 2; this.n = Math.round(size / cell) + 1;
     this.water = def.water === undefined ? -Infinity : def.water;
+    this.wade = def.wade === undefined ? -0.3 : def.wade;   // how deep units can wade: ground deeper than this under the water is impassable (-0.3: none, it must stand 0.3 m clear)
     const features = def.features || [], flats = def.flats || [], rivers = def.rivers || (def.river ? [def.river] : []), fords = def.fords || [];
     const n = this.n, h = this.h = new Float32Array(n * n);
     const feature = (x, z, k) => {
@@ -43,7 +48,8 @@ export class Terrain {
       for (const k of features) y += feature(x, z, k);
       return y;
     };
-    for (let iz = 0; iz < n; iz++) for (let ix = 0; ix < n; ix++) {
+    const rows = def.mirrorZ ? Math.ceil(n / 2) : n;   // mirrorZ: rows from z = -half up to the middle, then copied north
+    for (let iz = 0; iz < rows; iz++) for (let ix = 0; ix < n; ix++) {
       const x = ix * cell - this.half, z = iz * cell - this.half;
       let y = raw(x, z);
       for (const f of flats) {                            // level pads with a smooth margin
@@ -53,15 +59,20 @@ export class Terrain {
         y = y + (target - y) * (w * w * (3 - 2 * w));
       }
       for (const river of rivers) {                       // carve each channel, then raise fords into shallows
-        let d = Infinity; for (let i = 0; i < river.path.length - 1; i++) d = Math.min(d, segDist(x, z, ...river.path[i], ...river.path[i + 1]));
-        const k = Math.max(0, 1 - (d / river.w) ** 2);
+        let d = Infinity, w = river.w; const P = river.path;
+        for (let i = 0; i < P.length - 1; i++) { const [di, t] = segNear(x, z, ...P[i], ...P[i + 1]); if (di < d) { d = di; if (river.ws) w = river.ws[i] + (river.ws[i + 1] - river.ws[i]) * t; } }
+        const k = Math.max(0, 1 - (d / w) ** 2);
         if (k > 0) y += (-river.depth - y) * k;
       }
       if (rivers.length) {
-        for (const f of fords) { const d2 = ((x - f.x) ** 2 + (z - f.z) ** 2) / (f.r * f.r); if (d2 < 1 && y < f.bed) y += (f.bed - y) * (1 - d2); }
+        for (const f of fords) {
+          if (f.x1 !== undefined) { const d = segDist(x, z, f.x1, f.z1, f.x2, f.z2); if (d < f.r + f.m && y < f.bed) { const u = d <= f.r ? 1 : 1 - (d - f.r) / f.m; y += (f.bed - y) * u * u * (3 - 2 * u); } continue; }
+          const d2 = ((x - f.x) ** 2 + (z - f.z) ** 2) / (f.r * f.r); if (d2 < 1 && y < f.bed) y += (f.bed - y) * (1 - d2);
+        }
       }
       h[iz * n + ix] = y;
     }
+    if (def.mirrorZ) for (let iz = rows; iz < n; iz++) h.copyWithin(iz * n, (n - 1 - iz) * n, (n - iz) * n);
     let max = -Infinity; for (const y of h) if (y > max) max = y; this.max = max;   // not Math.max(...h): a 2 km map has 250,000 heights, past the argument limit
   }
   height(x, z) {

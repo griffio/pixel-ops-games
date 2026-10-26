@@ -38,7 +38,10 @@ export class Match {
     });
     const nc = (map && map.nav) || {};   // grid cells: 1 m and 2 m; a 2 km map uses coarser ones (memory: 4 M cells at 1 m is 130 MB)
     this.nav = { foot: new NavGrid(this.world.size, nc.foot || 1, 0.6), vehicle: new NavGrid(this.world.size, nc.vehicle || 2, 2.2) };
-    this.nav.foot.build(this.world.obstacles, this.world.terrain, 0.9, this.world.onBridge); this.nav.vehicle.build(this.world.obstacles, this.world.terrain, 0.45, this.world.onBridge); this.units.nav = this.nav;
+    this.nav.foot.build(this.world.obstacles, this.world.terrain, 0.9, this.world.onBridge); this.nav.vehicle.build(this.world.obstacles, this.world.terrain, 0.45, (x, z) => this.world.onBridge(x, z, true));
+    if (nc.cap) this.nav.foot.cap = this.nav.vehicle.cap = nc.cap;
+    if (map && map.gates) { this.nav.foot.setGates(map.gates, false); this.nav.vehicle.setGates(map.gates, true); }   // long barriers crossed portal to portal (nav.js)
+    this.units.nav = this.nav;
     this.spatial = new SpatialHash(8); this.units.spatial = this.spatial;
     this.combat = new Combat(this.units, this.spatial, this.world, app.dust); this.combat.teams = this.teams; this.combat.audio = app.audio || null;
     this.vision = new Vision(this.units, this.world, this.combat, !app.fogOff); this.combat.vision = this.vision;   // fog of war: what each side sees (?fog=0: everything)

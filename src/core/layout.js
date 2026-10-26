@@ -123,7 +123,8 @@ export class WorldState {
       }
       return h;
     };
-    this.onBridge = (x, z) => this.bridges.some(b => { const dx = x - b.x, dz = z - b.z, c = Math.cos(b.angle), s = Math.sin(b.angle); return Math.abs(dx * s + dz * c) <= b.len / 2 && Math.abs(dx * c - dz * s) <= b.w / 2; });
+    // on a bridge deck; for vehicles (vehicles = true) footbridges (`foot: true`) do not count: only infantry cross them
+    this.onBridge = (x, z, vehicles = false) => this.bridges.some(b => { if (vehicles && b.foot) return false; const dx = x - b.x, dz = z - b.z, c = Math.cos(b.angle), s = Math.sin(b.angle); return Math.abs(dx * s + dz * c) <= b.len / 2 && Math.abs(dx * c - dz * s) <= b.w / 2; });
 
     this.time = 14; this.timeSpeed = 60; this.day = 1;
     this.light = lighting(this.time);

@@ -117,13 +117,15 @@ export function smooth(points, iterations = 2) {
   return p;
 }
 
-// Metres from the centre line of a map's road as drawn (its roadPath, smoothed); Infinity on a map without one.
+// Metres from the centre line of the nearest of a map's roads as drawn (roadPath, and each entry of roads that is not a
+// dirt track, smoothed); Infinity on a map without one.
 const roadLines = new WeakMap();
 export function roadDist(map, x, z) {
-  if (!map || !map.roadPath) return Infinity;
-  let P = roadLines.get(map); if (!P) roadLines.set(map, P = smooth(map.roadPath, 2));
+  if (!map) return Infinity;
+  let L = roadLines.get(map);
+  if (!L) roadLines.set(map, L = [...(map.roadPath ? [map.roadPath] : []), ...(map.roads || []).filter(r => r.kind !== 'track').map(r => r.points)].map(p => smooth(p, 2)));
   let best = Infinity;
-  for (let i = 0; i < P.length - 1; i++) { const [ax, az] = P[i], [bx, bz] = P[i + 1], t = Math.max(0, Math.min(1, ((x - ax) * (bx - ax) + (z - az) * (bz - az)) / ((bx - ax) ** 2 + (bz - az) ** 2))); best = Math.min(best, Math.hypot(x - (ax + (bx - ax) * t), z - (az + (bz - az) * t))); }
+  for (const P of L) for (let i = 0; i < P.length - 1; i++) { const [ax, az] = P[i], [bx, bz] = P[i + 1], t = Math.max(0, Math.min(1, ((x - ax) * (bx - ax) + (z - az) * (bz - az)) / ((bx - ax) ** 2 + (bz - az) ** 2))); best = Math.min(best, Math.hypot(x - (ax + (bx - ax) * t), z - (az + (bz - az) * t))); }
   return best;
 }
 
