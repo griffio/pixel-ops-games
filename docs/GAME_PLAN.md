@@ -1172,6 +1172,22 @@ Engine changes needed in the existing core:
   point-symmetric (bases and locations mirrored through the centre); the
   balance tool's mirror pairing (`--pairs balanced:balanced`) is the check.
 
+- **Fog of war, stage 3: the LLM commander's digest (2026-10-26).** The digest
+  leaked the enemy four ways: exact counts in every capture zone, every enemy
+  unit as clusters, every enemy FOB, and the enemy's FOB and sandbag news in
+  the events. Now (`digest.js`, with the fog on) a location's `theirs` counts
+  the enemies the side sees in the zone and `contested` comes from the capture
+  bar; `enemy` clusters are built from contacts, a group seen only before
+  carrying `lastSeen` (seconds, its freshest sighting); `fobs.theirs` lists
+  only enemy FOBs it has found; the enemy's FOB and sandbag events are left
+  out. The Worker's system prompt explains the fog (what lastSeen, theirs and
+  contested mean, and that an enemy-held place may hold more than it shows);
+  it goes out with the next `npm run deploy`. Checked: team 1's digest five
+  minutes in showed 17 of the 25 enemies at the Airfield and no enemy FOB
+  (the fog-off digest listed the FOB at the Outpost); six minutes against the
+  commander stub, stepped in chunks so its replies land: 38 plans answered
+  and applied, no errors. The balance check is stage 2's.
+
 ## Open questions
 
 

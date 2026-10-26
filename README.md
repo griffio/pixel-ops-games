@@ -356,7 +356,8 @@ A plain-language overview is in `docs/LLM_COMMANDER.md`.
 The CPU sides can take their plan from a model instead of the built-in planner.
 Every 20 seconds of match time each CPU side posts a one-page JSON digest of the
 state (`src/game/ai/digest.js`: tickets, locations and who contests them, its
-squads and vehicles with orders, enemy clusters, FOBs, sandbags, recent events,
+squads and vehicles with orders, enemy clusters as far as its side can see them
+(fog of war: groups seen earlier carry `lastSeen`), FOBs, sandbags, recent events,
 and three memory blocks the game maintains so the prompt never grows: trends
 (tickets now and 1, 2, 3 minutes ago, deaths and vehicle losses per minute,
 locations that changed hands in the last five minutes), the last three plans
