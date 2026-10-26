@@ -95,7 +95,7 @@ export class Vision {
     }
     for (const e of U) {
       if (e.dead || e.team < 0 || e.team > 1) continue;
-      const vis = e.vis || (e.vis = [0, 0]);
+      const vis = e.vis || (e.vis = [-1, -1]);   // never seen: 0 would match "seen one look ago" at the first look and leave a ghost of every enemy
       for (let t = 0; t < 2; t++) {
         if (t === e.team) continue;
         let v = false;

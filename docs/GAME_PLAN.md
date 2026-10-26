@@ -1410,6 +1410,16 @@ Engine changes needed in the existing core:
   Depot) left the squad to the pool (hold), one at Quarry (marked grabbable) went as
   `grab`.
 
+- **Fog of war leak at the start (2026-10-26).** The gateway logs of the user's first
+  Opus game showed OPFOR's digest at minute 0.1 listing the whole BLUFOR base (20
+  soldiers, 2 APCs, a truck) 1.2 km from anything it could see; Opus noted "Enemy has 2
+  APCs, 20 soldiers" and carried it for minutes. Cause: a unit's last-seen look (`vis`)
+  started at 0, which at the first look (gen 1) matched "seen one look ago", so every
+  enemy left a 30 s ghost on both sides, the player's minimap included. It now starts at
+  -1 (never seen). Stepping a fresh match: 30 ghosts at 0.25 s before, none after, on
+  both maps. Desert Crossing's 16 matches replay identically (the built-in commander
+  never acted on ghosts 1.2 km away), and ghosts from real sightings still appear.
+
 ## Open questions
 
 
