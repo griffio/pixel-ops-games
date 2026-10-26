@@ -28,10 +28,10 @@ export class UtilityCommander {
   get fresh() { return !!this.plan; }
 
   // pick the best option of one decision: its score, a little noise, and the commitment bonus for the current choice
-  pick(key, opts) {
+  pick(key, opts, tau = 60) {   // tau: how long a commitment takes to fade, in seconds
     const c = this.chosen[key], now = this.match.elapsed; let best = null;
     for (const o of opts) {
-      o.total = o.score + (Math.random() - 0.5) * this.noise + (c && c.value === o.value ? this.w.commit * Math.exp(-(now - c.at) / 60) : 0);
+      o.total = o.score + (Math.random() - 0.5) * this.noise + (c && c.value === o.value ? this.w.commit * Math.exp(-(now - c.at) / tau) : 0);
       if (!best || o.total > best.total) best = o;
     }
     if (!c || c.value !== best.value) this.chosen[key] = { value: best.value, at: now };
@@ -78,16 +78,25 @@ export class UtilityCommander {
     const t = this.team, w = this.w, M = this.measure(squads), L = o.list, U = this.units.units;
     if (m.log.length !== this.logLen) { this.logLen = m.log.length; this.chosen = {}; }   // a location changed hands: commitments lapse
 
-    // 1. attack target: the capturable locations, or none (sit on what we hold)
-    const cands = L.filter(l => l.owner !== t && o.capturable(t, l));
+    // 1. attack target: the capturable locations, or none (sit on what we hold). Free places (no enemy we know of near them,
+    // strategist.grabsFor) are taken by a detachment each (9.), so the main force goes where there is a fight; only when
+    // every candidate is free does one of them become the target. With more than one candidate, a place near where our
+    // attack force already is counts for more (momentum: on a big map a switch of target costs minutes of walking), and a
+    // commitment fades over a minute for each kilometre of map.
+    const all = L.filter(l => l.owner !== t && o.capturable(t, l)), free0 = this.s.grabsFor(null);
+    const cands = all.some(l => !free0.includes(l)) ? all.filter(l => !free0.includes(l)) : all;
     const ratioAt = (l) => { const theirs = Math.max(M.enemyAt(l.x, l.z, l.r + 60), M.unseen(l)); return M.ours / (M.ours + theirs + 0.5); };
     const armourF = (l) => 1 / (1 + M.armourAt(l.x, l.z) * w.armour * (M.haveAT ? 0.5 : 1));
-    const attackOpts = cands.map(l => ({ value: l.name, loc: l, score: sigmoid(ratioAt(l), 0.45, 0.08) * armourF(l) * (0.4 + 0.6 * M.travel(l)) * (0.6 + 0.4 * M.urgency) * w.push }));
+    const force = squads.filter(sq => this.roleOf.get(sq.leader.label) === 'assault').map(sq => sq.centroid()), fx = force.length ? force.reduce((s, c) => s + c.x, 0) / force.length : m.teams[t].base.x, fz = force.length ? force.reduce((s, c) => s + c.z, 0) / force.length : m.teams[t].base.z;
+    const reach = (l) => 1 / (1 + Math.hypot(l.x - fx, l.z - fz) / 400), maxReach = Math.max(...cands.map(reach), 1e-9);
+    const momentum = (l) => cands.length > 1 ? 0.5 + 0.5 * reach(l) / maxReach : 1;
+    const attackOpts = cands.map(l => ({ value: l.name, loc: l, score: sigmoid(ratioAt(l), 0.45, 0.08) * armourF(l) * (0.4 + 0.6 * M.travel(l)) * (0.6 + 0.4 * M.urgency) * momentum(l) * w.push }));
     attackOpts.push({ value: null, loc: null, score: 0.3 * (M.ownedUs > M.ownedThem ? 1 : 0.4) * (1 - M.urgency) * (0.6 + 0.4 * (1 - M.readiness)) / w.push });
-    const target = this.pick('attack', attackOpts).loc;
+    const target = this.pick('attack', attackOpts, 60 * m.world.size / 1000).loc;
+    const grabs = free0.filter(l => l !== target);
 
     // 2. hold: our locations by value (the front, or one whose loss flips the majority) times threat to it
-    const front = o.front(t), flips = M.ownedUs - 1 <= M.ownedThem;
+    const front = o.front(t, target), flips = M.ownedUs - 1 <= M.ownedThem;   // our place next to the target: the one to hold first, the staging point
     const postsAt = (l) => m.fobs.sandbagsOf(t).filter(s => Math.hypot(s.pos.x - l.x, s.pos.z - l.z) < l.r + 12).length;   // our sandbag positions at a place
     const holdOpts = L.filter(l => l.owner === t).map(l => {
       const threat = 1 - Math.exp(-M.enemyAt(l.x, l.z, l.r + 120) / 6), value = l === front ? 1 : flips ? 0.75 : 0.45;
@@ -169,14 +178,20 @@ export class UtilityCommander {
     const pairs = [];
     for (const sq of free) for (const role of Object.keys(demand)) if (demand[role]) pairs.push({ sq, role, score: fit[role](sq) + keep(sq, role) });
     pairs.sort((a, b) => b.score - a.score);
-    const roles = new Map();
+    const roles = new Map(), grabAt = new Map();
     for (const p of pairs) if (p.score > 0.25 && demand[p.role] > 0 && !roles.has(p.sq)) { roles.set(p.sq, p.role); demand[p.role]--; }
+    // a squad for each free place, the nearest in good order (the one already on its way first); two stay for attack and holds
+    for (const l of grabs) {
+      const pool = free.filter(sq => !roles.has(sq)); if (pool.length < 3) break;
+      const fitG = (sq) => cond(sq) * near(sq, l) + (this.roleOf.get(sq.leader.label) === 'grab@' + l.name ? w.commit : 0);
+      const sq = pool.sort((a, b) => fitG(b) - fitG(a))[0]; roles.set(sq, 'grab'); grabAt.set(sq, l);
+    }
     const armourAtTarget = !!target && M.enemyApcs.some(v => Math.hypot(v.pos.x - target.x, v.pos.z - target.z) < 150);
     const rest = free.filter(sq => !roles.has(sq)).map(sq => ({ sq, score: (has(sq, 'at') && armourAtTarget ? 1 : has(sq, 'rifle') ? 0.9 : 0.7) * cond(sq) * near(sq, target) + keep(sq, 'assault') })).sort((a, b) => b.score - a.score);
     const nAttack = target ? Math.min(rest.length, Math.ceil(free.length * share)) : 0;
     rest.forEach((r, i) => roles.set(r.sq, i < nAttack ? 'assault' : 'hold'));
     const atFor = { hold: holdLoc, reserve: holdLoc, screen: holdLoc };
-    const squadRoles = [...roles].map(([sq, role]) => { this.roleOf.set(sq.leader.label, role); const at = atFor[role]; return at ? { id: sq.leader.label, role, at: at.name } : { id: sq.leader.label, role }; });
+    const squadRoles = [...roles].map(([sq, role]) => { const at = role === 'grab' ? grabAt.get(sq) : atFor[role]; this.roleOf.set(sq.leader.label, role === 'grab' ? 'grab@' + at.name : role); return at ? { id: sq.leader.label, role, at: at.name } : { id: sq.leader.label, role }; });
     this.scores.roles = squadRoles.map(r => r.id + ':' + r.role);
 
     // a line of radio chatter when the intent changes, at most every 20 s

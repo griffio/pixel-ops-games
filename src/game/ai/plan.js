@@ -4,7 +4,7 @@
 export const POSTURES = ['cautious', 'balanced', 'aggressive'];
 export const LOGISTICS = ['fob', 'sandbags', 'none'];
 export const WAITS = ['none', 'squadsAt', 'enemyBelow', 'apcAlive', 'seconds'];
-export const ROLES = ['assault', 'hold', 'reserve', 'screen', 'raid', 'escort'];
+export const ROLES = ['assault', 'hold', 'reserve', 'screen', 'raid', 'escort', 'grab'];
 
 export const PLAN_SCHEMA = {
   type: 'object', additionalProperties: false,
@@ -32,8 +32,8 @@ export const PLAN_SCHEMA = {
       type: 'array', maxItems: 8,
       items: { type: 'object', additionalProperties: false, required: ['id', 'role'], properties: {
         id: { type: 'string', description: 'a squad id from the digest, e.g. SQ-11' },
-        role: { type: 'string', enum: ROLES, description: 'assault: join the attack. hold: stand at location at (ours). reserve: wait near at behind the front, not drawn into attacks. screen: overwatch position 50 m out from at towards the enemy. raid: go for the nearest enemy FOB. escort: stay with the supply truck' },
-        at: { type: 'string', description: 'location name for hold, reserve and screen' },
+        role: { type: 'string', enum: ROLES, description: 'assault: join the attack. hold: stand at location at (ours). reserve: wait near at behind the front, not drawn into attacks. screen: overwatch position 50 m out from at towards the enemy. raid: go for the nearest enemy FOB. escort: stay with the supply truck. grab: take location at, a capturable place no enemy holds or guards, on its own' },
+        at: { type: 'string', description: 'location name for hold, reserve, screen and grab' },
       } },
       description: 'jobs for particular squads; squads left out follow attackShare. Leave the engineer squad to logistics',
     },

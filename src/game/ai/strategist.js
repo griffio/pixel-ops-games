@@ -57,7 +57,7 @@ export class Strategist {
     for (const sq of manned) this.manPost(sq, allPosts.find(s => sq.tag === 'post' + s.id), hold);
     const posts = allPosts.filter(s => !manned.some(sq => sq.tag === 'post' + s.id)); let post = 0;
     const free = squads.filter(s => s !== logisticsSquad && !manned.includes(s));
-    const byName = (n) => (this.match.objectives ? this.match.objectives.list.find(l => l.name === n) : null) || null;
+    const o2 = this.match.objectives, byName = (n) => (o2 ? o2.list.find(l => l.name === n) : null) || null;
     // what each job means on the ground
     const attackWith = (sq) => {
       if (!attack) return holdAt(sq, hold);
@@ -96,7 +96,18 @@ export class Strategist {
       else if (r.role === 'screen') screenAt(sq, ours || hold);
       else if (r.role === 'raid') raid(sq);
       else if (r.role === 'escort') escort(sq);
+      else if (r.role === 'grab') { const l = at && at.owner !== this.team && o2.capturable(this.team, at) ? at : null; if (l) { const [x, z] = this.inZone(l.x, l.z, l, 0.6); this.send(sq, x, z, 'grab' + l.index, l); } else holdAt(sq, hold); }   // take a free place
       else attackWith(sq);
+    }
+    // free places: another place we can take that no enemy we know of holds or is near gets a squad of its own (the nearest
+    // free one, or the one already on its way), so on a lattice with several ways forward the side spreads out instead of
+    // sending everyone at one place; at least two squads stay for the attack and the holds
+    for (const l of this.grabsFor(attack)) {
+      if (rest.length < 3) break;
+      const key = 'grab' + l.index, d = (s) => { const c = s.centroid(); return Math.hypot(c.x - l.x, c.z - l.z); };
+      const sq = rest.find(s => s.tag === key) || [...rest].sort((a, b) => d(a) - d(b))[0];
+      rest.splice(rest.indexOf(sq), 1);
+      const [x, z] = this.inZone(l.x, l.z, l, 0.6); this.send(sq, x, z, key, l);
     }
     const share = Math.min(0.95, Math.max(0.2, g.attackShare + this.diff.attackShare));
     const nAttack = attack ? Math.min(rest.length, Math.ceil((rest.length + manned.length) * share)) : 0;   // squads manning sandbags count as holders, not out of the attack
@@ -128,6 +139,17 @@ export class Strategist {
     }
   }
 
+  // Places worth a squad of their own: ones we can take besides the attack target, with no enemy we know of within 60 m of the
+  // zone (a sighting older than 15 s does not count), no enemy armour within 120 m, not contested, and not held by the enemy
+  // unless we have seen it in the last 30 s (an unseen place they hold may well be defended). Neutral ones first, then nearest.
+  grabsFor(attack) {
+    const o = this.match.objectives; if (!o) return [];
+    const t = this.team, V = this.match.vision, base = this.teams[t].base;
+    return o.list.filter(l => l !== attack && l.owner !== t && o.capturable(t, l) && !l.contested && !(l.owner === 1 - t && V.ageAt(t, l.x, l.z) > 30)
+      && !this.enemiesNear(l.x, l.z, l.r + 60).some(u => !u.spec.structure && (!u.ghost || u.age < 15)) && !this.armourNear(l.x, l.z, 120))
+      .sort((a, b) => (a.owner === -1 ? 0 : 1) - (b.owner === -1 ? 0 : 1) || Math.hypot(a.x - base.x, a.z - base.z) - Math.hypot(b.x - base.x, b.z - base.z));
+  }
+
   // Rally points: a squad that has reached the area it was sent to (within 160 m of its zone, or dug in hiding from or hunting
   // armour), clear of enemies, more than 200 m from home, drops a rally when it has none within 70 m and the cooldown allows.
   placeRallies(squads) {
@@ -150,7 +172,7 @@ export class Strategist {
   applyPlan(g, remote) {
     const p = remote.plan, o = this.match.objectives; if (!o) return;
     const byName = (n) => o.list.find(l => l.name === n) || null;
-    if (p.attack) { const a = byName(p.attack); if (a && a.owner !== this.team && o.capturable(this.team, a)) g.attack = a; }
+    if (p.attack) { const a = byName(p.attack); if (a && a.owner !== this.team && o.capturable(this.team, a)) { g.attack = a; g.fobAnchor = o.front(this.team, a) || g.fobAnchor; } }   // the FOB goes behind the place we push from
     else if (p.hold.length) g.attack = null;
     const h = p.hold.map(byName).filter(l => l && l.owner === this.team); if (h.length) g.hold = h[0];
     g.attackShare = p.attackShare; g.posture = p.posture; g.logistics = p.logistics; g.lift = p.lift;

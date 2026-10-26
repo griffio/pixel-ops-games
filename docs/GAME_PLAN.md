@@ -1250,6 +1250,31 @@ Engine changes needed in the existing core:
   was all a chain ever offered; on a network it never spreads out. Next: let it take
   free places with a detachment and pick lanes.
 
+- **CPU target picking on a network (2026-10-26).** A minute-by-minute dump showed
+  two faults: the utility commander gives every squad a role, so a strategist-only
+  grab reflex never had a squad to send; and the attack target flipped Bridge,
+  Kasbah, Quarry, Kasbah within four minutes, so the attack walked between places
+  600-1,100 m apart and never arrived (some matches had no infantry deaths). Now:
+  `Strategist.grabsFor` lists free places (capturable, no enemy we know of within
+  60 m of the zone (a sighting older than 15 s does not count), no armour within
+  120 m, not contested, not held by the enemy unless seen in the last 30 s); the
+  utility commander keeps them out of the attack candidates (unless every candidate
+  is free) and gives each one a `grab` squad, the nearest in good order, two squads
+  always left for attack and holds; among several candidates a place near the
+  current attack force scores up to double (momentum), and a commitment fades over
+  60 s per kilometre of map (120 s here). `front(team, toward)` is the place of ours
+  next to the target (the staging point and FOB anchor); on a chain it is the old
+  front. The strategist runs the grab reflex for advisers that leave squads free
+  (the rules planner); `grab` is a plan role, so the LLM can use it (the Worker's
+  prompt says so). Desert Crossing still replays its 16 default matches exactly (a
+  chain offers one candidate, which leaves every score as it was). Palm Valley, 12
+  matches: each side's town and quarry taken within five minutes 43 times of 48
+  (almost never before), infantry deaths 234 a match (35-50), six captures in the
+  enemy's row through the flanks (four by the town, two by the ford), the footbridge
+  and the ford used (92 and 123 unit-minutes against 0-9 a match); the Bridge, the
+  majority's pivot, is still the main fight (3,733). Mirror matches (Balanced and
+  Mechanized, seeds 1-6): south-west 5, north-east 7, average margin 16 tickets.
+
 ## Open questions
 
 

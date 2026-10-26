@@ -23,7 +23,12 @@ export class Objectives {
   owned(team) { return this.list.filter(l => l.owner === team).length; }
   allOwned(team) { return this.list.every(l => l.owner === team); }
   nextFor(team) { return this.order(team).find(l => l.owner !== team && this.capturable(team, l)) || null; }
-  front(team) { const o = this.order(team).filter(l => l.owner === team); return o[o.length - 1] || null; }
+  // where a team stands toward a place it wants: the place of its own next to that one, nearest it (on a chain, the last it
+  // holds in order); with no place in mind, or none of ours beside it, the last place it holds in order
+  front(team, toward = null) {
+    if (toward) { const n = toward.adj.filter(a => a.owner === team).sort((a, b) => Math.hypot(a.x - toward.x, a.z - toward.z) - Math.hypot(b.x - toward.x, b.z - toward.z))[0]; if (n) return n; }
+    const o = this.order(team).filter(l => l.owner === team); return o[o.length - 1] || null;
+  }
 
   tick(dt, spatial) {
     for (const loc of this.list) {
