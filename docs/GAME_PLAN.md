@@ -1440,8 +1440,21 @@ Engine changes needed in the existing core:
   the Bridge: the built-in logistics went to lay traps at the east ford (as in the user's
   game); an LLM plan with sandbags dug at Bridge+42m; switched to sandbags mid traps job,
   the engineer dropped the traps and went to dig; traps with no armour seen went to the
-  ford; none gave no job. Still open: the built-in trap rule counts sightings of armour
-  since destroyed, and with the bridge on its own route picks a ford no armour has used.
+  ford; none gave no job.
+
+- **Built-in trap rule (2026-10-26).** The two faults the logs showed: sightings of armour
+  since destroyed still counted, and any choke within 600 m of a sighting qualified, so
+  an APC seen at the Bridge (whose own chokes were off limits, on the CPU's route) sent
+  the engineer to the east ford, 560 m off, where no armour had been. Sightings now keep
+  the unit and drop it when it dies (a respawned vehicle is a new unit), and a choke needs
+  live armour seen within 200 m of it. Palm Valley, the 12 matches the rule was tuned on
+  (balanced v mechanized and v armoured, mechanized v balanced, light v mechanized, seeds
+  1 to 3): 29 rows before, 27 of them at the east ford banks, against 6 vehicle crossings
+  of that ford in all 12 matches; 3 rows after, all at bridge ends where armour came, with
+  7 ford vehicle crossings. Wins by base 9-3 before, 7-5 after; light v mechanized went
+  from 3-0 to 1-2 with no vehicle using the ford in any of those six matches, so the swing
+  is the matches diverging, not the ford rows. Desert Crossing has no chokes and replays
+  identically.
 
 ## Open questions
 

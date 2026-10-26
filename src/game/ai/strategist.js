@@ -205,9 +205,10 @@ export class Strategist {
   halt(sq, tag) { for (const m of sq.members) if (!m.dead) { m.dest = null; m.target = null; m.path = null; } sq.tag = tag; sq.goal = null; }
   caution() {
     const enemies = this.contacts().filter(u => !u.spec.structure && !(u.spec.air && u.alt > 2));
-    // where we have seen enemy armour in the last two minutes (trapSpot lays traps where it has been)
-    const now0 = this.match.elapsed; this.armourSeen = (this.armourSeen || []).filter(s => now0 - s.t < 120);
-    for (const u of enemies) if (!u.ghost && (u.type === 'apc' || u.type === 'tank')) this.armourSeen.push({ x: u.pos.x, z: u.pos.z, t: now0 });
+    // where we have seen enemy armour in the last two minutes, while it lives (trapSpot lays traps where it has been; a
+    // vehicle that respawns is a new unit, seen afresh)
+    const now0 = this.match.elapsed; this.armourSeen = (this.armourSeen || []).filter(s => now0 - s.t < 120 && !s.u.dead);
+    for (const u of enemies) if (!u.ghost && (u.type === 'apc' || u.type === 'tank')) this.armourSeen.push({ x: u.pos.x, z: u.pos.z, t: now0, u });
     if (!enemies.length) return;
     const C = this.match.combat, now = this.match.elapsed, apcs = enemies.filter(e => e.type === 'apc' || e.type === 'tank');   // armour
     const k = this.posture === 'aggressive' ? 0.6 : this.posture === 'cautious' ? 1.3 : 1;   // posture scales every distance below
@@ -343,7 +344,8 @@ export class Strategist {
   // armour within 150 m or enemies within 40 m (the supply truck has to stand beside the engineer). Null when there is none.
   // The spot keeps 4 m more than the build rule's road clearance: the engineer starts digging within 4 m of it.
   // Where to lay tank traps: a choke the map lists (map.chokes: bridge ends, ford banks) on our side (nearer a place we hold
-  // than any place they hold, within 400 m of ours), with enemy armour seen within 600 m of it in the last two minutes, clear of other traps, of
+  // than any place they hold, within 400 m of ours), where live enemy armour has come within 200 m of it in the last two minutes
+  // (armour seen at the bridge says nothing about a ford 500 m off, and armour since destroyed threatens nothing), clear of other traps, of
   // enemies and of their armour, and not within 30 m of our own vehicles' way from home to the place we push for (traps
   // stop our vehicles too), nor where we cleared our own in the last five minutes. Two rows at most, one job every two
   // minutes. Null when there is none. ordered: a remote commander asked for traps, so no armour need have been seen.
@@ -355,7 +357,7 @@ export class Strategist {
     const rest = this.chokeRest || new Map(), resting = ([x, z]) => [...rest].some(([k, until]) => { const [rx, rz] = k.split(',').map(Number); return until > this.match.elapsed && Math.hypot(rx - x, rz - z) < 20; });
     const far = ([x, z], ls) => Math.min(Infinity, ...ls.map(l => Math.hypot(x - l.x, z - l.z)));
     const route = this.routeTo(attack);
-    return map.chokes.filter(c => far(c, ours) < 400 && far(c, ours) < far(c, theirs) && (ordered || armour.some(v => Math.hypot(v.x - c[0], v.z - c[1]) < 600)) && !resting(c)
+    return map.chokes.filter(c => far(c, ours) < 400 && far(c, ours) < far(c, theirs) && (ordered || armour.some(v => Math.hypot(v.x - c[0], v.z - c[1]) < 200)) && !resting(c)
       && !fobs.trapsAt(c[0], c[1], RULES.traps.minSpacing) && !this.enemiesNear(c[0], c[1], 50).length && !this.armourNear(c[0], c[1], 150) && !this.onRoute(route, c[0], c[1], 30))
       .sort((a, b) => far(a, ours) - far(b, ours))[0] || null;
   }

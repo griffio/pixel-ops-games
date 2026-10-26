@@ -94,8 +94,9 @@ off a road, across the way to the enemy's base), 20 supplies and 10 s. They stop
 every vehicle, both sides', and infantry walk between them: close a bridge or a ford
 and armour goes the long way round (route-finding tries the next crossing). Any
 engineer standing at a row clears it with **X** in 8 s. Up to six rows a side. The CPU
-lays them at the crossings its map lists (`chokes`) on its side, where it has seen
-enemy armour in the last two minutes and not on its own way forward, and clears the
+lays them at the crossings its map lists (`chokes`) on its side, where enemy armour
+still alive has come within 200 m in the last two minutes, and not on its own way
+forward (an LLM commander can also order them), and clears the
 enemy's near the place it pushes for and its own when they are in its way.
 
 **Rally points.** Select a squad and press **T** (or the Rally button) to drop
