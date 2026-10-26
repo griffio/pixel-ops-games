@@ -1,5 +1,6 @@
 import { RULES } from './rules.js';
 import { sandbagBoxes } from '../core/models.js';
+import { roadDist } from '../core/math.js';
 
 // Forward operating bases: an engineer within range of a supply truck that holds
 // enough supplies builds a FOB (radio + spawn point) over buildTime seconds.
@@ -20,6 +21,7 @@ export class Fobs {
     for (const s of this.sandbagsOf(eng.team)) if (Math.hypot(s.pos.x - eng.pos.x, s.pos.z - eng.pos.z) < r.minSpacing) return { ok: false, reason: `too close to another position (${r.minSpacing} m)` };
     const enemyBase = this.teams[1 - eng.team].base; if (Math.hypot(enemyBase.x - eng.pos.x, enemyBase.z - eng.pos.z) < r.enemyBaseDistance) return { ok: false, reason: 'too close to the enemy main base' };
     if (this.units.nav && this.units.nav.foot.blocked(eng.pos.x, eng.pos.z)) return { ok: false, reason: 'no room here' };
+    if (roadDist(this.world.map, eng.pos.x, eng.pos.z) < r.roadClear) return { ok: false, reason: 'too close to the road' };   // it would block our own convoys
     return { ok: true, truck };
   }
   startSandbags(eng) {

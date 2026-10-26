@@ -117,6 +117,16 @@ export function smooth(points, iterations = 2) {
   return p;
 }
 
+// Metres from the centre line of a map's road as drawn (its roadPath, smoothed); Infinity on a map without one.
+const roadLines = new WeakMap();
+export function roadDist(map, x, z) {
+  if (!map || !map.roadPath) return Infinity;
+  let P = roadLines.get(map); if (!P) roadLines.set(map, P = smooth(map.roadPath, 2));
+  let best = Infinity;
+  for (let i = 0; i < P.length - 1; i++) { const [ax, az] = P[i], [bx, bz] = P[i + 1], t = Math.max(0, Math.min(1, ((x - ax) * (bx - ax) + (z - az) * (bz - az)) / ((bx - ax) ** 2 + (bz - az) ** 2))); best = Math.min(best, Math.hypot(x - (ax + (bx - ax) * t), z - (az + (bz - az) * t))); }
+  return best;
+}
+
 // Simulation randomness goes through `rng` so a URL seed gives the same scene on
 // every back end (three.js consumes Math.random for its own object ids).
 export let rng = Math.random;

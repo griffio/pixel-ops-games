@@ -90,6 +90,14 @@ Each mode is a data object: objectives, ticket rules, timer, win checks, AI weig
   locations (Village, Hangar, Fuel Depot, Container Yard, Tower). Main bases at the
   north-west and south-east corners.
 - Maps are data: layout props, obstacles, nav grid, locations, spawn points, caches.
+- Direction for the next maps (2026-10-26; Desert Crossing is a placeholder): more
+  ways to attack each place, and chokepoints such as bridges where a route can be
+  blocked, so the player and the CPU commander face real choices about where to
+  push and where to dig in. Each place carries its own defensive positions in the
+  map data, each covering one approach, which replaces `digSpot()`'s generic
+  spots (on Desert Crossing the north-east side digs in about half as much
+  because its places sit on the road). Deliberate road blocks (tank traps, wire)
+  belong with these maps; on the open desert vehicles simply drive round.
 
 ## 2. Architecture
 
@@ -1085,6 +1093,18 @@ Engine changes needed in the existing core:
   4-0, Light over Air 4-0 (the CPU never picks Air Assault; it is a player's
   doctrine), south-west 7 and north-east 9 of 16. Four games a pairing is a
   small sample: more seeds before changing numbers on it.
+
+- **No sandbags on the road (2026-10-26).** A player could build a position
+  across the road and block their own convoys; the CPU already kept its spots
+  off it. `canBuildSandbags` now refuses within `RULES.sandbags.roadClear` (10
+  m of the centre line: 6 m half width plus the position's 4 m), with "too
+  close to the road" on the button. The road distance moved from the
+  strategist to `roadDist(map, x, z)` in core/math.js; the CPU's spots keep 4 m
+  more, since its engineer starts digging within 4 m of the spot. Same 16
+  balance matches as above: positions per match south-west 4.3 to 3.8,
+  north-east 1.9 to 2.2, no page errors. Agreed with the user: the north-east
+  imbalance is left to the map redesign (per-place defensive positions) and
+  FOB emplacements wait until after fog of war.
 
 ## Open questions
 

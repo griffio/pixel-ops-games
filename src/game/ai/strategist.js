@@ -1,5 +1,5 @@
 import { RULES } from '../rules.js';
-import { smooth } from '../../core/math.js';
+import { roadDist } from '../../core/math.js';
 
 // CPU commander v2: objective-aware manoeuvre, logistics (FOB one hop behind the
 // front) and lifts (helicopters, trucks and APCs carry squads far from the fight).
@@ -287,6 +287,7 @@ export class Strategist {
   // Where to dig in at a place we hold: up to three positions facing the enemy's side, one out in front of the middle and one on
   // each flank (scaled to the place; further spots stand in for any the road or a building takes), each 12 m or more apart; never on the road (the convoys use it), nor with enemy
   // armour within 150 m or enemies within 40 m (the supply truck has to stand beside the engineer). Null when there is none.
+  // The spot keeps 4 m more than the build rule's road clearance: the engineer starts digging within 4 m of it.
   digSpot(hold) {
     const mine = this.match.fobs.sandbagsOf(this.team), N = this.units.nav.foot;
     if (mine.filter(s => Math.hypot(s.pos.x - hold.x, s.pos.z - hold.z) < hold.r + 12).length >= 3) return null;
@@ -295,16 +296,10 @@ export class Strategist {
       let x = hold.x + (ex * a + ez * c) * k, z = hold.z + (ez * a - ex * c) * k;
       if (N.blocked(x, z)) { const cell = N.nearest(N.cellOf(x), N.cellOf(z), 6); if (!cell) continue; x = N.world(cell[0]); z = N.world(cell[1]); }
       if (N.inPocket(x, z)) continue;                                                   // somewhere the engineer can walk to
-      if (mine.some(s => Math.hypot(s.pos.x - x, s.pos.z - z) < RULES.sandbags.minSpacing + 1) || this.roadDist(x, z) < 10 || this.armourNear(x, z, 150) || this.enemiesNear(x, z, 40).length) continue;
+      if (mine.some(s => Math.hypot(s.pos.x - x, s.pos.z - z) < RULES.sandbags.minSpacing + 1) || roadDist(this.match.world.map, x, z) < RULES.sandbags.roadClear + 4 || this.armourNear(x, z, 150) || this.enemiesNear(x, z, 40).length) continue;
       return [x, z];
     }
     return null;
-  }
-  roadDist(x, z) {   // metres from the centre line of the map's road, as drawn
-    const map = this.match.world.map; if (!map || !map.roadPath) return Infinity;
-    const P = this.road || (this.road = smooth(map.roadPath, 2)); let best = Infinity;
-    for (let i = 0; i < P.length - 1; i++) { const [ax, az] = P[i], [bx, bz] = P[i + 1], t = Math.max(0, Math.min(1, ((x - ax) * (bx - ax) + (z - az) * (bz - az)) / ((bx - ax) ** 2 + (bz - az) ** 2))); best = Math.min(best, Math.hypot(x - (ax + (bx - ax) * t), z - (az + (bz - az) * t))); }
-    return best;
   }
   endLift(c) {
     const l = this.lifts.get(c); if (!l) return; this.lifts.delete(c);
