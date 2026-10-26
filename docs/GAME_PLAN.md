@@ -1456,6 +1456,29 @@ Engine changes needed in the existing core:
   is the matches diverging, not the ford rows. Desert Crossing has no chokes and replays
   identically.
 
+- **Armour jobs and lifts for the LLM commander (2026-10-26).** The user's next
+  `opus:high` game (Palm Valley, 10 calls, all thinking 124 to 566 tokens, $0.35 for 4.4
+  minutes) confirmed the logistics fix (FOB, then sandbags at Pumps, then at Bridge+42m as
+  ordered; Opus: "I won't trap Bridge itself, because it is our way to Depot"). At minute
+  3.8 Opus moved the attack to Quarry and wrote "both APCs stay at the Bridge"; armour
+  always goes to the attack, so by 4.4 one APC was 292 m off heading east and the other
+  195 m south at 79 hp. Now the plan has `vehicles`, jobs for APCs and tanks by id:
+  attack, or hold at one of our places (the plan's hold when the place is not ours); an
+  APC holding finishes a ride under way and starts none; armour left out goes with the
+  attack as before. `validatePlan` takes the digest's vehicle ids; the plan history
+  summarises armour jobs. The digest gives each vehicle's destination (`to`) and names
+  the carrier of a squad aboard ("riding AP-02", "flying in HE-01") instead of `lift`.
+  Lifts: Opus set `lift` true on a loadout with no helicopters, which looked like a
+  mistake but is not: the flag also lets APCs and troop trucks carry squads from base
+  (`ride`), and that is what carried two squads at the start. The prompt now says so (all
+  lifts start at base; squads already out walk; with no helicopter nothing flies). It also
+  states the armour distances: closes to about 70 m of the enemy at its goal, inside the
+  90 m rocket reach, and backs off to 70 m when an enemy gets within 50 m, both scaled by
+  posture (91 m and 65 m cautious). Test, Palm Valley at 2.5 minutes: AP-02 told to hold
+  Pumps drove back from the Bridge (429 m to 133 m from Pumps in 45 s); with no job it
+  turned for the attack on Mine; an unknown id was dropped. Opus, given the schema, gave
+  both APCs explicit jobs. Desert Crossing replays identically.
+
 ## Open questions
 
 

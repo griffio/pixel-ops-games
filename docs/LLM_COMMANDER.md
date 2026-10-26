@@ -35,7 +35,7 @@ That keeps the prompt the same size all match, about 1,800 tokens.
 
 ## What it decides
 
-Nine things, in a fixed JSON schema (`src/game/ai/plan.js`):
+Ten things, in a fixed JSON schema (`src/game/ai/plan.js`):
 
 1. which location to attack next;
 2. which locations to hold;
@@ -44,12 +44,15 @@ Nine things, in a fixed JSON schema (`src/game/ai/plan.js`):
    and how soon they fall back;
 5. what the engineers build next (FOB, sandbags, tank traps, nothing), done
    exactly as chosen;
-6. whether helicopters lift squads;
+6. whether vehicles carry squads from base: helicopters fly them, APCs and
+   troop trucks drive them;
 7. a condition to wait for before attacking, for example three squads
    gathered at the Village, fewer than four enemies at the objective, an APC
    alive, or a number of seconds;
 8. how soon to be asked again;
-9. jobs for individual squads: assault, hold, reserve, screen, raid, escort.
+9. jobs for individual squads: assault, hold, reserve, screen, raid, escort,
+   grab;
+10. jobs for individual APCs and tanks: go with the attack, or hold a place.
 
 It also writes one line of radio chatter for the player and a note for
 itself.

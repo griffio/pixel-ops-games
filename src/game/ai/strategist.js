@@ -126,10 +126,14 @@ export class Strategist {
     // Air Assault: one helicopter parks behind the place we're pushing for, as a spawn point
     if (this.percher && (this.percher.dead || (this.lifts.get(this.percher) || {}).stage !== 'perch')) this.percher = null;
     const front = attack || hold, perch = this.teams[this.team].doctrine.heliSpawn && front && Math.hypot(front.x - base.x, front.z - base.z) >= 300 ? this.perchAt(base, front) : null;
+    // a remote commander may give armour jobs by id: hold keeps it at one of our places (the hold when the place is not ours),
+    // anything else goes with the attack
+    const vroles = new Map(); if (adviser) for (const r of adviser.plan.vehicles || []) vroles.set(r.id, r);
     for (const v of vehicles) {
       if (v.type === 'apc' || v.type === 'tank') {
-        const goal = attack || hold; if (!goal) continue;
-        if (v.type === 'apc' && this.ride(v, free, attack, base)) continue;   // an APC leaving base takes a squad with it
+        const job = vroles.get(v.label), at = job && job.role === 'hold' ? byName(job.at) : null, keep = job && job.role === 'hold' ? (at && at.owner === this.team ? at : hold) : null;
+        const goal = keep || attack || hold; if (!goal) continue;
+        if (v.type === 'apc' && (!keep || this.lifts.has(v)) && this.ride(v, free, attack, base)) continue;   // an APC leaving base takes a squad with it (one holding finishes a drop under way, then starts none)
         const standoff = v.type === 'tank' ? 90 : 70;   // the tank's gun reaches 200 m: it stands further off
         const foes = this.enemiesNear(goal.x, goal.z, goal.r + 40), c = this.cluster(foes);
         let x, z;

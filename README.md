@@ -407,7 +407,8 @@ with what followed each (ticket swing, captures, losses, casualties), and the
 model's own notes from last time) to `/commander` and gets back a plan in a fixed schema
 (`src/game/ai/plan.js`: the next location to attack, locations to hold, attack
 share, posture, what to build (a FOB, sandbags, tank traps or nothing, carried out
-exactly), whether to use lifts, a line of radio chatter
+exactly), whether vehicles may carry squads from base (helicopters fly them, APCs
+and troop trucks drive them), a line of radio chatter
 that appears in the feed, notes to itself for the next call, how many seconds
 until it wants to be consulted again, and optionally a condition to wait for
 before attacking: squads gathered at a staging location, few enemies near the
@@ -418,7 +419,9 @@ and jobs for particular squads by id: assault, hold or reserve at a location,
 screen 50 m out from it towards the enemy, raid the nearest enemy FOB,
 escort the supply truck, or grab a place the digest marks grabbable (one it can
 take with no enemy it knows of in or near it; a grab anywhere else leaves that squad
-to the attack share), with squads left out following the attack share). The strategist follows the plan while it is
+to the attack share), with squads left out following the attack share; and jobs for
+APCs and tanks by id: attack, or hold at one of its locations, with armour left out
+going with the attack). The strategist follows the plan while it is
 under 90 seconds old and its own goals otherwise, and every call is
 asynchronous, so a slow or failing endpoint never stalls the match. The posture
 scales the caution distances (cautious keeps 1.3× the distance, aggressive

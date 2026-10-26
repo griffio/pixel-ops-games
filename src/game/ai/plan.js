@@ -5,6 +5,7 @@ export const POSTURES = ['cautious', 'balanced', 'aggressive'];
 export const LOGISTICS = ['fob', 'sandbags', 'traps', 'none'];
 export const WAITS = ['none', 'squadsAt', 'enemyBelow', 'apcAlive', 'seconds'];
 export const ROLES = ['assault', 'hold', 'reserve', 'screen', 'raid', 'escort', 'grab'];
+export const VROLES = ['attack', 'hold'];   // jobs for armour (APCs and tanks)
 
 export const PLAN_SCHEMA = {
   type: 'object', additionalProperties: false,
@@ -14,7 +15,7 @@ export const PLAN_SCHEMA = {
     attackShare: { type: 'number', minimum: 0, maximum: 1, description: 'fraction of free squads committed to the attack' },
     posture: { type: 'string', enum: POSTURES, description: 'cautious keeps more distance and falls back sooner; aggressive closes in and holds ground' },
     logistics: { type: 'string', enum: LOGISTICS, description: 'what the engineer and supply truck do, followed exactly: fob (a FOB behind the front, sandbags when no kit or site is left), sandbags (positions at the first place we hold), traps (a row of tank traps at a river crossing or bridge end on our side, off our own vehicles\' way forward), none' },
-    lift: { type: 'boolean', description: 'use helicopters to lift squads to distant objectives' },
+    lift: { type: 'boolean', description: 'let vehicles carry squads that are at base toward the attack: helicopters fly them near distant objectives, APCs and troop trucks drive them; squads already out walk' },
     reason: { type: 'string', maxLength: 160, description: 'one line of radio chatter explaining the plan, shown to the player' },
     notes: { type: 'string', maxLength: 300, description: 'your own notes for next time: what you intend over the next minutes and why; they come back to you unchanged' },
     nextReviewIn: { type: 'integer', minimum: 10, maximum: 60, description: 'seconds until you want to be consulted again: short while things are fluid, long when a plan needs time to work' },
@@ -37,12 +38,22 @@ export const PLAN_SCHEMA = {
       } },
       description: 'jobs for particular squads; squads left out follow attackShare. Leave the engineer squad to logistics',
     },
+    vehicles: {
+      type: 'array', maxItems: 6,
+      items: { type: 'object', additionalProperties: false, required: ['id', 'role'], properties: {
+        id: { type: 'string', description: 'an APC or tank id from the digest, e.g. AP-02' },
+        role: { type: 'string', enum: VROLES, description: 'attack: go with the attack, closing to about 70 m of the enemy near the objective (an APC leaving base carries a squad when lift is on). hold: stay at location at (ours) and fight what comes near it' },
+        at: { type: 'string', description: 'location name for hold' },
+      } },
+      description: 'jobs for our APCs and tanks by id; armour left out goes with the attack, or to the first hold when attack is none',
+    },
   },
-  required: ['attack', 'hold', 'attackShare', 'posture', 'logistics', 'lift', 'reason', 'notes', 'nextReviewIn', 'waitFor', 'squads'],
+  required: ['attack', 'hold', 'attackShare', 'posture', 'logistics', 'lift', 'reason', 'notes', 'nextReviewIn', 'waitFor', 'squads', 'vehicles'],
 };
 
-// A clean plan or null. `names` are the location names the digest offered, `squadIds` our squad ids; anything else is dropped.
-export function validatePlan(p, names, squadIds = null) {
+// A clean plan or null. `names` are the location names the digest offered, `squadIds` our squad ids, `vehicleIds` our
+// vehicle ids; anything else is dropped.
+export function validatePlan(p, names, squadIds = null, vehicleIds = null) {
   if (!p || typeof p !== 'object') return null;
   const name = (v) => (typeof v === 'string' && names.includes(v.trim())) ? v.trim() : null;
   const attack = name(p.attack);
@@ -67,6 +78,11 @@ export function validatePlan(p, names, squadIds = null) {
     if (!s || typeof s.id !== 'string' || !ROLES.includes(s.role) || seen.has(s.id) || (squadIds && !squadIds.includes(s.id))) continue;
     seen.add(s.id); const at = name(s.at); squads.push(at ? { id: s.id, role: s.role, at } : { id: s.id, role: s.role }); if (squads.length >= 8) break;
   }
+  const vseen = new Set(), vehicles = [];
+  if (Array.isArray(p.vehicles)) for (const v of p.vehicles) {
+    if (!v || typeof v.id !== 'string' || !VROLES.includes(v.role) || vseen.has(v.id) || (vehicleIds && !vehicleIds.includes(v.id))) continue;
+    vseen.add(v.id); const at = name(v.at); vehicles.push(at ? { id: v.id, role: v.role, at } : { id: v.id, role: v.role }); if (vehicles.length >= 6) break;
+  }
   if (!attack && !hold.length) return null;
-  return { attack, hold, attackShare: +share.toFixed(2), posture, logistics, lift, reason, notes, nextReviewIn, waitFor, squads };
+  return { attack, hold, attackShare: +share.toFixed(2), posture, logistics, lift, reason, notes, nextReviewIn, waitFor, squads, vehicles };
 }
