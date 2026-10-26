@@ -32,7 +32,7 @@ export const PLAN_SCHEMA = {
       type: 'array', maxItems: 8,
       items: { type: 'object', additionalProperties: false, required: ['id', 'role'], properties: {
         id: { type: 'string', description: 'a squad id from the digest, e.g. SQ-11' },
-        role: { type: 'string', enum: ROLES, description: 'assault: join the attack. hold: stand at location at (ours). reserve: wait near at behind the front, not drawn into attacks. screen: overwatch position 50 m out from at towards the enemy. raid: go for the nearest enemy FOB. escort: stay with the supply truck. grab: take location at, a capturable place no enemy holds or guards, on its own' },
+        role: { type: 'string', enum: ROLES, description: 'assault: join the attack. hold: stand at location at (ours). reserve: wait near at behind the front, not drawn into attacks. screen: overwatch position 50 m out from at towards the enemy. raid: go for the nearest enemy FOB. escort: stay with the supply truck. grab: take location at on its own, only where the digest marks it grabbable (no enemy we know of in or near it); a grab anywhere else is ignored and the squad follows attackShare' },
         at: { type: 'string', description: 'location name for hold, reserve, screen and grab' },
       } },
       description: 'jobs for particular squads; squads left out follow attackShare. Leave the engineer squad to logistics',

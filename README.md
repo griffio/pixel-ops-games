@@ -414,8 +414,9 @@ seconds, gathers the squads meanwhile, and gives up waiting after two minutes.
 A location changing hands or one of its APCs dying triggers a review at once;
 and jobs for particular squads by id: assault, hold or reserve at a location,
 screen 50 m out from it towards the enemy, raid the nearest enemy FOB,
-escort the supply truck, or grab a capturable place no enemy holds or guards,
-with squads left out following the attack share). The strategist follows the plan while it is
+escort the supply truck, or grab a place the digest marks grabbable (one it can
+take with no enemy it knows of in or near it; a grab anywhere else leaves that squad
+to the attack share), with squads left out following the attack share). The strategist follows the plan while it is
 under 90 seconds old and its own goals otherwise, and every call is
 asynchronous, so a slow or failing endpoint never stalls the match. The posture
 scales the caution distances (cautious keeps 1.3× the distance, aggressive

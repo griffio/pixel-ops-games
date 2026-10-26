@@ -1396,6 +1396,20 @@ Engine changes needed in the existing core:
   squads to grab Kasbah and Quarry, both enemy-held, against the role's description. The
   Worker bundle is 971 KB (171 KB gzipped) with the SDK.
 
+- **Grab jobs only at free places (2026-10-26).** Sonnet sent two MG squads to grab
+  Kasbah and Quarry, both enemy-held, and the strategist carried it out: its check only
+  asked that the place be capturable and not ours, so each squad attacked a held place
+  alone. A commander's grab is now accepted only where the strategist's own free-place
+  test passes (`grabsFor`: capturable, not the attack, not contested, no enemy known
+  within 60 m, no armour within 120 m, and an enemy-held place only if seen empty in the
+  last 30 s). Anywhere else the squad joins the attack-share pool instead of holding at
+  the hold (the old fallback). The digest marks those places `grabbable`, and the system
+  prompt and the role's schema description say a grab elsewhere is ignored. The utility
+  commander's grabs come from the same test, so Desert Crossing's 16 matches replay
+  identically. Check in Palm Valley at 5 minutes: a grab at enemy-held Kasbah (attack
+  Depot) left the squad to the pool (hold), one at Quarry (marked grabbable) went as
+  `grab`.
+
 ## Open questions
 
 

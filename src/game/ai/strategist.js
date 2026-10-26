@@ -86,6 +86,7 @@ export class Strategist {
     const raid = (sq) => { if (enemyFob) this.send(sq, enemyFob.pos.x, enemyFob.pos.z, 'raid'); else attackWith(sq); };
     const escort = (sq) => { const truck = vehicles.filter(v => v.supply && !v.dead).sort((p, q) => Math.hypot(p.pos.x - sq.centroid().x, p.pos.z - sq.centroid().z) - Math.hypot(q.pos.x - sq.centroid().x, q.pos.z - sq.centroid().z))[0]; if (!truck) return holdAt(sq, hold); this.send(sq, truck.pos.x + 4, truck.pos.z - 4, 'escort'); };
     // a remote commander may give squads jobs by id; the rest follow the attack share
+    const grabbable = this.grabsFor(attack);   // places a squad may take on its own
     const roles = new Map(); if (adviser) for (const r of adviser.plan.squads || []) roles.set(r.id, r);
     const assigned = free.filter(sq => roles.has(sq.leader.label)), rest = free.filter(sq => !roles.has(sq.leader.label));
     for (const sq of assigned) {
@@ -96,13 +97,13 @@ export class Strategist {
       else if (r.role === 'screen') screenAt(sq, ours || hold);
       else if (r.role === 'raid') raid(sq);
       else if (r.role === 'escort') escort(sq);
-      else if (r.role === 'grab') { const l = at && at.owner !== this.team && o2.capturable(this.team, at) ? at : null; if (l) { const [x, z] = this.inZone(l.x, l.z, l, 0.6); this.send(sq, x, z, 'grab' + l.index, l); } else holdAt(sq, hold); }   // take a free place
+      else if (r.role === 'grab') { if (grabbable.includes(at)) { const [x, z] = this.inZone(at.x, at.z, at, 0.6); this.send(sq, x, z, 'grab' + at.index, at); } else rest.push(sq); }   // a free place only: anywhere else (held, guarded, the attack itself) it would be one squad attacking alone, so it joins the attack share
       else attackWith(sq);
     }
     // free places: another place we can take that no enemy we know of holds or is near gets a squad of its own (the nearest
     // free one, or the one already on its way), so on a lattice with several ways forward the side spreads out instead of
     // sending everyone at one place; at least two squads stay for the attack and the holds
-    for (const l of this.grabsFor(attack)) {
+    for (const l of grabbable) {
       if (rest.length < 3) break;
       const key = 'grab' + l.index, d = (s) => { const c = s.centroid(); return Math.hypot(c.x - l.x, c.z - l.z); };
       const sq = rest.find(s => s.tag === key) || [...rest].sort((a, b) => d(a) - d(b))[0];
