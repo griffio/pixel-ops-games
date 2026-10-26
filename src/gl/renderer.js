@@ -195,8 +195,9 @@ export class GLRenderer {
       gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR); gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.LINEAR);
       gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE); gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
     }
-    gl.bindTexture(gl.TEXTURE_2D, this.fogTex); gl.pixelStorei(gl.UNPACK_ALIGNMENT, 1);
-    gl.texSubImage2D(gl.TEXTURE_2D, 0, 0, 0, n, n, gl.RED, gl.UNSIGNED_BYTE, data); gl.pixelStorei(gl.UNPACK_ALIGNMENT, 4);
+    // rows go up in z as uploaded: the image textures leave UNPACK_FLIP_Y on, which would mirror the grid north to south
+    gl.bindTexture(gl.TEXTURE_2D, this.fogTex); gl.pixelStorei(gl.UNPACK_ALIGNMENT, 1); gl.pixelStorei(gl.UNPACK_FLIP_Y_WEBGL, false);
+    gl.texSubImage2D(gl.TEXTURE_2D, 0, 0, 0, n, n, gl.RED, gl.UNSIGNED_BYTE, data); gl.pixelStorei(gl.UNPACK_ALIGNMENT, 4); gl.pixelStorei(gl.UNPACK_FLIP_Y_WEBGL, true);
     this.fog = { inv: 1 / (n * cell), off: half / (n * cell) };
   }   // { splat, base, tiles:[4 names], tileSize:[4], baseSize, mapSize }
 

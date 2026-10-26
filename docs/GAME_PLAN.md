@@ -1188,6 +1188,19 @@ Engine changes needed in the existing core:
   commander stub, stepped in chunks so its replies land: 38 plans answered
   and applied, no errors. The balance check is stage 2's.
 
+- **Fog fixes after the first deploy (2026-10-26).** The user saw their own
+  area grey while the minimap showed it lit: the image textures leave
+  `UNPACK_FLIP_Y_WEBGL` on, so the fog grid went up mirrored north to south
+  (the headless checks looked at the Village, which sits on the mirror line).
+  `setFog` now uploads with the flip off. The fixed view then showed big blocky
+  shadows: any tall box blocked its whole 8 m cell, so a 0.6 m floodlight pole
+  cast the shadow of an 8 m wall (282 of the 574 tall boxes are under 2 m
+  across). A cell now blocks sight when tall boxes cover an eighth of it
+  (8 m2): house walls (1 m thick) and container stacks block, poles and spaced
+  posts do not; 163 cells block across the map. The CPU's vision always ran the
+  right way round; the blocking change touches it: 16 default matches, no
+  errors, captures 5.5 a match (5.4), infantry deaths 323 (291).
+
 ## Open questions
 
 

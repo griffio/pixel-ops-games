@@ -19,15 +19,24 @@ export class Vision {
     this.stamp = [new Int32Array(this.n * this.n), new Int32Array(this.n * this.n)]; this.gen = 0;
     this.cache = new Map(); this.ghosts = [new Map(), new Map()]; this.mark = new Int32Array(this.n * this.n); this.markGen = 0;
     this.t = 0; this.acc = V.every;   // the first tick looks at once
-    // the ground at each cell's centre, and tall obstacles (combat's line-of-sight boxes, 1.5 m and up) as the highest top in it
-    const n = this.n, ground = this.ground = new Float32Array(n * n);
-    for (let cz = 0; cz < n; cz++) for (let cx = 0; cx < n; cx++) ground[cz * n + cx] = combat.groundAt((cx + 0.5) * this.cell - this.half, (cz + 0.5) * this.cell - this.half);
-    const top = this.top = new Float32Array(n * n).fill(-Infinity), ci = (v) => Math.max(0, Math.min(this.n - 1, Math.floor((v + this.half) / this.cell)));
+    // the ground at each cell's centre, and tall obstacles (combat's line-of-sight boxes, 1.5 m and up) as the highest top in
+    // it, where they cover an eighth of the cell or more (8 m2): a house wall (houses are walls 1 m thick) or a container stack
+    // blocks the view, a lamp post or a fence post does not (a whole cell would make a 0.6 m pole an 8 m wall; combat's own
+    // line of sight stays exact)
+    const n = this.n, c = this.cell, ground = this.ground = new Float32Array(n * n);
+    for (let cz = 0; cz < n; cz++) for (let cx = 0; cx < n; cx++) ground[cz * n + cx] = combat.groundAt((cx + 0.5) * c - this.half, (cz + 0.5) * c - this.half);
+    const top = this.top = new Float32Array(n * n).fill(-Infinity), cover = new Float32Array(n * n), ci = (v) => Math.max(0, Math.min(n - 1, Math.floor((v + this.half) / c)));
+    const highest = new Float32Array(n * n).fill(-Infinity);
     for (const o of world.obstacles) {
       const h = o.h === undefined ? 2 : o.h; if (h < 1.5) continue;
       const y = combat.groundAt((o.minX + o.maxX) / 2, (o.minZ + o.maxZ) / 2) + h;
-      for (let cz = ci(o.minZ); cz <= ci(o.maxZ); cz++) for (let cx = ci(o.minX); cx <= ci(o.maxX); cx++) { const k = cz * this.n + cx; if (y > top[k]) top[k] = y; }
+      for (let cz = ci(o.minZ); cz <= ci(o.maxZ); cz++) for (let cx = ci(o.minX); cx <= ci(o.maxX); cx++) {
+        const x0 = cx * c - this.half, z0 = cz * c - this.half, k = cz * n + cx;
+        cover[k] += Math.max(0, Math.min(o.maxX, x0 + c) - Math.max(o.minX, x0)) * Math.max(0, Math.min(o.maxZ, z0 + c) - Math.max(o.minZ, z0));
+        if (y > highest[k]) highest[k] = y;
+      }
     }
+    for (let k = 0; k < n * n; k++) if (cover[k] >= c * c / 8) top[k] = highest[k];
   }
   cellOf(x, z) { const n = this.n, cx = Math.floor((x + this.half) / this.cell), cz = Math.floor((z + this.half) / this.cell); return cx < 0 || cz < 0 || cx >= n || cz >= n ? -1 : cz * n + cx; }
   sight(u) { const S = RULES.vision.sight; return u.spec.air && u.alt > 2 ? S.air : S[u.type] || 0; }
