@@ -20,11 +20,11 @@ const PAGES = [
   { title: 'Controls', body: (t, k) => t ? `
     <p><b>Tap</b> a unit to select it, <b>tap the ground</b> to move there, <b>tap an enemy</b> to attack-move onto it. <b>Hold</b>, then drag, for a selection box.</p>
     <p><b>Drag</b> to pan, <b>pinch</b> to zoom, <b>twist</b> to rotate, <b>three fingers</b> to tilt.</p>
-    <p>Tap one of <b>your vehicles</b> with soldiers selected to board it, or your <b>sandbags</b> to man them. The buttons under the selection build a FOB, dig in, drop a rally point, unload.</p>
+    <p>To board, select soldiers, press <b>Load</b>, then tap one of <b>your vehicles</b> (or hold on the vehicle). Tapping a vehicle otherwise just selects it. Tap your <b>sandbags</b> with soldiers selected to man them. The buttons under the selection load, build a FOB, dig in, drop a rally point, unload.</p>
     <p>Bottom bar: Box, Clear, Follow, Pause, Base (the camera to your base), sound, and ? for this manual.</p>` : `
     <p><b>Left click</b> select, drag for a box. <b>Right click</b> the ground to move, an enemy to attack-move onto it, one of <b>your vehicles</b> to board it, your <b>sandbags</b> to man them.</p>
     <p><b>WASD</b> or the screen edge pans, <b>wheel</b> zooms, <b>Q E</b> or right-drag rotates, middle-drag pans. <b>F</b> follows the selection, <b>R</b> resets the view, <b>Space</b> pauses, <b>Esc</b> clears the selection, <b>M</b> sound.</p>
-    <p><b>B</b> build a FOB, <b>N</b> dig a sandbag position, <b>X</b> lay or clear tank traps, <b>T</b> drop a rally point, <b>U</b> unload a vehicle or leave a position, <b>H</b> this manual. The buttons under the selection do the same.</p>` },
+    <p><b>L</b> load the selected soldiers into the vehicle you click next, <b>B</b> build a FOB, <b>N</b> dig a sandbag position, <b>X</b> lay or clear tank traps, <b>T</b> drop a rally point, <b>U</b> unload a vehicle or leave a position, <b>H</b> this manual. The buttons under the selection do the same.</p>` },
   { title: 'Squads', body: (t, k) => `
     <p>Squads of four, each man with a kit: <b>rifle</b>; <b>machine gun</b>, which pins a squad down; <b>anti-tank</b>, rockets that kill vehicles from 90 m; <b>medic</b>, who revives a fallen squadmate within ${REVIVE_WINDOW} s; <b>engineer</b>, who repairs vehicles and builds FOBs and sandbags; <b>marksman</b>, who picks off infantry at 110 m.</p>
     <p>Soldiers kneel to shoot and go flat under heavy fire. A <b>suppressed</b> squad shoots badly and crawls: machine guns and explosions do that.</p>
@@ -43,7 +43,7 @@ const PAGES = [
     <p><b>Tank traps</b>: an engineer next to a supply truck (${TT.supplyCost} supplies): ${k('X', 'Tank traps')} lays a row of steel hedgehogs, 15 m, across the road he stands on, in ${TT.buildTime} s. They stop <b>every</b> vehicle, yours too; infantry walk between them. Close a bridge or a ford and armour has to go the long way round. Up to ${TT.max} rows.</p>
     <p>Any engineer standing at a row clears it, yours or theirs: ${k('X', 'Clear traps')}, ${TT.clearTime} s. The enemy lays them at crossings on its side when your armour is about, and clears its own when it wants to push through.</p>` },
   { title: 'Transport', body: (t, k) => `
-    <p>Trucks carry 8, APCs 4, helicopters 8. Select soldiers and ${t ? 'tap' : 'right-click'} one of your vehicles to board it. Move the vehicle; the passengers get out where it stops, or press ${k('U', 'Unload')}. A helicopter has to land first.</p>
+    <p>Trucks carry 8, APCs 4, helicopters 8. Select soldiers, press ${k('L', 'Load')} and ${t ? 'tap' : 'click'} one of your vehicles${t ? ' (or hold on it)' : ' (or right-click it)'}: they walk over and get in, and the vehicle is selected, ready to drive. Selecting soldiers and the vehicle together and pressing ${k('L', 'Load')} boards at once. Move the vehicle; the passengers get out where it stops, or press ${k('U', 'Unload')}. A helicopter has to land first.</p>
     <p><b>Supply trucks</b> carry supplies, not troops: ${F.truckSupplies} each, refilled at your main base. FOBs and sandbags are built from them.</p>
     <p>On Palm Valley vehicles cannot use the footbridge, and everyone wades the ford at half speed.</p>` },
   { title: 'Vehicles', body: (t, k) => `
@@ -119,7 +119,7 @@ export class Guide {
     const far = squads.find(sq => { const c = sq.centroid(); return Math.hypot(c.x - base.x, c.z - base.z) > 250 && !(sq.rally && !sq.rally.dead); });
     if (far && this.hint('rally', `This squad is a long walk from your base. ${k('T', 'Rally')} drops a rally point: its men come back here every ${RA.wave} s instead.`, 3)) return;
     const ride = soldiers.length && U.find(v => mine(v) && v.seats && !v.supply && v.passengers.length < v.seats && soldiers.some(s => near(s, v, 40)));
-    if (ride && this.hint('board', `${t ? 'Tap' : 'Right-click'} the ${ride.type === 'heli' ? 'helicopter' : ride.type === 'apc' ? 'APC' : 'truck'} to put the squad aboard; select it and ${k('U', 'Unload')} to let them out.`, 5)) return;
+    if (ride && this.hint('board', `${k('L', 'Load')}, then ${t ? 'tap' : 'click'} the ${ride.type === 'heli' ? 'helicopter' : ride.type === 'apc' ? 'APC' : 'truck'}, puts the squad aboard; ${k('U', 'Unload')} lets them out.`, 5)) return;
     const bags = soldiers.length && U.find(s => mine(s) && s.type === 'sandbags' && s.freeSlots === 4 && soldiers.some(u => near(u, s, 30)));   // an empty position close by
     if (bags && this.hint('man', `${t ? 'Tap' : 'Right-click'} the sandbag position to man it: men in it are much harder to hit.`, 4)) return;
     if (U.some(u => !u.dead && u.team !== me && (u.type === 'apc' || u.type === 'tank') && sees(u)) && this.hint('armour', `Enemy armour. Only anti-tank rockets hurt it, from 90 m; keep other squads in cover.`, 6)) return;

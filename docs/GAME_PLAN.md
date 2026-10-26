@@ -1498,6 +1498,34 @@ Engine changes needed in the existing core:
   flipped either way; Desert Crossing's 16: 10 identical, no winner changed, 6-10 by base
   as before.
 
+- **Load button (2026-10-26).** The user: on a touch screen, with a squad selected, a tap
+  on an APC or helicopter boarded it, so the vehicle could not be selected without
+  clearing the selection first. A tap on one of our vehicles now always selects it.
+  Boarding: select soldiers, **Load** (button under the selection, or L), then tap or
+  click the vehicle: the squads walk to it, and the vehicle becomes the selection, ready
+  to drive. Soldiers selected together with a vehicle that has room board it at once on
+  Load. Load again or Esc cancels, as does a pick that is not one of our vehicles with a
+  free seat. Right-click (mouse) and a hold (touch) on a vehicle still board directly.
+  The field manual, the boarding hint and the README say so. Tested in headless Chrome
+  through the tap handler (software GL frames are slow enough there that a synthetic
+  40 ms tap fires as a hold): tap squad, tap APC (APC selected, nobody boards), squad,
+  Load, tap APC (four boarding, APC selected), Load and a tap on the ground (cancelled,
+  no move), squad and APC selected together then Load (boards at once), Load then Esc
+  (cancelled); `tools/touch-test.mjs` passes (on a profile that has seen the briefing:
+  on a fresh one the briefing covers the canvas).
+
+- **HUD: messages above the selection panel (2026-10-26).** The user: game messages
+  and the unit action panel sat on top of each other. Screenshots (iPad 1180x820 touch,
+  1440x900 desktop, engineer squad selected) showed three overlaps: the toast drawn
+  across the action buttons or the panel title, the onboarding hint (bottom left) over
+  the panel's left end on the iPad, and the key/gesture help under its left edge. Now
+  the toast and the selection panel share a bottom-centre dock (`#dock`, a column: the
+  toast always just above the panel), kept clear of the minimap on the right; the key
+  help hides while something is selected (`body.sel`, set by `showSelection`) and the
+  dock drops into its place; the hint moved to the left side below the stats panel (top
+  150 px on touch). Measured after: no overlaps with or without a selection on either
+  layout; the iPad panel fits its five buttons on one row.
+
 ## Open questions
 
 

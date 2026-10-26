@@ -243,7 +243,8 @@ export class Hud {
   toast(msg) { const t = $('toast'); t.textContent = msg; t.style.opacity = 1; clearTimeout(this.tt); this.tt = setTimeout(() => t.style.opacity = 0, 1400); }
 
   showSelection(list) {
-    const el = $('selinfo'); if (!list.length) { el.style.display = 'none'; return; }
+    const el = $('selinfo'); document.body.classList.toggle('sel', list.length > 0);   // the key help hides and the dock drops into its place
+    if (!list.length) { el.style.display = 'none'; return; }
     el.style.display = 'block';
     const types = {}; for (const u of list) types[u.type] = (types[u.type] || 0) + 1;
     const desc = Object.entries(types).map(([k, v]) => `${v} ${k}${v > 1 ? 's' : ''}`).join(', ');
@@ -268,6 +269,12 @@ export class Hud {
       const cl = m.fobs.canClear(eng), c = cl.ok ? cl : m.fobs.canBuildTraps(eng);
       box.insertAdjacentHTML('beforeend', `<button data-act="traps" ${c.ok ? '' : 'disabled'} title="${c.reason || ''}">${cl.ok ? 'Clear traps' : 'Tank traps'} (X)${c.ok ? '' : ' · ' + c.reason}</button>`);
     }
+    // boarding: Load, then the vehicle (at once into one selected with them)
+    const me = this.app.playerTeam ?? 0, inp = this.app.input;
+    if (list.some(u => u.type === 'soldier' && !u.dead && !u.mounted && u.team === me)) {
+      const room = this.app.units.units.some(v => v.seats && v.team === me && !v.dead && v.passengers.length < v.seats);
+      box.insertAdjacentHTML('beforeend', `<button data-act="load" class="${inp && inp.loading ? 'on' : ''}" ${room ? '' : 'disabled title="No vehicle with a free seat"'}>${inp && inp.loading ? `${this.app.touch ? 'Tap' : 'Click'} a vehicle (cancel)` : 'Load (L)'}${room ? '' : ' · no free seat'}</button>`);
+    }
     const car = list.find(u => u.seats && !u.dead && u.passengers.length);
     if (car) box.insertAdjacentHTML('beforeend', `<button data-act="unload" ${car.alt > 0.5 ? 'disabled' : ''}>Unload ${car.passengers.length} (U)</button>`);
     else if (list.some(u => u.post && !u.dead)) box.insertAdjacentHTML('beforeend', `<button data-act="unload">Leave position (U)</button>`);
@@ -276,6 +283,7 @@ export class Hud {
   }
   action(kind) {
     const m = this.app.match, sel = this.app.input.selected; if (!m) return;
+    if (kind === 'load') { this.app.input.startLoad(); return; }
     if (kind === 'fob') { const eng = sel.find(u => u.kit === 'engineer' && !u.dead); if (!eng) return this.toast('Select an engineer'); const r = m.fobs.startBuild(eng); this.toast(r.ok ? `Building FOB, ${Math.round(r.build.total)} s` : r.reason); if (this.app.audio) { this.app.audio.ui(r.ok ? 'order' : 'deny'); if (r.ok) this.app.audio.foley('dig', eng.pos.x, eng.pos.z); } }
     if (kind === 'traps') {   // at a row of traps an engineer clears it; anywhere else he lays one
       const eng = sel.find(u => u.kit === 'engineer' && !u.dead); if (!eng) return this.toast('Select an engineer');

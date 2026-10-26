@@ -1,7 +1,7 @@
 // Touch gestures layered on Input. One finger: drag pans (with a fling), a tap on a
-// friendly unit selects it, a tap anywhere else orders the selection there (an enemy:
-// attack-move; a friendly helicopter, truck or APC with infantry selected: board), a hold does the same, and a hold with
-// nothing selected starts a box select. The toolbar's Clear drops the selection. Two fingers: pinch zoom about the
+// friendly unit selects it (a vehicle too: Load in the selection panel, then a tap on the vehicle, boards it), a tap
+// anywhere else orders the selection there (an enemy: attack-move; our sandbags: man them), a hold does the same and
+// boards a vehicle held, and a hold with nothing selected starts a box select. The toolbar's Clear drops the selection. Two fingers: pinch zoom about the
 // midpoint, twist to rotate, midpoint drag pans. Three fingers: drag up/down to tilt.
 // Pens follow the one-finger rules. Camera changes made by gestures apply at once
 // (no smoothing) so the ground stays under the fingers.
@@ -111,11 +111,13 @@ export class TouchInput {
   tap(p, now) {
     const [nx, ny] = this.norm(p.x, p.y), inp = this.input, me = this.app.playerTeam ?? 0;
     const u = this.app.pick(nx, ny, PICK_RADIUS);
+    if (inp.loading) { inp.loadInto(u); if (navigator.vibrate) navigator.vibrate(10); return; }   // after Load the tap picks the vehicle
     if (u && u.team === me && this.lastTap && this.lastTap.u === u && now - this.lastTap.t < this.doubleMs) { inp.selectType(u.type); this.lastTap = null; return; }   // double-tap: all of that type on screen
     this.lastTap = { t: now, u };
-    // with units selected, a tap off our own units is an order (boarding a carrier or manning sandbags counts as an order too)
-    const board = inp.canBoard(u) || inp.canMan(u) || inp.canMan(inp.postAt(nx, ny));
-    if (inp.selected.length && (!u || u.team !== me || board)) { inp.issueOrder(nx, ny, PICK_RADIUS); if (navigator.vibrate) navigator.vibrate(10); return; }
+    // with units selected, a tap off our own units is an order (manning our sandbags counts as one); a tap on one of our
+    // vehicles selects it, so a squad's selection never stands in the way of picking the APC
+    const man = inp.canMan(u) || inp.canMan(inp.postAt(nx, ny));
+    if (inp.selected.length && (!u || u.team !== me || man)) { inp.issueOrder(nx, ny, PICK_RADIUS); if (navigator.vibrate) navigator.vibrate(10); return; }
     inp.clickSelect(nx, ny, false, PICK_RADIUS);
     if (u && u.team === me && !this.hinted) { this.hinted = true; this.app.hud.toast('Tap the ground to move there'); }
   }

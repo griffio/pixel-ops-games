@@ -113,7 +113,10 @@ area they were sent to, so expect to hunt them. Destroying a FOB radio costs its
 
 **Transport.** Helicopters and trucks carry eight soldiers (two squads), an APC
 four (one squad); a supply truck carries cargo, not troops. With infantry
-selected, right-click (or tap) a friendly helicopter, truck or APC: the soldiers
+selected, press **L** (or the Load button) and click or tap a friendly helicopter,
+truck or APC, or right-click it (on a touch screen, hold on it; a plain tap on a
+vehicle selects it). Infantry and a vehicle selected together board at once on
+**L**. After Load the vehicle becomes the selection, ready to drive. The soldiers
 walk to it (a ground vehicle's tail) and get in once it has stopped or landed, and
 anyone past the seats stays behind. Order the vehicle somewhere and they get out
 where it stops, or where a helicopter lands; **U** (or the Unload button) lets
@@ -210,6 +213,7 @@ off. On a touch screen both name the buttons instead of the keys
 |---|---|
 | Left click / drag | Select unit or squad / box-select |
 | Right click | Move order (selected squads and vehicles move in formation); on a friendly carrier, board it; on a friendly sandbag position, man it |
+| `L` | Load: the selected soldiers board the vehicle clicked next (or the one selected with them); `L` again or `Esc` cancels |
 | `U` | Unload a selected carrier, or take selected soldiers out of their sandbag position |
 | `H` | Open or close the field manual (pauses the game) |
 | `X` | With an engineer selected: lay a row of tank traps (beside a supply truck), or clear the row he stands at |
