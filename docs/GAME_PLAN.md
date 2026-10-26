@@ -1067,6 +1067,25 @@ Engine changes needed in the existing core:
   trucks lost; seven full matches went to time with Balanced v Armoured 2-2,
   Balanced v Mechanized 1-1, Balanced over Light.
 
+- **Balance runs (2026-10-26).** `tools/balance.mjs` plays CPU-vs-CPU matches to
+  the end in headless Chrome, several at once, and prints each result and win
+  tables per pairing, per preset and per base. The page's own loop never runs:
+  the tool steps the simulation in one synchronous block, about a minute per
+  25-minute match, 16 matches in under four minutes twelve at a time. A seed
+  replays the same match: Math.random is seeded before the page loads and both
+  random sources are reseeded as the match starts, and sound is off (its rate
+  limit runs on the audio clock, which is real time, and it draws random
+  numbers). The turret's idle scan used `performance.now()` and decides when a
+  turret can fire; it now runs on simulation time. Checked with 48 copies of
+  one seed (twelve at a time, interpreter-only V8 too) and six full matches run
+  twice: all identical. Early test runs that did diverge are put down to
+  Chrome processes left by crashed runs holding the debugging ports; the tool
+  now refuses a port that is in use. Default set, both bases, seeds 1-2:
+  Armoured v Balanced 2-2, Balanced over Mechanized 3-1, Mechanized over Light
+  4-0, Light over Air 4-0 (the CPU never picks Air Assault; it is a player's
+  doctrine), south-west 7 and north-east 9 of 16. Four games a pairing is a
+  small sample: more seeds before changing numbers on it.
+
 ## Open questions
 
 

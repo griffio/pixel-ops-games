@@ -411,5 +411,18 @@ node tools/match-test.mjs 'http://localhost:8787/?cpu=both&loadout=balanced&cpul
 node tools/touch-test.mjs 'http://localhost:8787/?mobile=1&cpu=none&loadout=balanced&seed=5' 9341 /tmp/touch-profile shot.png
 ```
 
+**Balance runs.** `tools/balance.mjs` plays CPU-vs-CPU matchups to the end, several at
+once, stepping the simulation in the page as fast as it goes (a 25-minute match takes
+about a minute), and prints every result with win tables per pairing, per preset and
+per base. Each pairing is played both ways round by default, so each preset gets both
+bases. Random numbers are seeded from the match seed and sound is off, so a seed
+replays the same match: run the same seeds before and after a change to compare.
+
+```bash
+node tools/balance.mjs                                            # the core set: 4 pairings x 2 seeds x both bases
+node tools/balance.mjs --pairs balanced:armoured,air:light --seeds 1,2,3,4 --parallel 4
+node tools/balance.mjs --pairs light:mechanized --extra 'persona=aggressive' --json out.json
+```
+
 For a still frame, headless Chrome's `--screenshot` with `--virtual-time-budget`
 works too; the `seed` parameter makes both back ends build the same scene.

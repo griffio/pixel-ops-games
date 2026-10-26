@@ -352,7 +352,8 @@ export class Unit {
       if (p.turret) {
         const dh = wrap(this.heading - (this.lastHeading === undefined ? this.heading : this.lastHeading)); this.lastHeading = this.heading;
         p.turret.rotation.y = wrap(p.turret.rotation.y - dh);   // the turret holds its bearing while the hull turns under it
-        const want = this.enemy ? wrap(Math.atan2(this.enemy.pos.x - this.pos.x, this.enemy.pos.z - this.pos.z) - this.heading) : Math.sin(this.phase + performance.now() * 0.0004) * 0.6;
+        this.scanT = (this.scanT || 0) + dt;   // simulation time, not the wall clock: the turret's bearing decides when it can fire
+        const want = this.enemy ? wrap(Math.atan2(this.enemy.pos.x - this.pos.x, this.enemy.pos.z - this.pos.z) - this.heading) : Math.sin(this.phase + this.scanT * 0.4) * 0.6;
         p.turret.rotation.y += clamp(wrap(want - p.turret.rotation.y), -2.5 * dt, 2.5 * dt);
       }
     }
