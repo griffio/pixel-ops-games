@@ -24,8 +24,7 @@ export class VoiceDirector {
   tick(dt) {
     if ((this.acc += dt) < 0.5) return; this.acc = 0;
     const T = this.team, U = this.m.units.units, now = this.m.elapsed;
-    const mine = U.filter(u => u.team === T && !u.dead && !u.mounted && !u.spec.structure);
-    const armour = U.filter(u => u.team !== T && !u.dead && ARMOUR.has(u.type));
+    const V = this.m.vision, armour = U.filter(u => u.team !== T && !u.dead && ARMOUR.has(u.type) && (!V || V.sees(T, u)));   // only armour our side can see
     for (const sq of this.m.units.squads) {
       if (sq.team !== T || !sq.alive) continue;
       const alive = sq.members.filter(m => !m.dead && !m.mounted); if (!alive.length) continue;
@@ -37,8 +36,8 @@ export class VoiceDirector {
       const close = armour.find(a => Math.hypot(a.pos.x - c.x, a.pos.z - c.z) < 70 && !(sq.vArmour || (sq.vArmour = new Set())).has(a));   // each vehicle once per squad
       if (close && this.say('vo_sq_armour', 20)) sq.vArmour.add(close);
     }
-    for (const a of armour) {   // HQ calls each enemy vehicle the first time it comes within 200 m of our forces
-      if (this.seen.has(a) || !mine.some(u => Math.hypot(u.pos.x - a.pos.x, u.pos.z - a.pos.z) < 200)) continue;
+    for (const a of armour) {   // HQ calls each enemy vehicle the first time our side sees it
+      if (this.seen.has(a)) continue;
       this.seen.add(a); this.say('vo_hq_armour', 45, { hq: true });
     }
     for (const f of U) if (f.type === 'fob' && f.team === T && !f.dead) {

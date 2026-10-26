@@ -46,6 +46,20 @@ the same cover when they get there.
 sides, `?cpu=none` disables it, `?mode=skirmish` drops the objectives, and
 `?sandbox=1` restores the free-roam airfield with no combat.
 
+**Fog of war.** Your side sees what its units see: soldiers 120 m, APCs 160 m,
+tanks 210 m, trucks 100 m, a landed helicopter 120 m and one in the air 250 m
+(over buildings), FOBs and sandbag positions 100 m. Hills and buildings block
+sight, so the ground behind them stays dark. Enemies out of sight are not drawn,
+on the map or the minimap, and carry no name tag; where one was last seen a red
+outline fades out over 30 s. A unit that fires shows to the side it shoots at
+for 5 s, and whatever it shoots at is seen too. Enemy FOBs, sandbag positions
+and rally points stay on the map once seen; objectives and capture progress
+always show, and the enemy's radio, FOB and dig-in news stays out of your feed.
+**Fog shading** in the right panel (or `?fogshade=0`) drops the darkening and
+keeps only the hidden enemies. With the CPU on both sides the fog is off;
+`?fog=1` shows team 0's view anyway and `?fog=0` turns it off. For now the CPU
+still sees everything; making it play by the same rules is the next step.
+
 Any static server works (ES modules can't load over `file://`). three.js comes
 from jsDelivr via an import map; the WebGL2 back end loads nothing external.
 The stats panel has a link that switches renderer while keeping the view.
@@ -329,7 +343,7 @@ src/gl/             WebGL2 back end
 ## Tuning knobs (right panel)
 
 Pixelate on/off (compare with native resolution at identical framing), outline,
-shadows, texels per unit (4–24), time speed, hour of day, autonomous orders,
+shadows, fog shading, texels per unit (4–24), time speed, hour of day, autonomous orders,
 spawn buttons.
 
 ## LLM commander on Cloudflare

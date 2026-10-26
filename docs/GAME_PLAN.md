@@ -1106,6 +1106,37 @@ Engine changes needed in the existing core:
   imbalance is left to the map redesign (per-place defensive positions) and
   FOB emplacements wait until after fog of war.
 
+- **Fog of war, stage 1: vision and the player's view (2026-10-26).** The user
+  chose the recommended design: team vision with line of sight, darkened ground
+  outside it (a setting, so plain hidden enemies stay one click away), the CPU
+  on the same rules, firing reveals the shooter. Stages: 1 vision and the
+  player's view (the CPU still sees everything), 2 the CPU plays by vision and
+  scouts, 3 the LLM commander's digest and a balance check.
+  `game/vision.js`: every 0.2 s each unit casts rays over an 8 m grid out to
+  its sight range (soldier 120, APC 160, tank 210, truck 100, landed heli 120,
+  heli in the air 250 over buildings, FOB and sandbags 100: just past each
+  main weapon), one sample per cell; a cell counts while a man standing in it
+  (1.2 m) clears every hill and tall building (1.5 m and up, combat's
+  line-of-sight boxes) in between, so ridges and buildings throw shadows. A
+  unit's cells are kept until it moves 4 m or its eye height changes. Enemies
+  are visible in a seen cell; in the air, within any sight range; for 5 s
+  after firing at the side (and a unit fired at is seen by the shooter's
+  side, so tracers never fly into the dark at nothing); FOBs, sandbags and
+  rallies once seen; caches always (objectives). Losing sight leaves a ghost
+  (last position) for 30 s. Cost: 0.56 ms a vision tick for both sides, 23% of
+  a headless CPU-vs-CPU simulation (from 44% before one-sample-per-cell, cell
+  heights cached and the 4 m recast); CPU-vs-CPU results are unchanged
+  (vision draws no random numbers and nothing reads it yet).
+  `gl/fog.js` (the player's view): enemies not seen get `group.hidden` (the
+  renderer skips them, so no shadow or pick either); a per-cell texture eased
+  over 0.25 s darkens and greys unseen ground and props in the main shader;
+  ghosts are fading red outlines; the minimap shades unseen ground, leaves out
+  unseen enemies and outlines ghosts; no name tags on unseen enemies; the
+  enemy's radio, FOB and sandbag events stay out of the feed; HQ's "armour
+  sighted" fires when our side first sees a vehicle. Off when spectating
+  (`?fog=1` forces team 0's view) and once the match ends, so the debrief
+  shows everything. Engine sounds and dust still carry from hidden vehicles.
+
 ## Open questions
 
 
@@ -1117,6 +1148,8 @@ Engine changes needed in the existing core:
 
 1. Match length target: 15 minutes (arcade) or 25 (methodical)? Affects ticket pools.
 2. Fog of war: none (Squad-style, everything visible) or squad-based vision?
+   Decided 2026-10-26: team vision with line of sight, darkened ground, and the CPU
+   on the same rules (see "Fog of war" under Status).
 3. OPFOR art: olive/green recolour of the same models, or distinct silhouettes?
 4. Should losing all vehicles in the loadout end the game's vehicle supply, or do
    vehicles respawn at main base on a timer (proposed: timer plus ticket cost)?

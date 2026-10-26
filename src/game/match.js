@@ -10,6 +10,7 @@ import { Strategist } from './ai/strategist.js';
 import { RemoteCommander } from './ai/remote.js';
 import { UtilityCommander } from './ai/utility.js';
 import { Rallies } from './rally.js';
+import { Vision } from './vision.js';
 import { VoiceDirector } from './voices.js';
 import { DOCTRINES, PRESETS, expand, preset } from './loadout.js';
 import { createMode } from './modes/index.js';
@@ -39,6 +40,7 @@ export class Match {
     this.nav.foot.build(this.world.obstacles, this.world.terrain, 0.9, this.world.onBridge); this.nav.vehicle.build(this.world.obstacles, this.world.terrain, 0.45, this.world.onBridge); this.units.nav = this.nav;
     this.spatial = new SpatialHash(8); this.units.spatial = this.spatial;
     this.combat = new Combat(this.units, this.spatial, this.world, app.dust); this.combat.teams = this.teams; this.combat.audio = app.audio || null;
+    this.vision = new Vision(this.units, this.world, this.combat); this.combat.vision = this.vision;   // fog of war: what each side sees
     this.respawn = new Respawn(this.units, this.teams, this.world);
     this.support = new Support(this.units, this.respawn, this.teams);
     this.fobs = new Fobs(this.units, this.teams, this.world);
@@ -141,6 +143,7 @@ export class Match {
     else if (this.time <= 0) this.end(a.tickets === b.tickets ? null : (a.tickets > b.tickets ? a : b), 'time expired');
   }
   tick(dt) {
+    this.vision.tick(dt);
     this.combat.tick(dt);
     this.rallies.tick(dt);   // before respawns: burned rallies are gone and due waves are flagged
     this.respawn.tick(dt);

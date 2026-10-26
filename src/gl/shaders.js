@@ -31,6 +31,8 @@ uniform float uShadowOn; uniform float uShadowBias; uniform float uShadowPcf; un
 // ground mode: albedo blended from tileable textures by a splat map in world space
 uniform int uMode; uniform sampler2D uSplat; uniform sampler2D uBase; uniform sampler2D uT0; uniform sampler2D uT1; uniform sampler2D uT2; uniform sampler2D uT3;
 uniform vec4 uTileInv; uniform float uBaseInv; uniform float uMapInv;
+// fog of war: one value per cell over the map (1 seen), uFogMap = (1 / grid extent, half the map / grid extent)
+uniform sampler2D uFog; uniform float uFogOn; uniform vec2 uFogMap;
 out vec4 frag;
 void main() {
   vec4 albedo;
@@ -68,7 +70,12 @@ void main() {
     float cut = pow(clamp(1.0 - pow(d / uPointDist[i], 4.0), 0.0, 1.0), 2.0);
     irr += uPointCol[i] * cut / max(d * d, 0.01) * max(dot(n, L / d), 0.0);
   }
-  frag = vec4(albedo.rgb * irr / 3.14159265 + vEmis, albedo.a);
+  vec3 col = albedo.rgb * irr / 3.14159265 + vEmis;
+  if (uFogOn > 0.5) {   // what the player's side cannot see: darker and greyer
+    float v = texture(uFog, vWorld.xz * uFogMap.x + uFogMap.y).r;
+    col = mix(mix(vec3(dot(col, vec3(0.2126, 0.7152, 0.0722))), col, 0.35) * 0.25, col, v);
+  }
+  frag = vec4(col, albedo.a);
 }`;
 
 export const SHADOW_VS = `#version 300 es

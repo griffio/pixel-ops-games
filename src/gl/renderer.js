@@ -184,12 +184,26 @@ export class GLRenderer {
     for (const c of this.chunks.values()) for (const b of c.batches.values()) { gl.deleteVertexArray(b.vao); gl.deleteBuffer(b.ibo); }
     this.chunks.clear();
   }
-  setGround(g) { this.ground = g; }   // { splat, base, tiles:[4 names], tileSize:[4], baseSize, mapSize }
+  setGround(g) { this.ground = g; }
+  // fog of war: one byte per cell (255 seen) over a grid starting at -half; null switches the shading off
+  setFog(data, n, cell, half) {
+    if (!data) { this.fog = null; return; }
+    const gl = this.gl;
+    if (!this.fogTex || this.fogN !== n) {
+      this.fogTex = gl.createTexture(); this.fogN = n; gl.bindTexture(gl.TEXTURE_2D, this.fogTex);
+      gl.texImage2D(gl.TEXTURE_2D, 0, gl.R8, n, n, 0, gl.RED, gl.UNSIGNED_BYTE, null);
+      gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR); gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.LINEAR);
+      gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE); gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
+    }
+    gl.bindTexture(gl.TEXTURE_2D, this.fogTex); gl.pixelStorei(gl.UNPACK_ALIGNMENT, 1);
+    gl.texSubImage2D(gl.TEXTURE_2D, 0, 0, 0, n, n, gl.RED, gl.UNSIGNED_BYTE, data); gl.pixelStorei(gl.UNPACK_ALIGNMENT, 4);
+    this.fog = { inv: 1 / (n * cell), off: half / (n * cell) };
+  }   // { splat, base, tiles:[4 names], tileSize:[4], baseSize, mapSize }
 
   collect(scene) {
     for (const b of this.batches.values()) b.n = 0;
     const visit = (node, parentWorld, pid) => {
-      if (!node.visible) return;
+      if (!node.visible || node.hidden) return;   // hidden: an enemy the player's side cannot see (fog of war)
       Mat4.fromTRS(node.local, node.position, node.rotation, node.scale);
       parentWorld ? Mat4.multiply(node.world, parentWorld, node.local) : node.world.set(node.local);
       const id = node.pickId !== undefined ? node.pickId : pid;
@@ -286,6 +300,8 @@ export class GLRenderer {
       gl.uniform4f(u.uTileInv, 1 / g.tileSize[0], 1 / g.tileSize[1], 1 / g.tileSize[2], 1 / g.tileSize[3]);
       gl.uniform1f(u.uBaseInv, 1 / g.baseSize); gl.uniform1f(u.uMapInv, 1 / g.mapSize);
     }
+    gl.uniform1i(u.uFog, 8); gl.uniform1f(u.uFogOn, this.fog ? 1 : 0);
+    if (this.fog) { gl.activeTexture(gl.TEXTURE8); gl.bindTexture(gl.TEXTURE_2D, this.fogTex); gl.uniform2f(u.uFogMap, this.fog.inv, this.fog.off); }
     gl.activeTexture(gl.TEXTURE0);
     gl.uniform1f(u.uUnlit, 0); gl.depthMask(true); gl.disable(gl.BLEND);
     for (const b of this.eachBatch(mainChunks)) if (!b.unlit) {

@@ -9,7 +9,7 @@ const CELL = 20;
 export class Combat {
   constructor(units, spatial, world, dust) {
     this.units = units; this.spatial = spatial; this.world = world; this.dust = dust;
-    this.onDeath = null; this.scratch = []; this.teams = null; this.audio = null;
+    this.onDeath = null; this.scratch = []; this.teams = null; this.audio = null; this.vision = null;
     // coarse grids over the obstacles so a segment test only touches the boxes near it: tall boxes block
     // line of sight, low ones (walls, sandbags, rocks) give partial cover to a soldier right behind them
     this.half = (world.size || 1000) / 2; this.nx = Math.ceil(this.half * 2 / CELL) + 1;
@@ -186,6 +186,7 @@ export class Combat {
       if (!hit && e.type === 'soldier' && Math.random() < 0.3) this.audio.whizz(e.pos.x, e.pos.z);                        // a near miss
     }
     if (this.onShot) this.onShot(u, w, e, hit);
+    if (this.vision) { this.vision.reveal(u, e.team); this.vision.reveal(e, u.team); }   // the flash and the noise give the shooter away; whoever is aimed at is seen
     this.dust.shots.fire({ x: mx, y: gunY, z: mz, tx, ty, tz, speed: w.speed, arc: !!w.arc, kind: w.arc || kit === 'tankgun' ? 'shell' : w.rocket ? 'rocket' : 'bullet',
       trail: w.arc ? 6 : kit === 'tankgun' ? 9 : w.rocket ? 2 : (kit === 'mg' || kit === 'doorgun' || kit === 'coax') ? 6 : 3.5, onArrive: (p) => this.arrive(p, u, w, e, hit, kit) });
   }

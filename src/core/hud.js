@@ -44,6 +44,7 @@ export class Hud {
     $('c-pixel').addEventListener('change', e => a.pixel.enabled = e.target.checked);
     $('c-outline').addEventListener('change', e => a.pixel.outline = e.target.checked);
     $('c-shadow').addEventListener('change', e => a.setShadows(e.target.checked));
+    if (a.fog) { $('c-fogshade').checked = a.fog.shade; $('c-fogshade').addEventListener('change', e => { a.fog.shade = e.target.checked; }); }
     $('c-auto').addEventListener('change', e => a.units.auto = e.target.checked);
     $('b-pause').addEventListener('click', () => this.togglePause());
     for (const b of document.querySelectorAll('[data-tb]')) b.addEventListener('click', () => this.touchAction(b.dataset.tb));
@@ -74,7 +75,9 @@ export class Hud {
       $('reinf-h').insertAdjacentHTML('afterend', `<select id="spawn-pref"><option value="auto">spawn nearest the squad</option><option value="base">spawn at main base</option>${t0.doctrine.heliSpawn ? '<option value="heli">spawn beside idle helicopter</option>' : ''}${t0.doctrine.truckSpawn ? '<option value="truck">spawn beside a parked truck</option>' : ''}</select>`); $('spawn-pref').addEventListener('change', e => { t0.spawnPref = e.target.value; });
     }
 
-    const feed = $('feed'), lines = m.feed.filter(f => f.t < 10), key = lines.map(f => f.id).join(',');
+    // under fog of war the enemy's own news stays theirs: its commander's radio, its FOB going up, its digging in
+    const a = this.app, hush = a.fog && a.fog.on ? (f) => f.kind === 'event' && f.e.team !== (a.playerTeam ?? 0) && (f.e.type === 'radio' || f.e.type === 'fob' || f.e.type === 'sandbags') : () => false;
+    const feed = $('feed'), lines = m.feed.filter(f => f.t < 10 && !hush(f)), key = lines.map(f => f.id).join(',');
     if (key !== this.feedKey) { this.feedKey = key; feed.innerHTML = lines.map(f => this.feedLine(f)).join(''); }
     lines.forEach((f, i) => { const el = feed.children[i]; if (el) el.style.opacity = f.t > 7 ? ((10 - f.t) / 3).toFixed(2) : 1; });
     // objectives bar from the mode
@@ -149,9 +152,13 @@ export class Hud {
     g.drawImage(this.mmBg, 0, 0);
     const X = this.mmX, Z = this.mmZ, k = this.mmK, me = a.playerTeam ?? 0;
     for (const b of m.teams) { g.strokeStyle = b.id === 0 ? '#7fb2e5' : '#e86a5a'; g.lineWidth = 1; g.beginPath(); g.arc(X(b.base.x), Z(b.base.z), b.base.r * k, 0, Math.PI * 2); g.stroke(); }
+    // fog of war: unseen ground shaded, enemies out of sight left off, last-known positions as red diamonds
+    const fog = a.fog, ov = fog && fog.minimap();
+    if (ov) { const V = m.vision, ext = V.n * V.cell; g.imageSmoothingEnabled = true; g.drawImage(ov, X(-V.half), Z(-V.half + ext), ext * k, ext * k); }
     m.mode.drawMinimap(g, X, Z, k);
+    if (fog) { g.strokeStyle = 'rgba(255,138,122,0.8)'; g.lineWidth = 1; for (const gh of fog.ghosts()) { const x = X(gh.x), z = Z(gh.z), r = gh.type === 'soldier' ? 2 : 3; g.beginPath(); g.moveTo(x, z - r); g.lineTo(x + r, z); g.lineTo(x, z + r); g.lineTo(x - r, z); g.closePath(); g.stroke(); } }
     for (const u of a.units.units) {
-      if (u.dead || u.mounted) continue;
+      if (u.dead || u.mounted || (fog && !fog.sees(u))) continue;
       g.fillStyle = u.team === me ? '#9fd0ff' : '#ff8a7a';
       if (u.type === 'fob') { g.strokeStyle = g.fillStyle; g.lineWidth = 1.5; g.strokeRect(X(u.pos.x) - 3, Z(u.pos.z) - 3, 6, 6); continue; }
       if (u.type === 'rally') { g.strokeStyle = g.fillStyle; g.lineWidth = 1.2; const x = X(u.pos.x), z = Z(u.pos.z); g.beginPath(); g.moveTo(x, z - 3.5); g.lineTo(x + 3, z + 2); g.lineTo(x - 3, z + 2); g.closePath(); g.stroke(); continue; }
@@ -298,7 +305,7 @@ export class Hud {
     // labels: vehicles, helis and squad leaders; any selected unit
     const want = new Set(), me = a.playerTeam ?? 0;
     for (const u of a.units.units) {
-      if (u.dead || u.mounted) continue;
+      if (u.dead || u.mounted || (a.fog && !a.fog.sees(u))) continue;   // no tag on an enemy out of sight
       const lead = u.squad ? u.squad.leader === u : true;
       if (!(lead || u.selected)) continue;
       want.add(u);

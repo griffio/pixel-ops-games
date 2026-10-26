@@ -3,6 +3,7 @@ import { Scene } from './scene.js';
 import { World } from './world.js';
 import { builders, registerTextures, F } from './models.js';
 import { Markers } from './markers.js';
+import { FogView } from './fog.js';
 import { RtsCamera } from '../core/camera.js';
 import { UnitManager } from '../core/units.js';
 import { DustSim } from '../core/dust.js';
@@ -35,9 +36,10 @@ const app = {
   setShadows: (on) => { renderer.shadows = on; },
   pick(nx, ny, radiusPx = 0) { const id = renderer.pick(nx, ny, radiusPx); return id ? units.byPickId(id) : null; },
   resize(W, H) { renderer.setSize(W, H); },
-  render(dt, W, H) { renderer.render(scene, rts, world.lightState, dust, W, H); },
+  render(dt, W, H) { app.fog.update(dt); renderer.render(scene, rts, world.lightState, dust, W, H); },
 };
 applyUrlParams(app);
+app.fog = new FogView(app);   // before the HUD, which wires the Fog shading setting to it
 app.hud = new Hud(app);
 app.input = new Input(app);
 populate(app);
