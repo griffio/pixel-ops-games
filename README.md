@@ -405,7 +405,8 @@ locations that changed hands in the last five minutes), the last three plans
 with what followed each (ticket swing, captures, losses, casualties), and the
 model's own notes from last time) to `/commander` and gets back a plan in a fixed schema
 (`src/game/ai/plan.js`: the next location to attack, locations to hold, attack
-share, posture, what to build, whether to use lifts, a line of radio chatter
+share, posture, what to build (a FOB, sandbags, tank traps or nothing, carried out
+exactly), whether to use lifts, a line of radio chatter
 that appears in the feed, notes to itself for the next call, how many seconds
 until it wants to be consulted again, and optionally a condition to wait for
 before attacking: squads gathered at a staging location, few enemies near the

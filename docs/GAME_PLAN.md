@@ -1420,6 +1420,29 @@ Engine changes needed in the existing core:
   both maps. Desert Crossing's 16 matches replay identically (the built-in commander
   never acted on ghosts 1.2 km away), and ghosts from real sightings still appear.
 
+- **Commander logistics are orders (2026-10-26).** In the user's first `opus:high` game
+  (Palm Valley, 12 calls, 10 of them thinking 116 to 485 tokens, $0.41 for 5.8 minutes)
+  Opus asked for sandbags at the Bridge on four calls, while the engineer and the supply
+  truck walked 560 m to the east ford to lay tank traps. The built-in logistics order is
+  clear, FOB, traps, sandbags, and a plan's `sandbags` only ruled out the FOB; the trigger
+  was a BLUFOR APC seen near the Bridge, already dead when they set off, and the bridge
+  chokes were off limits as the CPU's own route. Opus could not see it: the engineer
+  squad's order reads `fob` for every job, and traps were neither a choice nor in the
+  prompt. Now, while a remote commander's plan is fresh, its logistics are followed
+  exactly (`JOBS` in strategist.js: fob allows a FOB and sandbags as the fallback,
+  sandbags only sandbags, traps only traps, none nothing; clearing traps in the way
+  stays with all but none), and a job it no longer allows is dropped. `traps` is a new
+  logistics choice: a row at a choke on our side, off our own vehicles' way, with no
+  armour sighting needed. The digest gives the engineer squad's job and place ("dig
+  sandbags at Bridge+42m") and the rows of traps we know of, ours and theirs; the system
+  prompt explains traps. The utility commander's logistics are unchanged (Desert Crossing
+  replays identically). Test, Palm Valley at 4 minutes with no kit and an APC just seen at
+  the Bridge: the built-in logistics went to lay traps at the east ford (as in the user's
+  game); an LLM plan with sandbags dug at Bridge+42m; switched to sandbags mid traps job,
+  the engineer dropped the traps and went to dig; traps with no armour seen went to the
+  ford; none gave no job. Still open: the built-in trap rule counts sightings of armour
+  since destroyed, and with the bridge on its own route picks a ford no armour has used.
+
 ## Open questions
 
 

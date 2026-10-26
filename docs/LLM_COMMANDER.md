@@ -42,7 +42,8 @@ Nine things, in a fixed JSON schema (`src/game/ai/plan.js`):
 3. what share of squads to commit to the attack;
 4. a posture (cautious, balanced, aggressive), which tunes how close units go
    and how soon they fall back;
-5. what the engineers build next (FOB, sandbags, nothing);
+5. what the engineers build next (FOB, sandbags, tank traps, nothing), done
+   exactly as chosen;
 6. whether helicopters lift squads;
 7. a condition to wait for before attacking, for example three squads
    gathered at the Village, fewer than four enemies at the objective, an APC

@@ -12,7 +12,9 @@ export function buildDigest(match, team, remote = null) {
   const locations = O.map(l => ({ name: l.name, at: [r(l.x), r(l.z)], owner: owner(l.owner), capturing: l.progress && l.owner === -1 ? (Math.sign(l.progress) === (team === 0 ? 1 : -1) ? 'ours' : 'theirs') : null, ours: l.n ? l.n[team] : 0,
     theirs: !V.on ? (l.n ? l.n[1 - team] : 0) : known.filter(u => !u.ghost && !u.spec.structure && !(u.spec.air && u.alt > 2) && Math.hypot(u.pos.x - l.x, u.pos.z - l.z) < l.r).length, contested: l.contested || undefined, capturable: o ? o.capturable(team, l) && l.owner !== team : false,
     grabbable: free.includes(l) || undefined, links: l.adj ? l.adj.map(a => a.name) : undefined, base: l.homes && l.homes.length ? l.homes.map(owner).join(',') : undefined }));   // the network: neighbours, and whose main base it touches
-  const squads = m.units.squads.filter(s => s.team === team && s.leader).map(s => { const c = s.centroid(), al = s.members.filter(live); return { id: s.leader.label, men: al.length, kits: [...new Set(al.map(u => u.kit))], hp: r(al.reduce((a, u) => a + u.hp, 0) / Math.max(1, al.length)), pinned: al.filter(u => u.supp > 0.5).length || undefined, rally: s.rally && !s.rally.dead ? nearLoc(s.rally.pos.x, s.rally.pos.z) : undefined, at: [r(c.x), r(c.z)], near: nearLoc(c.x, c.z), order: s.tag || 'idle' }; });
+  // the engineer squad's logistics job and where (its order alone reads "fob" whatever it builds)
+  const JOB = { fob: 'build a FOB', sandbags: 'dig sandbags', traps: 'lay tank traps', clear: 'clear tank traps' }, job = (s) => st && st.plan && st.plan.sq === s && !st.plan.done ? `${JOB[st.plan.kind]} at ${nearLoc(st.plan.x, st.plan.z)}` : undefined;
+  const squads = m.units.squads.filter(s => s.team === team && s.leader).map(s => { const c = s.centroid(), al = s.members.filter(live); return { id: s.leader.label, men: al.length, kits: [...new Set(al.map(u => u.kit))], hp: r(al.reduce((a, u) => a + u.hp, 0) / Math.max(1, al.length)), pinned: al.filter(u => u.supp > 0.5).length || undefined, rally: s.rally && !s.rally.dead ? nearLoc(s.rally.pos.x, s.rally.pos.z) : undefined, at: [r(c.x), r(c.z)], near: nearLoc(c.x, c.z), order: s.tag || 'idle', job: job(s) }; });
   const vehicles = U.filter(u => u.team === team && live(u) && !u.squad && !u.spec.structure).map(u => ({ id: u.label, type: u.supply ? 'supply' : u.type, hp: r(100 * u.hp / u.maxHp), at: [r(u.pos.x), r(u.pos.z)], near: nearLoc(u.pos.x, u.pos.z), supplies: u.supply ? r(u.supplies) : undefined, passengers: u.passengers && u.passengers.length ? u.passengers.length : undefined }));
   // enemy ground units as far as we know them, grouped within 40 m; a group seen only before carries lastSeen (its freshest sighting)
   const clusters = [];
@@ -25,6 +27,7 @@ export function buildDigest(match, team, remote = null) {
   const enemy = clusters.sort((a, b) => b.n - a.n).slice(0, 8).map(c => ({ at: [r(c.x), r(c.z)], near: nearLoc(c.x, c.z), units: c.types, lastSeen: c.age ? r(c.age) : undefined }));
   const fobs = (t) => (t === team ? U.filter(u => u.type === 'fob' && u.team === t && !u.dead) : known.filter(u => u.type === 'fob')).map(u => nearLoc(u.pos.x, u.pos.z));
   const sandbags = U.filter(u => u.type === 'sandbags' && u.team === team && !u.dead).map(u => nearLoc(u.pos.x, u.pos.z));
+  const traps = { ours: U.filter(u => u.type === 'traps' && u.team === team && !u.dead).map(u => nearLoc(u.pos.x, u.pos.z)), theirs: known.filter(u => u.type === 'traps').map(u => nearLoc(u.pos.x, u.pos.z)) };   // rows of tank traps: they stop every vehicle, ours too
   const said = { captured: 'captured', lost: 'lost', fob: 'built a FOB', sandbags: 'dug in with sandbags', traps: 'laid tank traps', 'traps cleared': 'cleared tank traps', 'cache revealed': 'found a cache at', 'cache destroyed': 'destroyed the cache at' };
   // trends from the 5 s history: tickets 1, 2 and 3 minutes ago, losses per minute over the last 3 minutes, locations that changed hands in the last 5
   const H = m.history, last = m.sample(), ago = (sec) => { const want = m.elapsed - sec; let best = H[0] || last; for (const h of H) if (h[0] <= want) best = h; return best; };
@@ -41,7 +44,7 @@ export function buildDigest(match, team, remote = null) {
     side: T.name, mode: m.mode.constructor.key, minute: +(m.elapsed / 60).toFixed(1), minutesLeft: +(Math.max(0, m.time) / 60).toFixed(1),
     tickets: { ours: r(T.tickets), theirs: r(E.tickets) }, lost: { infantry: T.stats.losses.soldier || 0, vehicles: Object.entries(T.stats.losses).filter(([k]) => k !== 'soldier' && k !== 'fob').reduce((a, [, v]) => a + v, 0) },
     locations, next: o ? (o.nextFor(team) || {}).name || null : null, front: o ? (o.front(team) || {}).name || null : null,
-    squads, vehicles, enemy, fobs: { ours: fobs(team), theirs: fobs(1 - team), kitsLeft: m.fobs.kitsLeft(team) }, sandbags,
+    squads, vehicles, enemy, fobs: { ours: fobs(team), theirs: fobs(1 - team), kitsLeft: m.fobs.kitsLeft(team) }, sandbags, traps,
     trends, events, plans: remote ? remote.planHistory() : [], notes: remote && remote.plan ? remote.plan.notes || '' : '', waiting: remote ? remote.waitState() : null,
   };
 }

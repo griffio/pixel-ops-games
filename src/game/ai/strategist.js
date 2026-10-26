@@ -1,6 +1,9 @@
 import { RULES } from '../rules.js';
 import { roadDist } from '../../core/math.js';
 
+// the engineer's jobs each logistics order of a remote commander allows (a FOB falls back to sandbags when no kit or site is left)
+const JOBS = { fob: ['clear', 'fob', 'sandbags'], sandbags: ['clear', 'sandbags'], traps: ['clear', 'traps'], none: [] };
+
 // CPU commander v2: objective-aware manoeuvre, logistics (FOB one hop behind the
 // front) and lifts (helicopters, trucks and APCs carry squads far from the fight).
 export class Strategist {
@@ -47,6 +50,7 @@ export class Strategist {
     const adviser = this.remote && this.remote.fresh ? this.remote : this.utility && this.utility.decide(squads, vehicles) ? this.utility : null;
     if (adviser) this.applyPlan(g, adviser);
     this.posture = g.posture || 'balanced'; this.prefer = g.logistics || 'fob'; this.lift = g.lift !== false;
+    this.exact = adviser !== null && adviser === this.remote;   // a remote commander's logistics are orders; the others' are preferences
     if (g.hunt) return this.skirmish(squads, vehicles, base);
     const attack = g.attack, hold = g.hold, reserve = g.reserve || null;
     const enemyFob = this.contacts().find(u => u.type === 'fob' && (attack ? Math.hypot(u.pos.x - attack.x, u.pos.z - attack.z) < 160 : true));
@@ -285,9 +289,11 @@ export class Strategist {
   // behind the front (towards our base) and keep the pair together until it is up; without a kit
   // (or with no FOB site just now) dig sandbag positions at the place we hold (digSpot). Before either, clear enemy tank
   // traps we have seen near the place we push for or hold; after the FOB, lay traps at a choke on our side (trapSpot).
+  // A remote commander's choice is an order (this.exact): only the jobs in JOBS for it, so sandbags never turn into traps
+  // half a map away, and traps are laid when it asks whether or not enemy armour has been seen.
   logistics(squads, vehicles, anchor, hold = null, attack = null) {
-    const fobs = this.match.fobs, team = this.teams[this.team], base = team.base;
-    if (this.plan && (this.plan.sq.engineer === null || (this.plan.truck && this.plan.truck.dead) || (this.plan.traps && this.plan.traps.dead) || this.plan.done)) this.plan = null;
+    const fobs = this.match.fobs, team = this.teams[this.team], base = team.base, want = (kind) => !this.exact || (JOBS[this.prefer] || JOBS.fob).includes(kind);
+    if (this.plan && (this.plan.sq.engineer === null || (this.plan.truck && this.plan.truck.dead) || (this.plan.traps && this.plan.traps.dead) || this.plan.done || !want(this.plan.kind))) this.plan = null;
     if (!this.plan) {
       if (!this.diff.logistics || this.prefer === 'none') return null;
       const sq = squads.find(s => s.engineer); if (!sq) return null;
@@ -302,15 +308,15 @@ export class Strategist {
         if (block.team === this.team) (this.chokeRest || (this.chokeRest = new Map())).set(Math.round(block.pos.x) + ',' + Math.round(block.pos.z), this.match.elapsed + 300);   // we need it open: not there again for five minutes
       }
       const truckTo = (at) => vehicles.filter(v => v.supply && v.supplies >= RULES.fob.supplyCost).sort((a, b) => Math.hypot(a.pos.x - at.x, a.pos.z - at.z) - Math.hypot(b.pos.x - at.x, b.pos.z - at.z))[0];
-      if (!this.plan && anchor && fobs.kitsLeft(this.team) > 0 && this.prefer !== 'sandbags') {
+      if (!this.plan && anchor && fobs.kitsLeft(this.team) > 0 && this.prefer !== 'sandbags' && want('fob')) {
         const truck = truckTo(anchor), [x, z] = this.toward(anchor, base, Math.hypot(anchor.x - base.x, anchor.z - base.z) - 45, 0);   // 45 m behind the location, towards home
         if (truck && !this.units.nav.vehicle.blocked(x, z) && !this.armourNear(x, z, 150) && !fobs.active(this.team).some(f => Math.hypot(f.pos.x - x, f.pos.z - z) < RULES.fob.minSpacing)) this.plan = { kind: 'fob', sq, truck, x, z, t: 0 };
       }
-      if (!this.plan) {   // tank traps at a choke on our side, when the enemy fields armour
-        const spot = this.trapSpot(attack), truck = spot && vehicles.filter(v => v.supply && v.supplies >= RULES.traps.supplyCost).sort((a, b) => Math.hypot(a.pos.x - spot[0], a.pos.z - spot[1]) - Math.hypot(b.pos.x - spot[0], b.pos.z - spot[1]))[0];
+      if (!this.plan && want('traps')) {   // tank traps at a choke on our side, when the enemy fields armour (or when ordered)
+        const spot = this.trapSpot(attack, this.exact), truck = spot && vehicles.filter(v => v.supply && v.supplies >= RULES.traps.supplyCost).sort((a, b) => Math.hypot(a.pos.x - spot[0], a.pos.z - spot[1]) - Math.hypot(b.pos.x - spot[0], b.pos.z - spot[1]))[0];
         if (truck) { this.plan = { kind: 'traps', sq, truck, x: spot[0], z: spot[1], t: 0 }; this.trapsNext = this.match.elapsed + 120; }
       }
-      if (!this.plan && hold && fobs.sandbagsOf(this.team).length < RULES.sandbags.max) {   // no kit, or no FOB site just now: dig in at the place we hold
+      if (!this.plan && hold && fobs.sandbagsOf(this.team).length < RULES.sandbags.max && want('sandbags')) {   // no kit, or no FOB site just now: dig in at the place we hold
         const spot = this.digSpot(hold); if (!spot) return null;
         const truck = vehicles.filter(v => v.supply && v.supplies >= RULES.sandbags.supplyCost).sort((a, b) => Math.hypot(a.pos.x - hold.x, a.pos.z - hold.z) - Math.hypot(b.pos.x - hold.x, b.pos.z - hold.z))[0]; if (!truck) return null;
         this.plan = { kind: 'sandbags', sq, truck, x: spot[0], z: spot[1], t: 0 };
@@ -340,16 +346,16 @@ export class Strategist {
   // than any place they hold, within 400 m of ours), with enemy armour seen within 600 m of it in the last two minutes, clear of other traps, of
   // enemies and of their armour, and not within 30 m of our own vehicles' way from home to the place we push for (traps
   // stop our vehicles too), nor where we cleared our own in the last five minutes. Two rows at most, one job every two
-  // minutes. Null when there is none.
-  trapSpot(attack) {
+  // minutes. Null when there is none. ordered: a remote commander asked for traps, so no armour need have been seen.
+  trapSpot(attack, ordered = false) {
     const map = this.match.world.map, o = this.match.objectives, t = this.team, fobs = this.match.fobs;
     if (!map || !map.chokes || !o || this.match.elapsed < (this.trapsNext || 0) || fobs.trapsOf(t).length >= 2) return null;
-    const armour = this.armourSeen || []; if (!armour.length) return null;
+    const armour = this.armourSeen || []; if (!armour.length && !ordered) return null;
     const ours = o.list.filter(l => l.owner === t), theirs = o.list.filter(l => l.owner === 1 - t); if (!ours.length) return null;
     const rest = this.chokeRest || new Map(), resting = ([x, z]) => [...rest].some(([k, until]) => { const [rx, rz] = k.split(',').map(Number); return until > this.match.elapsed && Math.hypot(rx - x, rz - z) < 20; });
     const far = ([x, z], ls) => Math.min(Infinity, ...ls.map(l => Math.hypot(x - l.x, z - l.z)));
     const route = this.routeTo(attack);
-    return map.chokes.filter(c => far(c, ours) < 400 && far(c, ours) < far(c, theirs) && armour.some(v => Math.hypot(v.x - c[0], v.z - c[1]) < 600) && !resting(c)
+    return map.chokes.filter(c => far(c, ours) < 400 && far(c, ours) < far(c, theirs) && (ordered || armour.some(v => Math.hypot(v.x - c[0], v.z - c[1]) < 600)) && !resting(c)
       && !fobs.trapsAt(c[0], c[1], RULES.traps.minSpacing) && !this.enemiesNear(c[0], c[1], 50).length && !this.armourNear(c[0], c[1], 150) && !this.onRoute(route, c[0], c[1], 30))
       .sort((a, b) => far(a, ours) - far(b, ours))[0] || null;
   }
