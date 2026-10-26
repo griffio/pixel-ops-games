@@ -62,7 +62,7 @@ export class Terrain {
       }
       h[iz * n + ix] = y;
     }
-    this.max = Math.max(...h);
+    let max = -Infinity; for (const y of h) if (y > max) max = y; this.max = max;   // not Math.max(...h): a 2 km map has 250,000 heights, past the argument limit
   }
   height(x, z) {
     const n = this.n, c = this.cell, fx = (x + this.half) / c, fz = (z + this.half) / c;

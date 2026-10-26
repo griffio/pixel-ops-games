@@ -8,7 +8,7 @@ export class AAS extends Mode {
   static key = 'aas'; static name = 'Advance & Secure'; static desc = 'Capture the five locations in order. Hold the majority to bleed the enemy; take all five to win outright.';
   setup() {
     const map = this.match.world.map;
-    this.objectives = new Objectives(map.locations, this.teams); this.bleedAcc = 0;
+    this.objectives = new Objectives(map.locations, this.teams, map.links || null); this.bleedAcc = 0;
     this.objectives.onEvent = (type, loc, team) => this.onEvent(type, loc, team);
   }
   onEvent(type, loc, team) {

@@ -1201,6 +1201,26 @@ Engine changes needed in the existing core:
   right way round; the blocking change touches it: 16 default matches, no
   errors, captures 5.5 a match (5.4), infantry deaths 323 (291).
 
+- **Second map: decisions and engine groundwork (2026-10-26).** The user chose
+  layout A (three lanes across a river: a town lane with an infantry-only
+  footbridge, a road lane through the one vehicle bridge, an open lane with a
+  ford), 2 km, desert again, tank traps as the only route blocker, and better
+  river, road and bridge textures. The map is mirror-symmetric about the river
+  (z to -z), not rotated: rotation would make the west and east crossings the
+  same kind, mirroring keeps each lane's character and gives both sides the same
+  distances. Seven places: each side's home row (town, depot, quarry; capturable
+  from the start), the Bridge in the middle, the far row; four is the majority.
+  Groundwork, with Desert Crossing unchanged (16 default matches replay exactly):
+  the lattice is a network (`Objectives`: a map gives `links`, pairs of names, and
+  `home: team` for the places touching a base; without links the list is a chain,
+  which reduces to the old rule; Invasion's front is the first place the attacker
+  can take); `?swap=1` flips `home` on linked maps; maps are picked by key
+  (`game/maps/index.js`, `?map=`); a map sets its nav grid cells (`map.nav`): at
+  2 km a 1 m infantry grid is 4 M cells, 132 MB, and long searches hit the
+  80,000-cell cap, so the new map uses 1.5 m (59 MB, paths 10-20 ms) and 2.5 m for
+  vehicles; `Terrain` no longer takes `Math.max(...h)`, which overflows the stack
+  at 2 km (250,000 heights).
+
 ## Open questions
 
 

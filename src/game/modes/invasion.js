@@ -26,7 +26,7 @@ export class Invasion extends AAS {
   }
   goals(team, extra = []) {
     const o = this.objectives, order = o.order(this.attacker);
-    const frontline = order.find(l => l.owner !== this.attacker) || null;           // first location the attackers still need
+    const frontline = order.find(l => l.owner !== this.attacker && o.capturable(this.attacker, l)) || null;   // first location the attackers can take next
     if (team === this.attacker) return { attack: frontline, hold: o.front(team), threatened: this.threatenedOf(team, extra), fobAnchor: o.front(team), attackShare: 0.9 };
     const next = order[order.indexOf(frontline) + 1] || frontline;
     const threatened = this.threatenedOf(team, extra);

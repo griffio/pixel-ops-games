@@ -10,7 +10,7 @@ import { DustSim } from '../core/dust.js';
 import { Input } from '../core/input.js';
 import { Hud } from '../core/hud.js';
 import { applyUrlParams, populate, runLoop, detectTouch } from '../core/app.js';
-import { desert1km } from '../game/maps/desert1km.js';
+import { mapFor } from '../game/maps/index.js';
 
 const q = new URLSearchParams(location.search);
 const sandbox = q.get('sandbox') === '1';
@@ -21,7 +21,7 @@ const pixel = renderer.pixel;
 registerTextures(renderer);
 
 const scene = new Scene();
-const world = new World(scene, renderer, sandbox ? null : desert1km);   // the 1 km map, or the legacy airfield in sandbox mode
+const world = new World(scene, renderer, sandbox ? null : mapFor(q.get('map')));   // ?map=<key> (game/maps/index.js), or the legacy airfield in sandbox mode
 const rts = new RtsCamera(pixel, world.half - 10);
 const units = new UnitManager(scene, world, builders, F.recolor);
 const dust = new DustSim(); units.dust = dust; world.dust = dust;   // the world reads muzzle-flash lights from the particle pool
