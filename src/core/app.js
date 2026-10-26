@@ -44,6 +44,7 @@ export function populate(app) {
   // CPU plays both sides or ?loadout=<preset> skips it (cpu=both|none|1, mode=aas|skirmish)
   if (q.get('sandbox') !== '1' && !app.sandboxOnly) {
     const cpu = q.get('cpu') === 'both' ? [0, 1] : q.get('cpu') === 'none' ? [] : [1];
+    app.fogOff = q.get('fog') === '0';   // ?fog=0: no fog of war for anyone, the CPU included
     app.commanderUrl = q.get('commander') === '1' ? '/commander' : (q.get('commander') || null);   // remote commander endpoint for the CPU sides
     app.commanderModel = q.get('model') || null;
     app.aiModes = (q.get('ai') || '').split(','); app.personas = (q.get('persona') || '').split(',');   // ?ai=rules for the older planner (default utility; per team: utility,rules), ?persona=balanced|aggressive|patient   // ?model=<key> picks a model from the Worker's allow-list (llama, gpt-oss-120b, qwen3-30b, mistral-small)

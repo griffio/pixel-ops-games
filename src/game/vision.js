@@ -7,13 +7,14 @@ import { RULES } from './rules.js';
 // An enemy is visible to a side when it stands in a cell that side sees, when it is in the air within one of that side's sight
 // ranges (nothing hides a helicopter against the sky), or when it fired at that side in the last few seconds. FOBs, sandbag
 // positions and rally points stay known once seen; weapon caches are objectives and always show. An enemy that drops out of
-// sight leaves a last-known position (a ghost) for RULES.vision.ghost seconds.
+// sight leaves a last-known position (a ghost) for RULES.vision.ghost seconds. The CPU plans with contacts(): what its side sees
+// plus those last-known positions. Switched off (?fog=0), every side sees everything, as before fog of war.
 const STICKY = new Set(['fob', 'sandbags', 'rally']);
 
 export class Vision {
-  constructor(units, world, combat) {
+  constructor(units, world, combat, on = true) {
     const V = RULES.vision;
-    this.units = units; this.world = world; this.combat = combat;
+    this.units = units; this.world = world; this.combat = combat; this.on = on; this.cAt = [-1, -1]; this.cList = [[], []];
     this.cell = V.cell; this.half = world.size / 2; this.n = Math.ceil(world.size / V.cell);
     this.stamp = [new Int32Array(this.n * this.n), new Int32Array(this.n * this.n)]; this.gen = 0;
     this.cache = new Map(); this.ghosts = [new Map(), new Map()]; this.mark = new Int32Array(this.n * this.n); this.markGen = 0;
@@ -55,12 +56,24 @@ export class Vision {
   // a unit that fires gives itself away to the side it fires at
   reveal(u, team) { (u.revealT || (u.revealT = [0, 0]))[team] = this.t + RULES.vision.reveal; }
   // does `team` see unit u now? (its own units, and wrecks, always)
-  sees(team, u) { return u.team === team || u.dead || u.type === 'cache' || (!!u.vis && u.vis[team] === this.gen); }
+  sees(team, u) { return !this.on || u.team === team || u.dead || u.type === 'cache' || (!!u.vis && u.vis[team] === this.gen); }
   seesCell(team, k) { return k >= 0 && this.stamp[team][k] === this.gen; }
+  // seconds since `team` last saw the ground at (x, z) (a large number if never; 0 with the fog off)
+  ageAt(team, x, z) { if (!this.on) return 0; const k = this.cellOf(x, z); return k < 0 ? Infinity : (this.gen - this.stamp[team][k]) * RULES.vision.every; }
+  // what `team` knows of the enemy: the units it sees, and stand-ins where it last saw the others ({ ghost: true, age in s,
+  // unit: the real one }, positioned where it was seen). Not mounted, not dead. Worked out once a tick.
+  contacts(team) {
+    if (this.cAt[team] === this.t) return this.cList[team];
+    const out = [];
+    for (const e of this.units.units) if (!e.dead && !e.mounted && e.team !== team && e.team >= 0 && e.team <= 1 && this.sees(team, e)) out.push(e);
+    if (this.on) for (const [e, g] of this.ghosts[team]) out.push({ ghost: true, unit: e, age: this.t - g.t, pos: { x: g.x, y: g.y, z: g.z }, heading: g.heading, speed: 0,
+      type: e.type, kit: e.kit, supply: e.supply, spec: e.spec, team: e.team, alt: g.alt, label: e.label, dead: false, mounted: null, supp: 0 });
+    this.cAt[team] = this.t; return (this.cList[team] = out);
+  }
 
   tick(dt) {
     const V = RULES.vision; this.t += dt; this.acc += dt;
-    if (this.acc < V.every - 1e-6) return; this.acc = 0;
+    if (!this.on || this.acc < V.every - 1e-6) return; this.acc = 0;
     const gen = ++this.gen, U = this.units.units, viewers = [[], []];
     for (const u of U) {
       if (u.dead || u.mounted || u.team < 0 || u.team > 1) continue;
@@ -85,7 +98,7 @@ export class Vision {
         if (v) {
           vis[t] = gen; this.ghosts[t].delete(e);
           if (STICKY.has(e.type)) (e.known || (e.known = [false, false]))[t] = true;
-        } else if (vis[t] === gen - 1 && !e.mounted) this.ghosts[t].set(e, { x: e.pos.x, z: e.pos.z, t: this.t, type: e.type, label: e.label });   // just lost sight of it
+        } else if (vis[t] === gen - 1 && !e.mounted) this.ghosts[t].set(e, { x: e.pos.x, y: e.pos.y, z: e.pos.z, alt: e.alt || 0, heading: e.heading, t: this.t, type: e.type, label: e.label });   // just lost sight of it
       }
     }
     for (const G of this.ghosts) for (const [e, g] of G) if (e.dead || this.t - g.t > V.ghost) G.delete(e);

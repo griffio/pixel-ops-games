@@ -98,6 +98,9 @@ Each mode is a data object: objectives, ticket rules, timer, win checks, AI weig
   spots (on Desert Crossing the north-east side digs in about half as much
   because its places sit on the road). Deliberate road blocks (tank traps, wire)
   belong with these maps; on the open desert vehicles simply drive round.
+  Bases and locations exactly mirrored through the centre: Desert Crossing's
+  Village sits off-centre and its north-east route is 29 m shorter, which gives
+  that side about 60% of CPU matches (see "Fog of war, stage 2").
 
 ## 2. Architecture
 
@@ -1136,6 +1139,38 @@ Engine changes needed in the existing core:
   sighted" fires when our side first sees a vehicle. Off when spectating
   (`?fog=1` forces team 0's view) and once the match ends, so the debrief
   shows everything. Engine sounds and dust still carry from hidden vehicles.
+
+- **Fog of war, stage 2: the CPU plays by vision (2026-10-26).** `Vision.contacts(team)`
+  is what a side knows: the enemies it sees plus stand-ins at last-known positions
+  (ghost, age, the real unit behind it), worked out once a tick. The strategist's
+  enemiesNear/armourNear, the attack stand-off, screen cover, caution (armour,
+  squads falling back, APC stand-off, AT squads hunting: the hunt keys on the
+  real vehicle, not the stand-in), the perch and fire-support threat checks, the
+  enemy FOB to raid and Skirmish hunting (no contact: sweep toward their base)
+  all use contacts; so does the utility commander, a sighting counting for less
+  as it ages (x1 seen, down to x0.3 at 30 s), and a place the enemy holds that
+  the side has not seen for 30 s counts as held by `RULES.vision.guess` (4, about
+  a squad) so the CPU does not walk into an unseen garrison. `match.enemiesNear`
+  counts only seen enemies (game rules pass `all`: Destruction's cache reveal).
+  Capture zones publish what the capture bar shows (`contested`, `pushing`), and
+  Advance and Secure/Invasion count a place of ours as threatened when it is
+  contested or being drained, unseen attackers or not; Territory ranks hexes by
+  seen enemies, not the zone counts. `?fog=0` (app.fogOff) switches vision off
+  for everyone: contacts are then every enemy and the 16 default matches replay
+  exactly as before fog of war. With fog: no page errors, captures per match
+  5.4 (5.6 without), infantry deaths 291 (350): fights start with less
+  information. 48 matches each way (default pairings, seeds 1-6, both bases):
+  south-west 19 / north-east 29 without fog, 14 / 34 with it; by preset with
+  fog Mechanized 19/24, Armoured 7/12, Light 12/24, Balanced 10/24, Air 0/12.
+  The north-east lean is the map's, not the fog's: mirror Balanced matches with
+  the fog off go to the north-east six times out of six, which takes the Village
+  first every time (134-166 s). The Village sits at (40, 10), not the centre,
+  and the north-east route to it is shorter (base 177 m to Relay, 149 m to
+  Depot, 248 m to Village: 573 m, against 149 + 206 + 248 = 602 m from the
+  south-west; its respawns walk 28 m less), and the swap test (`?swap=1`) shows
+  the edge follows the base, not the team. The next map has to be exactly
+  point-symmetric (bases and locations mirrored through the centre); the
+  balance tool's mirror pairing (`--pairs balanced:balanced`) is the check.
 
 ## Open questions
 

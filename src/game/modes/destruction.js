@@ -26,7 +26,7 @@ export class Destruction extends Mode {
     const c = this.active; if (!c) return;
     if (c.state === 'hidden') {
       c.t += dt;
-      const near = this.match.enemiesNear(this.defender, c.unit.pos.x, c.unit.pos.z, 70) > 0;
+      const near = this.match.enemiesNear(this.defender, c.unit.pos.x, c.unit.pos.z, 70, true) > 0;   // a rule: anyone close finds it
       if (near || c.t > 90) { c.state = 'revealed'; c.unit.group.visible = true; this.match.event({ type: 'cache revealed', loc: c.site, team: this.attacker }); }
     }
     if (c.unit.dead && c.state !== 'destroyed') {

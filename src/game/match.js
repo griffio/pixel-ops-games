@@ -40,7 +40,7 @@ export class Match {
     this.nav.foot.build(this.world.obstacles, this.world.terrain, 0.9, this.world.onBridge); this.nav.vehicle.build(this.world.obstacles, this.world.terrain, 0.45, this.world.onBridge); this.units.nav = this.nav;
     this.spatial = new SpatialHash(8); this.units.spatial = this.spatial;
     this.combat = new Combat(this.units, this.spatial, this.world, app.dust); this.combat.teams = this.teams; this.combat.audio = app.audio || null;
-    this.vision = new Vision(this.units, this.world, this.combat); this.combat.vision = this.vision;   // fog of war: what each side sees
+    this.vision = new Vision(this.units, this.world, this.combat, !app.fogOff); this.combat.vision = this.vision;   // fog of war: what each side sees (?fog=0: everything)
     this.respawn = new Respawn(this.units, this.teams, this.world);
     this.support = new Support(this.units, this.respawn, this.teams);
     this.fobs = new Fobs(this.units, this.teams, this.world);
@@ -106,8 +106,8 @@ export class Match {
     this.combat.onShot = this.voices ? (u) => this.voices.onShot(u) : null;
   }
   pushFeed(f) { f.t = 0; f.id = ++this.feedId; this.feed.unshift(f); this.feed.length = Math.min(this.feed.length, 7); }
-  // live enemy ground units of `team` within r of a point
-  enemiesNear(team, x, z, r) { let n = 0; for (const u of this.units.units) if (!u.dead && !u.mounted && u.team !== team && !u.spec.structure && !(u.spec.air && u.alt > 2) && Math.hypot(u.pos.x - x, u.pos.z - z) < r) n++; return n; }
+  // live enemy ground units of `team` within r of a point: those `team` can see (fog of war), or all of them for game rules (all)
+  enemiesNear(team, x, z, r, all = false) { let n = 0; for (const u of this.units.units) if (!u.dead && !u.mounted && u.team !== team && !u.spec.structure && !(u.spec.air && u.alt > 2) && Math.hypot(u.pos.x - x, u.pos.z - z) < r && (all || this.vision.sees(team, u))) n++; return n; }
 
   deploy() {
     const w = this.world;

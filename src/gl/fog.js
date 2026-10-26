@@ -6,8 +6,8 @@ const ENEMY = hexToLinear(0xff8a7a);
 // Fog of war as the player sees it (game/vision.js decides what each side sees): enemies the player's side cannot see are
 // left out of the frame, and so out of the shadows and picking; ground and props outside the side's sight are darkened (the
 // Fog shading setting, ?fogshade=0 to start without it); each enemy that dropped out of sight leaves a fading red diamond
-// where it was last seen. Off while the CPU plays both sides (spectating) and once the match is over; ?fog=0 turns it off,
-// ?fog=1 shows team 0's view even when spectating.
+// where it was last seen. Off while the CPU plays both sides (spectating) and once the match is over; ?fog=0 turns fog of
+// war off for everyone (game/vision.js), ?fog=1 shows team 0's view even when spectating.
 export class FogView {
   constructor(app) {
     const q = new URLSearchParams(location.search);
@@ -16,7 +16,7 @@ export class FogView {
   }
   team() { return this.app.playerTeam ?? 0; }
   active() {
-    const m = this.app.match; if (!m || !m.vision || m.state !== 'play' || this.param === '0') return false;
+    const m = this.app.match; if (!m || !m.vision || !m.vision.on || m.state !== 'play') return false;
     return this.param === '1' || !m.cpu.includes(this.team());
   }
   // does the player see unit u? (everything, when the fog is off)

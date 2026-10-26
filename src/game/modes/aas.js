@@ -36,7 +36,7 @@ export class AAS extends Mode {
   }
   threatenedOf(team, extra = []) {
     const places = [...this.objectives.list.filter(l => l.owner === team), ...extra];
-    return places.filter(l => this.match.enemiesNear(team, l.x, l.z, l.r + 25) > 0);
+    return places.filter(l => l.contested || l.pushing === 1 - team || this.match.enemiesNear(team, l.x, l.z, l.r + 25) > 0);   // the capture bar shows a fight anyone can see
   }
   goals(team, extra = []) {
     const o = this.objectives, attack = o.nextFor(team), front = o.front(team), threatened = this.threatenedOf(team, extra);

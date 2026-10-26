@@ -6,8 +6,11 @@ import { roadDist } from '../../core/math.js';
 export class Strategist {
   constructor(team, units, teams, match) { this.team = team; this.units = units; this.teams = teams; this.match = match; this.timer = 1 + Math.random() * 2; this.reflex = 0.5; this.plan = null; this.remote = null; this.utility = null; this.posture = 'balanced'; this.prefer = 'fob'; this.lift = true; this.lifts = new Map(); this.diff = match.difficulty || { plan: 5, attackShare: 0, logistics: true }; }
 
-  enemiesNear(x, z, r) { return this.units.units.filter(u => !u.dead && !u.mounted && u.team !== this.team && !(u.spec.air && u.alt > 2) && Math.hypot(u.pos.x - x, u.pos.z - z) < r); }
-  armourNear(x, z, r) { return this.units.units.some(e => !e.dead && e.team !== this.team && (e.type === 'apc' || e.type === 'tank') && Math.hypot(e.pos.x - x, e.pos.z - z) < r); }
+  // what our side knows of the enemy (fog of war, game/vision.js): the units it sees, and stand-ins where it last saw the
+  // others. Everything below plans with these, never with the enemy's real positions.
+  contacts() { return this.match.vision.contacts(this.team); }
+  enemiesNear(x, z, r) { return this.contacts().filter(u => !(u.spec.air && u.alt > 2) && Math.hypot(u.pos.x - x, u.pos.z - z) < r); }
+  armourNear(x, z, r) { return this.contacts().some(e => (e.type === 'apc' || e.type === 'tank') && Math.hypot(e.pos.x - x, e.pos.z - z) < r); }
   friendsNear(x, z, r) { return this.units.units.filter(u => !u.dead && !u.mounted && u.team === this.team && Math.hypot(u.pos.x - x, u.pos.z - z) < r); }
   cluster(list) {
     let best = null, bestN = -1;
@@ -46,7 +49,7 @@ export class Strategist {
     this.posture = g.posture || 'balanced'; this.prefer = g.logistics || 'fob'; this.lift = g.lift !== false;
     if (g.hunt) return this.skirmish(squads, vehicles, base);
     const attack = g.attack, hold = g.hold, reserve = g.reserve || null;
-    const enemyFob = this.units.units.find(u => u.type === 'fob' && u.team !== this.team && !u.dead && (attack ? Math.hypot(u.pos.x - attack.x, u.pos.z - attack.z) < 160 : true));
+    const enemyFob = this.contacts().find(u => u.type === 'fob' && (attack ? Math.hypot(u.pos.x - attack.x, u.pos.z - attack.z) < 160 : true));
     const logisticsSquad = this.logistics(squads, vehicles, g.fobAnchor, hold);
     const allPosts = hold ? this.match.fobs.sandbagsOf(this.team).filter(s => Math.hypot(s.pos.x - hold.x, s.pos.z - hold.z) < hold.r + 12) : [];   // our sandbag positions at the place we hold, one squad each
     // a squad manning one (or on its way in) keeps it and sits out the job share; the other positions go to squads given the hold job
@@ -61,7 +64,7 @@ export class Strategist {
       const foes = this.enemiesNear(attack.x, attack.z, attack.r + 20);
       if (foes.length > 1 && (attack.n ? attack.n[this.team] : 0) < 4) {   // stand off and shoot rather than walk into them, from behind something if an APC overlooks the spot
         const c = this.cluster(foes), cen = sq.centroid(); let [x, z] = this.toward(cen, c, 35);
-        const apc = this.units.units.find(f => (f.type === 'apc' || f.type === 'tank') && !f.dead && f.team !== this.team && Math.hypot(f.pos.x - x, f.pos.z - z) < 150 && this.match.combat.canSeePoint(f, x, z));
+        const apc = this.contacts().find(f => (f.type === 'apc' || f.type === 'tank') && Math.hypot(f.pos.x - x, f.pos.z - z) < 150 && this.match.combat.canSeePoint(f, x, z));
         if (apc) { const p = this.match.combat.coverPoint(x, z, apc.pos.x, apc.pos.z, 30, this.units.nav.foot); if (p) [x, z] = p; }
         this.send(sq, x, z, 'approach', attack);
       }
@@ -76,7 +79,7 @@ export class Strategist {
     const screenAt = (sq, loc) => {   // an overwatch position 50 m out from our location towards the enemy, in cover if armour overlooks it
       if (!loc) return holdAt(sq, hold);
       const to = attack || this.teams[1 - this.team].base; let [x, z] = this.toward(loc, to, Math.max(0, Math.hypot(to.x - loc.x, to.z - loc.z) - 50), 8);
-      const apc = this.units.units.find(f => (f.type === 'apc' || f.type === 'tank') && !f.dead && f.team !== this.team && Math.hypot(f.pos.x - x, f.pos.z - z) < 150 && this.match.combat.canSeePoint(f, x, z));
+      const apc = this.contacts().find(f => (f.type === 'apc' || f.type === 'tank') && Math.hypot(f.pos.x - x, f.pos.z - z) < 150 && this.match.combat.canSeePoint(f, x, z));
       if (apc) { const p = this.match.combat.coverPoint(x, z, apc.pos.x, apc.pos.z, 30, this.units.nav.foot); if (p) [x, z] = p; }
       this.send(sq, x, z, 'screen' + loc.index, loc);
     };
@@ -174,7 +177,7 @@ export class Strategist {
   // sandbags stay put through all of it. An APC with an enemy inside 50 m backs off to 70 m.
   halt(sq, tag) { for (const m of sq.members) if (!m.dead) { m.dest = null; m.target = null; m.path = null; } sq.tag = tag; sq.goal = null; }
   caution() {
-    const enemies = this.units.units.filter(u => !u.dead && !u.mounted && u.team !== this.team && !u.spec.structure && !(u.spec.air && u.alt > 2));
+    const enemies = this.contacts().filter(u => !u.spec.structure && !(u.spec.air && u.alt > 2));
     if (!enemies.length) return;
     const C = this.match.combat, now = this.match.elapsed, apcs = enemies.filter(e => e.type === 'apc' || e.type === 'tank');   // armour
     const k = this.posture === 'aggressive' ? 0.6 : this.posture === 'cautious' ? 1.3 : 1;   // posture scales every distance below
@@ -209,13 +212,14 @@ export class Strategist {
     const hasAT = (sq) => sq.members.some(m => !m.dead && m.kit === 'at');
     for (const apc of apcs) {
       if (!ours.some(sq => !hasAT(sq) && Math.hypot(sq.centroid().x - apc.pos.x, sq.centroid().z - apc.pos.z) < 150)) continue;
+      const real = apc.unit || apc;   // a last-known position stands in for its vehicle: hunt the vehicle, not the stand-in
       let best = null, bd = Infinity;
       for (const sq of ours) {
-        if (!hasAT(sq) || sq.tag === 'stalk' || (sq.huntTarget && sq.huntTarget !== apc && !sq.huntTarget.dead)) continue;
+        if (!hasAT(sq) || sq.tag === 'stalk' || (sq.huntTarget && sq.huntTarget !== real && !sq.huntTarget.dead)) continue;
         const c = sq.centroid(), d = Math.hypot(c.x - apc.pos.x, c.z - apc.pos.z); if (d < bd) { bd = d; best = sq; }
       }
       if (!best) continue;
-      best.huntTarget = apc;
+      best.huntTarget = real;
       if (bd < 80 && C.canSeePoint(best.leader, apc.pos.x, apc.pos.z)) this.halt(best, 'hunt');
       else { const [x, z] = this.toward(best.centroid(), apc.pos, 45); this.send(best, x, z, 'hunt', best.zone); }
       best.pinUntil = now + 6;
@@ -368,13 +372,13 @@ export class Strategist {
   // than two in reach is out; the fewest wins, then our side. Null if there is none.
   exposed(x, z) {   // Infinity in reach of an APC, else the launchers that can reach (x, z)
     let n = 0;
-    for (const e of this.units.units) { if (e.dead || e.mounted || e.team === this.team) continue; const d = Math.hypot(e.pos.x - x, e.pos.z - z); if (e.type === 'apc' && d < 165) return Infinity; if (e.kit === 'at' && d < 95) n++; }
+    for (const e of this.contacts()) { const d = Math.hypot(e.pos.x - x, e.pos.z - z); if (e.type === 'apc' && d < 165) return Infinity; if (e.kit === 'at' && d < 95) n++; }
     return n;
   }
   gunSpot(places, base) {
     const squads = this.units.squads.filter(s => s.team === this.team && s.leader && !s.mounted).map(s => { const c = s.centroid(); return { x: c.x, z: c.z, r: 0 }; });
     const around = [...places.filter(Boolean), ...squads];
-    const foes = this.units.units.filter(u => u.type === 'soldier' && !u.dead && !u.mounted && u.team !== this.team && around.some(l => Math.hypot(u.pos.x - l.x, u.pos.z - l.z) < l.r + 100));
+    const foes = this.contacts().filter(u => u.type === 'soldier' && around.some(l => Math.hypot(u.pos.x - l.x, u.pos.z - l.z) < l.r + 100));
     if (foes.length < 2) return null;
     // the knot of foes with the fewest launchers and APCs about: try the three biggest knots
     const knots = [], left = [...foes];
@@ -438,9 +442,10 @@ export class Strategist {
     return true;
   }
 
-  // no objectives: hunt the enemy's main cluster (milestone 1 behaviour)
+  // no objectives: hunt the enemy's main cluster as far as we know it (milestone 1 behaviour); knowing of none, sweep toward
+  // their base until something shows
   skirmish(squads, vehicles, base) {
-    const target = this.cluster(this.units.units.filter(u => !u.dead && !u.mounted && u.team !== this.team && !(u.spec.air && u.alt > 2)));
+    const eb = this.teams[1 - this.team].base, target = this.cluster(this.contacts().filter(u => !(u.spec.air && u.alt > 2))) || { x: eb.x, z: eb.z };
     squads.forEach((sq, i) => {
       if (i < 2 || !target) { if (!sq.busy) this.send(sq, base.x + (Math.random() - 0.5) * 16, base.z + (Math.random() - 0.5) * 16, 'home'); return; }
       const c = sq.centroid(), [x, z] = this.toward(c, target, 18); this.send(sq, x, z, 'hunt');

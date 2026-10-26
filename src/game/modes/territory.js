@@ -57,12 +57,13 @@ export class Territory extends Mode {
   goals(team, extra = []) {
     const eb = this.teams[1 - team].base, mb = this.teams[team].base;
     const cand = this.hexes.filter(h => h.owner !== team && this.capturable(team, h));
-    // push toward the enemy base, preferring hexes the enemy holds lightly
-    cand.sort((a, b) => (Math.hypot(a.x - eb.x, a.z - eb.z) + a.n[1 - team] * 25) - (Math.hypot(b.x - eb.x, b.z - eb.z) + b.n[1 - team] * 25));
+    // push toward the enemy base, preferring hexes the enemy holds lightly, as far as we can see (fog of war)
+    const seen = new Map(), foes = (h) => { if (!seen.has(h)) seen.set(h, this.match.enemiesNear(team, h.x, h.z, this.R * 0.9)); return seen.get(h); };
+    cand.sort((a, b) => (Math.hypot(a.x - eb.x, a.z - eb.z) + foes(a) * 25) - (Math.hypot(b.x - eb.x, b.z - eb.z) + foes(b) * 25));
     const toPt = (h, idx) => h ? { x: h.x, z: h.z, r: this.R * 0.7, index: idx, n: h.n } : null;
     const attack = toPt(cand[0], 'hex' + (cand[0] ? cand[0].q + ',' + cand[0].r : ''));
     const mine = this.hexes.filter(h => h.owner === team && h.home === undefined);
-    const threatenedHex = mine.filter(h => h.n[1 - team] > 0).sort((a, b) => b.n[1 - team] - a.n[1 - team])[0];
+    const threatenedHex = mine.filter(h => foes(h) > 0).sort((a, b) => foes(b) - foes(a))[0];
     const front = mine.sort((a, b) => Math.hypot(a.x - eb.x, a.z - eb.z) - Math.hypot(b.x - eb.x, b.z - eb.z))[0];
     const threatened = [...extra.filter(l => this.match.enemiesNear(team, l.x, l.z, l.r + 25) > 0), ...(threatenedHex ? [toPt(threatenedHex, 'hexT')] : [])];
     return { attack, hold: threatened[0] || toPt(front, 'front'), threatened, fobAnchor: front ? { x: front.x, z: front.z, r: this.R * 0.7 } : null, attackShare: 0.7 };

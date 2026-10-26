@@ -5,10 +5,11 @@ import { RULES } from './rules.js';
 export const captureWeight = (u, teams) => { const d = u.landedT > 0 && teams[u.team].doctrine; return (d && d.airCapture) || 1; };
 
 // Capture zones for Advance and Secure. progress runs -100 (OPFOR owned) .. +100
-// (BLUFOR owned); a team can only capture the next location in its lattice order.
+// (BLUFOR owned); a team can only capture the next location in its lattice order. What the capture bar shows is public,
+// fog of war or not: contested (both sides in the zone) and pushing (the side draining or taking it, -1 for none).
 export class Objectives {
   constructor(locations, teams) {
-    this.list = locations.map((l, i) => ({ ...l, index: i, owner: -1, progress: 0, n: [0, 0] }));
+    this.list = locations.map((l, i) => ({ ...l, index: i, owner: -1, progress: 0, n: [0, 0], contested: false, pushing: -1 }));
     this.teams = teams; this.onEvent = null; this.scratch = [];
   }
   order(team) { return team === 0 ? this.list : [...this.list].reverse(); }
@@ -26,10 +27,11 @@ export class Objectives {
       const list = spatial.query(loc.x, loc.z, loc.r, this.scratch);
       let n0 = 0, n1 = 0, w = 0;
       for (const u of list) { if (u.dead || u.mounted || u.spec.structure || (u.spec.air && u.alt > 1)) continue; u.team === 0 ? n0++ : n1++; w += captureWeight(u, this.teams); }
-      loc.n[0] = n0; loc.n[1] = n1;
+      loc.n[0] = n0; loc.n[1] = n1; loc.contested = !!(n0 && n1); loc.pushing = -1;
       if ((n0 && n1) || (!n0 && !n1)) continue;
       const team = n0 ? 0 : 1, n = Math.min(8, w);
       if (!this.capturable(team, loc)) continue;
+      if (loc.owner !== team) loc.pushing = team;
       const before = loc.progress, sign = team === 0 ? 1 : -1;
       loc.progress = Math.max(-100, Math.min(100, loc.progress + sign * n * RULES.captureRate * dt));
       // neutralised: the previous owner loses it

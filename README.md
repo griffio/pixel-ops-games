@@ -57,8 +57,11 @@ and rally points stay on the map once seen; objectives and capture progress
 always show, and the enemy's radio, FOB and dig-in news stays out of your feed.
 **Fog shading** in the right panel (or `?fogshade=0`) drops the darkening and
 keeps only the hidden enemies. With the CPU on both sides the fog is off;
-`?fog=1` shows team 0's view anyway and `?fog=0` turns it off. For now the CPU
-still sees everything; making it play by the same rules is the next step.
+`?fog=1` shows team 0's view anyway, and `?fog=0` turns fog of war off for
+everyone. The CPU plays by the same rules: it plans with what its side sees and
+where it last saw the rest, takes a place you hold that it has not looked at for
+half a minute to be defended by about a squad, and knows a place of its own is
+under attack when its capture bar shows it (contested or draining).
 
 Any static server works (ES modules can't load over `file://`). three.js comes
 from jsDelivr via an import map; the WebGL2 back end loads nothing external.

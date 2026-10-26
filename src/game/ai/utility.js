@@ -42,8 +42,12 @@ export class UtilityCommander {
   // the shared considerations, measured once per decision round
   measure(squads) {
     const m = this.match, t = this.team, o = m.objectives, U = this.units.units, now = m.elapsed;
-    const foes = U.filter(u => !u.dead && !u.mounted && u.team !== t && !u.spec.structure && !(u.spec.air && u.alt > 2));
-    const enemyAt = (x, z, r) => { let s = 0; for (const u of foes) if (Math.hypot(u.pos.x - x, u.pos.z - z) < r) s += weight(u); return s; };
+    // the enemy as far as our side knows it (fog of war): what it sees, and where it last saw the rest, a sighting counting
+    // for less as it ages; a place they hold that we have not looked at for half a minute is taken to hold about a squad
+    const V = m.vision, foes = this.s.contacts().filter(u => !u.spec.structure && !(u.spec.air && u.alt > 2));
+    const conf = (u) => u.ghost ? Math.max(0.3, 1 - u.age / RULES.vision.ghost) : 1;
+    const enemyAt = (x, z, r) => { let s = 0; for (const u of foes) if (Math.hypot(u.pos.x - x, u.pos.z - z) < r) s += weight(u) * conf(u); return s; };
+    const unseen = (l) => l.owner === 1 - t && V.ageAt(t, l.x, l.z) > 30 ? RULES.vision.guess : 0;
     let ours = 0; for (const u of U) if (!u.dead && !u.mounted && u.team === t && !u.spec.structure && !u.supply) ours += weight(u);
     const enemyApcs = foes.filter(u => u.type === 'apc' || u.type === 'tank');   // enemy armour
     const haveAT = squads.some(sq => sq.members.some(u => !u.dead && u.kit === 'at'));
@@ -66,7 +70,7 @@ export class UtilityCommander {
     // travel: how close a place is to our nearest spawn (main base or a FOB); 1 on top of it, a half at 350 m
     const spawns = [m.teams[t].base, ...U.filter(u => u.type === 'fob' && u.team === t && !u.dead).map(f => f.pos)];
     const travel = (l) => { let d = Infinity; for (const sp of spawns) d = Math.min(d, Math.hypot(sp.x - l.x, sp.z - l.z)); return 1 / (1 + d / 350); };
-    return { foes, enemyAt, ours, enemyApcs, haveAT, armourAt, lead, swing, ownedUs, ownedThem, pressure, timeP, urgency, readiness, travel };
+    return { foes, enemyAt, unseen, ours, enemyApcs, haveAT, armourAt, lead, swing, ownedUs, ownedThem, pressure, timeP, urgency, readiness, travel };
   }
 
   decide(squads, vehicles) {
@@ -76,7 +80,7 @@ export class UtilityCommander {
 
     // 1. attack target: the capturable locations, or none (sit on what we hold)
     const cands = L.filter(l => l.owner !== t && o.capturable(t, l));
-    const ratioAt = (l) => { const theirs = M.enemyAt(l.x, l.z, l.r + 60); return M.ours / (M.ours + theirs + 0.5); };
+    const ratioAt = (l) => { const theirs = Math.max(M.enemyAt(l.x, l.z, l.r + 60), M.unseen(l)); return M.ours / (M.ours + theirs + 0.5); };
     const armourF = (l) => 1 / (1 + M.armourAt(l.x, l.z) * w.armour * (M.haveAT ? 0.5 : 1));
     const attackOpts = cands.map(l => ({ value: l.name, loc: l, score: sigmoid(ratioAt(l), 0.45, 0.08) * armourF(l) * (0.4 + 0.6 * M.travel(l)) * (0.6 + 0.4 * M.urgency) * w.push }));
     attackOpts.push({ value: null, loc: null, score: 0.3 * (M.ownedUs > M.ownedThem ? 1 : 0.4) * (1 - M.urgency) * (0.6 + 0.4 * (1 - M.readiness)) / w.push });
@@ -93,7 +97,7 @@ export class UtilityCommander {
     this.scores.hold = holdOpts.map(h => [h.value, +h.score.toFixed(2)]);
 
     // 3. attack share: enough force for the target (projected ratio), not leaving threatened holds bare, no more than needed
-    const theirsAtTarget = target ? M.enemyAt(target.x, target.z, target.r + 60) : 0;
+    const theirsAtTarget = target ? Math.max(M.enemyAt(target.x, target.z, target.r + 60), M.unseen(target)) : 0;
     const adequacy = (s, frac = 1) => clamp01(((M.ours * s * frac) / Math.max(1, theirsAtTarget) - 0.7) / 1.2);
     const share = target ? this.pick('share', [0.35, 0.5, 0.65, 0.8, 0.95].map(s => ({ value: s,
       score: (0.3 + 0.7 * adequacy(s)) * (1 - 0.6 * holdThreat * s) * (1 + 0.3 * M.urgency * s) * (1 - 0.2 * s * (1 - M.urgency)) }))).value : 0.5;
@@ -153,7 +157,7 @@ export class UtilityCommander {
     const near = (sq, p) => { if (!p) return 0.5; const c = sq.centroid(); return 1 / (1 + Math.hypot(c.x - p.x, c.z - p.z) / 250); };
     const keep = (sq, role) => this.roleOf.get(sq.leader.label) === role ? w.commit : 0;
     const armourNearHold = !!holdLoc && M.enemyApcs.some(v => Math.hypot(v.pos.x - holdLoc.x, v.pos.z - holdLoc.z) < 250);
-    const enemyFob = U.find(u => u.type === 'fob' && u.team !== t && !u.dead && [holdLoc, target].some(p => p && Math.hypot(u.pos.x - p.x, u.pos.z - p.z) < 300));
+    const enemyFob = this.s.contacts().find(u => u.type === 'fob' && [holdLoc, target].some(p => p && Math.hypot(u.pos.x - p.x, u.pos.z - p.z) < 300));
     const truckAtRisk = truck && truck.dest && M.enemyAt(truck.pos.x, truck.pos.z, 120) > 0;
     const demand = { screen: holdLoc && (armourNearHold || M.enemyAt(holdLoc.x, holdLoc.z, holdLoc.r + 150) > 4) ? 1 : 0, reserve: free.length >= 4 && holdThreat > 0.4 ? 1 : 0, raid: enemyFob ? 1 : 0, escort: truckAtRisk ? 1 : 0 };
     const fit = {
