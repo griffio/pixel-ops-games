@@ -78,7 +78,7 @@ export class Hud {
     }
 
     // under fog of war the enemy's own news stays theirs: its commander's radio, its FOB going up, its digging in
-    const a = this.app, hush = a.fog && a.fog.on ? (f) => f.kind === 'event' && f.e.team !== (a.playerTeam ?? 0) && (f.e.type === 'radio' || f.e.type === 'fob' || f.e.type === 'sandbags') : () => false;
+    const a = this.app, hush = a.fog && a.fog.on ? (f) => f.kind === 'event' && f.e.team !== (a.playerTeam ?? 0) && (f.e.type === 'radio' || f.e.type === 'fob' || f.e.type === 'sandbags' || f.e.type === 'traps') : () => false;
     const feed = $('feed'), lines = m.feed.filter(f => f.t < 10 && !hush(f)), key = lines.map(f => f.id).join(',');
     if (key !== this.feedKey) { this.feedKey = key; feed.innerHTML = lines.map(f => this.feedLine(f)).join(''); }
     lines.forEach((f, i) => { const el = feed.children[i]; if (el) el.style.opacity = f.t > 7 ? ((10 - f.t) / 3).toFixed(2) : 1; });
@@ -104,7 +104,7 @@ export class Hud {
       return `<div class="kill${v.type !== 'soldier' ? ' veh' : ''}"><b class="t${k ? k.team : 0}">${k ? k.label : '?'}</b><span class="w">${kit}</span>${ico(v.type === 'soldier' ? 'skull' : v.type)}<b class="t${v.team}">${v.label}</b></div>`;
     }
     const e = f.e, team = e.team, name = team === 0 ? 'BLUFOR' : 'OPFOR', loc = e.loc ? e.loc.name : '';
-    const text = e.type === 'captured' ? `captured <b>${loc}</b>` : e.type === 'lost' ? `lost <b>${loc}</b>` : e.type === 'fob' ? 'FOB is up' : e.type === 'sandbags' ? 'dug in behind sandbags' : e.type === 'rally lost' ? `lost rally point <b>${e.rally || ''}</b>` : e.type === 'radio' ? `<i>${String(e.text).replace(/[&<>]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;' }[c]))}</i>` : e.type === 'cache revealed' ? `found the cache at <b>${loc}</b>` : e.type === 'cache destroyed' ? `destroyed the cache at <b>${loc}</b>` : e.type;
+    const text = e.type === 'captured' ? `captured <b>${loc}</b>` : e.type === 'lost' ? `lost <b>${loc}</b>` : e.type === 'fob' ? 'FOB is up' : e.type === 'sandbags' ? 'dug in behind sandbags' : e.type === 'traps' ? 'laid tank traps' : e.type === 'traps cleared' ? 'cleared tank traps' : e.type === 'rally lost' ? `lost rally point <b>${e.rally || ''}</b>` : e.type === 'radio' ? `<i>${String(e.text).replace(/[&<>]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;' }[c]))}</i>` : e.type === 'cache revealed' ? `found the cache at <b>${loc}</b>` : e.type === 'cache destroyed' ? `destroyed the cache at <b>${loc}</b>` : e.type;
     return `<div class="ev">${ico(e.type === 'fob' ? 'fob' : e.type.startsWith('cache') ? 'cache' : 'flag')}<b class="t${team}">${name}</b> ${text}</div>`;
   }
 
@@ -166,6 +166,7 @@ export class Hud {
       g.fillStyle = u.team === me ? '#9fd0ff' : '#ff8a7a';
       if (u.type === 'fob') { g.strokeStyle = g.fillStyle; g.lineWidth = 1.5; g.strokeRect(X(u.pos.x) - 3, Z(u.pos.z) - 3, 6, 6); continue; }
       if (u.type === 'rally') { g.strokeStyle = g.fillStyle; g.lineWidth = 1.2; const x = X(u.pos.x), z = Z(u.pos.z); g.beginPath(); g.moveTo(x, z - 3.5); g.lineTo(x + 3, z + 2); g.lineTo(x - 3, z + 2); g.closePath(); g.stroke(); continue; }
+      if (u.type === 'traps') { g.strokeStyle = g.fillStyle; g.lineWidth = 1.2; const x = X(u.pos.x), z = Z(u.pos.z); g.beginPath(); g.moveTo(x - 2.5, z - 2.5); g.lineTo(x + 2.5, z + 2.5); g.moveTo(x + 2.5, z - 2.5); g.lineTo(x - 2.5, z + 2.5); g.stroke(); continue; }   // tank traps
       if (u.type === 'sandbags') continue;
       const s = u.type === 'soldier' ? 2 : 3; g.fillRect(X(u.pos.x) - s / 2, Z(u.pos.z) - s / 2, s, s);
     }
@@ -263,6 +264,10 @@ export class Hud {
     if (sqs.length && m.rallies) { const c = sqs.map(sq => m.rallies.canPlace(sq)), ok = c.some(x => x.ok), why = c.find(x => !x.ok); box.insertAdjacentHTML('beforeend', `<button data-act="rally" ${ok ? '' : 'disabled'} title="${why ? why.reason : ''}">Rally (T)${ok ? '' : ' · ' + why.reason}</button>`); }
     if (eng) { const c = m.fobs.canBuild(eng); box.insertAdjacentHTML('beforeend', `<button data-act="fob" ${c.ok ? '' : 'disabled'} title="${c.reason || ''}">Build FOB (B)${c.ok ? '' : ' · ' + c.reason}</button>`); }
     if (eng) { const c = m.fobs.canBuildSandbags(eng); box.insertAdjacentHTML('beforeend', `<button data-act="sandbags" ${c.ok ? '' : 'disabled'} title="${c.reason || ''}">Sandbags (N)${c.ok ? '' : ' · ' + c.reason}</button>`); }
+    if (eng) {   // tank traps: clear the row the engineer stands at, or lay one
+      const cl = m.fobs.canClear(eng), c = cl.ok ? cl : m.fobs.canBuildTraps(eng);
+      box.insertAdjacentHTML('beforeend', `<button data-act="traps" ${c.ok ? '' : 'disabled'} title="${c.reason || ''}">${cl.ok ? 'Clear traps' : 'Tank traps'} (X)${c.ok ? '' : ' · ' + c.reason}</button>`);
+    }
     const car = list.find(u => u.seats && !u.dead && u.passengers.length);
     if (car) box.insertAdjacentHTML('beforeend', `<button data-act="unload" ${car.alt > 0.5 ? 'disabled' : ''}>Unload ${car.passengers.length} (U)</button>`);
     else if (list.some(u => u.post && !u.dead)) box.insertAdjacentHTML('beforeend', `<button data-act="unload">Leave position (U)</button>`);
@@ -272,6 +277,12 @@ export class Hud {
   action(kind) {
     const m = this.app.match, sel = this.app.input.selected; if (!m) return;
     if (kind === 'fob') { const eng = sel.find(u => u.kit === 'engineer' && !u.dead); if (!eng) return this.toast('Select an engineer'); const r = m.fobs.startBuild(eng); this.toast(r.ok ? `Building FOB, ${Math.round(r.build.total)} s` : r.reason); if (this.app.audio) { this.app.audio.ui(r.ok ? 'order' : 'deny'); if (r.ok) this.app.audio.foley('dig', eng.pos.x, eng.pos.z); } }
+    if (kind === 'traps') {   // at a row of traps an engineer clears it; anywhere else he lays one
+      const eng = sel.find(u => u.kit === 'engineer' && !u.dead); if (!eng) return this.toast('Select an engineer');
+      const clear = m.fobs.canClear(eng).ok, r = clear ? m.fobs.startClear(eng) : m.fobs.startTraps(eng);
+      this.toast(r.ok ? `${clear ? 'Clearing tank traps' : 'Laying tank traps'}, ${Math.round(r.build.total)} s` : r.reason);
+      if (this.app.audio) { this.app.audio.ui(r.ok ? 'order' : 'deny'); if (r.ok) this.app.audio.foley('dig', eng.pos.x, eng.pos.z); }
+    }
     if (kind === 'sandbags') { const eng = sel.find(u => u.kit === 'engineer' && !u.dead); if (!eng) return this.toast('Select an engineer'); const r = m.fobs.startSandbags(eng); this.toast(r.ok ? `Building sandbags, ${Math.round(r.build.total)} s` : r.reason); if (this.app.audio) { this.app.audio.ui(r.ok ? 'order' : 'deny'); if (r.ok) this.app.audio.foley('dig', eng.pos.x, eng.pos.z); } if (r.ok && m.voices) m.voices.say('vo_sq_dig', 10); }
     if (kind === 'rally') {
       const sqs = [...new Set(sel.filter(u => u.type === 'soldier' && u.squad && !u.dead).map(u => u.squad))]; if (!sqs.length) return this.toast('Select a squad');

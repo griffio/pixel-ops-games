@@ -78,6 +78,9 @@ export const valley2km = {
   // the long barriers and where they are crossed, for route-finding (nav.js gates): the bluffs at their passes, the river at
   // the footbridge (infantry), the bridge and the ford; d: metres either side of the line a crossing takes
   gates: [-BLUFF, 0, BLUFF].map(at => ({ at, portals: at ? [{ x: -LANE, d: 45 }, { x: 0, d: 45 }, { x: LANE, d: 45 }] : [{ x: -LANE, d: 32, foot: true }, { x: 0, d: 44 }, { x: LANE, d: 62 }] })),
+  // where tank traps close a crossing to vehicles: both ends of the bridge, and the ford's banks (two rows each: it is 30 m
+  // wide); the CPU lays them at the ones on its side
+  chokes: [[0, -44], [545, -62], [575, -62], [0, 44], [545, 62], [575, 62]],
   bridges: [
     { x: 0, z: 0, len: 64, w: 14, angle: 0, y: 1.3 },
     { x: -LANE, z: 0, len: 44, w: 4, angle: 0, y: 1.0, foot: true },

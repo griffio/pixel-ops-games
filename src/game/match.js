@@ -62,6 +62,26 @@ export class Match {
       }
       this.event({ type: 'sandbags', team: u.team });
     };
+    // tank traps: boxes that stop vehicles only (world.vehicleObstacles, and the vehicle grid's extra blocks); a vehicle caught
+    // in the row is put on the nearest free ground. Cleared, the boxes go and the grid round them is worked out again.
+    this.nav.vehicle.extra = this.world.vehicleObstacles;
+    this.fobs.onTraps = (u, boxes) => {
+      u.trapBoxes = boxes;
+      for (const o of boxes) { this.world.vehicleObstacles.push(o); this.nav.vehicle.block(o); }
+      const nav = this.nav.vehicle;
+      for (const v of this.units.units) {
+        if (v.dead || v.spec.nav !== 'vehicle' || Math.hypot(v.pos.x - u.pos.x, v.pos.z - u.pos.z) > 14 || !nav.blocked(v.pos.x, v.pos.z)) continue;
+        const c = nav.nearest(nav.cellOf(v.pos.x), nav.cellOf(v.pos.z), 10); if (c) { v.pos.x = nav.world(c[0]); v.pos.z = nav.world(c[1]); }
+      }
+      this.event({ type: 'traps', team: u.team });
+    };
+    this.fobs.onTrapsCleared = (u, team) => {
+      const W = this.world.vehicleObstacles, B = u.trapBoxes || [];
+      for (const o of B) { const i = W.indexOf(o); if (i >= 0) W.splice(i, 1); }
+      u.dead = true; u.remove = true;
+      if (B.length) this.nav.vehicle.refresh(Math.min(...B.map(o => o.minX)), Math.max(...B.map(o => o.maxX)), Math.min(...B.map(o => o.minZ)), Math.max(...B.map(o => o.maxZ)));
+      this.event({ type: 'traps cleared', team });
+    };
     this.combat.onDeath = (v, k) => {
       this.respawn.onDeath(v, k);
       const s = this.teams[v.team].stats; s.losses[v.type] = (s.losses[v.type] || 0) + 1; if (v.type === 'fob') s.fobsLost++;

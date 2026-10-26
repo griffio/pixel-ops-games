@@ -1320,6 +1320,32 @@ Engine changes needed in the existing core:
   fires beside the truck, the touch wording names the buttons. The README had a FOB
   costing 20 tickets; it costs 40 since the balance pass (fixed).
 
+- **Tank traps (2026-10-26).** A row of six Czech hedgehogs (`traps` unit, model in
+  core/models.js, `trapBoxes`: 15 m, enough to close a road or the bridge deck), laid by
+  an engineer beside a supply truck (X; 20 supplies, 10 s, six rows a side, 18 m apart,
+  not within 100 m of the enemy base), centred across the road he stands on
+  (`roadAlong` in core/math.js) or across the way to the enemy's base off a road. Its
+  boxes stop vehicles only: `WorldState.vehicleObstacles` (`isBlocked`/`penetration`
+  take a vehicle flag, used by vehicle movement) and the vehicle nav grid
+  (`nav.vehicle.extra`); infantry walk between, no cover, no sight blocking. Any
+  engineer standing within 8 m of a row clears it (X, 8 s); `NavGrid.refresh(box)`
+  works the cells out again from the ground, the obstacles and the remaining blocks.
+  Gated routes try the next chain of crossings when one is blocked (a trapped bridge:
+  vehicles go by the ford). Rows stay known once seen under fog of war; the enemy's
+  laying stays out of the feed. CPU (`strategist.trapSpot`): at a choke the map lists
+  (`chokes`; Palm Valley: both bridge ends, the ford banks in pairs) on its side (nearer
+  a place it holds than any of theirs, within 400 m), where it has seen enemy armour
+  within 600 m in the last two minutes, clear of enemies and armour, not within 30 m of
+  its vehicles' way to the place it pushes for; two rows at most, a job every two
+  minutes. It clears the enemy's within 180 m of the place it pushes for or holds, and
+  its own between the place it pushes from and the target (the vehicle route cannot show
+  those: it already goes round them), then leaves that choke alone for five minutes (the
+  first version laid, cleared and laid again). The first rule set, armour merely in the
+  enemy loadout, laid 33 rows in 12 matches with that churn; armour in sight at the
+  moment of the check laid 2; seen in the last two minutes: 29 rows, two clears, mostly
+  pairs closing the ford. Desert Crossing lists no chokes: its matches replay exactly.
+  The field manual's sandbag page covers traps, and a hint flags the first enemy row.
+
 ## Open questions
 
 

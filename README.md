@@ -88,6 +88,16 @@ squad's rally point, beside an idle helicopter under Air Assault or a parked tro
 truck under Light Infantry, never one with an enemy within 30 m); the
 reinforcements panel can force main base, a helicopter or a truck.
 
+**Tank traps.** An engineer beside a supply truck presses **X** (or Tank traps) to
+lay a row of steel hedgehogs, 15 m, across the road he stands on (centred on it;
+off a road, across the way to the enemy's base), 20 supplies and 10 s. They stop
+every vehicle, both sides', and infantry walk between them: close a bridge or a ford
+and armour goes the long way round (route-finding tries the next crossing). Any
+engineer standing at a row clears it with **X** in 8 s. Up to six rows a side. The CPU
+lays them at the crossings its map lists (`chokes`) on its side, where it has seen
+enemy armour in the last two minutes and not on its own way forward, and clears the
+enemy's near the place it pushes for and its own when they are in its way.
+
 **Rally points.** Select a squad and press **T** (or the Rally button) to drop
 its rally point where its leader stands, after Squad's rallies scaled to this
 map: it needs a squadmate within 8 m, can't go down with an enemy within 30 m
@@ -200,6 +210,7 @@ off. On a touch screen both name the buttons instead of the keys
 | Right click | Move order (selected squads and vehicles move in formation); on a friendly carrier, board it; on a friendly sandbag position, man it |
 | `U` | Unload a selected carrier, or take selected soldiers out of their sandbag position |
 | `H` | Open or close the field manual (pauses the game) |
+| `X` | With an engineer selected: lay a row of tank traps (beside a supply truck), or clear the row he stands at |
 | Right drag, `Q` / `E` | Rotate camera (yaw + pitch) |
 | Wheel | Zoom (changes pixel scale, keeps the point under the cursor fixed) |
 | `WASD` / arrows / screen edge / middle drag | Pan |

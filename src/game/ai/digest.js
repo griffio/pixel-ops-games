@@ -24,7 +24,7 @@ export function buildDigest(match, team, remote = null) {
   const enemy = clusters.sort((a, b) => b.n - a.n).slice(0, 8).map(c => ({ at: [r(c.x), r(c.z)], near: nearLoc(c.x, c.z), units: c.types, lastSeen: c.age ? r(c.age) : undefined }));
   const fobs = (t) => (t === team ? U.filter(u => u.type === 'fob' && u.team === t && !u.dead) : known.filter(u => u.type === 'fob')).map(u => nearLoc(u.pos.x, u.pos.z));
   const sandbags = U.filter(u => u.type === 'sandbags' && u.team === team && !u.dead).map(u => nearLoc(u.pos.x, u.pos.z));
-  const said = { captured: 'captured', lost: 'lost', fob: 'built a FOB', sandbags: 'dug in with sandbags', 'cache revealed': 'found a cache at', 'cache destroyed': 'destroyed the cache at' };
+  const said = { captured: 'captured', lost: 'lost', fob: 'built a FOB', sandbags: 'dug in with sandbags', traps: 'laid tank traps', 'traps cleared': 'cleared tank traps', 'cache revealed': 'found a cache at', 'cache destroyed': 'destroyed the cache at' };
   // trends from the 5 s history: tickets 1, 2 and 3 minutes ago, losses per minute over the last 3 minutes, locations that changed hands in the last 5
   const H = m.history, last = m.sample(), ago = (sec) => { const want = m.elapsed - sec; let best = H[0] || last; for (const h of H) if (h[0] <= want) best = h; return best; };
   const tk = (h) => [h[1 + team], h[2 - team]], span = Math.max(0.5, Math.min(3, m.elapsed / 60)), base = ago(180);
@@ -33,7 +33,7 @@ export function buildDigest(match, team, remote = null) {
     perMinute: { ourDeaths: +((last[3 + team] - base[3 + team]) / span).toFixed(1), theirDeaths: +((last[4 - team] - base[4 - team]) / span).toFixed(1), ourVehicles: +((last[5 + team] - base[5 + team]) / span).toFixed(1), theirVehicles: +((last[6 - team] - base[6 - team]) / span).toFixed(1) },
     changedHands: m.log.filter(e => m.elapsed - e.t < 300).map(e => `m${(e.t / 60).toFixed(1)} ${e.team === team ? 'we' : 'they'} ${e.type} ${e.loc}`).slice(-8),
   };
-  const hidden = (e) => e.type === 'radio' || (V.on && e.team !== team && (e.type === 'fob' || e.type === 'sandbags'));   // the enemy's own news, under fog of war
+  const hidden = (e) => e.type === 'radio' || (V.on && e.team !== team && (e.type === 'fob' || e.type === 'sandbags' || e.type === 'traps'));   // the enemy's own news, under fog of war
   const events = m.feed.filter(f => f.kind === 'kill' || !hidden(f.e)).slice(0, 6).map(f => f.kind === 'kill' ? `${f.k ? f.k.label : '?'} killed ${f.v.label}${f.v.team === team ? ' (ours)' : ''}` : `${f.e.team === team ? 'we' : 'they'} ${said[f.e.type] || f.e.type}${f.e.loc ? ' ' + f.e.loc.name : ''}`);
   return {
     side: T.name, mode: m.mode.constructor.key, minute: +(m.elapsed / 60).toFixed(1), minutesLeft: +(Math.max(0, m.time) / 60).toFixed(1),

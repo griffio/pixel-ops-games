@@ -9,7 +9,7 @@ import { RULES } from './rules.js';
 // positions and rally points stay known once seen; weapon caches are objectives and always show. An enemy that drops out of
 // sight leaves a last-known position (a ghost) for RULES.vision.ghost seconds. The CPU plans with contacts(): what its side sees
 // plus those last-known positions. Switched off (?fog=0), every side sees everything, as before fog of war.
-const STICKY = new Set(['fob', 'sandbags', 'rally']);
+const STICKY = new Set(['fob', 'sandbags', 'rally', 'traps']);
 
 export class Vision {
   constructor(units, world, combat, on = true) {

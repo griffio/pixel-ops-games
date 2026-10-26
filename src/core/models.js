@@ -345,6 +345,19 @@ export function makeBuilders(F) {
     return { group: g, parts: p, height: 3.4, radius: 2.6 };
   }
 
+  // Tank traps: a row of Czech hedgehogs across a road, each three steel beams crossed at their middles (tilted 35 degrees
+  // and turned 120 degrees apart, so it stands on three feet), every other one turned a little. Static structure; its
+  // obstacle boxes come from trapBoxes() below, and block vehicles only: infantry walk between them.
+  function traps() {
+    const g = group(); const p = {};
+    for (let i = 0; i < TRAPS.n; i++) {
+      const h = group(); h.position.set((i - (TRAPS.n - 1) / 2) * TRAPS.gap, 0, 0); h.rotation.y = (i % 2) * 0.5; g.add(h);
+      for (let k = 0; k < 3; k++) box(2.4, 0.24, 0.24, k === 1 ? 'trap2' : 'trap', 0, 0.74, 0, h).rotation.set(0, k * 2.094, 0.62);
+    }
+    p.ring = ring(8.2, g);
+    return { group: g, parts: p, height: 1.3, radius: 7.8 };
+  }
+
   // Rally point: a radio pack on the ground and a short pole with a pennant in the team's camo. Static structure.
   function rally() {
     const g = group(); const p = {};
@@ -356,10 +369,19 @@ export function makeBuilders(F) {
 
   // each builder takes the team so the whole model picks the right camo set
   const forTeam = (fn) => (t = 0) => { team = t; const r = fn(); team = 0; return r; };
-  return { soldier: forTeam(soldier), truck: forTeam(() => truck(false)), supplyTruck: forTeam(() => truck(true)), apc: forTeam(apc), heli: forTeam(heli), fob: forTeam(fob), cache: forTeam(cache), sandbags: forTeam(sandbags), rally: forTeam(rally), tank: forTeam(tank) };
+  return { soldier: forTeam(soldier), truck: forTeam(() => truck(false)), supplyTruck: forTeam(() => truck(true)), apc: forTeam(apc), heli: forTeam(heli), fob: forTeam(fob), cache: forTeam(cache), sandbags: forTeam(sandbags), traps: forTeam(traps), rally: forTeam(rally), tank: forTeam(tank) };
 
 
 
+}
+
+// a row of tank traps: n hedgehogs gap metres apart along the row (local x), 15 m in all, enough to close a road or a bridge
+export const TRAPS = { n: 6, gap: 2.7, foot: 1.6 };
+// world-space boxes, one per hedgehog, for a row of tank traps at (x, z) facing heading h (the row runs across it); for
+// vehicles only (WorldState.vehicleObstacles and the vehicle nav grid)
+export function trapBoxes(x, z, h) {
+  const c = Math.cos(h), s = Math.sin(h), r = TRAPS.foot / 2;
+  return Array.from({ length: TRAPS.n }, (_, i) => { const lx = (i - (TRAPS.n - 1) / 2) * TRAPS.gap, wx = x + lx * c, wz = z - lx * s; return { minX: wx - r, maxX: wx + r, minZ: wz - r, maxZ: wz + r, h: 1.3 }; });
 }
 
 // world-space obstacle boxes (low cover, 1 m high) for a sandbag position at (x,z) facing heading h. Each bag
@@ -375,7 +397,7 @@ export function sandbagBoxes(x, z, h) {
 // sRGB hex colours shared by both back ends' material tables
 export const COLORS = {
   skin: 0xc9966b, skin2: 0x7a5236, hair: 0x1a1512, belt: 0x3b3127, boots: 0x8a7350, bootsB: 0x2f2a24, rifle: 0x1f1f1f, gun: 0x34373a, medRed: 0xb3261e, launcher: 0x56603c,
-  heliDark: 0x2e3330, olive: 0x5c6b3f, sandbag: 0x9c8b64, sandbag2: 0xa8976f, sandbag3: 0x8f7f5a, bagCore: 0x5e5139, glass: 0x1d2328, tire: 0x1a1a1a, rim: 0xb09a64, rimB: 0x6c7550, metal: 0x2a2a2a, canvas: 0x6f6448,
+  heliDark: 0x2e3330, olive: 0x5c6b3f, trap: 0x4c4741, trap2: 0x6b4a35, sandbag: 0x9c8b64, sandbag2: 0xa8976f, sandbag3: 0x8f7f5a, bagCore: 0x5e5139, glass: 0x1d2328, tire: 0x1a1a1a, rim: 0xb09a64, rimB: 0x6c7550, metal: 0x2a2a2a, canvas: 0x6f6448,
   hub: 0x5e5340, tread: 0x2c2c2c, headlight: 0xf2ecd0, grille: 0x171717, amber: 0xd9822b,
   sand: 0xd6c08a, sandB: 0x87915f, engine: 0x6b6e6c, wood: 0x8a6a43, drum: 0x3e4a33, case: 0x3a3d40,   // vehicle plates, engines, cargo
 };

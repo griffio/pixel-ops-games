@@ -113,7 +113,7 @@ export class WorldState {
     this.map = map; this.size = map ? map.size : WORLD_SIZE; this.half = this.size / 2;
     this.layout = map ? map.build() : buildLayout(); this.obstacles = this.layout.obstacles;
     this.terrain = map && map.terrain ? new Terrain(this.size, 4, { ...map.terrain, flats: map.flats || [] }) : null;
-    this.bridges = (map && map.bridges) || [];
+    this.bridges = (map && map.bridges) || []; this.vehicleObstacles = [];
     // height including bridge decks (local-frame rectangle test)
     this.heightAt = (x, z) => {
       let h = this.terrain ? this.terrain.height(x, z) : 0;
@@ -157,11 +157,16 @@ export class WorldState {
     for (let cz = Math.floor((z - pad) / 8); cz <= Math.floor((z + pad) / 8); cz++) for (let cx = Math.floor((x - pad) / 8); cx <= Math.floor((x + pad) / 8); cx++) { const a = g.get(cx * 4096 + cz); if (a) for (const o of a) if (fn(o)) return true; }
     return false;
   }
-  isBlocked(x, z, pad = 0) { return this.obstaclesNear(x, z, pad, (o) => x > o.minX - pad && x < o.maxX + pad && z > o.minZ - pad && z < o.maxZ + pad); }
+  // vehicle: also the obstacles that stop vehicles only (vehicleObstacles: tank traps, which infantry walk between)
+  isBlocked(x, z, pad = 0, vehicle = false) {
+    const hit = (o) => x > o.minX - pad && x < o.maxX + pad && z > o.minZ - pad && z < o.maxZ + pad;
+    return this.obstaclesNear(x, z, pad, hit) || (vehicle && this.vehicleObstacles.some(hit));
+  }
   // how deep a point sits inside the padded obstacles (0 when clear): lets a unit that ended up too close to a wall back out
-  penetration(x, z, pad = 0) {
+  penetration(x, z, pad = 0, vehicle = false) {
     let deepest = 0;
-    this.obstaclesNear(x, z, pad, (o) => { if (x > o.minX - pad && x < o.maxX + pad && z > o.minZ - pad && z < o.maxZ + pad) deepest = Math.max(deepest, Math.min(x - (o.minX - pad), o.maxX + pad - x, z - (o.minZ - pad), o.maxZ + pad - z)); return false; });
+    const depth = (o) => { if (x > o.minX - pad && x < o.maxX + pad && z > o.minZ - pad && z < o.maxZ + pad) deepest = Math.max(deepest, Math.min(x - (o.minX - pad), o.maxX + pad - x, z - (o.minZ - pad), o.maxZ + pad - z)); return false; };
+    this.obstaclesNear(x, z, pad, depth); if (vehicle) this.vehicleObstacles.forEach(depth);
     return deepest;
   }
 }

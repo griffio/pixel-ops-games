@@ -15,6 +15,8 @@ export const RULES = {
   // fires at for `reveal` s; a last-known position stays `ghost` s. Cells are `cell` m, refreshed every `every` s. The CPU
   // takes a place the enemy holds that it has not seen for 30 s to hold `guess` (combat weight: about four soldiers).
   vision: { cell: 8, every: 0.2, reveal: 5, ghost: 30, guess: 4, sight: { soldier: 120, apc: 160, tank: 210, truck: 100, heli: 120, air: 250, fob: 100, sandbags: 100 } },
+  // tank traps (a row of hedgehogs, 15 m): an engineer by a supply truck lays them; any engineer standing at a row clears it
+  traps: { buildTime: 10, supplyCost: 20, max: 6, minSpacing: 18, enemyBaseDistance: 100, clearTime: 8, clearRange: 8 },
   sandbags: { buildTime: 12, supplyCost: 12, max: 8, minSpacing: 12, enemyBaseDistance: 60, roadClear: 10 },   // improvised fighting positions: no kit, an engineer by a supply truck; never on the road (6 m half width + the position's 4 m)
   // a squad's own forward spawn (Squad's rally, scaled): spawns on a wave, needs a squadmate within placeRange to drop,
   // can't be dropped with an enemy inside blockRadius, burns with any enemy inside burnRadius

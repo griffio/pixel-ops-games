@@ -12,6 +12,7 @@ export class NavGrid {
     this.cap = 80000;   // cells a search may expand; a map with a bigger grid sets more (map.nav.cap)
   }
   build(obstacles, terrain = null, maxSlope = 1, passable = null) {
+    this.src = { obstacles, terrain, maxSlope, passable };   // kept for refresh()
     const L = this.L, pad = this.pad; L.fill(0);
     if (terrain) for (let iz = 0; iz < this.n; iz++) for (let ix = 0; ix < this.n; ix++) {   // steep ground and water are impassable, bridges always pass
       const x = this.world(ix), z = this.world(iz);
@@ -64,6 +65,25 @@ export class NavGrid {
     for (let iz = z0; iz <= z1; iz++) for (let ix = x0; ix <= x1; ix++) L[iz * this.n + ix] = 1;
   }
 
+  // Works the cells in a box out again from the ground, the obstacles (the same list build() had, which grows as sandbags
+  // go up) and the extra blocks (this.extra: the tank traps, on the vehicle grid): what has to happen when a block is
+  // taken away, which block() alone cannot undo.
+  refresh(minX, maxX, minZ, maxZ) {
+    const { obstacles, terrain, maxSlope, passable } = this.src, L = this.L, n = this.n, pad = this.pad, border = Math.ceil(3 / this.cell);
+    const x0 = Math.max(0, this.cellOf(minX - pad)), x1 = Math.min(n - 1, this.cellOf(maxX + pad)), z0 = Math.max(0, this.cellOf(minZ - pad)), z1 = Math.min(n - 1, this.cellOf(maxZ + pad));
+    for (let iz = z0; iz <= z1; iz++) for (let ix = x0; ix <= x1; ix++) {
+      const x = this.world(ix), z = this.world(iz); let b = ix < border || iz < border || ix >= n - border || iz >= n - border;
+      if (!b && terrain && !(passable && passable(x, z))) b = terrain.slope(x, z) > maxSlope || terrain.height(x, z) < terrain.water - terrain.wade;
+      L[iz * n + ix] = b ? 1 : 0;
+    }
+    for (const o of [...obstacles, ...(this.extra || [])]) {
+      if (o.maxX + pad < this.world(x0) - this.cell || o.minX - pad > this.world(x1) + this.cell || o.maxZ + pad < this.world(z0) - this.cell || o.minZ - pad > this.world(z1) + this.cell) continue;
+      const ax = Math.max(x0, this.cellOf(o.minX - pad)), bx = Math.min(x1, this.cellOf(o.maxX + pad)), az = Math.max(z0, this.cellOf(o.minZ - pad)), bz = Math.min(z1, this.cellOf(o.maxZ + pad));
+      for (let iz = az; iz <= bz; iz++) for (let ix = ax; ix <= bx; ix++) L[iz * n + ix] = 1;
+    }
+    this.labels = null;
+  }
+
   nearest(ix, iz, r = 8) {
     if (this.passable(ix, iz)) return [ix, iz];
     for (let d = 1; d <= r; d++) for (let dx = -d; dx <= d; dx++) for (let dz = -d; dz <= d; dz++)
@@ -92,27 +112,31 @@ export class NavGrid {
   gatedPath(sx, sz, tx, tz, a, b, maxExpand) {
     const dir = b > a ? 1 : -1, lines = []; for (let k = a; k !== b; k += dir) lines.push(this.gates[dir > 0 ? k : k - 1]);
     const inside = (x, z, g, p) => Math.abs(z - g.at) <= p.d && Math.abs(x - p.x) <= 25;   // already in the pass or on the bridge
-    let best = null, bestLen = Infinity;
+    // every chain of portals with its length in straight lines; the shortest first, and if one fails (a crossing blocked:
+    // tank traps on the bridge) the next, up to four
+    const chains = [];
     const walk = (i, px, pz, len, picks) => {
-      if (len >= bestLen) return;
-      if (i === lines.length) { len += Math.hypot(tx - px, tz - pz); if (len < bestLen) { bestLen = len; best = picks.slice(); } return; }
+      if (i === lines.length) { chains.push({ len: len + Math.hypot(tx - px, tz - pz), picks: picks.slice() }); return; }
       const g = lines[i];
       for (const p of g.portals) { picks.push(p); walk(i + 1, p.x, g.at + dir * p.d, len + Math.hypot(p.x - px, g.at - dir * p.d - pz) + 2 * p.d, picks); picks.pop(); }
     };
     walk(0, sx, sz, 0, []);
-    if (!best) return null;
-    const out = []; let px = sx, pz = sz;
-    const leg = (x0, z0, x1, z1) => { const p = this.findPath(x0, z0, x1, z1, maxExpand, true); if (!p) throw new Error('leg'); out.push(...p); };
-    try {
-      best.forEach((p, i) => {
-        const g = lines[i], ez = g.at - dir * p.d, xz = g.at + dir * p.d;
-        if (!(i === 0 && inside(sx, sz, g, p))) leg(px, pz, p.x, ez);
-        leg(i === 0 && inside(sx, sz, g, p) ? sx : p.x, i === 0 && inside(sx, sz, g, p) ? sz : ez, p.x, xz);   // over the bridge, through the pass
-        px = p.x; pz = xz;
-      });
-      leg(px, pz, tx, tz);
-    } catch { return null; }
-    return out;
+    chains.sort((a, b) => a.len - b.len);
+    for (const { picks } of chains.slice(0, 4)) {
+      const out = []; let px = sx, pz = sz;
+      const leg = (x0, z0, x1, z1) => { const p = this.findPath(x0, z0, x1, z1, maxExpand, true); if (!p) throw new Error('leg'); out.push(...p); };
+      try {
+        picks.forEach((p, i) => {
+          const g = lines[i], ez = g.at - dir * p.d, xz = g.at + dir * p.d;
+          if (!(i === 0 && inside(sx, sz, g, p))) leg(px, pz, p.x, ez);
+          leg(i === 0 && inside(sx, sz, g, p) ? sx : p.x, i === 0 && inside(sx, sz, g, p) ? sz : ez, p.x, xz);   // over the bridge, through the pass
+          px = p.x; pz = xz;
+        });
+        leg(px, pz, tx, tz);
+        return out;
+      } catch { /* this chain is blocked somewhere: the next */ }
+    }
+    return null;
   }
   findPath(sx, sz, tx, tz, maxExpand = this.cap, oneSide = false) {
     if (this.gates && !oneSide) { const a = this.zone(sz), b = this.zone(tz); if (a !== b) return this.gatedPath(sx, sz, tx, tz, a, b, maxExpand); }

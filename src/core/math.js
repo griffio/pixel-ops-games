@@ -129,6 +129,22 @@ export function roadDist(map, x, z) {
   return best;
 }
 
+// The nearest point on any of a map's roads or dirt tracks: [distance, tangent x, tangent z, x, z] (a unit tangent along
+// the road, and the point on its centre line); [Infinity, 0, 1, x, z] on a map without roads. Tank traps lie across the
+// road they stand on, centred on it.
+const allLines = new WeakMap();
+export function roadAlong(map, x, z) {
+  if (!map) return [Infinity, 0, 1, x, z];
+  let L = allLines.get(map);
+  if (!L) allLines.set(map, L = [...(map.roadPath ? [map.roadPath] : []), ...(map.tracks || []), ...(map.roads || []).map(r => r.points)].map(p => smooth(p, 2)));
+  let best = [Infinity, 0, 1, x, z];
+  for (const P of L) for (let i = 0; i < P.length - 1; i++) {
+    const [ax, az] = P[i], [bx, bz] = P[i + 1], dx = bx - ax, dz = bz - az, l2 = dx * dx + dz * dz || 1, t = Math.max(0, Math.min(1, ((x - ax) * dx + (z - az) * dz) / l2));
+    const px = ax + dx * t, pz = az + dz * t, d = Math.hypot(x - px, z - pz); if (d < best[0]) { const l = Math.sqrt(l2); best = [d, dx / l, dz / l, px, pz]; }
+  }
+  return best;
+}
+
 // Simulation randomness goes through `rng` so a URL seed gives the same scene on
 // every back end (three.js consumes Math.random for its own object ids).
 export let rng = Math.random;

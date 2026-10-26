@@ -11,6 +11,7 @@ export const SPEC = {
   cache:   { speed: 0,   turn: 0,   accel: 0, label: 'CA', air: false, hp: 250, nav: null, structure: true },
   sandbags: { speed: 0, turn: 0,   accel: 0, label: 'SB', air: false, hp: 1e9, nav: null, structure: true, untargetable: true, hollow: true },   // low cover, not a target; soldiers stand inside it
   tank:     { speed: 7,   turn: 0.8, accel: 3.5, label: 'TK', air: false, hp: 1200, nav: 'vehicle', kit: 'tankgun', kit2: 'coax', armour: true },   // M1 Abrams: thick front, weaker sides and rear
+  traps:    { speed: 0, turn: 0,   accel: 0, label: 'TT', air: false, hp: 1e9, nav: null, structure: true, untargetable: true },   // tank traps: stop vehicles, not infantry
   rally:    { speed: 0, turn: 0,   accel: 0, label: 'RP', air: false, hp: 1e9, nav: null, structure: true, untargetable: true },   // a squad's spawn: burned by enemies close by, not shot
 };
 const counters = {}; let pickSeq = 0;
@@ -290,8 +291,9 @@ export class Unit {
     const pad = this.radius * 0.9;
     // a unit already inside a wall's clearance (shoved there, or sandbags went up beside it) squeezes out with half the
     // clearance, so it can leave a slot narrower than its full clearance, and any step that doesn't take it deeper is allowed
-    const p = world.isBlocked(this.pos.x, this.pos.z, pad) ? pad * 0.5 : pad, deep = world.penetration(this.pos.x, this.pos.z, p);
-    const free = (x, z) => !world.isBlocked(x, z, p) || (deep > 0 && world.penetration(x, z, p) <= deep + 1e-3);
+    const veh = this.spec.nav === 'vehicle';   // vehicles also stop at tank traps
+    const p = world.isBlocked(this.pos.x, this.pos.z, pad, veh) ? pad * 0.5 : pad, deep = world.penetration(this.pos.x, this.pos.z, p, veh);
+    const free = (x, z) => !world.isBlocked(x, z, p, veh) || (deep > 0 && world.penetration(x, z, p, veh) <= deep + 1e-3);
     if (!free(nx, nz)) {
       if (free(this.pos.x + sx, this.pos.z)) nz = this.pos.z;
       else if (free(this.pos.x, this.pos.z + sz)) nx = this.pos.x;
