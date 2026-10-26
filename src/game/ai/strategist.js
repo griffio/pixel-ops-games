@@ -298,7 +298,19 @@ export class Strategist {
   // half a map away, and traps are laid when it asks whether or not enemy armour has been seen.
   logistics(squads, vehicles, anchor, hold = null, attack = null) {
     const fobs = this.match.fobs, team = this.teams[this.team], base = team.base, want = (kind) => !this.exact || (JOBS[this.prefer] || JOBS.fob).includes(kind);
-    if (this.plan && (this.plan.sq.engineer === null || (this.plan.truck && this.plan.truck.dead) || (this.plan.traps && this.plan.traps.dead) || this.plan.done || !want(this.plan.kind))) this.plan = null;
+    // under a remote commander a sandbag job follows its first hold: one given out for the place it held before is dropped
+    const stale = (p) => this.exact && p.kind === 'sandbags' && hold && Math.hypot(p.x - hold.x, p.z - hold.z) > this.postRange(hold);
+    if (this.plan && (this.plan.sq.engineer === null || (this.plan.truck && this.plan.truck.dead) || (this.plan.traps && this.plan.traps.dead) || this.plan.done || !want(this.plan.kind) || stale(this.plan))) this.plan = null;
+    // a supply truck too low for any job (sandbags cost least) drives home and refills to full before it takes another: one
+    // that ran dry used to stand where it was for the rest of the match
+    for (const v of vehicles) {
+      if (!v.supply) continue;
+      if (v.refilling && v.supplies >= RULES.fob.truckSupplies) v.refilling = false;
+      if (v.supplies >= RULES.sandbags.supplyCost || (this.plan && this.plan.truck === v)) continue;
+      v.refilling = true;
+      if (Math.hypot(v.pos.x - base.x, v.pos.z - base.z) > base.r - 6 && (!v.dest || Math.hypot(v.dest.x - base.x, v.dest.z - base.z) > 30)) v.order(base.x + (Math.random() - 0.5) * 24, base.z + (Math.random() - 0.5) * 24);
+    }
+    const stocked = (v, cost) => v.supply && !v.refilling && v.supplies >= cost;
     if (!this.plan) {
       if (!this.diff.logistics || this.prefer === 'none') return null;
       const sq = squads.find(s => s.engineer); if (!sq) return null;
@@ -312,18 +324,18 @@ export class Strategist {
         this.plan = { kind: 'clear', sq, truck: null, traps: block, x: block.pos.x, z: block.pos.z, t: 0 };   // no truck needed
         if (block.team === this.team) (this.chokeRest || (this.chokeRest = new Map())).set(Math.round(block.pos.x) + ',' + Math.round(block.pos.z), this.match.elapsed + 300);   // we need it open: not there again for five minutes
       }
-      const truckTo = (at) => vehicles.filter(v => v.supply && v.supplies >= RULES.fob.supplyCost).sort((a, b) => Math.hypot(a.pos.x - at.x, a.pos.z - at.z) - Math.hypot(b.pos.x - at.x, b.pos.z - at.z))[0];
+      const truckTo = (at) => vehicles.filter(v => stocked(v, RULES.fob.supplyCost)).sort((a, b) => Math.hypot(a.pos.x - at.x, a.pos.z - at.z) - Math.hypot(b.pos.x - at.x, b.pos.z - at.z))[0];
       if (!this.plan && anchor && fobs.kitsLeft(this.team) > 0 && this.prefer !== 'sandbags' && want('fob')) {
         const truck = truckTo(anchor), [x, z] = this.toward(anchor, base, Math.hypot(anchor.x - base.x, anchor.z - base.z) - 45, 0);   // 45 m behind the location, towards home
         if (truck && !this.units.nav.vehicle.blocked(x, z) && !this.armourNear(x, z, 150) && !fobs.active(this.team).some(f => Math.hypot(f.pos.x - x, f.pos.z - z) < RULES.fob.minSpacing)) this.plan = { kind: 'fob', sq, truck, x, z, t: 0 };
       }
       if (!this.plan && want('traps')) {   // tank traps at a choke on our side, when the enemy fields armour (or when ordered)
-        const spot = this.trapSpot(attack, this.exact), truck = spot && vehicles.filter(v => v.supply && v.supplies >= RULES.traps.supplyCost).sort((a, b) => Math.hypot(a.pos.x - spot[0], a.pos.z - spot[1]) - Math.hypot(b.pos.x - spot[0], b.pos.z - spot[1]))[0];
+        const spot = this.trapSpot(attack, this.exact), truck = spot && vehicles.filter(v => stocked(v, RULES.traps.supplyCost)).sort((a, b) => Math.hypot(a.pos.x - spot[0], a.pos.z - spot[1]) - Math.hypot(b.pos.x - spot[0], b.pos.z - spot[1]))[0];
         if (truck) { this.plan = { kind: 'traps', sq, truck, x: spot[0], z: spot[1], t: 0 }; this.trapsNext = this.match.elapsed + 120; }
       }
       if (!this.plan && hold && fobs.sandbagsOf(this.team).length < RULES.sandbags.max && want('sandbags')) {   // no kit, or no FOB site just now: dig in at the place we hold
         const spot = this.digSpot(hold); if (!spot) return null;
-        const truck = vehicles.filter(v => v.supply && v.supplies >= RULES.sandbags.supplyCost).sort((a, b) => Math.hypot(a.pos.x - hold.x, a.pos.z - hold.z) - Math.hypot(b.pos.x - hold.x, b.pos.z - hold.z))[0]; if (!truck) return null;
+        const truck = vehicles.filter(v => stocked(v, RULES.sandbags.supplyCost)).sort((a, b) => Math.hypot(a.pos.x - hold.x, a.pos.z - hold.z) - Math.hypot(b.pos.x - hold.x, b.pos.z - hold.z))[0]; if (!truck) return null;
         this.plan = { kind: 'sandbags', sq, truck, x: spot[0], z: spot[1], t: 0 };
       }
       if (!this.plan) return null;

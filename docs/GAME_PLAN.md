@@ -1479,6 +1479,25 @@ Engine changes needed in the existing core:
   turned for the attack on Mine; an unknown id was dropped. Opus, given the schema, gave
   both APCs explicit jobs. Desert Crossing replays identically.
 
+- **Sandbags follow the hold; dry trucks refill (2026-10-26).** The next `opus:high`
+  game (12 calls to minute 6.6, $0.48, no losses, 4 of 7 from minute 3.2) confirmed the
+  armour jobs: both APCs held the Bridge from minute 3.5 as Opus wrote. Two logistics
+  faults: three sandbag positions went in at Pumps, by the FOB at the back, after Opus had
+  put the Bridge first (a sandbag job kept the spot it was given, and a plan arrives 6 to
+  12 s after the state it answers, so the old first hold places jobs in between); and the
+  supply truck ran down to 2 supplies (FOB 50, four positions at 12) and stood there, since
+  trucks only drove home when threatened. Now, under a remote commander, a sandbag job
+  away from its first hold (beyond `postRange`) is dropped; and any CPU supply truck too
+  low for the cheapest job (sandbags, 12) is marked `refilling`, drives home, refills to
+  full (10 s at base) and takes no job until then. The digest shows `refilling`; the
+  prompt gives the costs (FOB 50, sandbags 12, traps 20, truck 100). Tests in Palm Valley:
+  the first hold switched from Pumps to Mine to the Bridge and the engineer's job followed
+  each within seconds; a truck left with 3 supplies drove 379 m home, refilled and was
+  ready 47 s later. Balance: Palm Valley's 12 matches 7-5 by base before and after,
+  sandbag positions standing at the end 123 to 141, four replays identical, two winners
+  flipped either way; Desert Crossing's 16: 10 identical, no winner changed, 6-10 by base
+  as before.
+
 ## Open questions
 
 

@@ -78,7 +78,8 @@ from jsDelivr via an import map; the WebGL2 back end loads nothing external.
 The stats panel has a link that switches renderer while keeping the view.
 
 **Logistics and air.** Supply trucks carry 100 supplies and refill inside your
-main base; they drive with the canvas sides rolled up over the load, where a
+main base (the CPU sends one home when it has too little for any job, and uses it
+again once full); they drive with the canvas sides rolled up over the load, where a
 plain truck keeps them down. Select an engineer squad standing within 20 m of a supply truck and
 press **B** (or the Build FOB button) to raise a forward operating base in 20 s
 (10 s under Entrenched); each FOB kit in your loadout allows one FOB. A FOB is a
