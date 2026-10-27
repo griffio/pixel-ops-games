@@ -18,6 +18,6 @@ export const WEAPONS = {
   // shells at anything its side can see (indirect: no line of sight from the tube), bursting over splash metres
   hmg:        { range: 120, rate: 1.5, burst: 10, burstGap: 0.07, dmgInf: 12, dmgVeh: 4,   acc: 0.2,  speed: 360, hold: 0,  air: true },
   atgm:       { range: 200, rate: 10,  burst: 1,  burstGap: 0,    dmgInf: 40, dmgVeh: 220, acc: 0.8,  speed: 75,  hold: 0,  air: true, prefersVehicles: true, explosive: true, rocket: true },
-  mortar:     { range: 400, min: 40,   rate: 7,   burst: 1,  burstGap: 0,  dmgInf: 70, dmgVeh: 30,  acc: 0.3,  speed: 64,  hold: 0,  air: false, explosive: true, arc: true, indirect: true, splash: 7 },
+  mortar:     { range: 400, min: 40,   rate: 7,   burst: 1,  burstGap: 0,  dmgInf: 70, dmgVeh: 30,  acc: 0.3,  speed: 64,  hold: 0,  air: false, explosive: true, arc: true, indirect: true, elev: 0.9, splash: 7 },   // elev: the tube's 52 degrees, the charge set for the range (4 s in the air at 60 m, 10 s at 400 m)
   doorgun:    { range: 80,  rate: 1.3, burst: 14, burstGap: 0.05, dmgInf: 7,  dmgVeh: 1,   acc: 0.18, speed: 320, hold: 0,  air: false },   // the Chinook's crew-door M240: a machine gun's reach, longer bursts from a steady mount
 };

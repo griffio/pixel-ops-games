@@ -95,8 +95,10 @@ truck builds a gun where he stands, facing the enemy's base: a **heavy machine g
 (**G**, 20 supplies, 12 s; 120 m, long bursts that pin infantry), an **anti-tank
 launcher** (**J**, 30 supplies, 15 s; a guided missile out to 200 m, three hits kill
 an APC) or a **mortar** (**K**, 40 supplies, 18 s; it shells any enemy your side
-can see 40 to 400 m away, no line of sight needed, each shell bursting over 7 m).
-Three to a FOB, 8 m apart, clear of the FOB and the road. Each is a gun in a ring
+can see 40 to 400 m away, no line of sight needed, each shell bursting over 7 m;
+it fires at its tube's 52 degrees with the charge set for the range, 4 s in the air at
+60 m and 10 s at 400 m). The gun swings on its mount to whatever its gunner is firing
+at and back to the front when he has nothing. Three to a FOB, 8 m apart, clear of the FOB and the road. Each is a gun in a ring
 of bags with one gunner's slot: select a squad and right-click (or tap) it to man
 it (one man takes the gun, the rest wait behind it), **U** to leave; unmanned it does nothing. It can be destroyed (250 hp, about
 three rockets) and costs 10 tickets when lost; once spotted it stays on the enemy's

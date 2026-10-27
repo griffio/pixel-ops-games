@@ -3,6 +3,7 @@ import { WEAPONS } from './weapons.js';
 // Targeting, line of sight, firing and damage. Ticks at a fixed rate from Match. Each shot is a
 // round in flight (core/projectiles.js): the hit is rolled when the trigger is pulled, the damage
 // lands when the round arrives, so bullets, cannon shells and rockets are seen travelling.
+const GUN_MUZZLE = { hmg: [1.5, 0.9], atgm: [1.1, 1.02], mortar: [0.62, 1.15] };   // a FOB gun's muzzle: metres out from the mount toward the target, and up
 const MUZZLE_KIND = { coax: 'mg', mg: 'mg', marksman: 'marksman', autocannon: 'cannon', at: 'rocket', doorgun: 'doorgun', tankgun: 'tank', hmg: 'mg', atgm: 'rocket', mortar: 'cannon' };   // flash class per kit (recipes in core/dust.js)
 const CELL = 20;
 
@@ -185,9 +186,10 @@ export class Combat {
     const hit = Math.random() < chance;
     // the round leaves the barrel a little ahead of the unit at gun height, aimed where the target will be
     // when it arrives; a miss is aimed past the target and comes down on the ground around it
-    const reach = u.type === 'soldier' ? (u.kit === 'at' ? 0.75 : u.kit === 'mg' ? 1.28 : 1.16) + 0.1 * (u.kneelK || 0) + 0.46 * (u.proneK || 0) : u.type === 'apc' ? 2.8 : u.type === 'tank' ? (kit === 'coax' ? 2.9 : 6.2) : 1.6, gunY = u.pos.y + (u.type === 'soldier' ? 1.85 - 0.59 * (u.kneelK || 0) - 1.65 * (u.proneK || 0) : u.type === 'tank' ? 2.1 : u.type === 'apc' ? 3.25 : 2.65);
-    const hx = e.pos.x - u.pos.x, hz = e.pos.z - u.pos.z, hd = Math.hypot(hx, hz) || 1;
-    let mx = u.pos.x + hx / hd * reach, mz = u.pos.z + hz / hd * reach;
+    const gun = u.post && u.post.settled && u.post.sb.gun === kit && !u.post.sb.dead ? u.post.sb : null, GM = gun && GUN_MUZZLE[kit];   // a manned FOB gun: from its own muzzle
+    const reach = GM ? GM[0] : u.type === 'soldier' ? (u.kit === 'at' ? 0.75 : u.kit === 'mg' ? 1.28 : 1.16) + 0.1 * (u.kneelK || 0) + 0.46 * (u.proneK || 0) : u.type === 'apc' ? 2.8 : u.type === 'tank' ? (kit === 'coax' ? 2.9 : 6.2) : 1.6, gunY = u.pos.y + (u.type === 'soldier' ? 1.85 - 0.59 * (u.kneelK || 0) - 1.65 * (u.proneK || 0) : u.type === 'tank' ? 2.1 : u.type === 'apc' ? 3.25 : 2.65);
+    const o = GM ? gun.pos : u.pos, hx = e.pos.x - o.x, hz = e.pos.z - o.z, hd = Math.hypot(hx, hz) || 1, gy = GM ? gun.pos.y + GM[1] : gunY;
+    let mx = o.x + hx / hd * reach, mz = o.z + hz / hd * reach;
     if (u.type === 'heli') {   // the Chinook fires from the crew-door gun on the target's side
       const c = Math.cos(u.heading), sn = Math.sin(u.heading), side = hx * c - hz * sn > 0 ? 1.45 : -1.45;
       mx = u.pos.x + side * c + 3.6 * sn; mz = u.pos.z - side * sn + 3.6 * c;
@@ -195,8 +197,8 @@ export class Combat {
     const flight = d / (w.arc ? w.speed * 0.85 : w.speed), ev = Math.abs(e.speed) > 0.05 && !e.dead && !w.indirect ? e.speed : 0;   // a mortar lays on where the target is
     let tx = e.pos.x + Math.sin(e.heading) * ev * flight, tz = e.pos.z + Math.cos(e.heading) * ev * flight, ty = e.pos.y + (e.spec.air ? 2 : e.type === 'soldier' ? 1.1 - 0.35 * (e.kneelK || 0) - 0.75 * (e.proneK || 0) : 2.2);
     if (!hit) { const sp = (w.arc ? 2 : 1.5) + d * (w.arc ? 0.06 : 0.04); tx += (Math.random() - 0.5) * 2 * sp; tz += (Math.random() - 0.5) * 2 * sp; ty = e.spec.air && e.alt > 2 ? ty + (Math.random() - 0.5) * 6 : this.groundAt(tx, tz) + 0.1; }
-    const vx = tx - mx, vy = ty - gunY, vz = tz - mz, vl = Math.hypot(vx, vy, vz) || 1;
-    this.dust.muzzle(mx, gunY, mz, vx / vl, vy / vl, vz / vl, MUZZLE_KIND[kit] || 'rifle');
+    const vx = tx - mx, vz = tz - mz, vy = w.elev ? Math.tan(w.elev) * Math.hypot(vx, vz) : ty - gy, vl = Math.hypot(vx, vy, vz) || 1;   // the flash points the way the tube does
+    this.dust.muzzle(mx, gy, mz, vx / vl, vy / vl, vz / vl, MUZZLE_KIND[kit] || 'rifle');
     if (this.audio) {
       this.audio.shot(kit, u.pos.x, u.pos.z, u.team);
       if (kit === 'at') { const x = u.pos.x, z = u.pos.z; setTimeout(() => this.audio.foley('reload', x, z, 0.5), 1600); }   // the loader's next round
@@ -204,7 +206,7 @@ export class Combat {
     }
     if (this.onShot) this.onShot(u, w, e, hit);
     if (this.vision) { this.vision.reveal(u, e.team); this.vision.reveal(e, u.team); }   // the flash and the noise give the shooter away; whoever is aimed at is seen
-    this.dust.shots.fire({ x: mx, y: gunY, z: mz, tx, ty, tz, speed: w.speed, arc: !!w.arc, high: !!w.indirect, kind: w.arc || kit === 'tankgun' ? 'shell' : w.rocket ? 'rocket' : 'bullet',
+    this.dust.shots.fire({ x: mx, y: gy, z: mz, tx, ty, tz, speed: w.speed, arc: !!w.arc, high: !!w.indirect, elev: w.elev || 0, kind: w.arc || kit === 'tankgun' ? 'shell' : w.rocket ? 'rocket' : 'bullet',
       trail: w.arc ? 6 : kit === 'tankgun' ? 9 : w.rocket ? 2 : (kit === 'mg' || kit === 'doorgun' || kit === 'coax') ? 6 : 3.5, onArrive: (p) => this.arrive(p, u, w, e, hit, kit) });
   }
 

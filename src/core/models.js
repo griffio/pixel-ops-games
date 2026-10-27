@@ -303,27 +303,30 @@ export function makeBuilders(F) {
   }
   function empHmg() {   // an M2 on a low tripod
     const g = group(); const p = {}; emplacementRing(g);
-    for (const [x, z, r] of [[-0.35, -0.2, 0.5], [0.35, -0.2, -0.5], [0, 0.45, 0]]) box(0.06, 0.06, 0.75, 'metal', x, 0.42, z, g).rotation.set(0.6 * (z > 0 ? -1 : 1), r, 0);   // tripod legs
-    box(0.24, 0.22, 0.62, 'rifle', 0, 0.86, 0.05, g); box(0.07, 0.07, 1.2, 'metal', 0, 0.9, 0.95, g); box(0.11, 0.11, 0.18, 'metal', 0, 0.9, 1.5, g);   // receiver, barrel, muzzle
-    box(0.2, 0.1, 0.14, 'metal', 0, 1.0, -0.32, g); box(0.24, 0.2, 0.32, 'olive', 0.3, 0.86, 0.02, g);                       // spade grips, ammo can on the mount
+    const t = p.turret = group(); g.add(t);   // the gun on its mount, which swings to the target (units.js)
+    for (const [x, z, r] of [[-0.35, -0.2, 0.5], [0.35, -0.2, -0.5], [0, 0.45, 0]]) box(0.06, 0.06, 0.75, 'metal', x, 0.42, z, t).rotation.set(0.6 * (z > 0 ? -1 : 1), r, 0);   // tripod legs
+    box(0.24, 0.22, 0.62, 'rifle', 0, 0.86, 0.05, t); box(0.07, 0.07, 1.2, 'metal', 0, 0.9, 0.95, t); box(0.11, 0.11, 0.18, 'metal', 0, 0.9, 1.5, t);   // receiver, barrel, muzzle
+    box(0.2, 0.1, 0.14, 'metal', 0, 1.0, -0.32, t); box(0.24, 0.2, 0.32, 'olive', 0.3, 0.86, 0.02, t);                       // spade grips, ammo can on the mount
     for (const x of [-0.7, -0.35]) box(0.3, 0.22, 0.5, 'olive', x, 0.11, -0.9, g);                                           // spare cans
     p.ring = ring(2.4, g);
     return { group: g, parts: p, height: 1.1, radius: 1.9 };
   }
   function empAtgm() {  // a wire-guided launcher: tube on a tripod, sight box, missile crates
     const g = group(); const p = {}; emplacementRing(g);
-    for (const [x, z, r] of [[-0.4, -0.25, 0.5], [0.4, -0.25, -0.5], [0, 0.4, 0]]) box(0.07, 0.07, 0.85, 'metal', x, 0.45, z, g).rotation.set(0.55 * (z > 0 ? -1 : 1), r, 0);
-    box(0.24, 0.24, 1.5, 'olive', 0, 1.02, 0.35, g); box(0.3, 0.3, 0.12, 'metal', 0, 1.02, 1.1, g);                          // launch tube, its mouth
-    box(0.3, 0.26, 0.34, 'rifle', 0.28, 1.0, -0.15, g); box(0.1, 0.1, 0.1, 'glass', 0.28, 1.04, 0.04, g);                    // sight
+    const t = p.turret = group(); g.add(t);
+    for (const [x, z, r] of [[-0.4, -0.25, 0.5], [0.4, -0.25, -0.5], [0, 0.4, 0]]) box(0.07, 0.07, 0.85, 'metal', x, 0.45, z, t).rotation.set(0.55 * (z > 0 ? -1 : 1), r, 0);
+    box(0.24, 0.24, 1.5, 'olive', 0, 1.02, 0.35, t); box(0.3, 0.3, 0.12, 'metal', 0, 1.02, 1.1, t);                          // launch tube, its mouth
+    box(0.3, 0.26, 0.34, 'rifle', 0.28, 1.0, -0.15, t); box(0.1, 0.1, 0.1, 'glass', 0.28, 1.04, 0.04, t);                    // sight
     for (const x of [-0.75, 0.75]) box(0.34, 0.3, 1.3, 'olive', x, 0.15, -1.0, g);                                           // missile crates
     p.ring = ring(2.4, g);
     return { group: g, parts: p, height: 1.3, radius: 1.9 };
   }
   function empMortar() {  // an 81 mm tube on a baseplate and bipod, rounds stacked behind
     const g = group(); const p = {}; emplacementRing(g);
-    box(0.7, 0.08, 0.7, 'metal', 0, 0.04, -0.15, g);                                                                          // baseplate
-    box(0.16, 0.16, 1.35, 'rifle', 0, 0.62, 0.2, g).rotation.set(-0.9, 0, 0);                                                // tube, raised 50 degrees
-    for (const x of [-0.25, 0.25]) box(0.05, 0.7, 0.05, 'metal', x, 0.35, 0.55, g).rotation.set(0, 0, x > 0 ? -0.3 : 0.3);   // bipod
+    const t = p.turret = group(); g.add(t);
+    box(0.7, 0.08, 0.7, 'metal', 0, 0.04, -0.15, t);                                                                          // baseplate
+    box(0.16, 0.16, 1.35, 'rifle', 0, 0.62, 0.2, t).rotation.set(-0.9, 0, 0);                                                // tube, raised 52 degrees (weapons.js mortar.elev)
+    for (const x of [-0.25, 0.25]) box(0.05, 0.7, 0.05, 'metal', x, 0.35, 0.55, t).rotation.set(0, 0, x > 0 ? -0.3 : 0.3);   // bipod
     for (let i = 0; i < 6; i++) box(0.09, 0.09, 0.42, 'olive', -0.75 + (i % 3) * 0.13, 0.05 + Math.floor(i / 3) * 0.1, -0.95, g);   // rounds
     box(0.4, 0.26, 0.5, 'olive', 0.7, 0.13, -0.9, g);                                                                        // ammo box
     p.ring = ring(2.4, g);

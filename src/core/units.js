@@ -438,7 +438,12 @@ export class Unit {
 
   step(dt, world) {
     if (this.dead) { this.stepDead(dt); return; }
-    if (this.spec.structure) { this.pos.y = world.heightAt(this.pos.x, this.pos.z); return; }   // structures sit on the terrain
+    if (this.spec.structure) {   // structures sit on the terrain; a FOB gun swings to its gunner's target, back to the front when he has none
+      this.pos.y = world.heightAt(this.pos.x, this.pos.z);
+      const t = this.parts && this.parts.turret, g = t && this.crew && this.crewAt(0), e = g && g.enemy;
+      if (t) { const want = e ? wrap(Math.atan2(e.pos.x - this.pos.x, e.pos.z - this.pos.z) - this.heading) : 0; t.rotation.y += clamp(wrap(want - t.rotation.y), -1.5 * dt, 1.5 * dt); }
+      return;
+    }
     if (this.mounted) { this.pos.copy(this.mounted.pos); return; }
     if (this.landedT > 0) this.landedT -= dt;   // fresh off a helicopter: counts double in a capture zone under Air Assault (Objectives)
     if (this.boardTarget) {

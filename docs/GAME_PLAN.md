@@ -1716,6 +1716,21 @@ Engine changes needed in the existing core:
   its side (the strip starts folded) and desktop: taps, holds, chips, groups, keys,
   Cancel from the bar, the toast and C; a five-minute CPU match with the HUD refreshed
   every second threw nothing; `tools/touch-test.mjs` gives the same results as before.
+- **Mortar shells that arc toward the target; FOB guns that traverse (2026-10-27).** The
+  user saw the mortar "fire upward then back", away from the enemy. Its shells took the
+  plunging solution for a fixed 64 m/s: 66 to 86 degrees, 175 to 210 m up and 12 to 13 s
+  in the air, so under the slanted camera a shell at an enemy 60 m toward the viewer
+  first went 2,500 px up the screen, away from it and off the top, before falling back.
+  Now `ProjectileSim.fire` takes `elev` and works out the speed for that elevation, and
+  the mortar fires at its tube's 52 degrees (`weapons.js` mortar.elev): 19 m up and 4 s
+  at 60 m, 49 m and 6 s at 150 m, 89 m and 9 s at 300 m, and in no direction does a shell
+  move away from its target on screen. The three FOB guns sit on a mount
+  (`parts.turret`) that swings to the gunner's target and back to the front when idle, and
+  their shots leave the gun's muzzle (`combat.js` GUN_MUZZLE), not the gunner. Same
+  harm as before: 40 shells at a soldier standing 150 m off hurt him 19 times the old
+  way and 15 the new (chance), and neither hit a walking one (a mortar lays on where the
+  target is). Two 15-minute CPU matches (defensive v balanced) built and crewed all
+  three guns on both sides, with 5 and 3 mortar kills.
 
 ## Open questions
 

@@ -11,12 +11,16 @@ export class ProjectileSim {
   constructor(dust) { this.dust = dust; this.list = []; this.segs = new Float32Array(64 * 14); this.segCount = 0; }
 
   // launch from (x,y,z) to (tx,ty,tz): straight at `speed`, or lofted under gravity when `arc`
-  // (the low-angle solution for a fixed muzzle speed, or with `high` the plunging one a mortar fires; out of reach, it
-  // lobs at 45 degrees and falls short)
-  fire({ x, y, z, tx, ty, tz, speed, arc = false, high = false, kind = 'bullet', trail = 3, onArrive = null }) {
+  // (the low-angle solution for a fixed muzzle speed, or with `high` the plunging one; out of reach, it lobs at 45 degrees
+  // and falls short). With `elev` (radians) the round leaves at that elevation with whatever speed carries it there, as a
+  // mortar's charge is chosen for the range: a near-vertical shot climbs 200 m, off the top of the screen and seemingly
+  // away from its target, and takes 13 s to come down
+  fire({ x, y, z, tx, ty, tz, speed, arc = false, high = false, elev = 0, kind = 'bullet', trail = 3, onArrive = null }) {
     const dx = tx - x, dy = ty - y, dz = tz - z, dh = Math.hypot(dx, dz) || 0.01;
     let vx, vy, vz, T;
-    if (arc) {
+    const c = Math.cos(elev), den = arc && elev ? 2 * c * c * (dh * Math.tan(elev) - dy) : 0;   // no solution when the target stands above that line
+    if (den > 0) { const v = Math.sqrt(G * dh * dh / den), vh = v * c; vx = dx / dh * vh; vz = dz / dh * vh; vy = v * Math.sin(elev); T = dh / vh; }
+    else if (arc) {
       const v2 = speed * speed, disc = v2 * v2 - G * (G * dh * dh + 2 * dy * v2);
       const tan = disc >= 0 ? (v2 + (high ? 1 : -1) * Math.sqrt(disc)) / (G * dh) : 1, cos = 1 / Math.sqrt(1 + tan * tan), vh = speed * cos;
       vx = dx / dh * vh; vz = dz / dh * vh; vy = speed * tan * cos; T = dh / vh;
