@@ -22,8 +22,9 @@ export const RULES = {
   // manning it fires (weapons.js hmg / atgm / mortar); perFob to a FOB, spaced from each other, sandbags and the FOB itself
   emplacement: { hmg: { supplyCost: 20, buildTime: 12 }, atgm: { supplyCost: 30, buildTime: 15 }, mortar: { supplyCost: 40, buildTime: 18 }, perFob: 3, fobRange: 50, minSpacing: 8, fobClear: 8, roadClear: 8 },   // improvised fighting positions: no kit, an engineer by a supply truck; never on the road (6 m half width + the position's 4 m)
   // a squad's own forward spawn (Squad's rally, scaled): spawns on a wave, needs a squadmate within placeRange to drop,
-  // can't be dropped with an enemy inside blockRadius, burns with any enemy inside burnRadius
-  rally: { wave: 30, cutoff: 10, cooldown: 60, placeRange: 8, blockRadius: 30, burnRadius: 18, enemyBaseDistance: 120 },
+  // can't be dropped with an enemy inside blockRadius, burns with any enemy inside burnRadius; with enemy armour inside
+  // armourRadius it can't be dropped and nobody comes back at it (they use the next spawn) until the armour leaves
+  rally: { wave: 30, cutoff: 10, cooldown: 60, placeRange: 8, blockRadius: 30, burnRadius: 18, armourRadius: 100, enemyBaseDistance: 120 },
   heli: { capacity: 8, boardRange: 5 },
   force: { squads: 8, truck: 3, apc: 3, heli: 2 },
 };

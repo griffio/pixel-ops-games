@@ -22,10 +22,70 @@ export class Strategist {
     return best ? { x: best.pos.x, z: best.pos.z } : null;
   }
   inZone(x, z, loc, k = 0.6) { const a = Math.random() * Math.PI * 2, d = Math.sqrt(Math.random()) * loc.r * k; return [loc.x + Math.cos(a) * d, loc.z + Math.sin(a) * d]; }
-  send(sq, x, z, tag, zone = null) {
+  // careful: a walk to hold, reserve, screen or grab a place (or home), which goes round known enemy fire (detour)
+  send(sq, x, z, tag, zone = null, careful = false) {
     if (sq.busy && sq.tag === tag && sq.goal && Math.hypot(sq.goal[0] - x, sq.goal[1] - z) < 12) return;
     const c = sq.centroid(); if (!sq.busy && Math.hypot(c.x - x, c.z - z) < 10 && sq.tag === tag) return;
-    sq.goal = [x, z]; sq.tag = tag; sq.zone = zone; sq.order(x, z);
+    sq.goal = [x, z]; sq.tag = tag; sq.zone = zone;
+    const via = careful ? this.detour(sq, c, x, z) : (sq.route = null);
+    if (via) sq.order(via.x, via.z); else sq.order(x, z);
+  }
+  // Known enemy fire, for routes: where we see enemies or last saw them, with the reach of their guns (a soldier in a group of
+  // three or more 110 m, an APC 190, a tank 240, a machine-gun emplacement 150, an anti-tank one 220; the mortar is left out,
+  // it reaches most of a lane and misses more than it hits), and an enemy-held place not seen in the last 30 s, its zone and
+  // 150 m. Worked out once a tick.
+  dangers() {
+    const now = this.match.elapsed; if (this.dangerAt === now) return this.dangerList;
+    const C = this.contacts().filter(u => !(u.spec.air && u.alt > 2)), list = [];
+    for (const u of C) {
+      const gun = u.type === 'emplacement' ? u.gun || (u.unit && u.unit.gun) : null;
+      const r = u.type === 'apc' ? 190 : u.type === 'tank' ? 240 : gun === 'hmg' ? 150 : gun === 'atgm' ? 220
+        : u.type === 'soldier' && C.filter(o => o.type === 'soldier' && Math.hypot(o.pos.x - u.pos.x, o.pos.z - u.pos.z) < 30).length >= 3 ? 110 : 0;
+      if (r) list.push({ x: u.pos.x, z: u.pos.z, r });
+    }
+    const o = this.match.objectives, V = this.match.vision;
+    if (o) for (const l of o.list) if (l.owner === 1 - this.team && V.ageAt(this.team, l.x, l.z) > 30) list.push({ x: l.x, z: l.z, r: l.r + 150 });
+    this.dangerAt = now; return (this.dangerList = list);
+  }
+  // the first danger a walk from (sx, sz) along pts comes within reach of, leaving out any its start or its end is inside
+  // (leaving a fight, or walking into the one it was sent to, is the plan's business); null when the way is clear
+  underFire(D, sx, sz, pts) {
+    const [gx, gz] = pts[pts.length - 1];
+    const near = (d, ax, az, bx, bz) => { const vx = bx - ax, vz = bz - az, L = vx * vx + vz * vz, t = L ? Math.max(0, Math.min(1, ((d.x - ax) * vx + (d.z - az) * vz) / L)) : 0; return Math.hypot(ax + vx * t - d.x, az + vz * t - d.z) < d.r; };
+    for (const d of D) {
+      if (Math.hypot(sx - d.x, sz - d.z) < d.r || Math.hypot(gx - d.x, gz - d.z) < d.r) continue;
+      let px = sx, pz = sz; for (const [x, z] of pts) { if (near(d, px, pz, x, z)) return d; px = x; pz = z; }
+    }
+    return null;
+  }
+  pathLen(sx, sz, pts) { let L = 0, px = sx, pz = sz; for (const [x, z] of pts) { L += Math.hypot(x - px, z - pz); px = x; pz = z; } return L; }
+  // A careful walk of 120 m or more whose way comes within reach of known enemy fire goes by one of our places or a neutral one
+  // clear of it: the first (by the straight line) whose way in and way on are both clear, if that is no more than 2.5 times as
+  // far; with none, it walks the direct way anyway. sq.route tells the digest: { via, m, past } (the place, the walk in metres,
+  // the danger) or { past } (exposed). Returns the place to walk to first, or null to walk straight there. Kept for 8 s while
+  // the squad stays put (the plan re-sends holds every few seconds); at the place, the next send walks on. The digest shows the
+  // route while the squad is still walking under the order it was worked out for (tag).
+  detour(sq, c, x, z) {
+    const nav = this.units.nav && this.units.nav.foot, o = this.match.objectives; sq.route = null;
+    if (!nav || !o || Math.hypot(x - c.x, z - c.z) < 120) return null;
+    const now = this.match.elapsed, k = sq.routeMemo;
+    if (k && now - k.t < 8 && Math.hypot(k.x - x, k.z - z) < 40 && Math.hypot(k.cx - c.x, k.cz - c.z) < 30 && !(k.via && Math.hypot(k.via.x - c.x, k.via.z - c.z) < 40)) { sq.route = k.route; return k.via; }
+    const D = this.dangers(), direct = D.length ? nav.findPath(c.x, c.z, x, z) : null, hit = direct && this.underFire(D, c.x, c.z, direct);
+    let via = null, route = null;
+    if (hit) {
+      route = { past: [hit.x, hit.z], tag: sq.tag };
+      const L0 = this.pathLen(c.x, c.z, direct), far = (l) => Math.hypot(l.x - c.x, l.z - c.z) + Math.hypot(x - l.x, z - l.z);
+      const ways = o.list.filter(l => l.owner !== 1 - this.team && Math.hypot(l.x - c.x, l.z - c.z) > 60 && Math.hypot(l.x - x, l.z - z) > 60 && far(l) < 2.5 * L0
+        && !D.some(d => Math.hypot(l.x - d.x, l.z - d.z) < d.r)).sort((a, b) => far(a) - far(b)).slice(0, 3);
+      for (const l of ways) {
+        const p1 = nav.findPath(c.x, c.z, l.x, l.z), p2 = p1 && nav.findPath(l.x, l.z, x, z); if (!p2) continue;
+        const L = this.pathLen(c.x, c.z, p1) + this.pathLen(l.x, l.z, p2);
+        if (L > 2.5 * L0 || this.underFire(D, c.x, c.z, p1) || this.underFire(D, l.x, l.z, p2)) continue;
+        via = { x: l.x, z: l.z }; route = { ...route, via: l.name, m: Math.round(L) }; break;
+      }
+    }
+    sq.routeMemo = { x, z, cx: c.x, cz: c.z, t: now, via, route }; sq.route = route;
+    return via;
   }
   // a squad mans a sandbag position (Unit.man: four firing slots) at the place it holds; once in, it stays
   manPost(sq, s, zone) {
@@ -77,17 +137,17 @@ export class Strategist {
       else { const [x, z] = this.inZone(attack.x, attack.z, attack); this.send(sq, x, z, 'cap' + attack.index, attack); }
     };
     const holdAt = (sq, loc) => {
-      if (!loc) return this.send(sq, base.x + (Math.random() - 0.5) * 20, base.z + (Math.random() - 0.5) * 20, 'home');
+      if (!loc) return this.send(sq, base.x + (Math.random() - 0.5) * 20, base.z + (Math.random() - 0.5) * 20, 'home', null, true);
       if (loc === hold && post < posts.length) return this.manPost(sq, posts[post++], hold);
-      const [x, z] = this.inZone(loc.x, loc.z, loc, 0.7); this.send(sq, x, z, 'hold' + loc.index, loc);
+      const [x, z] = this.inZone(loc.x, loc.z, loc, 0.7); this.send(sq, x, z, 'hold' + loc.index, loc, true);
     };
-    const reserveAt = (sq, loc) => { if (!loc) return holdAt(sq, hold); const [x, z] = this.inZone(loc.x, loc.z, loc, 0.6); this.send(sq, x, z, 'reserve' + loc.index, loc); };
+    const reserveAt = (sq, loc) => { if (!loc) return holdAt(sq, hold); const [x, z] = this.inZone(loc.x, loc.z, loc, 0.6); this.send(sq, x, z, 'reserve' + loc.index, loc, true); };
     const screenAt = (sq, loc) => {   // an overwatch position 50 m out from our location towards the enemy, in cover if armour overlooks it
       if (!loc) return holdAt(sq, hold);
       const to = attack || this.teams[1 - this.team].base; let [x, z] = this.toward(loc, to, Math.max(0, Math.hypot(to.x - loc.x, to.z - loc.z) - 50), 8);
       const apc = this.contacts().find(f => (f.type === 'apc' || f.type === 'tank') && Math.hypot(f.pos.x - x, f.pos.z - z) < 150 && this.match.combat.canSeePoint(f, x, z));
       if (apc) { const p = this.match.combat.coverPoint(x, z, apc.pos.x, apc.pos.z, 30, this.units.nav.foot); if (p) [x, z] = p; }
-      this.send(sq, x, z, 'screen' + loc.index, loc);
+      this.send(sq, x, z, 'screen' + loc.index, loc, true);
     };
     const raid = (sq) => { if (enemyFob) this.send(sq, enemyFob.pos.x, enemyFob.pos.z, 'raid'); else attackWith(sq); };
     const escort = (sq) => { const truck = vehicles.filter(v => v.supply && !v.dead).sort((p, q) => Math.hypot(p.pos.x - sq.centroid().x, p.pos.z - sq.centroid().z) - Math.hypot(q.pos.x - sq.centroid().x, q.pos.z - sq.centroid().z))[0]; if (!truck) return holdAt(sq, hold); this.send(sq, truck.pos.x + 4, truck.pos.z - 4, 'escort'); };
@@ -111,11 +171,11 @@ export class Strategist {
         const post = ours || hold;
         if (!sq.members.some(m => !m.dead && m.kit === 'at')) { elsewhere(r, 'no launcher in the squad, so it holds instead'); holdAt(sq, post); }
         else if (!post) holdAt(sq, null);
-        else { sq.aaPost = post; const [x, z] = this.inZone(post.x, post.z, post, 0.5); this.send(sq, x, z, 'aa' + post.index, post); }
+        else { sq.aaPost = post; const [x, z] = this.inZone(post.x, post.z, post, 0.5); this.send(sq, x, z, 'aa' + post.index, post, true); }
       }
       else if (r.role === 'raid') raid(sq);
       else if (r.role === 'escort') escort(sq);
-      else if (r.role === 'grab') { if (grabbable.includes(at)) { const [x, z] = this.inZone(at.x, at.z, at, 0.6); this.send(sq, x, z, 'grab' + at.index, at); } else { rest.push(sq); elsewhere(r, `${this.grabRefusal(at, attack) || 'not grabbable'}, so it follows attackShare`); } }   // a free place only: anywhere else (held, guarded, the attack itself) it would be one squad attacking alone, so it joins the attack share
+      else if (r.role === 'grab') { if (grabbable.includes(at)) { const [x, z] = this.inZone(at.x, at.z, at, 0.6); this.send(sq, x, z, 'grab' + at.index, at, true); } else { rest.push(sq); elsewhere(r, `${this.grabRefusal(at, attack) || 'not grabbable'}, so it follows attackShare`); } }   // a free place only: anywhere else (held, guarded, the attack itself) it would be one squad attacking alone, so it joins the attack share
       else attackWith(sq);
     }
     // free places: another place we can take that no enemy we know of holds or is near gets a squad of its own (the nearest
@@ -126,7 +186,7 @@ export class Strategist {
       const key = 'grab' + l.index, d = (s) => { const c = s.centroid(); return Math.hypot(c.x - l.x, c.z - l.z); };
       const sq = rest.find(s => s.tag === key) || [...rest].sort((a, b) => d(a) - d(b))[0];
       rest.splice(rest.indexOf(sq), 1);
-      const [x, z] = this.inZone(l.x, l.z, l, 0.6); this.send(sq, x, z, key, l);
+      const [x, z] = this.inZone(l.x, l.z, l, 0.6); this.send(sq, x, z, key, l, true);
     }
     // a remote commander's share is exact (0 sends none of these squads; the built-in planners keep a fifth at least), and an
     // engineer squad it left without a job, and without a logistics job, waits at the hold by the truck rather than attacking
@@ -262,7 +322,8 @@ export class Strategist {
   }
 
   // Rally points: a squad that has reached the area it was sent to (within 160 m of its zone, or dug in hiding from or hunting
-  // armour), clear of enemies, more than 200 m from home, drops a rally when it has none within 70 m and the cooldown allows.
+  // armour), clear of enemies, more than 200 m from home, drops a rally when it has none within 70 m, or its rally has enemy
+  // armour on it (canPlace keeps the new one 100 m from armour), and the cooldown allows.
   placeRallies(squads) {
     const R = this.match.rallies; if (!R) return;
     const base = this.teams[this.team].base;
@@ -272,7 +333,7 @@ export class Strategist {
       if (Math.hypot(c.x - base.x, c.z - base.z) < 200) continue;
       const there = zone ? Math.hypot(c.x - zone.x, c.z - zone.z) < 160 : ['cover', 'stalk', 'hunt'].includes(sq.tag) || (sq.tag || '').startsWith('screen');
       if (!there) continue;
-      const r = R.of(sq); if (r && Math.hypot(r.pos.x - c.x, r.pos.z - c.z) < 70) continue;
+      const r = R.of(sq); if (r && !R.covered(r) && Math.hypot(r.pos.x - c.x, r.pos.z - c.z) < 70) continue;
       if (this.enemiesNear(c.x, c.z, 40).length) continue;
       if (R.canPlace(sq).ok) R.place(sq);
     }
@@ -308,9 +369,10 @@ export class Strategist {
     return true;
   }
 
-  // Caution, once a second. Armour first: a squad an enemy APC can see within 110 m stalks it to rocket range if
-  // it carries launchers, otherwise it moves behind the nearest building or hill out of the APC's sight (or falls
-  // back if there is none) and stays there while the APC is about. Then infantry: a squad with an enemy inside 22 m
+  // Caution, once a second. Armour first: a squad an enemy APC can see within 150 m stalks it to rocket range if
+  // it carries launchers and the APC has no more than a squad's worth of infantry round it (escorted), otherwise it moves
+  // behind the nearest building or hill out of the APC's sight (or falls back if there is none) and stays there while the
+  // APC is about. Then infantry: a squad with an enemy inside 22 m
   // falls back unless it stands in the zone it was sent to take or hold, or clearly has the numbers. Squads manning
   // sandbags stay put through all of it. An APC with an enemy inside 50 m backs off to 70 m.
   halt(sq, tag) { for (const m of sq.members) if (!m.dead) { m.dest = null; m.target = null; m.path = null; } sq.tag = tag; sq.goal = null; }
@@ -327,13 +389,15 @@ export class Strategist {
     const hideMax = this.posture === 'aggressive' ? 12 : this.posture === 'cautious' ? 45 : 25;   // seconds a squad stays hidden from armour that can no longer see it
     const nearest = (x, z) => { let b = null, bd = Infinity; for (const e of enemies) { const d = Math.hypot(e.pos.x - x, e.pos.z - z); if (d < bd) { bd = d; b = e; } } return [b, bd]; };
     const away = (x, z, e, dist) => { const dx = x - e.pos.x, dz = z - e.pos.z, d = Math.hypot(dx, dz) || 1; return [x + dx / d * dist, z + dz / d * dist]; };
+    // armour with more than a squad of infantry within 50 m of it: a launcher team going for it would walk into all of them
+    const escorted = (v) => { let n = 0; for (const e of enemies) if (e.type === 'soldier' && Math.hypot(e.pos.x - v.pos.x, e.pos.z - v.pos.z) < 50 && ++n > 4) return true; return false; };
     for (const sq of this.units.squads) {
       if (sq.team !== this.team || !sq.leader || sq.mounted || this.lifts.has(sq) || sq.members.some(m => m.building)) continue;
       if (sq.posted) continue;                                                                               // manning sandbags: they stay, armour or not
       const c = sq.centroid();
       let apc = null, ad = 1e9; for (const v of apcs) { const d = Math.hypot(v.pos.x - c.x, v.pos.z - c.z); if (d < 150 && d < ad && C.canSeePoint(v, c.x, c.z)) { apc = v; ad = d; } }
       if (apc) {
-        if (sq.members.some(m => !m.dead && m.kit === 'at')) { if (ad > 72) { const [x, z] = this.toward(c, apc.pos, 60); this.send(sq, x, z, 'stalk', sq.zone); } else this.halt(sq, 'stalk'); }
+        if (sq.members.some(m => !m.dead && m.kit === 'at') && !escorted(apc)) { if (ad > 72) { const [x, z] = this.toward(c, apc.pos, 60); this.send(sq, x, z, 'stalk', sq.zone); } else this.halt(sq, 'stalk'); }
         else if (sq.tag !== 'cover' || (!sq.busy && (sq.seen = (sq.seen || 0) + 1) >= 2)) {   // not yet hiding, or settled in cover and still seen twice running: pick cover again
           const p = C.coverPoint(c.x, c.z, apc.pos.x, apc.pos.z, 26, this.units.nav.foot); sq.seen = 0;
           if (p) { if (sq.tag !== 'cover') sq.hideSince = now; sq.goal = p; sq.tag = 'cover'; sq.order(p[0], p[1]); } else { const [x, z] = away(c.x, c.z, apc, 30); sq.goal = [x, z]; sq.tag = 'back'; sq.order(x, z); }
@@ -350,13 +414,14 @@ export class Strategist {
       const [x, z] = away(c.x, c.z, e, 28); sq.goal = [x, z]; sq.tag = 'back'; sq.order(x, z);
     }
     // armour that threatens our squads is hunted: for each enemy APC within 150 m of one of our squads without launchers, the
-    // nearest anti-tank squad not already on another APC closes in until it can see it inside rocket range, then stops and fires
+    // nearest anti-tank squad within 300 m not already on another APC closes in until it can see it inside rocket range, then
+    // stops and fires. Escorted armour is left to the plan: the hunters would meet its infantry first.
     const ours = this.units.squads.filter(sq => sq.team === this.team && sq.leader && !sq.mounted && !sq.posted && !this.lifts.has(sq) && !sq.members.some(m => m.building));
     const hasAT = (sq) => sq.members.some(m => !m.dead && m.kit === 'at');
     for (const apc of apcs) {
-      if (!ours.some(sq => !hasAT(sq) && Math.hypot(sq.centroid().x - apc.pos.x, sq.centroid().z - apc.pos.z) < 150)) continue;
+      if (escorted(apc) || !ours.some(sq => !hasAT(sq) && Math.hypot(sq.centroid().x - apc.pos.x, sq.centroid().z - apc.pos.z) < 150)) continue;
       const real = apc.unit || apc;   // a last-known position stands in for its vehicle: hunt the vehicle, not the stand-in
-      let best = null, bd = Infinity;
+      let best = null, bd = 300;
       for (const sq of ours) {
         if (!hasAT(sq) || sq.tag === 'stalk' || (sq.huntTarget && sq.huntTarget !== real && !sq.huntTarget.dead)) continue;
         const c = sq.centroid(), d = Math.hypot(c.x - apc.pos.x, c.z - apc.pos.z); if (d < bd) { bd = d; best = sq; }

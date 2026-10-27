@@ -124,8 +124,11 @@ map: it needs a squadmate within 8 m, can't go down with an enemy within 30 m
 can place one every 60 s, moving the old one. Squadmates whose nearest spawn is
 the rally, or the whole squad once it is wiped out, come back there on the
 rally's 30 s wave if they have been down at least 10 s, still 1 ticket each.
-Any enemy within 18 m burns it. The CPU drops rallies once its squads reach the
-area they were sent to, so expect to hunt them. Destroying a FOB radio costs its owner
+Any enemy within 18 m burns it. Enemy armour within 100 m of a rally doesn't
+burn it but stops it being used: until the armour leaves, its men come back at
+the next spawn (a FOB or main) instead, and no rally can be dropped there. The
+CPU drops rallies once its squads reach the area they were sent to, and moves
+one that enemy armour sits on, so expect to hunt them. Destroying a FOB radio costs its owner
 40 tickets, so the CPU raids yours and defends its own.
 
 **Transport.** Helicopters and trucks carry eight soldiers (two squads), an APC
@@ -182,7 +185,12 @@ and shoot from there, fall back when an enemy gets inside 22 m unless they hold
 the zone or clearly outnumber it, and its APCs keep a 70 m standoff (tanks 90 m),
 reversing away when something gets inside 50 m. Squads an enemy APC or tank can
 see get behind the nearest building or hill out of its sight and stay there while
-it is about; anti-tank squads stalk it to rocket range instead.
+it is about; anti-tank squads stalk it to rocket range instead, unless more than a
+squad of infantry stands round it. An enemy APC near one of its squads draws the
+nearest anti-tank squad within 300 m, escorted armour excepted. Squads walking to
+hold, reserve, screen or grab a place go round known enemy positions when the
+way there passes within reach of their guns: by one of the CPU's own places or
+a neutral one, if that walk is no more than two and a half times as long.
 
 **M1 Abrams.** The tank (380 points, 15% off under Mechanized; the *Armoured*
 preset brings one) carries a 120 mm gun that reaches 200 m, one round every five

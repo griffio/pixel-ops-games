@@ -1731,6 +1731,27 @@ Engine changes needed in the existing core:
   way and 15 the new (chance), and neither hit a walking one (a mortar lays on where the
   target is). Two 15-minute CPU matches (defensive v balanced) built and crewed all
   three guns on both sides, with 5 and 3 mortar kills.
+- **Squads walk round the enemy; hunts and rallies that stop feeding armour (2026-10-27).**
+  A longer game against the Opus commander: it led 587-404 at minute 10 holding 6 of 7,
+  but lost 17 infantry to the user's 1 a minute. Three causes in the game, not the model.
+  (1) An order took a squad by the shortest way: SQ-09, told four times to hold Kasbah,
+  walked the middle pass past Depot, where the user's main body and APC sat, and died on
+  the way each time. Now a walk to hold, reserve, screen or grab a place (or home) checks
+  its route against known enemy fire (`strategist.dangers`: groups of infantry 110 m, APCs
+  190, tanks 240, gun emplacements their reach, enemy places unseen for 30 s) and, when it
+  passes within reach, goes by one of our places or a neutral one whose two legs are clear,
+  up to 2.5 times the walk (`detour`); with none it goes anyway. The digest's `route`
+  tells the commander which ("via Bridge (1040 m walk), round the enemy at Depot+34m") or
+  "exposed". (2) The anti-tank hunt sent the nearest launcher squad at any APC near one of
+  our squads, from anywhere on the map, and stalked APCs inside a crowd. Now the hunt
+  reaches 300 m, and armour with more than four infantry within 50 m is neither hunted nor
+  stalked: the squad hides from it like any other. (3) SQ-06's rally sat 58 m from the
+  user's APC and it died six times coming back to it. Enemy armour within 100 m of a rally
+  (`RULES.rally.armourRadius`) now stops it being used (the men come back at the next spawn)
+  or dropped there, and the CPU moves a rally armour sits on. Same seeds before and after
+  (24 CPU matches, four pairings both ways round): infantry deaths per match 268 to 237,
+  mechanized from 1 win in 12 to 5, balanced v mechanized from 6-0 to 3-3; no page errors.
+  The route check costs about 4% of what move orders already spend on paths.
 
 ## Open questions
 

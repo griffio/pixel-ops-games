@@ -19,10 +19,11 @@ export class Respawn {
   cancel(unit) { const i = this.queue.findIndex(q => q.unit === unit); if (i >= 0) this.queue.splice(i, 1); }
 
   // The squad's rally, when it is the spawn this soldier would use: the squad has no one left standing, or the rally is
-  // nearer the squad than main, any FOB or any doctrine spawn. Forcing main or a helicopter or truck spawn skips it.
+  // nearer the squad than main, any FOB or any doctrine spawn. Forcing main or a helicopter or truck spawn skips it, and so
+  // does enemy armour within RULES.rally.armourRadius of it (the men would come back under its gun).
   rallyFor(u, team) {
     if (u.type !== 'soldier' || !u.squad || !this.rallies || team.spawnPref === 'base' || team.spawnPref === 'heli' || team.spawnPref === 'truck') return null;
-    const r = this.rallies.of(u.squad); if (!r) return null;
+    const r = this.rallies.of(u.squad); if (!r || this.rallies.covered(r)) return null;
     const live = u.squad.members.filter(m => !m.dead && m !== u && !m.mounted); if (!live.length) return r;
     const x = live.reduce((s, m) => s + m.pos.x, 0) / live.length, z = live.reduce((s, m) => s + m.pos.z, 0) / live.length, dr = Math.hypot(r.pos.x - x, r.pos.z - z);
     if (Math.hypot(team.base.x - x, team.base.z - z) < dr) return null;

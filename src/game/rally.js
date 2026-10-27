@@ -2,7 +2,8 @@ import { RULES } from './rules.js';
 
 // Rally points: each squad's own forward spawn, after Squad's (values scaled to a 1 km map and a 15 s respawn,
 // see reports/). The squad's leader drops one with a squadmate close by; squadmates who die come back there on
-// the rally's wave, as long as they have been down long enough to make it; a single enemy close by burns it.
+// the rally's wave, as long as they have been down long enough to make it; a single enemy close by burns it, and enemy
+// armour within 100 m sends them to the next spawn instead (and stops a rally being dropped there).
 // Placing again moves it, after a cooldown. Free, no tickets, nothing to build.
 export class Rallies {
   constructor(units, teams, match) { this.units = units; this.teams = teams; this.match = match; this.list = []; }
@@ -14,6 +15,12 @@ export class Rallies {
     for (const u of this.units.units) if (!u.dead && !u.mounted && u.team !== team && !u.spec.structure && !(u.spec.air && u.alt > 2) && Math.hypot(u.pos.x - x, u.pos.z - z) < r) return true;
     return false;
   }
+  // an enemy APC or tank within r: a rally it overlooks would bring men back under its gun
+  armourWithin(team, x, z, r) {
+    for (const u of this.units.units) if (!u.dead && u.team !== team && (u.type === 'apc' || u.type === 'tank') && Math.hypot(u.pos.x - x, u.pos.z - z) < r) return true;
+    return false;
+  }
+  covered(r) { return this.armourWithin(r.team, r.pos.x, r.pos.z, RULES.rally.armourRadius); }
 
   // can this squad's leader drop a rally where he stands? (pure: the HUD asks every frame)
   canPlace(sq) {
@@ -24,6 +31,7 @@ export class Rallies {
     const eb = this.teams[1 - L.team].base; if (Math.hypot(eb.x - L.pos.x, eb.z - L.pos.z) < R.enemyBaseDistance) return { ok: false, reason: 'too close to the enemy main base' };
     if (this.units.nav && this.units.nav.foot.blocked(L.pos.x, L.pos.z)) return { ok: false, reason: 'no room here' };
     if (this.enemyWithin(L.team, L.pos.x, L.pos.z, R.blockRadius)) return { ok: false, reason: `enemy within ${R.blockRadius} m`, enemy: true };
+    if (this.armourWithin(L.team, L.pos.x, L.pos.z, R.armourRadius)) return { ok: false, reason: `enemy armour within ${R.armourRadius} m` };
     return { ok: true };
   }
 

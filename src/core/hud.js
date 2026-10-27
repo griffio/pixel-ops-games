@@ -285,7 +285,7 @@ export class Hud {
     if (u.type === 'fob') return `forward operating base · every squad can respawn here · ${m ? `${m.fobs.emplacementsAt(u)}/${RULES.emplacement.perFob} guns · ` : ''}${hp}`;
     if (u.type === 'sandbags') return `sandbag position · ${u.crew.length - u.freeSlots}/${u.crew.length} manned · ${tap} it with soldiers selected to man it`;
     if (u.type === 'traps') return 'tank traps · no vehicle gets past, ours included · an engineer at the row clears them';
-    if (u.type === 'rally') return `rally point${u.rallyOf ? ' of ' + u.rallyOf.members[0].label : ''} · its men come back here every ${RULES.rally.wave} s${m && m.rallies ? ` · next in ${Math.ceil(m.rallies.nextWaveIn(u))} s` : ''}`;
+    if (u.type === 'rally') return `rally point${u.rallyOf ? ' of ' + u.rallyOf.members[0].label : ''} · ${m && m.rallies && m.rallies.covered(u) ? `enemy armour within ${RULES.rally.armourRadius} m: its men come back at the next spawn until it leaves` : `its men come back here every ${RULES.rally.wave} s${m && m.rallies ? ` · next in ${Math.ceil(m.rallies.nextWaveIn(u))} s` : ''}`}`;
     return `${u.type} · ${hp}`;
   }
   // the command bar: the selection's orders, then what its engineer can build (each with its supply cost), the build under
