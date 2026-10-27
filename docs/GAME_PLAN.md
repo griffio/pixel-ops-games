@@ -1674,6 +1674,28 @@ Engine changes needed in the existing core:
   Palm Valley going 4-0 is worth watching (the ATGM answers APCs) but four matches is
   thin.
 
+- **Anti-air that stays put; wiped squads in the digest (2026-10-27).** From an Opus game
+  (OPFOR) where the user flew Chinooks: the helicopters circled 50 to 100 m off Depot and
+  were shot at and one brought down, as the user expected. But Opus had posted its
+  anti-tank squad SQ-12 at Bridge (`antiair`) and pulled its assault back from Depot, and
+  `skyward()` still walked SQ-12 some 350 m forward into 16 enemies at Depot: a helicopter
+  within 150 m of any of our squads counted as a threat, and the hunter itself was one,
+  so once the others had gone it kept its own hunt alive until it died (it took the
+  helicopter and the player's FOB with it; Opus's notes still had it at Bridge). Now a
+  squad that went after a helicopter counts toward the threat only if the place it
+  belongs (its zone) is within 150 m of it too, and a squad on an anti-air post answers
+  only helicopters within 180 m of its post. Also, a squad wiped out dropped out of the
+  digest, so Opus wrote "No AT squad for antiair"; it is now listed as `down` with `men` 0
+  and `back` (seconds until its first man is due, 0 when waiting on its rally's wave), and
+  a job given to it applies when it returns. Tests: a posted squad stayed at its post
+  with a helicopter 330 m away over another squad of ours and went for one 120 m away;
+  an unposted one went for a helicopter over a rifle squad 220 m off and gave up 9 s
+  after the rifle squad left, back at its hold (before: hunting for the full 40 s, the
+  plan's send and the hunt alternating); a wiped squad showed back 7, then 0 until its
+  rally's wave, then 4 men; a job for it passed `validatePlan`. Air Assault on Palm
+  Valley (v light and v balanced, both ways round, seeds 1 to 3): 4 of 12 replay
+  identically, no winner changes, 2 helicopters lost as before, air 1 of 12 as before.
+
 ## Open questions
 
 None open. Answered:

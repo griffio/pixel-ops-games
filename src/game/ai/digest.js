@@ -17,6 +17,13 @@ export function buildDigest(match, team, remote = null) {
   // a squad aboard a vehicle says which: helicopters fly squads in, APCs and trucks drive them (both are "lift" to the strategist)
   const order = (s) => { const c = s.tag === 'lift' && st && st.lifts.get(s); return c && c.type ? `${c.type === 'heli' ? 'flying in' : 'riding'} ${c.label}` : s.tag || 'idle'; };
   const squads = m.units.squads.filter(s => s.team === team && s.leader).map(s => { const c = s.centroid(), al = s.members.filter(live); return { id: s.leader.label, men: al.length, kits: [...new Set(al.map(u => u.kit))], hp: r(al.reduce((a, u) => a + u.hp, 0) / Math.max(1, al.length)), pinned: al.filter(u => u.supp > 0.5).length || undefined, rally: s.rally && !s.rally.dead ? nearLoc(s.rally.pos.x, s.rally.pos.z) : undefined, at: [r(c.x), r(c.z)], near: nearLoc(c.x, c.z), order: order(s), job: job(s), refused: st && st.refused ? st.refused.get(s.leader.label) : undefined }; });
+  // a squad wiped out is off the map until its men come back (at its rally, a FOB or main): back is the seconds until the
+  // first is due (0: waiting on its rally's wave or on tickets); a job given to it now applies when it returns
+  const Q = m.respawn ? m.respawn.queue : [];
+  for (const s of m.units.squads) if (s.team === team && !s.leader && s.members.length) {
+    const q = Q.filter(e => s.members.includes(e.unit));
+    squads.push({ id: s.members[0].label, men: 0, kits: [...new Set(s.members.map(u => u.kit))], down: true, back: q.length ? r(Math.max(0, Math.min(...q.map(e => e.t)))) : undefined, rally: s.rally && !s.rally.dead ? nearLoc(s.rally.pos.x, s.rally.pos.z) : undefined });
+  }
   const vehicles = U.filter(u => u.team === team && live(u) && !u.squad && !u.spec.structure).map(u => ({ id: u.label, type: u.supply ? 'supply' : u.type, hp: r(100 * u.hp / u.maxHp), at: [r(u.pos.x), r(u.pos.z)], near: nearLoc(u.pos.x, u.pos.z), to: u.dest && Math.hypot(u.dest.x - u.pos.x, u.dest.z - u.pos.z) > 20 ? nearLoc(u.dest.x, u.dest.z) : undefined, supplies: u.supply ? r(u.supplies) : undefined, refilling: u.refilling || undefined, refused: st && st.refused ? st.refused.get(u.label) : undefined, passengers: u.passengers && u.passengers.length ? u.passengers.length : undefined }));
   // enemy ground units as far as we know them, grouped within 40 m; a group seen only before carries lastSeen (its freshest sighting)
   const clusters = [];

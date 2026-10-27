@@ -155,7 +155,9 @@ repaired by the ground crew (full in a minute), and an unguided rocket at a
 helicopter in the air hits a third as often as at a ground vehicle, or twice that
 when braced for it: the CPU sends an anti-tank squad at any enemy helicopter
 within 150 m of its squads (or 180 m of an anti-air post an LLM commander set,
-the `antiair` job); the squad closes to 75 m and stands to fire, braced. Hovering
+the `antiair` job, whose squad answers only helicopters over its own place); the
+squad closes to 75 m and stands to fire, braced, and gives up once no other squad
+is under the helicopter (the hunter alone does not keep the hunt going). Hovering
 60 m from such a squad, a helicopter went down in 20 to 54 s in five tries (two in
 five before, the others getting away at 225 to 288 hp). Its supply trucks pull back to base when
 enemy armour comes within 120 m. An engineer

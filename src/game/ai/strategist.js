@@ -244,10 +244,15 @@ export class Strategist {
     const far = (sq, p) => { const c = sq.centroid(); return Math.hypot(c.x - p.x, c.z - p.z); };
     for (const h of helis) {
       const real = h.unit || h;
-      if (!ours.some(sq => far(sq, h.pos) < 150 || (sq.aaPost && Math.hypot(sq.aaPost.x - h.pos.x, sq.aaPost.z - h.pos.z) < 180))) continue;
+      // a threat while it is near one of our squads or over an anti-air post; a squad that went after this helicopter
+      // counts only if the place it belongs (its zone) is near it too, so the hunter alone does not keep the hunt going.
+      // A posted squad answers only helicopters over its own place.
+      const strayed = (sq) => sq.skyTarget === real && !(sq.zone && Math.hypot(sq.zone.x - h.pos.x, sq.zone.z - h.pos.z) < 150);
+      const guards = (sq) => sq.aaPost && Math.hypot(sq.aaPost.x - h.pos.x, sq.aaPost.z - h.pos.z) < 180;
+      if (!ours.some(sq => (!strayed(sq) && far(sq, h.pos) < 150) || guards(sq))) continue;
       let best = null, bd = Infinity;
       for (const sq of ours) {
-        if (!at(sq) || sq.tag === 'stalk' || sq.tag === 'hunt' || (sq.tag === 'skyward' && sq.skyTarget && sq.skyTarget !== real && !sq.skyTarget.dead)) continue;   // armour comes first
+        if (!at(sq) || (sq.aaPost && !guards(sq)) || sq.tag === 'stalk' || sq.tag === 'hunt' || (sq.tag === 'skyward' && sq.skyTarget && sq.skyTarget !== real && !sq.skyTarget.dead)) continue;   // armour comes first
         const d = far(sq, h.pos) - (sq.aaPost ? 100 : 0); if (d < 300 && d < bd) { bd = d; best = sq; }
       }
       if (!best) continue;

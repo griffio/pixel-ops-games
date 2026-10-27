@@ -51,7 +51,8 @@ Ten things, in a fixed JSON schema (`src/game/ai/plan.js`):
    alive, or a number of seconds;
 8. how soon to be asked again;
 9. jobs for individual squads: assault, hold, reserve, screen, raid, escort,
-   grab;
+   grab, antiair (a squad wiped out is listed as down, with the seconds until
+   it is back, and a job given to it starts then);
 10. jobs for individual APCs and tanks: go with the attack, or hold a place.
 
 It also writes one line of radio chatter for the player and a note for
