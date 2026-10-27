@@ -124,14 +124,16 @@ export class Hud {
     return `<div class="ev">${ico(e.type === 'fob' ? 'fob' : e.type.startsWith('cache') ? 'cache' : 'flag')}<b class="t${team}">${name}</b> ${text}</div>`;
   }
 
-  // ---- minimap: cached terrain, then zones, units and the camera footprint
+  // ---- minimap: cached terrain, then zones, units and the camera footprint. North (+z) is up and +x is to the LEFT: the
+  // world as the camera draws it seen from above (facing north, +x is on screen-left), so panning and the map agree
   minimapBackground(map) {
     const S = 220, bg = document.createElement('canvas'); bg.width = bg.height = S; const g = bg.getContext('2d');
     const splat = document.createElement('canvas'); splat.width = splat.height = S; map.paintSplat(splat.getContext('2d'), S, map.size / 2);
     const sp = splat.getContext('2d').getImageData(0, 0, S, S).data, out = g.createImageData(S, S), o = out.data;
     const sand = [196, 176, 136], tiles = [[182, 176, 164], [91, 91, 93], [138, 138, 88], [163, 142, 102]];
     for (let i = 0; i < S * S; i++) {
-      const w = [sp[i * 4] / 255, sp[i * 4 + 1] / 255, sp[i * 4 + 2] / 255, sp[i * 4 + 3] / 255], rest = Math.max(0, 1 - w[0] - w[1] - w[2] - w[3]);
+      const j = i - (i % S) + (S - 1 - (i % S));   // the splat is painted with +x to the right: read it mirrored
+      const w = [sp[j * 4] / 255, sp[j * 4 + 1] / 255, sp[j * 4 + 2] / 255, sp[j * 4 + 3] / 255], rest = Math.max(0, 1 - w[0] - w[1] - w[2] - w[3]);
       for (let c = 0; c < 3; c++) o[i * 4 + c] = sand[c] * rest + tiles[0][c] * w[0] + tiles[1][c] * w[1] + tiles[2][c] * w[2] + tiles[3][c] * w[3];
       o[i * 4 + 3] = 255;
     }
@@ -141,7 +143,7 @@ export class Hud {
     if (T) {
       const img = g.getImageData(0, 0, S, S), d = img.data;
       for (let py = 0; py < S; py++) for (let px = 0; px < S; px++) {
-        const x = px / S * map.size - map.size / 2, z = map.size / 2 - py / S * map.size, nn = T.normal(x, z), i = (py * S + px) * 4;
+        const x = map.size / 2 - px / S * map.size, z = map.size / 2 - py / S * map.size, nn = T.normal(x, z), i = (py * S + px) * 4;
         if (T.height(x, z) < T.water) { d[i] = 52; d[i + 1] = 92; d[i + 2] = 112; continue; }
         const shade = 0.72 + 0.55 * Math.max(0, nn[0] * -0.5 + nn[1] * 0.75 + nn[2] * 0.45);
         d[i] = Math.min(255, d[i] * shade); d[i + 1] = Math.min(255, d[i + 1] * shade); d[i + 2] = Math.min(255, d[i + 2] * shade);
@@ -149,7 +151,7 @@ export class Hud {
       g.putImageData(img, 0, 0);
     }
 
-    const k = S / map.size, X = (x) => (x + map.size / 2) * k, Z = (z) => (map.size / 2 - z) * k;
+    const k = S / map.size, X = (x) => (map.size / 2 - x) * k, Z = (z) => (map.size / 2 - z) * k;
     const line = (pts, w, col) => { g.strokeStyle = col; g.lineWidth = w; g.lineJoin = 'round'; g.beginPath(); g.moveTo(X(pts[0][0]), Z(pts[0][1])); for (const p of pts.slice(1)) g.lineTo(X(p[0]), Z(p[1])); g.stroke(); };
     for (const t of map.tracks || []) line(t, 1.5, '#8a7450');
     for (const r of map.roads || []) if (r.kind === 'track') line(r.points, 1.5, '#8a7450');
@@ -163,7 +165,7 @@ export class Hud {
     const cv = $('minimap'), g = cv.getContext('2d');
     if (!this.mmBg) {
       this.mmBg = this.minimapBackground(map);
-      const toWorld = (e) => { const r = cv.getBoundingClientRect(); return [(e.clientX - r.left) / r.width * map.size - map.size / 2, map.size / 2 - (e.clientY - r.top) / r.height * map.size]; };
+      const toWorld = (e) => { const r = cv.getBoundingClientRect(); return [map.size / 2 - (e.clientX - r.left) / r.width * map.size, map.size / 2 - (e.clientY - r.top) / r.height * map.size]; };
       let down = false;
       cv.addEventListener('pointerdown', e => { down = true; const [x, z] = toWorld(e); a.rts.target.set(x, 0, z); a.rts.follow = null; e.preventDefault(); });
       window.addEventListener('pointermove', e => { if (down) { const [x, z] = toWorld(e); a.rts.target.set(x, 0, z); } });
@@ -174,7 +176,7 @@ export class Hud {
     for (const b of m.teams) { g.strokeStyle = b.id === 0 ? '#7fb2e5' : '#e86a5a'; g.lineWidth = 1; g.beginPath(); g.arc(X(b.base.x), Z(b.base.z), b.base.r * k, 0, Math.PI * 2); g.stroke(); }
     // fog of war: unseen ground shaded, enemies out of sight left off, last-known positions as red diamonds
     const fog = a.fog, ov = fog && fog.minimap();
-    if (ov) { const V = m.vision, ext = V.n * V.cell; g.imageSmoothingEnabled = true; g.drawImage(ov, X(-V.half), Z(-V.half + ext), ext * k, ext * k); }
+    if (ov) { const V = m.vision, ext = V.n * V.cell; g.imageSmoothingEnabled = true; g.save(); g.translate(X(-V.half), Z(-V.half + ext)); g.scale(-1, 1); g.drawImage(ov, 0, 0, ext * k, ext * k); g.restore(); }   // the overlay has +x to the right: drawn mirrored
     m.mode.drawMinimap(g, X, Z, k);
     if (fog) { g.strokeStyle = 'rgba(255,138,122,0.8)'; g.lineWidth = 1; for (const gh of fog.ghosts()) { const x = X(gh.x), z = Z(gh.z), r = gh.type === 'soldier' ? 2 : 3; g.beginPath(); g.moveTo(x, z - r); g.lineTo(x + r, z); g.lineTo(x, z + r); g.lineTo(x - r, z); g.closePath(); g.stroke(); } }
     for (const u of a.units.units) {

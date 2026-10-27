@@ -186,8 +186,8 @@ the zone or clearly outnumber it, and its APCs keep a 70 m standoff (tanks 90 m)
 reversing away when something gets inside 50 m. Squads an enemy APC or tank can
 see get behind the nearest building or hill out of its sight and stay there while
 it is about; anti-tank squads stalk it to rocket range instead, unless more than a
-squad of infantry stands round it. An enemy APC near one of its squads draws the
-nearest anti-tank squad within 300 m, escorted armour excepted. Squads walking to
+squad of infantry or another APC or tank stands round it. An enemy APC near one of
+its squads draws the nearest anti-tank squad within 300 m, escorted armour excepted. Squads walking to
 hold, reserve, screen or grab a place go round known enemy positions when the
 way there passes within reach of their guns: by one of the CPU's own places or
 a neutral one, if that walk is no more than two and a half times as long.
@@ -484,7 +484,9 @@ The CPU sides can take their plan from a model instead of the built-in planner.
 Every 20 seconds of match time each CPU side posts a one-page JSON digest of the
 state (`src/game/ai/digest.js`: tickets, locations and who contests them, its
 squads and vehicles with orders, enemy clusters as far as its side can see them
-(fog of war: groups seen earlier carry `lastSeen`), FOBs, sandbags, recent events,
+(fog of war: groups seen earlier carry `lastSeen`, for 30 s; each location's
+`recent` keeps the most enemies seen at it at one look for two minutes, shown when
+fewer are in sight there now), FOBs, sandbags, recent events,
 and three memory blocks the game maintains so the prompt never grows: trends
 (tickets now and 1, 2, 3 minutes ago, deaths and vehicle losses per minute,
 locations that changed hands in the last five minutes), the last three plans

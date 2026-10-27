@@ -1752,6 +1752,23 @@ Engine changes needed in the existing core:
   (24 CPU matches, four pairings both ways round): infantry deaths per match 268 to 237,
   mechanized from 1 win in 12 to 5, balanced v mechanized from 6-0 to 3-3; no page errors.
   The route check costs about 4% of what move orders already spend on paths.
+- **Armour pairs and remembered sightings (2026-10-27).** The next game against Opus (it led
+  578-260 at minute 13) showed two more. Its anti-tank squads stalked the user's tank one
+  after another and died to it and the APC beside it: the escort check counted only
+  infantry. Now another APC or tank within 100 m also makes armour escorted, so launcher
+  squads hide from a pair instead of walking into two guns. And at minute 13 it attacked
+  a Depot it called "near-empty" 36 s after seeing ten men there, because a sighting lives
+  only as long as its ghost (30 s). `strategist.note` now keeps, for each place, the most
+  enemies seen in or within 60 m of it at one look and when, for two minutes (a bigger look
+  replaces it), and the digest shows it as the location's `recent` when fewer are in sight
+  there now; the commander's prompt says such a place is probably still held.
+  The minimap was mirrored: it drew +x to the right with north up, while the camera draws the
+  world with +x on screen-left when facing north, so panning right moved the minimap's view box
+  left and no camera turn made the two agree. It now keeps north up with +x on the left (terrain,
+  roads, fog shading, units and click-to-jump). Open: CPU batches since the route change show
+  the north base winning about two games in three (43% before it); switching the route detour
+  off brings it back to about half, while `detour` itself answers mirrored situations alike, so
+  the long detours (up to 2.5 times the walk) are under test.
 
 ## Open questions
 

@@ -47,6 +47,20 @@ export class Strategist {
     if (o) for (const l of o.list) if (l.owner === 1 - this.team && V.ageAt(this.team, l.x, l.z) > 30) list.push({ x: l.x, z: l.z, r: l.r + 150 });
     this.dangerAt = now; return (this.dangerList = list);
   }
+  // What we have seen at each place, once a second: the most enemies seen in or within 60 m of it at one look, and when. A
+  // sighting outlives its ghosts (30 s), so a place that held ten men a minute ago does not read as empty because no one is
+  // looking now; a bigger look replaces it, and so does any look once two minutes have passed (the digest's recent).
+  note() {
+    const o = this.match.objectives; if (!o) return;
+    const now = this.match.elapsed, seen = this.seenAt || (this.seenAt = new Map());
+    const C = this.contacts().filter(u => !u.ghost && !u.spec.structure && !(u.spec.air && u.alt > 2));
+    for (const l of o.list) {
+      const here = C.filter(u => Math.hypot(u.pos.x - l.x, u.pos.z - l.z) < l.r + 60), rec = seen.get(l);
+      if (!here.length || (rec && here.length < rec.n && now - rec.t <= 120)) continue;
+      const units = {}; for (const u of here) units[u.type] = (units[u.type] || 0) + 1;
+      seen.set(l, { t: now, n: here.length, units });
+    }
+  }
   // the first danger a walk from (sx, sz) along pts comes within reach of, leaving out any its start or its end is inside
   // (leaving a fight, or walking into the one it was sent to, is the plan's business); null when the way is clear
   underFire(D, sx, sz, pts) {
@@ -97,7 +111,7 @@ export class Strategist {
 
   tick(dt) {
     if (this.remote) this.remote.tick(dt);
-    if ((this.reflex -= dt) <= 0) { this.reflex = 1; this.caution(); }
+    if ((this.reflex -= dt) <= 0) { this.reflex = 1; this.note(); this.caution(); }
     this.timer -= dt; if (this.timer > 0) return; this.timer = this.diff.plan + Math.random() * 2;
     const base = this.teams[this.team].base;
     // drop lifts whose carrier or troops are gone, so squads return to the pool
@@ -370,7 +384,7 @@ export class Strategist {
   }
 
   // Caution, once a second. Armour first: a squad an enemy APC can see within 150 m stalks it to rocket range if
-  // it carries launchers and the APC has no more than a squad's worth of infantry round it (escorted), otherwise it moves
+  // it carries launchers and the APC has no more than a squad's worth of infantry and no other armour round it (escorted), otherwise it moves
   // behind the nearest building or hill out of the APC's sight (or falls back if there is none) and stays there while the
   // APC is about. Then infantry: a squad with an enemy inside 22 m
   // falls back unless it stands in the zone it was sent to take or hold, or clearly has the numbers. Squads manning
@@ -389,8 +403,9 @@ export class Strategist {
     const hideMax = this.posture === 'aggressive' ? 12 : this.posture === 'cautious' ? 45 : 25;   // seconds a squad stays hidden from armour that can no longer see it
     const nearest = (x, z) => { let b = null, bd = Infinity; for (const e of enemies) { const d = Math.hypot(e.pos.x - x, e.pos.z - z); if (d < bd) { bd = d; b = e; } } return [b, bd]; };
     const away = (x, z, e, dist) => { const dx = x - e.pos.x, dz = z - e.pos.z, d = Math.hypot(dx, dz) || 1; return [x + dx / d * dist, z + dz / d * dist]; };
-    // armour with more than a squad of infantry within 50 m of it: a launcher team going for it would walk into all of them
-    const escorted = (v) => { let n = 0; for (const e of enemies) if (e.type === 'soldier' && Math.hypot(e.pos.x - v.pos.x, e.pos.z - v.pos.z) < 50 && ++n > 4) return true; return false; };
+    // armour with more than a squad of infantry within 50 m of it, or another APC or tank within 100 m (whose gun covers the
+    // ground a launcher team would cross): going for it would walk into all of them
+    const escorted = (v) => { let n = 0; for (const e of enemies) { const d = Math.hypot(e.pos.x - v.pos.x, e.pos.z - v.pos.z); if ((e.type === 'soldier' && d < 50 && ++n > 4) || (e !== v && (e.type === 'apc' || e.type === 'tank') && d < 100)) return true; } return false; };
     for (const sq of this.units.squads) {
       if (sq.team !== this.team || !sq.leader || sq.mounted || this.lifts.has(sq) || sq.members.some(m => m.building)) continue;
       if (sq.posted) continue;                                                                               // manning sandbags: they stay, armour or not
