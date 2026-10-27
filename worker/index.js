@@ -42,7 +42,9 @@ async function askClaude(env, pick, effort, digestBody, metadata) {
     fetch: (url, init) => { const headers = new Headers(init.headers); headers.delete('authorization'); headers.delete('x-api-key'); return fetch(url, { ...init, headers }); },
   });
   const msg = await client.messages.create({
-    model: pick.model, max_tokens: pick.maxTokens, system: SYSTEM,
+    // the system prompt never changes: cached (5 minutes, refreshed by every read) and read back at a twentieth of the price;
+    // the marker goes on it, not at the end, so the digest that differs every call is never written to the cache
+    model: pick.model, max_tokens: pick.maxTokens, system: [{ type: 'text', text: SYSTEM, cache_control: { type: 'ephemeral' } }],
     messages: [{ role: 'user', content: JSON.stringify(digestBody) }],
     thinking: { type: 'adaptive' }, output_config: effort ? { effort, format: PLAN_FORMAT } : { format: PLAN_FORMAT },
   });

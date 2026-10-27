@@ -1612,6 +1612,20 @@ Engine changes needed in the existing core:
   air v light 0-4 as before, no helicopter lost (was 1), margin -312 (was -208), the
   helicopters keeping clear and doing less there.
 
+- **Prompt caching for the Claude commander (2026-10-27).** From the last game's 27
+  calls, each request held about 4,200 fixed tokens and 1,400 to 2,700 of digest. The
+  system prompt now goes as one text block with `cache_control: {type: "ephemeral"}`: the
+  marker on the system prompt, not top-level automatic caching (which would put it after
+  the digest and write a new entry every call). Structured outputs add a format prompt
+  that the docs do not place; measured, it falls inside the cached prefix: the first call
+  wrote 4,460 tokens with 1,613 of input, the next calls read 4,460 and billed 1,615.
+  Opus 5.5 reads at $0.20 per million (0.05x), writes at 1.25x, and the 5-minute entry is
+  refreshed by every read, so with calls 30 to 50 s apart one write a match keeps it warm
+  (both CPU sides share it). About $0.029 a call instead of $0.046 (37%); time to answer
+  unchanged (about 11 s, thinking dominates). Found on the way: the gateway caches whole
+  responses, so a byte-identical request came back in 72 ms with the stored plan; harmless
+  in play, where digests differ (a paused game resending the same digest gets the same plan).
+
 ## Open questions
 
 

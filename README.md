@@ -470,7 +470,14 @@ digest of 4,850 input tokens: Haiku in 3 to 5 s with 370 output tokens (about
 $0.0007 a call), Sonnet in 7 s with 880 (540 of them thinking, about $0.019),
 Opus in 12 s with 880 (about $0.037). At a call every 20 to 25 s a 20-minute
 match costs a side about 3 cents on Haiku, $1 on Sonnet and $2 on Opus. The game
-waits 60 s for an answer.
+waits 60 s for an answer. The system prompt carries a prompt-caching marker: the
+fixed part of every call (the system prompt and the format prompt structured
+outputs add, 4,460 tokens) is stored for 5 minutes, every read restarting the
+clock, and read back at a twentieth of the input price, so only the digest (about
+1,600 tokens) is billed in full. Measured on Opus: about $0.029 a call, down from
+$0.046. The `pixel-ops` gateway also caches whole responses: a byte-identical
+request (in play only a repeated digest, e.g. while paused) gets the stored plan
+back in under 100 ms.
 
 ```bash
 npm install                      # wrangler
