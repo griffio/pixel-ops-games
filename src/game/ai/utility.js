@@ -120,13 +120,15 @@ export class UtilityCommander {
     ]).value;
 
     // 5. logistics: a FOB when the front is a long walk from any spawn and quiet; sandbag positions (three to a place) at the
-    // place we hold, best dug in a lull, still worth it under pressure, after the FOB while a kit is left
+    // place we hold, best dug in a lull, still worth it under pressure, after the FOB while a kit is left; the FOB's
+    // emplacements (three to a FOB) once one stands, ahead of more sandbags
     const eng = squads.some(sq => sq.engineer), truck = vehicles.find(v => v.supply && !v.dead);
     const quiet = front ? Math.exp(-M.enemyAt(front.x, front.z, 100) / 4) : 0;
     const logistics = this.pick('logistics', [
       { value: 'fob', score: m.fobs.kitsLeft(t) > 0 && eng && truck && truck.supplies >= RULES.fob.supplyCost && front ? 0.3 + 0.6 * (1 - M.travel(front)) * quiet : 0 },
       { value: 'sandbags', score: eng && truck && truck.supplies >= RULES.sandbags.supplyCost && holdLoc && m.fobs.sandbagsOf(t).length < RULES.sandbags.max && postsAt(holdLoc) < 3
         ? (0.3 + 0.35 * Math.exp(-M.enemyAt(holdLoc.x, holdLoc.z, 80) / 3) + 0.25 * holdThreat) * (m.fobs.kitsLeft(t) > 0 ? 0.6 : 1) : 0 },
+      { value: 'emplacement', score: eng && truck && truck.supplies >= RULES.emplacement.hmg.supplyCost && m.fobs.active(t).some(f => m.fobs.emplacementsAt(f) < RULES.emplacement.perFob) ? 0.5 + 0.2 * holdThreat : 0 },
       { value: 'none', score: 0.25 },
     ]).value;
 

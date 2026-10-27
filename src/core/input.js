@@ -86,6 +86,9 @@ export class Input {
       if (e.code === 'KeyT') { this.hud.action('rally'); return; }
       if (e.code === 'KeyU') { this.hud.action('unload'); return; }
       if (e.code === 'KeyL') { this.hud.action('load'); return; }
+      if (e.code === 'KeyG') { this.hud.action('emp_hmg'); return; }
+      if (e.code === 'KeyJ') { this.hud.action('emp_atgm'); return; }
+      if (e.code === 'KeyK') { this.hud.action('emp_mortar'); return; }
       if (e.code === 'KeyM') { this.hud.toggleSound(); return; }
     }
     down ? this.rts.keys.add(e.code) : this.rts.keys.delete(e.code);
@@ -135,8 +138,10 @@ export class Input {
     if (this.canBoard(u)) { this.board(u); return; }
     if (this.canMan(u)) {   // a friendly sandbag position: man it, four to a position
       const want = this.selected.filter(s => s.type === 'soldier' && !s.mounted && !s.dead);
-      let n = 0; for (const s of want) if (s.man(u)) n++;
-      this.hud.toast(n ? `Manning ${u.label}: ${n} in${want.length > n ? `, ${want.length - n} stay (four slots)` : ''}` : `${u.label} is fully manned`);
+      let n = 0, k = 0; for (const s of want) if (s.man(u)) n++;
+      if (n) for (const s of want) if (!(s.post && s.post.sb === u)) { const [x, z] = u.localToWorld((k % 3 - 1) * 1.6, -4.4 - 1.4 * (k++ / 3 | 0)); s.order(x, z); }   // the rest wait just behind it
+      const slots = u.crew.length;
+      this.hud.toast(n ? `Manning ${u.label}: ${n} in${want.length > n ? `, ${want.length - n} wait behind (${slots === 1 ? 'one gunner' : slots + ' slots'})` : ''}` : `${u.label} is fully manned`);
       if (this.app.audio) this.app.audio.ui(n ? 'order' : 'deny'); return;
     }
     if (u && u.team !== me && !u.dead) { this.orderAt(u.pos.x, u.pos.z); return; }   // an enemy under the finger: attack-move onto it

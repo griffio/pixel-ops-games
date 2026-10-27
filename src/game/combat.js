@@ -3,7 +3,7 @@ import { WEAPONS } from './weapons.js';
 // Targeting, line of sight, firing and damage. Ticks at a fixed rate from Match. Each shot is a
 // round in flight (core/projectiles.js): the hit is rolled when the trigger is pulled, the damage
 // lands when the round arrives, so bullets, cannon shells and rockets are seen travelling.
-const MUZZLE_KIND = { coax: 'mg', mg: 'mg', marksman: 'marksman', autocannon: 'cannon', at: 'rocket', doorgun: 'doorgun', tankgun: 'tank' };   // flash class per kit (recipes in core/dust.js)
+const MUZZLE_KIND = { coax: 'mg', mg: 'mg', marksman: 'marksman', autocannon: 'cannon', at: 'rocket', doorgun: 'doorgun', tankgun: 'tank', hmg: 'mg', atgm: 'rocket', mortar: 'cannon' };   // flash class per kit (recipes in core/dust.js)
 const CELL = 20;
 
 export class Combat {
@@ -105,7 +105,21 @@ export class Combat {
   }
   groundAt(x, z) { return this.world.heightAt ? this.world.heightAt(x, z) : 0; }
 
+  // a mortar's target: an enemy its side sees (no line of sight from the tube) between its least and greatest range,
+  // the one with the most others about it first (the burst takes them too)
+  findIndirect(u, w) {
+    const seen = this.vision ? this.vision.contacts(u.team).filter(e => !e.ghost) : this.units.units.filter(e => e.team !== u.team);
+    let best = null, bestScore = -Infinity;
+    for (const e of seen) {
+      if (e.dead || e.mounted || e.spec.untargetable || (e.spec.air && e.alt > 2) || e.team === u.team || e.team < 0 || e.team > 1) continue;
+      const d = Math.hypot(e.pos.x - u.pos.x, e.pos.z - u.pos.z); if (d > w.range || d < w.min) continue;
+      let n = 0; for (const o of seen) if (o !== e && !o.dead && Math.hypot(o.pos.x - e.pos.x, o.pos.z - e.pos.z) < w.splash * 1.5) n++;
+      const score = n * 10 + (e.type === 'soldier' ? 3 : 0) - d * 0.01; if (score > bestScore) { bestScore = score; best = e; }
+    }
+    return best;
+  }
   findTarget(u, w) {
+    if (w.indirect) return this.findIndirect(u, w);
     const list = this.spatial.query(u.pos.x, u.pos.z, w.range, this.scratch);
     let best = null, bestScore = -Infinity;
     for (const e of list) {
@@ -123,16 +137,19 @@ export class Combat {
     return best;
   }
 
+  // the weapon a unit fires: its kit, or the gun of the emplacement it mans once in place
+  gunOf(u) { const p = u.post; return p && p.settled && p.sb.gun && !p.sb.dead ? p.sb.gun : u.kit; }
   tick(dt) {
     for (const u of this.units.units) {
       if (u.dead || !u.kit || u.mounted) continue;
-      const w = WEAPONS[u.kit];
+      const kit = this.gunOf(u), w = WEAPONS[kit];
+      if (u.armed !== kit) { if (u.armed !== undefined) { u.enemy = null; u.burst = 0; u.retarget = 0; } u.armed = kit; }   // took over or left a gun
       u.cooldown -= dt;
       if (u.enemy) {
         const e = u.enemy, d = Math.hypot(e.pos.x - u.pos.x, e.pos.z - u.pos.z);
-        let lost = e.dead || e.mounted || d > w.range * 1.15;
+        let lost = e.dead || e.mounted || d > w.range * 1.15 || (w.min && d < w.min * 0.8);
         if (!lost && (u.retarget -= dt) <= 0) {
-          u.retarget = 0.5; lost = !this.canSee(u, e);
+          u.retarget = 0.5; lost = w.indirect ? !!this.vision && !this.vision.sees(u.team, e) : !this.canSee(u, e);   // a mortar needs its side to see the target, not the tube
           if (!lost && u.kit2 && e.type !== 'soldier') { const n = this.findTarget(u, w); if (n && n.type === 'soldier') { u.enemy = n; u.burst = 0; continue; } }   // a tank turns from armour to infantry closing in
         }
         if (lost) { u.enemy = null; u.retarget = 0.3; u.burst = 0; }
@@ -142,7 +159,7 @@ export class Combat {
         u.hold = false;
         if ((u.retarget -= dt) <= 0) { u.retarget = 0.4 + Math.random() * 0.3; u.enemy = this.findTarget(u, w); }
       }
-      if (u.enemy && u.cooldown <= 0 && this.onTarget(u, u.enemy)) this.fire(u, w, u.enemy);
+      if (u.enemy && u.cooldown <= 0 && this.onTarget(u, u.enemy)) this.fire(u, w, u.enemy, kit);
       if (u.kit2) {   // the coax shares the turret: it fires at the turret's target when that is infantry in its range
         const w2 = WEAPONS[u.kit2], e = u.enemy; u.cooldown2 -= dt;
         if (e && e.type === 'soldier' && !e.dead && u.cooldown2 <= 0 && Math.hypot(e.pos.x - u.pos.x, e.pos.z - u.pos.z) <= w2.range && this.onTarget(u, e)) this.fire(u, w2, e, u.kit2);
@@ -152,7 +169,7 @@ export class Combat {
 
   // one round: roll the hit now, send the round on its way, settle the damage when it lands
   fire(u, w, e, kit = u.kit) {
-    const two = kit !== u.kit, B = two ? 'burst2' : 'burst', CD = two ? 'cooldown2' : 'cooldown';   // a second weapon keeps its own burst and reload
+    const two = !!u.kit2 && kit === u.kit2, B = two ? 'burst2' : 'burst', CD = two ? 'cooldown2' : 'cooldown';   // a second weapon keeps its own burst and reload
     if (!u[B]) u[B] = w.burst;
     const first = u[B] === w.burst; u[B]--;
     u[CD] = u[B] > 0 ? w.burstGap * (0.8 + Math.random() * 0.4) : w.rate * (0.85 + Math.random() * 0.3);
@@ -175,7 +192,7 @@ export class Combat {
       const c = Math.cos(u.heading), sn = Math.sin(u.heading), side = hx * c - hz * sn > 0 ? 1.45 : -1.45;
       mx = u.pos.x + side * c + 3.6 * sn; mz = u.pos.z - side * sn + 3.6 * c;
     }
-    const flight = d / (w.arc ? w.speed * 0.85 : w.speed), ev = Math.abs(e.speed) > 0.05 && !e.dead ? e.speed : 0;
+    const flight = d / (w.arc ? w.speed * 0.85 : w.speed), ev = Math.abs(e.speed) > 0.05 && !e.dead && !w.indirect ? e.speed : 0;   // a mortar lays on where the target is
     let tx = e.pos.x + Math.sin(e.heading) * ev * flight, tz = e.pos.z + Math.cos(e.heading) * ev * flight, ty = e.pos.y + (e.spec.air ? 2 : e.type === 'soldier' ? 1.1 - 0.35 * (e.kneelK || 0) - 0.75 * (e.proneK || 0) : 2.2);
     if (!hit) { const sp = (w.arc ? 2 : 1.5) + d * (w.arc ? 0.06 : 0.04); tx += (Math.random() - 0.5) * 2 * sp; tz += (Math.random() - 0.5) * 2 * sp; ty = e.spec.air && e.alt > 2 ? ty + (Math.random() - 0.5) * 6 : this.groundAt(tx, tz) + 0.1; }
     const vx = tx - mx, vy = ty - gunY, vz = tz - mz, vl = Math.hypot(vx, vy, vz) || 1;
@@ -187,7 +204,7 @@ export class Combat {
     }
     if (this.onShot) this.onShot(u, w, e, hit);
     if (this.vision) { this.vision.reveal(u, e.team); this.vision.reveal(e, u.team); }   // the flash and the noise give the shooter away; whoever is aimed at is seen
-    this.dust.shots.fire({ x: mx, y: gunY, z: mz, tx, ty, tz, speed: w.speed, arc: !!w.arc, kind: w.arc || kit === 'tankgun' ? 'shell' : w.rocket ? 'rocket' : 'bullet',
+    this.dust.shots.fire({ x: mx, y: gunY, z: mz, tx, ty, tz, speed: w.speed, arc: !!w.arc, high: !!w.indirect, kind: w.arc || kit === 'tankgun' ? 'shell' : w.rocket ? 'rocket' : 'bullet',
       trail: w.arc ? 6 : kit === 'tankgun' ? 9 : w.rocket ? 2 : (kit === 'mg' || kit === 'doorgun' || kit === 'coax') ? 6 : 3.5, onArrive: (p) => this.arrive(p, u, w, e, hit, kit) });
   }
 
@@ -204,9 +221,24 @@ export class Combat {
       this.suppress(p.x, p.z, w, u.team, e);
     } else {
       const gy = this.groundAt(p.x, p.z), y = Math.max(p.y, gy + 0.1);
-      if (w.explosive) this.dust.explosion(p.x, y, p.z, 0.3); else this.dust.impact(p.x, y, p.z);
-      if (this.audio) w.explosive ? this.audio.blast(p.x, p.z, kit === 'tankgun' ? 1.4 : 1) : this.audio.impact(p.x, p.z);
+      if (w.explosive) this.dust.explosion(p.x, y, p.z, w.splash ? 0.6 : 0.3); else this.dust.impact(p.x, y, p.z);
+      if (this.audio) w.explosive ? this.audio.blast(p.x, p.z, kit === 'tankgun' || w.splash ? 1.4 : 1) : this.audio.impact(p.x, p.z);
       this.suppress(p.x, p.z, w, u.team);
+    }
+    if (w.splash) this.splashAt(p.x, p.z, w, u, kit, close ? e : null);
+  }
+  // a shell bursting at (x, z) hurts everyone of the other side within w.splash: less further out, a third as much in a
+  // manned position facing the burst or behind cover, less again lying down; the target it struck is not hit twice
+  splashAt(x, z, w, u, kit, skip) {
+    const T = this.teams ? this.teams[u.team] : null, near = this.spatial.query(x, z, w.splash, this.splashList || (this.splashList = []));
+    const at = { pos: { x, z } };
+    for (const o of [...near]) {
+      if (o === skip || o.dead || o.mounted || o.team === u.team || o.team < 0 || o.team > 1 || o.spec.untargetable || (o.spec.air && o.alt > 2)) continue;
+      const d = Math.hypot(o.pos.x - x, o.pos.z - z), k = 1 - d / w.splash; if (k <= 0) continue;
+      let dmg = (o.type === 'soldier' ? w.dmgInf : w.dmgVeh * 0.5) * k * ((T && T.dmg) || 1);
+      if (o.type === 'soldier') dmg *= (this.dugIn(o, at) || this.covered(o, at) ? 0.35 : 1) * (1 - 0.5 * (o.proneK || 0));
+      u.firedKit = kit;
+      if (o.damage(dmg, u)) this.onDeath && this.onDeath(o, u);
     }
   }
 }

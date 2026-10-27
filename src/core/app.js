@@ -63,7 +63,7 @@ export function populate(app) {
       app.hud.toast(`${app.match.teams[0].loadoutName} vs ${app.match.teams[1].loadoutName}`);
     };
     if (cpu.includes(0) || q.has('loadout')) app.startMatch(preset(q.get('loadout') || 'balanced'));
-    else { new Lobby(app.startMatch); rts.target.set(-390, 0, -390); }
+    else { const b = app.world.map && app.world.map.bases ? app.world.map.bases[0] : { x: -400, z: -400 }; new Lobby(app.startMatch, app.world.map && app.world.map.name); rts.target.set(b.x + 10, 0, b.z + 10); }   // the camera behind the force builder looks at our base
     return;
   }
   for (let i = 0; i < 10; i++) units.spawnSquad();

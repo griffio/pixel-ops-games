@@ -5,7 +5,7 @@ import { RULES } from '../rules.js';
 // Advance and Secure: a lattice of locations captured in order; holding the majority
 // bleeds the enemy; losing a location costs tickets; capturing all of them wins.
 export class AAS extends Mode {
-  static key = 'aas'; static name = 'Advance & Secure'; static desc = 'Capture the five locations in order. Hold the majority to bleed the enemy; take all five to win outright.';
+  static key = 'aas'; static name = 'Advance & Secure'; static desc = 'Capture the locations one after another: each one next to your base or to a place you hold. Hold the majority to bleed the enemy; take them all to win outright.';
   setup() {
     const map = this.match.world.map;
     this.objectives = new Objectives(map.locations, this.teams, map.links || null); this.bleedAcc = 0;

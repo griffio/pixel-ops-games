@@ -6,8 +6,8 @@ const $ = (id) => document.getElementById(id);
 
 // Pre-match force builder. Calls onDeploy(loadout) when the player commits.
 export class Lobby {
-  constructor(onDeploy) {
-    this.onDeploy = onDeploy;
+  constructor(onDeploy, mapName = 'Palm Valley') {
+    this.onDeploy = onDeploy; this.mapName = mapName;
     this.loadout = loadSaved() || preset('balanced');
     try { this.modeOpts = JSON.parse(localStorage.getItem('pixelops.mode')) || { mode: 'aas', side: 'attack' }; } catch { this.modeOpts = { mode: 'aas', side: 'attack' }; }
     if (!MODES[this.modeOpts.mode]) this.modeOpts.mode = 'aas';
@@ -51,7 +51,7 @@ export class Lobby {
     for (const r of this.root.querySelectorAll('input[name=side]')) r.checked = r.value === this.modeOpts.side;
     for (const r of this.root.querySelectorAll('input[name=difficulty]')) r.checked = r.value === this.modeOpts.difficulty;
     $('lb-side').style.display = MODES[this.modeOpts.mode].sides ? 'flex' : 'none';
-    $('lb-sub').textContent = `Desert Crossing · ${MODES[this.modeOpts.mode].name} · ${Math.round(new MODES[this.modeOpts.mode]({ teams: [], units: null, world: {} }).length / 60)}:00 · you command BLUFOR, a ${DIFFICULTY[this.modeOpts.difficulty].name.toLowerCase()} CPU answers your loadout`;
+    $('lb-sub').textContent = `${this.mapName} · ${MODES[this.modeOpts.mode].name} · ${Math.round(new MODES[this.modeOpts.mode]({ teams: [], units: null, world: {} }).length / 60)}:00 · you command BLUFOR, a ${DIFFICULTY[this.modeOpts.difficulty].name.toLowerCase()} CPU answers your loadout`;
     const pct = Math.min(100, s.cost / BUDGET * 100);
     $('lb-summary').innerHTML = `<div class="bar"><i style="width:${pct}%" class="${s.cost > BUDGET ? 'over' : ''}"></i></div>
       <div class="kv"><span>points</span><b>${s.cost} / ${BUDGET}</b></div><div class="kv"><span>squads</span><b>${s.squads} / ${s.slots}</b></div><div class="kv"><span>vehicles</span><b>${s.vehicles} / 9</b></div>

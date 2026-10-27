@@ -62,6 +62,16 @@ export class Match {
       }
       this.event({ type: 'sandbags', team: u.team });
     };
+    // an emplacement's ring of bags is low cover and an obstacle like a sandbag position's
+    this.fobs.onEmplacement = (u, boxes) => {
+      for (const o of boxes) { this.world.obstacles.push(o); this.nav.foot.block(o, 0.3); this.nav.vehicle.block(o); this.combat.addLow(o); }
+      for (const v of this.units.units) {
+        if (v.dead || v === u || v.spec.structure || !v.spec.nav || Math.hypot(v.pos.x - u.pos.x, v.pos.z - u.pos.z) > 5) continue;
+        const nav = this.nav[v.spec.nav]; if (!nav.blocked(v.pos.x, v.pos.z)) continue;
+        const c = nav.nearest(nav.cellOf(v.pos.x), nav.cellOf(v.pos.z), 10); if (c) { v.pos.x = nav.world(c[0]); v.pos.z = nav.world(c[1]); }
+      }
+      this.event({ type: 'emplacement', team: u.team, gun: u.gun, label: u.label });
+    };
     // tank traps: boxes that stop vehicles only (world.vehicleObstacles, and the vehicle grid's extra blocks); a vehicle caught
     // in the row is put on the nearest free ground. Cleared, the boxes go and the grid round them is worked out again.
     this.nav.vehicle.extra = this.world.vehicleObstacles;

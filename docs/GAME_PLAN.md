@@ -1626,19 +1626,63 @@ Engine changes needed in the existing core:
   responses, so a byte-identical request came back in 72 ms with the stored plan; harmless
   in play, where digests differ (a paused game resending the same digest gets the same plan).
 
+- **Sand sparkle, still turrets, Palm Valley first, FOB guns (2026-10-27).** From the
+  outstanding list. (1) The ground textures sparkled while panning: they were sampled
+  nearest with no mipmaps, so at a distance each screen pixel picked one texel of the
+  sand grain and the pick jumped as the camera moved. Ground tiles now build mipmaps
+  (smooth minification) and keep nearest magnification, so close up the pixels stay
+  crisp. Measured on open sand, panning 0.13 m a frame: mean frame-to-frame difference
+  7.51 before, 3.54 after; the grain is still visible in screenshots. (2) Idle turrets
+  swept side to side (`scanT`), and their shadows crawled across the ground for no
+  reason; a turret with no target now faces forward and turns only to aim. Replays: 2 of
+  Desert Crossing's 16 and 3 of Palm Valley's 12 came out differently, by base 3-13 and
+  6-6 (unchanged in kind). (3) Palm Valley is the default map: first in `MAPS`, the
+  fallback of `mapFor`, the lobby names the map it is about to play, the camera behind
+  it looks at the player's base (it was fixed on Desert Crossing's corner), and the Advance and Secure description no longer names
+  Desert Crossing's places. `?map=desert1km` still plays Desert Crossing, and
+  `tools/balance.mjs --extra map=desert1km` is the old regression. (4) FOB emplacements,
+  parked since the design: an engineer by a supply truck, within 50 m of one of his
+  side's FOBs, builds a heavy machine gun (20 supplies, 12 s), an anti-tank launcher (30,
+  15 s) or a mortar (40, 18 s): keys G, J, K or the engineer's buttons, up to 3 a FOB, 8 m
+  from the FOB, other positions and the road; it faces the enemy base and costs 10
+  tickets when destroyed (hp 250). It is a structure with one gunner slot (sandbag
+  posting, `slots`/`entry` on the spec) behind a low ring of bags (low cover, blocks
+  vehicles); the gunner, dug in as in sandbags, fires the gun's weapon instead of his kit
+  (`combat.gunOf`). HMG: 120 m, ten-round bursts, pins infantry, hits helicopters. ATGM:
+  200 m, slow guided missiles that prefer vehicles (220 against them). Mortar: 40 to 400
+  m, needs no line of sight: it picks the visible enemy with the most others within its
+  7 m splash, lobs a high-angle shell (`projectiles.fire({high})`) and `splashAt` hurts
+  everyone within the splash (less behind cover or prone). A player squad sent to a gun
+  puts one man on it and the other three wait just behind. The CPU: a utility logistics
+  option ('emplacement', 0.5 plus the hold threat) and `emplacementJob` (the FOB nearest
+  the front, an HMG first, then an ATGM if it has seen armour or a mortar, the first a
+  truck can pay for, a spot 14 to 22 m out from the FOB), and `garrison()` keeps one
+  squad (not engineers or anti-tank if it can help it) on the empty guns. The LLM: `hmg`,
+  `atgm`, `mortar` in `logistics`, `emplacements` (ours with gun, place, hp, manned; theirs
+  seen) and `lost.emplacements` in the digest, a paragraph in the prompt, and a role given
+  to the garrison squad is refused and reported. Fog keeps spotted guns on the map. Tests:
+  the player built MG-01, AT-01 and MO-01 at one FOB and was refused a fourth; in 45 s
+  the HMG fired 164 rounds (1 kill), the launcher 5 missiles (an APC down to 380 of 600),
+  the mortar 7 shells (2 kills). In CPU matches both sides built an HMG and an ATGM and
+  crewed them; the mortar is rare, since after the FOB and the HMG a truck has 30 supplies
+  and refills only below 12. An LLM plan with `logistics: 'mortar'` got "set up a mortar
+  at Pumps+25m" and MO-01 inside 40 s. Balance, against the runs with the turret change:
+  Palm Valley 3 of 12 changed hands, balanced won 8 of 8 (was 6), mechanized 1 of 8 (was
+  2), light 3 of 4 (was 4), by base 5-7, 4 guns destroyed in 3 matches; Desert Crossing 3
+  of 16 changed hands, by base 6-10 (was 3-13), average margin 160 (was 223), no gun lost.
+  The FOBs sit behind the front, so the guns mostly guard them; balanced v mechanized on
+  Palm Valley going 4-0 is worth watching (the ATGM answers APCs) but four matches is
+  thin.
+
 ## Open questions
 
+None open. Answered:
 
-
-
-
-
-
-
-1. Match length target: 15 minutes (arcade) or 25 (methodical)? Affects ticket pools.
-2. Fog of war: none (Squad-style, everything visible) or squad-based vision?
-   Decided 2026-10-26: team vision with line of sight, darkened ground, and the CPU
-   on the same rules (see "Fog of war" under Status).
-3. OPFOR art: olive/green recolour of the same models, or distinct silhouettes?
-4. Should losing all vehicles in the loadout end the game's vehicle supply, or do
-   vehicles respawn at main base on a timer (proposed: timer plus ticket cost)?
+1. Match length: 25 minutes (methodical), 500-ticket pools; CPU matches mostly run
+   to time or end by tickets near it.
+2. Fog of war: team vision with line of sight, darkened ground (switchable), and the
+   CPU on the same rules (decided 2026-10-26; see "Fog of war" under Status).
+3. OPFOR art: a recolour of the same models (material names resolve per team; the
+   'B' variants in core/models.js).
+4. Vehicles respawn at main base on a timer (truck 60 s, APC 90, helicopter 120, tank
+   150; `RULES.respawnTime`) and every loss costs tickets; the supply never runs out.

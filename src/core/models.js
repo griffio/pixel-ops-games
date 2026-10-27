@@ -295,6 +295,41 @@ export function makeBuilders(F) {
     return { group: g, parts: p, height: 1.2, radius: 3.6 };
   }
 
+  // FOB emplacements: a waist-high ring of bags open to the rear (obstacles from emplacementBoxes() below), a gun on its
+  // mount in the middle facing out over the front wall, its ammunition behind; the gunner stands in the slot behind it
+  function emplacementRing(g) {
+    bagStack(3.2, 0.72, 0.7, 0, 1.45, 0, g);                                                    // front
+    for (const x of [-1.6, 1.6]) bagStack(2.3, 0.72, 0.7, x, 0.4, Math.PI / 2, g);              // sides
+  }
+  function empHmg() {   // an M2 on a low tripod
+    const g = group(); const p = {}; emplacementRing(g);
+    for (const [x, z, r] of [[-0.35, -0.2, 0.5], [0.35, -0.2, -0.5], [0, 0.45, 0]]) box(0.06, 0.06, 0.75, 'metal', x, 0.42, z, g).rotation.set(0.6 * (z > 0 ? -1 : 1), r, 0);   // tripod legs
+    box(0.24, 0.22, 0.62, 'rifle', 0, 0.86, 0.05, g); box(0.07, 0.07, 1.2, 'metal', 0, 0.9, 0.95, g); box(0.11, 0.11, 0.18, 'metal', 0, 0.9, 1.5, g);   // receiver, barrel, muzzle
+    box(0.2, 0.1, 0.14, 'metal', 0, 1.0, -0.32, g); box(0.24, 0.2, 0.32, 'olive', 0.3, 0.86, 0.02, g);                       // spade grips, ammo can on the mount
+    for (const x of [-0.7, -0.35]) box(0.3, 0.22, 0.5, 'olive', x, 0.11, -0.9, g);                                           // spare cans
+    p.ring = ring(2.4, g);
+    return { group: g, parts: p, height: 1.1, radius: 1.9 };
+  }
+  function empAtgm() {  // a wire-guided launcher: tube on a tripod, sight box, missile crates
+    const g = group(); const p = {}; emplacementRing(g);
+    for (const [x, z, r] of [[-0.4, -0.25, 0.5], [0.4, -0.25, -0.5], [0, 0.4, 0]]) box(0.07, 0.07, 0.85, 'metal', x, 0.45, z, g).rotation.set(0.55 * (z > 0 ? -1 : 1), r, 0);
+    box(0.24, 0.24, 1.5, 'olive', 0, 1.02, 0.35, g); box(0.3, 0.3, 0.12, 'metal', 0, 1.02, 1.1, g);                          // launch tube, its mouth
+    box(0.3, 0.26, 0.34, 'rifle', 0.28, 1.0, -0.15, g); box(0.1, 0.1, 0.1, 'glass', 0.28, 1.04, 0.04, g);                    // sight
+    for (const x of [-0.75, 0.75]) box(0.34, 0.3, 1.3, 'olive', x, 0.15, -1.0, g);                                           // missile crates
+    p.ring = ring(2.4, g);
+    return { group: g, parts: p, height: 1.3, radius: 1.9 };
+  }
+  function empMortar() {  // an 81 mm tube on a baseplate and bipod, rounds stacked behind
+    const g = group(); const p = {}; emplacementRing(g);
+    box(0.7, 0.08, 0.7, 'metal', 0, 0.04, -0.15, g);                                                                          // baseplate
+    box(0.16, 0.16, 1.35, 'rifle', 0, 0.62, 0.2, g).rotation.set(-0.9, 0, 0);                                                // tube, raised 50 degrees
+    for (const x of [-0.25, 0.25]) box(0.05, 0.7, 0.05, 'metal', x, 0.35, 0.55, g).rotation.set(0, 0, x > 0 ? -0.3 : 0.3);   // bipod
+    for (let i = 0; i < 6; i++) box(0.09, 0.09, 0.42, 'olive', -0.75 + (i % 3) * 0.13, 0.05 + Math.floor(i / 3) * 0.1, -0.95, g);   // rounds
+    box(0.4, 0.26, 0.5, 'olive', 0.7, 0.13, -0.9, g);                                                                        // ammo box
+    p.ring = ring(2.4, g);
+    return { group: g, parts: p, height: 1.2, radius: 1.9 };
+  }
+
   // Reference look: M1 Abrams in tri-colour camo. Low hull with a sloped glacis, side skirts over seven road wheels
   // between checkered track runs; a wide flat turret with stowage bins and a bustle rack; a long 120 mm gun with a fume
   // extractor; commander's and loader's machine guns, gunner's sight, smoke launchers, crosswind sensor and antennas.
@@ -369,7 +404,7 @@ export function makeBuilders(F) {
 
   // each builder takes the team so the whole model picks the right camo set
   const forTeam = (fn) => (t = 0) => { team = t; const r = fn(); team = 0; return r; };
-  return { soldier: forTeam(soldier), truck: forTeam(() => truck(false)), supplyTruck: forTeam(() => truck(true)), apc: forTeam(apc), heli: forTeam(heli), fob: forTeam(fob), cache: forTeam(cache), sandbags: forTeam(sandbags), traps: forTeam(traps), rally: forTeam(rally), tank: forTeam(tank) };
+  return { soldier: forTeam(soldier), truck: forTeam(() => truck(false)), supplyTruck: forTeam(() => truck(true)), apc: forTeam(apc), heli: forTeam(heli), fob: forTeam(fob), cache: forTeam(cache), sandbags: forTeam(sandbags), emp_hmg: forTeam(empHmg), emp_atgm: forTeam(empAtgm), emp_mortar: forTeam(empMortar), traps: forTeam(traps), rally: forTeam(rally), tank: forTeam(tank) };
 
 
 
@@ -382,6 +417,15 @@ export const TRAPS = { n: 6, gap: 2.7, foot: 1.6 };
 export function trapBoxes(x, z, h) {
   const c = Math.cos(h), s = Math.sin(h), r = TRAPS.foot / 2;
   return Array.from({ length: TRAPS.n }, (_, i) => { const lx = (i - (TRAPS.n - 1) / 2) * TRAPS.gap, wx = x + lx * c, wz = z - lx * s; return { minX: wx - r, maxX: wx + r, minZ: wz - r, maxZ: wz + r, h: 1.3 }; });
+}
+
+// world-space obstacle boxes for an emplacement's ring of bags (0.72 m high, open to the rear) at (x, z) facing h
+export function emplacementBoxes(x, z, h) {
+  const c = Math.cos(h), s = Math.sin(h), out = [];
+  const piece = (lx, lz, w, d) => { const wx = x + lx * c + lz * s, wz = z - lx * s + lz * c, hw = (w * Math.abs(c) + d * Math.abs(s)) / 2, hd = (w * Math.abs(s) + d * Math.abs(c)) / 2; out.push({ minX: wx - hw, maxX: wx + hw, minZ: wz - hd, maxZ: wz + hd, h: 0.72 }); };
+  for (let lx = -1.35; lx <= 1.35; lx += 0.45) piece(lx, 1.45, 0.45, 0.7);                    // front wall, 3.2 m
+  for (let lz = -0.6; lz <= 1.3; lz += 0.45) { piece(-1.6, lz, 0.7, 0.45); piece(1.6, lz, 0.7, 0.45); }   // sides, 2.3 m
+  return out;
 }
 
 // world-space obstacle boxes (low cover, 1 m high) for a sandbag position at (x,z) facing heading h. Each bag

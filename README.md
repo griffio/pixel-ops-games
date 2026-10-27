@@ -18,7 +18,7 @@ open http://localhost:8787               # WebGL2, the game renderer
 open http://localhost:8787/?r=three      # legacy three.js back end (160 m airfield sandbox only)
 ```
 
-By default the **force builder** opens over the 1 km *Desert Crossing* map: spend
+By default the **force builder** opens over the 2 km *Palm Valley* map: spend
 1,200 points on squads (rifle, support, anti-tank, medic, marksman, engineer),
 vehicles (trucks, supply trucks, 8x8 APCs, M1 Abrams tanks, Chinook helicopters) and one doctrine
 (Mechanized, Air Assault, Light Infantry, Entrenched), or pick a preset. Your
@@ -35,7 +35,7 @@ expendable: 35 hit points, one ticket, back in 15 seconds in squad waves. Left-d
 squads, right-click to move them, click an enemy to attack-move, click the
 minimap to jump the camera, and keep zooming out for the strategic view.
 
-*Desert Crossing* is built to be fair to both sides: the Village sits on the
+*Desert Crossing* (`?map=desert1km`) was built to be fair to both sides: the Village sits on the
 strip of land between two parallel rivers, each bridged where the road crosses
 it and fordable further out, and the village is laid out in mirrored pairs
 along the road, so both commanders cross water to reach the centre and meet
@@ -46,7 +46,7 @@ the same cover when they get there.
 sides, `?cpu=none` disables it, `?mode=skirmish` drops the objectives, and
 `?sandbox=1` restores the free-roam airfield with no combat.
 
-**Maps.** `?map=valley2km` plays *Palm Valley*, a 2 km map mirrored about a river: three
+**Maps.** The game plays *Palm Valley* by default, a 2 km map mirrored about a river: three
 lanes, each side's home row of three places capturable from the start, a place
 capturable from any held neighbour, four of seven for the majority. The town lane
 crosses by a footbridge only infantry can use, the road lane by the one vehicle
@@ -54,7 +54,8 @@ bridge, the open lane by a ford units wade at half speed. Each side's row is a
 walled town (Kasbah, Souk), a fuel depot (Depot, Pumps) and a quarry beside a flooded
 pit (Quarry, Mine); hesco walls and sandbags guard both ends of the bridge. Each
 place lists sandbag positions covering its approaches, and the CPU digs in at the
-ones facing the enemy. Without `?map` the game plays Desert Crossing.
+ones facing the enemy. `?map=desert1km` plays Desert Crossing, the first 1 km map
+(five places in a line; it favours the north-east base).
 
 **Fog of war.** Your side sees what its units see: soldiers 120 m, APCs 160 m,
 tanks 210 m, trucks 100 m, a landed helicopter 120 m and one in the air 250 m
@@ -88,6 +89,20 @@ or nearest where they fell once the whole squad is down (main base, a FOB, the
 squad's rally point, beside an idle helicopter under Air Assault or a parked troop
 truck under Light Infantry, never one with an enemy within 30 m); the
 reinforcements panel can force main base, a helicopter or a truck.
+
+**FOB emplacements.** Within 50 m of one of your FOBs, an engineer beside a supply
+truck builds a gun where he stands, facing the enemy's base: a **heavy machine gun**
+(**G**, 20 supplies, 12 s; 120 m, long bursts that pin infantry), an **anti-tank
+launcher** (**J**, 30 supplies, 15 s; a guided missile out to 200 m, three hits kill
+an APC) or a **mortar** (**K**, 40 supplies, 18 s; it shells any enemy your side
+can see 40 to 400 m away, no line of sight needed, each shell bursting over 7 m).
+Three to a FOB, 8 m apart, clear of the FOB and the road. Each is a gun in a ring
+of bags with one gunner's slot: select a squad and right-click (or tap) it to man
+it (one man takes the gun, the rest wait behind it), **U** to leave; unmanned it does nothing. It can be destroyed (250 hp, about
+three rockets) and costs 10 tickets when lost; once spotted it stays on the enemy's
+map. The CPU builds them at the FOB nearest its front (a machine gun first, then the
+launcher if it has seen your armour, else the mortar) and crews them with one
+garrison squad, a man to a gun.
 
 **Tank traps.** An engineer beside a supply truck presses **X** (or Tank traps) to
 lay a row of steel hedgehogs, 15 m, across the road he stands on (centred on it;
@@ -226,6 +241,7 @@ off. On a touch screen both name the buttons instead of the keys
 | `U` | Unload a selected carrier, or take selected soldiers out of their sandbag position |
 | `H` | Open or close the field manual (pauses the game) |
 | `X` | With an engineer selected: lay a row of tank traps (beside a supply truck), or clear the row he stands at |
+| `G` / `J` / `K` | With an engineer selected near one of your FOBs: build a heavy machine gun / anti-tank launcher / mortar emplacement (beside a supply truck) |
 | Right drag, `Q` / `E` | Rotate camera (yaw + pitch) |
 | Wheel | Zoom (changes pixel scale, keeps the point under the cursor fixed) |
 | `WASD` / arrows / screen edge / middle drag | Pan |
@@ -527,6 +543,8 @@ about a minute), and prints every result with win tables per pairing, per preset
 per base. Each pairing is played both ways round by default, so each preset gets both
 bases. Random numbers are seeded from the match seed and sound is off, so a seed
 replays the same match: run the same seeds before and after a change to compare.
+The runs play the default map, Palm Valley; `--extra map=desert1km` runs Desert
+Crossing, whose 16 default matches serve as the regression set.
 
 ```bash
 node tools/balance.mjs                                            # the core set: 4 pairings x 2 seeds x both bases

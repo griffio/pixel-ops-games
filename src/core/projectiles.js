@@ -11,13 +11,14 @@ export class ProjectileSim {
   constructor(dust) { this.dust = dust; this.list = []; this.segs = new Float32Array(64 * 14); this.segCount = 0; }
 
   // launch from (x,y,z) to (tx,ty,tz): straight at `speed`, or lofted under gravity when `arc`
-  // (the low-angle solution for a fixed muzzle speed; out of reach, it lobs at 45 degrees and falls short)
-  fire({ x, y, z, tx, ty, tz, speed, arc = false, kind = 'bullet', trail = 3, onArrive = null }) {
+  // (the low-angle solution for a fixed muzzle speed, or with `high` the plunging one a mortar fires; out of reach, it
+  // lobs at 45 degrees and falls short)
+  fire({ x, y, z, tx, ty, tz, speed, arc = false, high = false, kind = 'bullet', trail = 3, onArrive = null }) {
     const dx = tx - x, dy = ty - y, dz = tz - z, dh = Math.hypot(dx, dz) || 0.01;
     let vx, vy, vz, T;
     if (arc) {
       const v2 = speed * speed, disc = v2 * v2 - G * (G * dh * dh + 2 * dy * v2);
-      const tan = disc >= 0 ? (v2 - Math.sqrt(disc)) / (G * dh) : 1, cos = 1 / Math.sqrt(1 + tan * tan), vh = speed * cos;
+      const tan = disc >= 0 ? (v2 + (high ? 1 : -1) * Math.sqrt(disc)) / (G * dh) : 1, cos = 1 / Math.sqrt(1 + tan * tan), vh = speed * cos;
       vx = dx / dh * vh; vz = dz / dh * vh; vy = speed * tan * cos; T = dh / vh;
     } else { const d = Math.hypot(dx, dy, dz) || 0.01; vx = dx / d * speed; vy = dy / d * speed; vz = dz / d * speed; T = d / speed; }
     this.list.push({ x, y, z, vx, vy, vz, grav: arc ? G : 0, t: 0, T, kind, trail, onArrive });

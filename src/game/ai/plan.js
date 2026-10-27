@@ -2,7 +2,7 @@
 // validation that turns any answer into something the strategist can act on. Shared by the game and
 // the Cloudflare Worker, so it must stay free of browser and Worker specifics.
 export const POSTURES = ['cautious', 'balanced', 'aggressive'];
-export const LOGISTICS = ['fob', 'sandbags', 'traps', 'none'];
+export const LOGISTICS = ['fob', 'sandbags', 'traps', 'hmg', 'atgm', 'mortar', 'none'];
 export const WAITS = ['none', 'squadsAt', 'enemyBelow', 'apcAlive', 'seconds'];
 export const ROLES = ['assault', 'hold', 'reserve', 'screen', 'raid', 'escort', 'grab', 'antiair'];
 export const VROLES = ['attack', 'hold'];   // jobs for armour (APCs and tanks)
@@ -14,7 +14,7 @@ export const PLAN_SCHEMA = {
     hold: { type: 'array', items: { type: 'string' }, maxItems: 3, description: 'locations to keep squads at, by name, most important first' },
     attackShare: { type: 'number', minimum: 0, maximum: 1, description: 'fraction of the squads you give no job that join the attack (0: none of them)' },
     posture: { type: 'string', enum: POSTURES, description: 'cautious keeps more distance and falls back sooner; aggressive closes in and holds ground' },
-    logistics: { type: 'string', enum: LOGISTICS, description: 'what the engineer and supply truck do, followed exactly: fob (a FOB behind the front, sandbags when no kit or site is left), sandbags (positions at the first place we hold), traps (a row of tank traps at a river crossing or bridge end on our side, off our own vehicles\' way forward), none' },
+    logistics: { type: 'string', enum: LOGISTICS, description: 'what the engineer and supply truck do, followed exactly: fob (a FOB behind the front, sandbags when no kit or site is left), sandbags (positions at the first place we hold), traps (a row of tank traps at a river crossing or bridge end on our side, off our own vehicles\' way forward), hmg / atgm / mortar (an emplacement of that kind at our FOB nearest the front, while it has room for one), none' },
     lift: { type: 'boolean', description: 'let vehicles carry squads that are at base toward the attack: helicopters fly them near distant objectives, APCs and troop trucks drive them; squads already out walk' },
     reason: { type: 'string', maxLength: 160, description: 'one line of radio chatter explaining the plan, shown to the player' },
     notes: { type: 'string', maxLength: 300, description: 'your own notes for next time: what you intend over the next minutes and why; they come back to you unchanged' },

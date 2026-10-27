@@ -22,7 +22,9 @@ export class World extends WorldState {
 
   buildMapGround() {
     const m = this.map, r = this.renderer, g = m.ground;
-    const tile = (n) => this.tex(n, { nearest: true, repeat: true, mips: false });
+    // crisp texels up close, but mipmapped when a screen pixel covers several: nearest sampling with no mips picked a
+    // different sand texel every frame the camera panned, and the ground sparkled
+    const tile = (n) => this.tex(n, { nearestMag: true, repeat: true, mips: true });
     const res = m.splatRes || 512, splat = document.createElement('canvas'); splat.width = splat.height = res;   // a 2 km map asks for 1024 (2 m a texel)
     m.paintSplat(splat.getContext('2d'), res, this.half);
     r.dataTexture('splat', splat);

@@ -13,9 +13,13 @@ export const SPEC = {
   tank:     { speed: 7,   turn: 0.8, accel: 3.5, label: 'TK', air: false, hp: 1200, nav: 'vehicle', kit: 'tankgun', kit2: 'coax', armour: true },   // M1 Abrams: thick front, weaker sides and rear
   traps:    { speed: 0, turn: 0,   accel: 0, label: 'TT', air: false, hp: 1e9, nav: null, structure: true, untargetable: true },   // tank traps: stop vehicles, not infantry
   rally:    { speed: 0, turn: 0,   accel: 0, label: 'RP', air: false, hp: 1e9, nav: null, structure: true, untargetable: true },   // a squad's spawn: burned by enemies close by, not shot
+  // a FOB emplacement (game/fob.js): a gun in a ring of bags with one gunner's slot behind it; u.gun names the weapon
+  // (hmg, atgm, mortar) the soldier manning it fires; it can be shot up (three rockets) and costs tickets when lost
+  emplacement: { speed: 0, turn: 0, accel: 0, label: 'EM', air: false, hp: 250, nav: null, structure: true, hollow: true, slots: [[0, -0.55]], entry: -2.8 },
 };
 const counters = {}; let pickSeq = 0;
 const POST_SLOTS = [[-1.0, 0.75], [1.0, 0.75], [-1.85, -0.5], [1.85, -0.5]];   // a sandbag position's firing slots (local: x across, z out over the front wall)
+const slotsOf = (spec) => spec.slots || POST_SLOTS;                                // an emplacement has one, the gunner's
 const LANDED = 90;   // seconds a soldier a helicopter set down counts as freshly landed (Air Assault captures)
 
 // ---- soldier arms -------------------------------------------------------------
@@ -74,7 +78,7 @@ export class Unit {
     this.stance = 'stand'; this.supp = 0; this.kneelK = 0; this.proneK = 0; this.aimK = 0;   // infantry: suppression 0..1 and the pose blends it drives
     this.dead = false; this.deathT = 0; this.wreck = false; this.remove = false;
     this.mounted = null; this.passengers = []; this.boardTarget = null; this.turnT = 0; this.supplies = 0; this.landedT = 0; this.hover = false;
-    this.post = null; this.crew = spec.hollow ? POST_SLOTS.map(() => null) : null;   // a soldier's firing slot in a sandbag position; a position's crew by slot
+    this.post = null; this.crew = spec.hollow ? slotsOf(spec).map(() => null) : null;   // a soldier's firing slot in a sandbag position; a position's crew by slot
     this.alt = 0; this.altT = 0; this.rotor = 0; this.rotorT = 0; this.state = 'parked'; this.tilt = 0; this.bank = 0;
     this.id = (counters[type] = (counters[type] || 0) + 1);
     this.label = `${spec.label}-${String(this.id).padStart(2, '0')}`;
@@ -160,14 +164,14 @@ export class Unit {
   // sides (Combat.dugIn), until any other order takes him out.
   localToWorld(lx, lz) { const c = Math.cos(this.heading), s = Math.sin(this.heading); return [this.pos.x + lx * c + lz * s, this.pos.z - lx * s + lz * c]; }
   worldToLocal(x, z) { const c = Math.cos(this.heading), s = Math.sin(this.heading), dx = x - this.pos.x, dz = z - this.pos.z; return [dx * c - dz * s, dx * s + dz * c]; }
-  postSlot(i) { return this.localToWorld(...POST_SLOTS[i]); }
-  postEntry() { return this.localToWorld(0, -3.4); }
+  postSlot(i) { return this.localToWorld(...slotsOf(this.spec)[i]); }
+  postEntry() { return this.localToWorld(0, this.spec.entry ?? -3.4); }
   crewAt(i) { const c = this.crew[i]; return c && !c.dead && c.post && c.post.sb === this ? c : null; }
-  get freeSlots() { return this.crew ? POST_SLOTS.filter((_, i) => !this.crewAt(i)).length : 0; }
+  get freeSlots() { return this.crew ? slotsOf(this.spec).filter((_, i) => !this.crewAt(i)).length : 0; }
   man(sb) {   // take the first free slot (front ones first); false when the position is full
     if (this.type !== 'soldier' || this.dead || this.mounted || !sb.crew || sb.dead) return false;
     if (this.post && this.post.sb === sb) return true;
-    const i = POST_SLOTS.findIndex((_, k) => !sb.crewAt(k)); if (i < 0) return false;
+    const i = slotsOf(sb.spec).findIndex((_, k) => !sb.crewAt(k)); if (i < 0) return false;
     this.leavePost(); this.boardTarget = null;
     sb.crew[i] = this; this.post = { sb, slot: i, settled: false, t: 0 };
     const [ex, ez] = sb.postEntry(); this.order(ex, ez, true);
@@ -365,8 +369,8 @@ export class Unit {
       if (p.turret) {
         const dh = wrap(this.heading - (this.lastHeading === undefined ? this.heading : this.lastHeading)); this.lastHeading = this.heading;
         p.turret.rotation.y = wrap(p.turret.rotation.y - dh);   // the turret holds its bearing while the hull turns under it
-        this.scanT = (this.scanT || 0) + dt;   // simulation time, not the wall clock: the turret's bearing decides when it can fire
-        const want = this.enemy ? wrap(Math.atan2(this.enemy.pos.x - this.pos.x, this.enemy.pos.z - this.pos.z) - this.heading) : Math.sin(this.phase + this.scanT * 0.4) * 0.6;
+        // on a target, or forward when idle (an idle scan swung the turret and its shadow about at close zoom)
+        const want = this.enemy ? wrap(Math.atan2(this.enemy.pos.x - this.pos.x, this.enemy.pos.z - this.pos.z) - this.heading) : 0;
         p.turret.rotation.y += clamp(wrap(want - p.turret.rotation.y), -2.5 * dt, 2.5 * dt);
       }
     }
@@ -494,7 +498,8 @@ export class UnitManager {
   add(unit) { unit.mgr = this; this.units.push(unit); this.scene.add(unit.group); return unit; }
   spawn(type, x, z, heading, team = 0, opts = {}) {
     if (x === undefined) [x, z] = this.freePoint(SPEC[type].air ? 6 : 3);
-    const u = this.add(new Unit(type, (opts.supply && this.builders.supplyTruck) || this.builders[type], x, z, heading, team));   // the supply truck shows its load
+    const u = this.add(new Unit(type, (opts.supply && this.builders.supplyTruck) || (opts.gun && this.builders['emp_' + opts.gun]) || this.builders[type], x, z, heading, team));   // the supply truck shows its load; an emplacement its gun
+    if (opts.gun) u.gun = opts.gun;
     u.pos.y = this.world.heightAt(x, z);
     if (opts.supply) { u.supply = true; u.supplies = 100; u.label = u.label.replace('TR', 'SP'); }
     return u;

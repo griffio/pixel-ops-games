@@ -12,7 +12,8 @@
 //   --length 1600                                 cap in simulated seconds (a match lasts 1,500)
 //   --parallel 4                                  matches at once (default 4)
 //   --url http://localhost:8787                   where the game is served
-//   --extra 'ai=rules&persona=aggressive'         extra query parameters for every match
+//   --extra 'ai=rules&persona=aggressive'         extra query parameters for every match (map=desert1km: the old map;
+//                                                 Palm Valley is the default)
 //   --json results.json                           also save the raw results
 //   --port 9450                                   first DevTools port (one per match at once; two runs side by side need different ones)
 // CHROME=/path/to/chrome overrides the browser.

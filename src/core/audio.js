@@ -10,7 +10,7 @@
 // radio plays one voice line at a time (src/game/voices.js decides what). The
 // context starts on the first pointer or key event.
 const RATE = { shot: [10, 0.15], impact: [5, 0.15], hit: [6, 0.15], explosion: [4, 0.3], blast: [4, 0.2], whizz: [2, 0.5], foley: [3, 0.5] };   // max voices per window (s)
-const CLIP_OF = { medic: 'rifle', engineer: 'rifle', coax: 'mg' };   // kits that share another kit's recording
+const CLIP_OF = { medic: 'rifle', engineer: 'rifle', coax: 'mg', hmg: 'mg', atgm: 'at', mortar: 'tankgun' };   // kits that share another kit's recording
 const ENGINE = { tank: ['engine_tank', 0.5], apc: ['engine_apc', 0.45], truck: ['engine_truck', 0.35] };   // loop and gain per vehicle
 const KITS = {
   rifle:      { dur: 0.09, lp: [3200, 700], g: 0.45, click: [1800, 200, 0.03] },
@@ -21,6 +21,9 @@ const KITS = {
   at:         { dur: 0.6,  lp: [500, 3200], g: 0.55, click: [220, 80, 0.4] },
   autocannon: { dur: 0.16, lp: [1300, 250], g: 0.8,  click: [170, 50, 0.12] },
   tankgun:    { dur: 0.5,  lp: [900, 120],  g: 1.0,  click: [90, 30, 0.35] },
+  hmg:        { dur: 0.07, lp: [2400, 450], g: 0.5,  click: [1200, 160, 0.03] },
+  atgm:       { dur: 0.7,  lp: [450, 2600], g: 0.6,  click: [200, 70, 0.45] },
+  mortar:     { dur: 0.35, lp: [700, 110],  g: 0.7,  click: [110, 40, 0.3] },
   doorgun:    { dur: 0.06, lp: [2600, 600], g: 0.4,  click: [1400, 200, 0.02] },
   coax:       { dur: 0.06, lp: [2800, 600], g: 0.34, click: [1500, 200, 0.02] },
 };

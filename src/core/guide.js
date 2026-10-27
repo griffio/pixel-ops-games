@@ -1,5 +1,6 @@
 import { RULES } from '../game/rules.js';
 import { REVIVE_WINDOW } from '../game/support.js';
+import { WEAPONS as W } from '../game/weapons.js';
 
 // Player help. The field manual (H, the Manual button, ? on touch) explains how to win and what each tool is for; the
 // game pauses while it is open. It opens by itself on the objective page at the player's first match (the briefing).
@@ -7,24 +8,24 @@ import { REVIVE_WINDOW } from '../game/support.js';
 // armour in sight); each shows once per browser, and the Hints setting turns them off. Both say "tap" and name the
 // buttons on a touch screen. Seen hints and the briefing are kept in localStorage (pixelops.guide).
 const STORE = 'pixelops.guide';
-const T = RULES.ticketCost, F = RULES.fob, RA = RULES.rally, SB = RULES.sandbags, TT = RULES.traps, V = RULES.vision.sight, RS = RULES.respawnTime;
+const T = RULES.ticketCost, F = RULES.fob, E = RULES.emplacement, RA = RULES.rally, SB = RULES.sandbags, TT = RULES.traps, V = RULES.vision.sight, RS = RULES.respawnTime;
 
 // the manual's pages; t: touch screen. k(key, tap) shows a key, or what to tap instead
 const PAGES = [
   { title: 'Objective', body: (t, k) => `
     <p>Each side has <b>${RULES.startTickets.aas} tickets</b>. You lose when yours run out, or when the ${RULES.matchLength / 60}-minute clock runs out and you have fewer.</p>
     <p><b>Places</b> (the bar at the top): stand inside a place's circle with no enemies in it and it turns yours. You can take a place that touches your base or borders one you hold. Hold more than half and the enemy loses a ticket every ${RULES.bleedEvery} s; take every place and you win outright.</p>
-    <p><b>Tickets go</b> when a soldier comes back (${T.soldier}), a vehicle is destroyed (truck ${T.truck}, supply truck ${T.supply}, APC ${T.apc}, tank ${T.tank}, helicopter ${T.heli}), a FOB is destroyed (${T.fob}) and a place is lost (${T.location}).</p>
+    <p><b>Tickets go</b> when a soldier comes back (${T.soldier}), a vehicle is destroyed (truck ${T.truck}, supply truck ${T.supply}, APC ${T.apc}, tank ${T.tank}, helicopter ${T.heli}), a FOB is destroyed (${T.fob}), a FOB gun is destroyed (${T.emplacement}) and a place is lost (${T.location}).</p>
     <p>Infantry are cheap and come back; vehicles, FOBs and places are what cost you. Other modes (chosen in the lobby) change the goal.</p>
     <p class="tip">${k('H', 'the ? button')} opens this manual at any time; the game pauses while it is open.</p>` },
   { title: 'Controls', body: (t, k) => t ? `
     <p><b>Tap</b> a unit to select it, <b>tap the ground</b> to move there, <b>tap an enemy</b> to attack-move onto it. <b>Hold</b>, then drag, for a selection box.</p>
     <p><b>Drag</b> to pan, <b>pinch</b> to zoom, <b>twist</b> to rotate, <b>three fingers</b> to tilt.</p>
-    <p>To board, select soldiers, press <b>Load</b>, then tap one of <b>your vehicles</b> (or hold on the vehicle). Tapping a vehicle otherwise just selects it. Tap your <b>sandbags</b> with soldiers selected to man them. The buttons under the selection load, build a FOB, dig in, drop a rally point, unload.</p>
+    <p>To board, select soldiers, press <b>Load</b>, then tap one of <b>your vehicles</b> (or hold on the vehicle). Tapping a vehicle otherwise just selects it. Tap your <b>sandbags</b> or a <b>FOB gun</b> with soldiers selected to man it. The buttons under the selection load, build a FOB, dig in, set up guns at a FOB, drop a rally point, unload.</p>
     <p>Bottom bar: Box, Clear, Follow, Pause, Base (the camera to your base), sound, and ? for this manual.</p>` : `
-    <p><b>Left click</b> select, drag for a box. <b>Right click</b> the ground to move, an enemy to attack-move onto it, one of <b>your vehicles</b> to board it, your <b>sandbags</b> to man them.</p>
+    <p><b>Left click</b> select, drag for a box. <b>Right click</b> the ground to move, an enemy to attack-move onto it, one of <b>your vehicles</b> to board it, your <b>sandbags</b> or a <b>FOB gun</b> to man it.</p>
     <p><b>WASD</b> or the screen edge pans, <b>wheel</b> zooms, <b>Q E</b> or right-drag rotates, middle-drag pans. <b>F</b> follows the selection, <b>R</b> resets the view, <b>Space</b> pauses, <b>Esc</b> clears the selection, <b>M</b> sound.</p>
-    <p><b>L</b> load the selected soldiers into the vehicle you click next, <b>B</b> build a FOB, <b>N</b> dig a sandbag position, <b>X</b> lay or clear tank traps, <b>T</b> drop a rally point, <b>U</b> unload a vehicle or leave a position, <b>H</b> this manual. The buttons under the selection do the same.</p>` },
+    <p><b>L</b> load the selected soldiers into the vehicle you click next, <b>B</b> build a FOB, <b>N</b> dig a sandbag position, <b>X</b> lay or clear tank traps, <b>G J K</b> set up a heavy machine gun, anti-tank launcher or mortar at a FOB, <b>T</b> drop a rally point, <b>U</b> unload a vehicle or leave a position, <b>H</b> this manual. The buttons under the selection do the same.</p>` },
   { title: 'Squads', body: (t, k) => `
     <p>Squads of four, each man with a kit: <b>rifle</b>; <b>machine gun</b>, which pins a squad down; <b>anti-tank</b>, rockets that kill vehicles from 90 m; <b>medic</b>, who revives a fallen squadmate within ${REVIVE_WINDOW} s; <b>engineer</b>, who repairs vehicles and builds FOBs and sandbags; <b>marksman</b>, who picks off infantry at 110 m.</p>
     <p>Soldiers kneel to shoot and go flat under heavy fire. A <b>suppressed</b> squad shoots badly and crawls: machine guns and explosions do that.</p>
@@ -42,9 +43,14 @@ const PAGES = [
     <p>The enemy digs in too: expect positions at the places it holds, facing your way.</p>
     <p><b>Tank traps</b>: an engineer next to a supply truck (${TT.supplyCost} supplies): ${k('X', 'Tank traps')} lays a row of steel hedgehogs, 15 m, across the road he stands on, in ${TT.buildTime} s. They stop <b>every</b> vehicle, yours too; infantry walk between them. Close a bridge or a ford and armour has to go the long way round. Up to ${TT.max} rows.</p>
     <p>Any engineer standing at a row clears it, yours or theirs: ${k('X', 'Clear traps')}, ${TT.clearTime} s. The enemy lays them at crossings on its side when your armour is about, and clears its own when it wants to push through.</p>` },
+  { title: 'FOB guns', body: (t, k) => `
+    <p>Within ${E.fobRange} m of one of your FOBs, an engineer next to a supply truck sets up a gun where he stands: ${k('G', 'HMG')} a heavy machine gun (${E.hmg.supplyCost} supplies), ${k('J', 'AT launcher')} an anti-tank launcher (${E.atgm.supplyCost}), ${k('K', 'Mortar')} a mortar (${E.mortar.supplyCost}). Up to ${E.perFob} per FOB, facing the enemy base; not on a road or right against the FOB.</p>
+    <p>A gun fires only with a <b>gunner</b>: ${t ? 'tap' : 'right-click'} it with a squad selected, as with sandbags. One man works it, behind a low wall of sandbags; the rest of the squad waits beside it.</p>
+    <p><b>Heavy machine gun</b>: ${W.hmg.range} m, long bursts that pin infantry down. <b>Anti-tank launcher</b>: guided missiles at vehicles and helicopters out to ${W.atgm.range} m. <b>Mortar</b>: shells over hills and buildings onto anything your side can see, ${W.mortar.min} to ${W.mortar.range} m; each one hurts everyone near where it lands.</p>
+    <p>Guns don't move, and a destroyed one costs ${T.emplacement} tickets. The enemy sets them up at its FOBs too, and keeps a squad on them.</p>` },
   { title: 'Transport', body: (t, k) => `
     <p>Trucks carry 8, APCs 4, helicopters 8. Select soldiers, press ${k('L', 'Load')} and ${t ? 'tap' : 'click'} one of your vehicles${t ? ' (or hold on it)' : ' (or right-click it)'}: they walk over and get in, and the vehicle is selected, ready to drive. Selecting soldiers and the vehicle together and pressing ${k('L', 'Load')} boards at once. Move the vehicle wherever you like: the passengers stay aboard until you press ${k('U', 'Unload')}. A helicopter circles where you send it, door gun firing, until ${k('U', 'Unload')} lands it and lets them out (${k('U', 'Land')} when nobody is aboard). Rockets braced at a helicopter hit it twice as often: the enemy's anti-tank squads go for yours.</p>
-    <p><b>Supply trucks</b> carry supplies, not troops: ${F.truckSupplies} each, refilled at your main base. FOBs and sandbags are built from them.</p>
+    <p><b>Supply trucks</b> carry supplies, not troops: ${F.truckSupplies} each, refilled at your main base. FOBs, sandbags, tank traps and FOB guns are built from them.</p>
     <p>On Palm Valley vehicles cannot use the footbridge, and everyone wades the ford at half speed.</p>` },
   { title: 'Vehicles', body: (t, k) => `
     <p><b>APC</b>: an autocannon that reaches 150 m, carries a squad. <b>Tank</b>: a 120 mm gun that reaches 200 m and a machine gun; armour thickest at the front, thinnest at the back. <b>Helicopter</b>: door guns, flies squads over everything.</p>
@@ -53,7 +59,7 @@ const PAGES = [
   { title: 'Fog of war', body: (t, k) => `
     <p>You see only what your units see: soldiers ${V.soldier} m, APCs ${V.apc} m, tanks ${V.tank} m, trucks ${V.truck} m, a helicopter in the air ${V.air} m, over buildings. Hills and buildings block sight.</p>
     <p><b>Darker ground</b> is out of sight. A <b>red outline</b> marks where an enemy was last seen, for ${RULES.vision.ghost} s. A unit that fires shows itself for ${RULES.vision.reveal} s.</p>
-    <p>FOBs, sandbags and rally points stay on the map once spotted. Places and their capture bars always show. The enemy plays by the same rules: scout before you commit.</p>
+    <p>FOBs, their guns, sandbags and rally points stay on the map once spotted. Places and their capture bars always show. The enemy plays by the same rules: scout before you commit.</p>
     <p class="tip">Fog shading (the panel on the right) turns the darkening off and keeps only the hidden enemies.</p>` },
 ];
 
@@ -116,6 +122,8 @@ export class Guide {
     if (soldiers.length && this.hint('squad', `${t ? 'Tap' : 'Right-click'} the ground to move, an enemy to attack. Soldiers use walls and rocks for cover, and buildings block sight.`, 1)) return;
     const eng = soldiers.find(u => u.kit === 'engineer'), truck = eng && U.find(v => mine(v) && v.supply && near(v, eng, F.buildRange));
     if (truck && this.hint('engineer', `Engineers beside a supply truck: ${k('B', 'Build FOB')} builds a FOB, a spawn point for every squad; ${k('N', 'Sandbags')} digs a sandbag position; ${k('X', 'Tank traps')} closes the road to vehicles.`, 3)) return;
+    const fob = truck && m.fobs.active(me).find(f => near(f, eng, E.fobRange) && m.fobs.emplacementsAt(f) < E.perFob);
+    if (fob && this.hint('guns', `Engineers by a supply truck near your FOB: ${t ? `${k('G', 'HMG')}, ${k('J', 'AT launcher')} or ${k('K', 'Mortar')}` : `${k('G')} (machine gun), ${k('J')} (anti-tank) or ${k('K')} (mortar)`} sets up a gun where they stand. ${t ? 'Tap' : 'Right-click'} it with a squad to crew it.`, 3)) return;
     const far = squads.find(sq => { const c = sq.centroid(); return Math.hypot(c.x - base.x, c.z - base.z) > 250 && !(sq.rally && !sq.rally.dead); });
     if (far && this.hint('rally', `This squad is a long walk from your base. ${k('T', 'Rally')} drops a rally point: its men come back here every ${RA.wave} s instead.`, 3)) return;
     const ride = soldiers.length && U.find(v => mine(v) && v.seats && !v.supply && v.passengers.length < v.seats && soldiers.some(s => near(s, v, 40)));

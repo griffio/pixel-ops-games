@@ -2,7 +2,8 @@ import { RULES } from '../rules.js';
 import { roadDist } from '../../core/math.js';
 
 // the engineer's jobs each logistics order of a remote commander allows (a FOB falls back to sandbags when no kit or site is left)
-const JOBS = { fob: ['clear', 'fob', 'sandbags'], sandbags: ['clear', 'sandbags'], traps: ['clear', 'traps'], none: [] };
+const JOBS = { fob: ['clear', 'fob', 'sandbags'], sandbags: ['clear', 'sandbags'], traps: ['clear', 'traps'], hmg: ['clear', 'emplacement'], atgm: ['clear', 'emplacement'], mortar: ['clear', 'emplacement'], none: [] };
+const GUNS = ['hmg', 'atgm', 'mortar'];   // FOB emplacements (game/fob.js)
 
 // CPU commander v2: objective-aware manoeuvre, logistics (FOB one hop behind the
 // front) and lifts (helicopters, trucks and APCs carry squads far from the fight).
@@ -60,7 +61,8 @@ export class Strategist {
     const manned = squads.filter(sq => sq !== logisticsSquad && allPosts.some(s => sq.tag === 'post' + s.id && sq.members.some(m => m.post && m.post.sb === s)));
     for (const sq of manned) this.manPost(sq, allPosts.find(s => sq.tag === 'post' + s.id), hold);
     const posts = allPosts.filter(s => !manned.some(sq => sq.tag === 'post' + s.id)); let post = 0;
-    const free = squads.filter(s => s !== logisticsSquad && !manned.includes(s));
+    const garrison = this.garrison(squads, [logisticsSquad, ...manned]);   // the squad crewing our FOB emplacements, if we have any
+    const free = squads.filter(s => s !== logisticsSquad && !manned.includes(s) && s !== garrison);
     const o2 = this.match.objectives, byName = (n) => (o2 ? o2.list.find(l => l.name === n) : null) || null;
     // what each job means on the ground
     const attackWith = (sq) => {
@@ -96,6 +98,7 @@ export class Strategist {
     // jobs a remote commander gave that are not carried out as given, with the reason (the digest tells it next time)
     const refused = this.refused = new Map(), elsewhere = (r, why) => refused.set(r.id, `${r.role}${r.at ? ' at ' + r.at : ''}: ${why}`);
     for (const sq of squads) sq.aaPost = null;   // set again below for the squads still on anti-air duty
+    if (garrison && roles.has(garrison.leader.label)) elsewhere(roles.get(garrison.leader.label), 'it crews our FOB emplacements, so it stays on them');
     for (const sq of assigned) {
       const r = roles.get(sq.leader.label), at = r.at ? byName(r.at) : null, ours = at && at.owner === this.team ? at : null;
       if (r.at && !ours && (r.role === 'hold' || r.role === 'reserve' || r.role === 'screen' || r.role === 'antiair')) elsewhere(r, `not ours, so at ${hold ? hold.name : 'base'} instead`);
@@ -161,6 +164,46 @@ export class Strategist {
       } else if (v.type === 'heli') this.air(v, attack, base, perch, hold);
       else if (v.type === 'truck' && !v.supply) { if (!this.ride(v, free, attack, base) && !v.dest && Math.hypot(v.pos.x - base.x, v.pos.z - base.z) > 40) v.order(base.x + (Math.random() - 0.5) * 24, base.z + (Math.random() - 0.5) * 24); }   // a troop truck between runs waits at base
     }
+  }
+
+  // An emplacement for the FOB nearest the front while it has room: a remote commander's gun when it asked for one, else
+  // the first missing one a truck can pay for of a heavy machine gun, then an anti-tank launcher when enemy armour has
+  // been about (a mortar otherwise), then the other; at a spot 14 to 22 m out from the FOB towards the enemy (flanks
+  // next) that the FOB rules accept. Null when there is none.
+  emplacementJob(sq, front, vehicles) {
+    const F = this.match.fobs, R = RULES.emplacement, team = this.team; if (!front) return null;
+    const fob = F.active(team).sort((a, b) => Math.hypot(a.pos.x - front.x, a.pos.z - front.z) - Math.hypot(b.pos.x - front.x, b.pos.z - front.z))[0];
+    if (!fob || F.emplacementsAt(fob) >= R.perFob) return null;
+    const have = F.emplacementsOf(team).filter(e => Math.hypot(e.pos.x - fob.pos.x, e.pos.z - fob.pos.z) <= R.fobRange).map(e => e.gun);
+    const armour = (this.armourSeen || []).length > 0, order = this.exact && GUNS.includes(this.prefer) ? [this.prefer] : ['hmg', armour ? 'atgm' : 'mortar', armour ? 'mortar' : 'atgm'];
+    const trucks = vehicles.filter(v => v.supply && !v.refilling).sort((a, b) => Math.hypot(a.pos.x - fob.pos.x, a.pos.z - fob.pos.z) - Math.hypot(b.pos.x - fob.pos.x, b.pos.z - fob.pos.z));
+    let gun = null, truck = null;
+    for (const g of order) { if (have.includes(g) && !this.exact) continue; truck = trucks.find(v => v.supplies >= R[g].supplyCost); if (truck) { gun = g; break; } }
+    if (!gun) return null;
+    const eb = this.teams[1 - team].base, face = Math.atan2(eb.x - fob.pos.x, eb.z - fob.pos.z);
+    for (const r of [16, 22, 14]) for (const k of [0, 1, -1, 2, -2, 3, -3]) {
+      const a = face + k * 0.45, x = fob.pos.x + Math.sin(a) * r, z = fob.pos.z + Math.cos(a) * r;
+      if (!F.emplacementSite(team, x, z).reason) return { kind: 'emplacement', gun, sq, truck, x, z, t: 0 };
+    }
+    return null;
+  }
+  // The FOB emplacements' crew: one squad, a man to each gun and the rest standing by them, kept while it lives (a fresh
+  // one, the free squad nearest the guns, engineers and anti-tank squads last, when it is gone). Out of the plan's jobs.
+  garrison(squads, skip) {
+    const guns = this.match.fobs.emplacementsOf(this.team); if (!guns.length) { this.garrisonSq = null; return null; }
+    let sq = this.garrisonSq && this.garrisonSq.leader && squads.includes(this.garrisonSq) ? this.garrisonSq : null;
+    if (!sq && this.garrisonSq && this.garrisonSq.leader) return this.garrisonSq;   // pinned for now (in cover, stalking): still ours
+    if (!sq) {
+      const c = guns[0].pos, at = (s) => s.members.some(m => !m.dead && m.kit === 'at'), d = (s) => Math.hypot(s.centroid().x - c.x, s.centroid().z - c.z);
+      sq = squads.filter(s => !skip.includes(s) && !s.mounted && !this.lifts.has(s)).sort((a, b) => (a.engineer ? 2 : at(a) ? 1 : 0) - (b.engineer ? 2 : at(b) ? 1 : 0) || d(a) - d(b))[0];
+      if (!sq) return null;
+    }
+    this.garrisonSq = sq; sq.tag = 'garrison';
+    const crew = sq.members.filter(m => !m.dead && !m.mounted);
+    for (const g of guns) if (!g.crewAt(0)) { const m = crew.find(x => !x.post && !x.building); if (!m) break; m.man(g); }
+    const spare = crew.filter(m => !m.post && !m.building), by = guns[0];
+    for (const m of spare) if (!m.dest && Math.hypot(m.pos.x - by.pos.x, m.pos.z - by.pos.z) > 10) { const [x, z] = by.postEntry(); m.order(x + (Math.random() - 0.5) * 6, z + (Math.random() - 0.5) * 6); }
+    return sq;
   }
 
   // why grabsFor leaves place l out (the reason a remote commander's grab is refused), or null when it would take it
@@ -359,7 +402,7 @@ export class Strategist {
   logistics(squads, vehicles, anchor, hold = null, attack = null) {
     const fobs = this.match.fobs, team = this.teams[this.team], base = team.base, want = (kind) => !this.exact || (JOBS[this.prefer] || JOBS.fob).includes(kind);
     // under a remote commander a sandbag job follows its first hold: one given out for the place it held before is dropped
-    const stale = (p) => this.exact && p.kind === 'sandbags' && hold && Math.hypot(p.x - hold.x, p.z - hold.z) > this.postRange(hold);
+    const stale = (p) => this.exact && ((p.kind === 'sandbags' && hold && Math.hypot(p.x - hold.x, p.z - hold.z) > this.postRange(hold)) || (p.kind === 'emplacement' && GUNS.includes(this.prefer) && p.gun !== this.prefer));
     if (this.plan && (this.plan.sq.engineer === null || (this.plan.truck && this.plan.truck.dead) || (this.plan.traps && this.plan.traps.dead) || this.plan.done || !want(this.plan.kind) || stale(this.plan))) this.plan = null;
     // a supply truck too low for any job (sandbags cost least) drives home and refills to full before it takes another: one
     // that ran dry used to stand where it was for the rest of the match
@@ -389,6 +432,7 @@ export class Strategist {
         const truck = truckTo(anchor), [x, z] = this.toward(anchor, base, Math.hypot(anchor.x - base.x, anchor.z - base.z) - 45, 0);   // 45 m behind the location, towards home
         if (truck && !this.units.nav.vehicle.blocked(x, z) && !this.armourNear(x, z, 150) && !fobs.active(this.team).some(f => Math.hypot(f.pos.x - x, f.pos.z - z) < RULES.fob.minSpacing)) this.plan = { kind: 'fob', sq, truck, x, z, t: 0 };
       }
+      if (!this.plan && want('emplacement')) { const job = this.emplacementJob(sq, attack || hold, vehicles); if (job) this.plan = job; }   // after the FOB, its guns
       if (!this.plan && want('traps')) {   // tank traps at a choke on our side, when the enemy fields armour (or when ordered)
         const spot = this.trapSpot(attack, this.exact), truck = spot && vehicles.filter(v => stocked(v, RULES.traps.supplyCost)).sort((a, b) => Math.hypot(a.pos.x - spot[0], a.pos.z - spot[1]) - Math.hypot(b.pos.x - spot[0], b.pos.z - spot[1]))[0];
         if (truck) { this.plan = { kind: 'traps', sq, truck, x: spot[0], z: spot[1], t: 0 }; this.trapsNext = this.match.elapsed + 120; }
@@ -409,7 +453,7 @@ export class Strategist {
     if (!near(eng, 4)) this.send(p.sq, p.x, p.z, 'fob');
     if (!near(eng, 4) && !eng.building && (!eng.dest || Math.hypot(eng.dest.x - p.x, eng.dest.z - p.z) > 3)) eng.order(p.x, p.z);
     if (near(eng, 4) && (!p.truck || near(p.truck, RULES.fob.buildRange)) && !eng.building) {
-      const r = p.kind === 'sandbags' ? fobs.startSandbags(eng) : p.kind === 'traps' ? fobs.startTraps(eng) : p.kind === 'clear' ? fobs.startClear(eng) : fobs.startBuild(eng);
+      const r = p.kind === 'sandbags' ? fobs.startSandbags(eng) : p.kind === 'traps' ? fobs.startTraps(eng) : p.kind === 'clear' ? fobs.startClear(eng) : p.kind === 'emplacement' ? fobs.startEmplacement(eng, p.gun, [p.x, p.z]) : fobs.startBuild(eng);
       if (r.ok) p.done = true; else if (p.kind !== 'fob') this.plan = null;
     }
     return p.sq;

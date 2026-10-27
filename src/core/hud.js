@@ -15,7 +15,7 @@ const ICON = {
   skull: '<circle cx="8" cy="4" r="3.4"/><rect x="5.6" y="6.5" width="4.8" height="2.6"/><circle cx="6.6" cy="3.8" r="0.9" fill="#111"/><circle cx="9.4" cy="3.8" r="0.9" fill="#111"/>',
 };
 const ico = (k) => `<svg class="ico" viewBox="0 0 16 10">${ICON[k] || ''}</svg>`;
-const KIT_NAME = { rifle: 'rifle', mg: 'MG', at: 'AT', marksman: 'marksman', medic: 'rifle', engineer: 'rifle', autocannon: 'autocannon', doorgun: 'door gun', tankgun: '120 mm', coax: 'coax MG' };
+const KIT_NAME = { rifle: 'rifle', mg: 'MG', at: 'AT', marksman: 'marksman', medic: 'rifle', engineer: 'rifle', autocannon: 'autocannon', doorgun: 'door gun', tankgun: '120 mm', coax: 'coax MG', hmg: 'HMG', atgm: 'ATGM', mortar: 'mortar' };
 
 
 // HUD + control panel. Back-end hooks on app: pixel (settings), setShadows(on),
@@ -78,7 +78,7 @@ export class Hud {
     }
 
     // under fog of war the enemy's own news stays theirs: its commander's radio, its FOB going up, its digging in
-    const a = this.app, hush = a.fog && a.fog.on ? (f) => f.kind === 'event' && f.e.team !== (a.playerTeam ?? 0) && (f.e.type === 'radio' || f.e.type === 'fob' || f.e.type === 'sandbags' || f.e.type === 'traps') : () => false;
+    const a = this.app, hush = a.fog && a.fog.on ? (f) => f.kind === 'event' && f.e.team !== (a.playerTeam ?? 0) && (f.e.type === 'radio' || f.e.type === 'fob' || f.e.type === 'sandbags' || f.e.type === 'traps' || f.e.type === 'emplacement') : () => false;
     const feed = $('feed'), lines = m.feed.filter(f => f.t < 10 && !hush(f)), key = lines.map(f => f.id).join(',');
     if (key !== this.feedKey) { this.feedKey = key; feed.innerHTML = lines.map(f => this.feedLine(f)).join(''); }
     lines.forEach((f, i) => { const el = feed.children[i]; if (el) el.style.opacity = f.t > 7 ? ((10 - f.t) / 3).toFixed(2) : 1; });
@@ -104,7 +104,7 @@ export class Hud {
       return `<div class="kill${v.type !== 'soldier' ? ' veh' : ''}"><b class="t${k ? k.team : 0}">${k ? k.label : '?'}</b><span class="w">${kit}</span>${ico(v.type === 'soldier' ? 'skull' : v.type)}<b class="t${v.team}">${v.label}</b></div>`;
     }
     const e = f.e, team = e.team, name = team === 0 ? 'BLUFOR' : 'OPFOR', loc = e.loc ? e.loc.name : '';
-    const text = e.type === 'captured' ? `captured <b>${loc}</b>` : e.type === 'lost' ? `lost <b>${loc}</b>` : e.type === 'fob' ? 'FOB is up' : e.type === 'sandbags' ? 'dug in behind sandbags' : e.type === 'traps' ? 'laid tank traps' : e.type === 'traps cleared' ? 'cleared tank traps' : e.type === 'rally lost' ? `lost rally point <b>${e.rally || ''}</b>` : e.type === 'radio' ? `<i>${String(e.text).replace(/[&<>]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;' }[c]))}</i>` : e.type === 'cache revealed' ? `found the cache at <b>${loc}</b>` : e.type === 'cache destroyed' ? `destroyed the cache at <b>${loc}</b>` : e.type;
+    const text = e.type === 'captured' ? `captured <b>${loc}</b>` : e.type === 'lost' ? `lost <b>${loc}</b>` : e.type === 'fob' ? 'FOB is up' : e.type === 'sandbags' ? 'dug in behind sandbags' : e.type === 'emplacement' ? `set up ${{ hmg: 'a heavy machine gun', atgm: 'an anti-tank launcher', mortar: 'a mortar' }[e.gun] || 'an emplacement'} <b>${e.label || ''}</b>` : e.type === 'traps' ? 'laid tank traps' : e.type === 'traps cleared' ? 'cleared tank traps' : e.type === 'rally lost' ? `lost rally point <b>${e.rally || ''}</b>` : e.type === 'radio' ? `<i>${String(e.text).replace(/[&<>]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;' }[c]))}</i>` : e.type === 'cache revealed' ? `found the cache at <b>${loc}</b>` : e.type === 'cache destroyed' ? `destroyed the cache at <b>${loc}</b>` : e.type;
     return `<div class="ev">${ico(e.type === 'fob' ? 'fob' : e.type.startsWith('cache') ? 'cache' : 'flag')}<b class="t${team}">${name}</b> ${text}</div>`;
   }
 
@@ -250,8 +250,11 @@ export class Hud {
     const desc = Object.entries(types).map(([k, v]) => `${v} ${k}${v > 1 ? 's' : ''}`).join(', ');
     $('sel-n').textContent = list.length === 1 ? list[0].label : `${list.length} UNITS`;
     const how = this.app.touch ? 'tap the ground to move · tap an enemy to attack' : 'right-click to move · F to follow';
-    $('sel-d').textContent = list.length === 1
-      ? `${list[0].type} · ${list[0].post ? `manning ${list[0].post.sb.label}${list[0].post.settled ? '' : ' (on the way)'}` : list[0].spec.air ? list[0].state : (list[0].target ? 'moving' : 'idle')}${list[0].seats ? ` · ${list[0].passengers.length}/${list[0].seats} aboard` : ''}${list[0].crew ? ` · ${4 - list[0].freeSlots}/4 manned` : ''} · ${how}`
+    const GUN = { hmg: 'heavy machine gun', atgm: 'anti-tank launcher', mortar: 'mortar' };
+    $('sel-d').textContent = list.length === 1 && list[0].type === 'emplacement'
+      ? `${GUN[list[0].gun] || 'emplacement'} · ${list[0].crewAt(0) ? 'manned' : `no gunner: ${this.app.touch ? 'tap' : 'right-click'} it with soldiers selected`} · ${Math.round(100 * list[0].hp / list[0].maxHp)}%`
+      : list.length === 1
+      ? `${list[0].type} · ${list[0].post ? `manning ${list[0].post.sb.label}${list[0].post.settled ? '' : ' (on the way)'}` : list[0].spec.air ? list[0].state : (list[0].target ? 'moving' : 'idle')}${list[0].seats ? ` · ${list[0].passengers.length}/${list[0].seats} aboard` : ''}${list[0].crew ? ` · ${list[0].crew.length - list[0].freeSlots}/${list[0].crew.length} manned` : ''} · ${how}`
       : desc + (list.some(u => u.post) ? ` · ${list.filter(u => u.post).length} manning sandbags` : '') + (this.app.touch ? ' · tap the ground to move in formation' : ' · right-click to move in formation');
     this.renderActions(list);
   }
@@ -269,6 +272,11 @@ export class Hud {
       const cl = m.fobs.canClear(eng), c = cl.ok ? cl : m.fobs.canBuildTraps(eng);
       box.insertAdjacentHTML('beforeend', `<button data-act="traps" ${c.ok ? '' : 'disabled'} title="${c.reason || ''}">${cl.ok ? 'Clear traps' : 'Tank traps'} (X)${c.ok ? '' : ' · ' + c.reason}</button>`);
     }
+    // FOB emplacements, once our side has a FOB: a heavy machine gun, an anti-tank launcher, a mortar
+    if (eng && m.fobs.active(eng.team).length) for (const [gun, name, key] of [['hmg', 'HMG', 'G'], ['atgm', 'AT launcher', 'J'], ['mortar', 'Mortar', 'K']]) {
+      const c = m.fobs.canBuildEmplacement(eng, gun);
+      box.insertAdjacentHTML('beforeend', `<button data-act="emp_${gun}" ${c.ok ? '' : 'disabled'} title="${c.reason || ''}">${name} (${key})${c.ok ? '' : ' · ' + c.reason}</button>`);
+    }
     // boarding: Load, then the vehicle (at once into one selected with them)
     const me = this.app.playerTeam ?? 0, inp = this.app.input;
     if (list.some(u => u.type === 'soldier' && !u.dead && !u.mounted && u.team === me)) {
@@ -285,6 +293,13 @@ export class Hud {
   action(kind) {
     const m = this.app.match, sel = this.app.input.selected; if (!m) return;
     if (kind === 'load') { this.app.input.startLoad(); return; }
+    if (kind.startsWith('emp_')) {   // an emplacement where the engineer stands
+      const gun = kind.slice(4), eng = sel.find(u => u.kit === 'engineer' && !u.dead); if (!eng) return this.toast('Select an engineer');
+      const r = m.fobs.startEmplacement(eng, gun), name = { hmg: 'heavy machine gun', atgm: 'anti-tank launcher', mortar: 'mortar' }[gun];
+      this.toast(r.ok ? `Building a ${name}, ${Math.round(r.build.total)} s` : r.reason);
+      if (this.app.audio) { this.app.audio.ui(r.ok ? 'order' : 'deny'); if (r.ok) this.app.audio.foley('dig', eng.pos.x, eng.pos.z); }
+      this.showSelection(sel); return;
+    }
     if (kind === 'fob') { const eng = sel.find(u => u.kit === 'engineer' && !u.dead); if (!eng) return this.toast('Select an engineer'); const r = m.fobs.startBuild(eng); this.toast(r.ok ? `Building FOB, ${Math.round(r.build.total)} s` : r.reason); if (this.app.audio) { this.app.audio.ui(r.ok ? 'order' : 'deny'); if (r.ok) this.app.audio.foley('dig', eng.pos.x, eng.pos.z); } }
     if (kind === 'traps') {   // at a row of traps an engineer clears it; anywhere else he lays one
       const eng = sel.find(u => u.kit === 'engineer' && !u.dead); if (!eng) return this.toast('Select an engineer');
