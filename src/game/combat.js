@@ -163,7 +163,7 @@ export class Combat {
     if (!first) chance *= 0.8;                          // recoil through the burst
     if (u.type === 'soldier') chance *= 1 - 0.4 * u.supp; // a suppressed shooter aims badly
     if (e.type !== 'soldier') chance *= 1.6;            // vehicles are big targets
-    if (w.rocket && e.spec.air && e.alt > 2) chance *= 0.35;   // an unguided rocket at a helicopter in the air rarely connects
+    if (w.rocket && e.spec.air && e.alt > 2) chance *= u.squad && u.squad.aa && !u.dest ? 0.7 : 0.35;   // an unguided rocket at a helicopter in the air rarely connects; braced for it (a squad standing to fire at helicopters, strategist.skyward) twice as often
     else { const dug = this.dugIn(e, u); chance *= Math.max(dug ? 0.2 : 0.3, (dug ? 0.35 : this.covered(e, u) ? 0.5 : 1) * (1 - 0.2 * (e.kneelK || 0) - 0.4 * (e.proneK || 0))); }   // a manned position, cover and a low stance shrink the target
     const hit = Math.random() < chance;
     // the round leaves the barrel a little ahead of the unit at gun height, aimed where the target will be

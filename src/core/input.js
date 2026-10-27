@@ -181,8 +181,10 @@ export class Input {
     const cols = Math.ceil(Math.sqrt(n)), gap = loose.some(u => u.spec.air) ? 12 : 7;
     all.forEach((t, i) => {
       const c = i % cols, rw = Math.floor(i / cols);
-      t.order(g.x + (c - (cols - 1) / 2) * gap, g.z + (rw - (Math.ceil(n / cols) - 1) / 2) * gap);
+      const ox = g.x + (c - (cols - 1) / 2) * gap, oz = g.z + (rw - (Math.ceil(n / cols) - 1) / 2) * gap;
+      t.order(ox, oz);
       t.dropOnArrive = false;   // the player's passengers stay aboard until Unload (U): a stop on the way is not a drop
+      if (t.spec && t.spec.air) { t.dropOnLand = false; t.orbit = { x: ox, z: oz, r: 30 }; }   // a helicopter circles there, door gun firing, until Unload or Land
     });
     this.app.markers.add(g.x, g.z); if (this.app.audio) this.app.audio.ui('order');
     if (this.app.match && this.app.match.voices) this.app.match.voices.ordered(this.selected);

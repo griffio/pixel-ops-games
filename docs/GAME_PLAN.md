@@ -1583,6 +1583,35 @@ Engine changes needed in the existing core:
   done: the CPU has no answer to helicopters (squads fire at one only when it comes within
   their reach; the plan has no job for it).
 
+- **Helicopters circle; anti-air (2026-10-27).** The user, flying Chinooks: they take off,
+  fly and land point to point, useful for suppression only while in the air; they should
+  stay up circling and firing, or Unload should land them. Now a player's move order sets
+  `orbit` (30 m round the destination): once within 40 m the helicopter flies at a point
+  0.6 rad ahead on the circle at 8 m/s (full speed on the way), door gun firing (it has
+  no arc), until Unload: in the air it lands where it is and lets the passengers out on
+  touchdown ("Land and unload"), or just lands when empty ("Land"). Test: four aboard,
+  out at 16 m/s, circling 25 m from the point at 8 m/s with all four aboard for a minute,
+  Unload landed it and emptied it; an empty one landed on Land. The CPU's helicopters
+  (lifts, perch, fire support) are unchanged. Anti-air, as proposed and approved, for both
+  commanders: `skyward()` (every caution tick, before the ground-enemy early return) sends
+  the nearest anti-tank squad not busy with armour, within 300 m, at an enemy helicopter
+  in the air within 150 m of our squads (or 180 m of an `antiair` post): it closes to 75 m
+  and stands to fire; `squad.aa` marks it, and combat gives a standing soldier of such a
+  squad twice the chance with a rocket at a helicopter in the air (0.35 to 0.7 of the
+  usual). The LLM gets the `antiair` job (an anti-tank squad posted at one of our places;
+  no launcher: refused, holds) and `air` in the digest, the enemy helicopters in the air
+  it sees or saw lately (they were left out of everything before, so Opus only knew them
+  from kill events). Hovering 60 m from a CPU anti-tank squad, a helicopter went down in
+  5 of 5 tries (20 to 54 s), against 2 of 5 before. Balance: on Palm Valley's Air Assault
+  matches (v light and v balanced, both ways round, seeds 1 to 3) Air Assault won 3 of 12
+  and lost 2 helicopters before; with the hunt it won 1 and lost 15, its fire-support
+  helicopters sitting with up to two launchers in reach (one squad). So `exposed()` now
+  counts launchers within 150 m (was 95) and a fire-support helicopter stays, or takes a
+  spot, only with one at most (was two): 3 of 12 again, 1 helicopter lost, average margin
+  -57 (was -111). Desert Crossing: the 12 matches without helicopters replay identically;
+  air v light 0-4 as before, no helicopter lost (was 1), margin -312 (was -208), the
+  helicopters keeping clear and doing less there.
+
 ## Open questions
 
 

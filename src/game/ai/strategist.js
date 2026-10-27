@@ -95,14 +95,21 @@ export class Strategist {
     const assigned = free.filter(sq => roles.has(sq.leader.label)), rest = free.filter(sq => !roles.has(sq.leader.label));
     // jobs a remote commander gave that are not carried out as given, with the reason (the digest tells it next time)
     const refused = this.refused = new Map(), elsewhere = (r, why) => refused.set(r.id, `${r.role}${r.at ? ' at ' + r.at : ''}: ${why}`);
+    for (const sq of squads) sq.aaPost = null;   // set again below for the squads still on anti-air duty
     for (const sq of assigned) {
       const r = roles.get(sq.leader.label), at = r.at ? byName(r.at) : null, ours = at && at.owner === this.team ? at : null;
-      if (r.at && !ours && (r.role === 'hold' || r.role === 'reserve' || r.role === 'screen')) elsewhere(r, `not ours, so at ${hold ? hold.name : 'base'} instead`);
+      if (r.at && !ours && (r.role === 'hold' || r.role === 'reserve' || r.role === 'screen' || r.role === 'antiair')) elsewhere(r, `not ours, so at ${hold ? hold.name : 'base'} instead`);
       if (r.role === 'raid' && !enemyFob) elsewhere(r, 'no enemy FOB known near the attack, so with the attack instead');
       if (r.role === 'assault') attackWith(sq);
       else if (r.role === 'hold') holdAt(sq, ours || hold);
       else if (r.role === 'reserve') reserveAt(sq, ours || reserve || hold);
       else if (r.role === 'screen') screenAt(sq, ours || hold);
+      else if (r.role === 'antiair') {   // an anti-air post: stand at the place; skyward() sends it at helicopters within 180 m of it
+        const post = ours || hold;
+        if (!sq.members.some(m => !m.dead && m.kit === 'at')) { elsewhere(r, 'no launcher in the squad, so it holds instead'); holdAt(sq, post); }
+        else if (!post) holdAt(sq, null);
+        else { sq.aaPost = post; const [x, z] = this.inZone(post.x, post.z, post, 0.5); this.send(sq, x, z, 'aa' + post.index, post); }
+      }
       else if (r.role === 'raid') raid(sq);
       else if (r.role === 'escort') escort(sq);
       else if (r.role === 'grab') { if (grabbable.includes(at)) { const [x, z] = this.inZone(at.x, at.z, at, 0.6); this.send(sq, x, z, 'grab' + at.index, at); } else { rest.push(sq); elsewhere(r, `${this.grabRefusal(at, attack) || 'not grabbable'}, so it follows attackShare`); } }   // a free place only: anywhere else (held, guarded, the attack itself) it would be one squad attacking alone, so it joins the attack share
@@ -181,6 +188,31 @@ export class Strategist {
       .sort((a, b) => (a.owner === -1 ? 0 : 1) - (b.owner === -1 ? 0 : 1) || Math.hypot(a.x - base.x, a.z - base.z) - Math.hypot(b.x - base.x, b.z - base.z));
   }
 
+  // Helicopters in the air: for each enemy helicopter within 150 m of one of our squads (or 180 m of an anti-air post a
+  // remote commander set), the nearest anti-tank squad not busy with armour or another helicopter (a posted one first),
+  // within 300 m, closes until it is inside 75 m, then stands and fires. While it does, its launchers are braced
+  // (squad.aa: twice the chance of a hit on a helicopter in the air, combat.js); helicopters fly over cover, so no sight test.
+  skyward() {
+    const mine = this.units.squads.filter(sq => sq.team === this.team);
+    for (const sq of mine) sq.aa = false;
+    const helis = this.contacts().filter(u => u.spec && u.spec.air && u.alt > 2 && !u.dead && (!u.ghost || u.age < 4)); if (!helis.length) return;
+    const now = this.match.elapsed, at = (sq) => sq.members.some(m => !m.dead && m.kit === 'at');
+    const ours = mine.filter(sq => sq.leader && !sq.mounted && !sq.posted && !this.lifts.has(sq) && !sq.members.some(m => m.building));
+    const far = (sq, p) => { const c = sq.centroid(); return Math.hypot(c.x - p.x, c.z - p.z); };
+    for (const h of helis) {
+      const real = h.unit || h;
+      if (!ours.some(sq => far(sq, h.pos) < 150 || (sq.aaPost && Math.hypot(sq.aaPost.x - h.pos.x, sq.aaPost.z - h.pos.z) < 180))) continue;
+      let best = null, bd = Infinity;
+      for (const sq of ours) {
+        if (!at(sq) || sq.tag === 'stalk' || sq.tag === 'hunt' || (sq.tag === 'skyward' && sq.skyTarget && sq.skyTarget !== real && !sq.skyTarget.dead)) continue;   // armour comes first
+        const d = far(sq, h.pos) - (sq.aaPost ? 100 : 0); if (d < 300 && d < bd) { bd = d; best = sq; }
+      }
+      if (!best) continue;
+      const d = far(best, h.pos); best.skyTarget = real; best.aa = true; best.pinUntil = now + 6;
+      if (d < 75) this.halt(best, 'skyward'); else { const [x, z] = this.toward(best.centroid(), h.pos, 55); this.send(best, x, z, 'skyward', best.zone); }
+    }
+  }
+
   // Rally points: a squad that has reached the area it was sent to (within 160 m of its zone, or dug in hiding from or hunting
   // armour), clear of enemies, more than 200 m from home, drops a rally when it has none within 70 m and the cooldown allows.
   placeRallies(squads) {
@@ -240,6 +272,7 @@ export class Strategist {
     // vehicle that respawns is a new unit, seen afresh)
     const now0 = this.match.elapsed; this.armourSeen = (this.armourSeen || []).filter(s => now0 - s.t < 120 && !s.u.dead);
     for (const u of enemies) if (!u.ghost && (u.type === 'apc' || u.type === 'tank')) this.armourSeen.push({ x: u.pos.x, z: u.pos.z, t: now0, u });
+    this.skyward();
     if (!enemies.length) return;
     const C = this.match.combat, now = this.match.elapsed, apcs = enemies.filter(e => e.type === 'apc' || e.type === 'tank');   // armour
     const k = this.posture === 'aggressive' ? 0.6 : this.posture === 'cautious' ? 1.3 : 1;   // posture scales every distance below
@@ -300,12 +333,12 @@ export class Strategist {
       const h = this.percher, hit = h.hp < (pl.hp ?? h.hp); pl.hp = h.hp;
       if (hit || this.enemiesNear(h.pos.x, h.pos.z, 70).length || this.armourNear(h.pos.x, h.pos.z, 160)) { this.endLift(h); this.percher = null; this.heliHome(h, base); }
     }
-    // a fire-support helicopter goes home to the ground crew below 70% (one rocket does it), and moves off when an APC or
-    // more than two launchers can reach it: to another firing point, or home if there is none
+    // a fire-support helicopter goes home to the ground crew below 70% (one rocket does it), and moves off when an APC can
+    // reach it or more than one launcher is about: to another firing point, or home if there is none
     for (const [h, l] of [...this.lifts]) {
       if (!h.type || l.stage !== 'gun') continue;
       if (h.hp < h.maxHp * 0.7) { this.endLift(h); this.heliHome(h, base); continue; }
-      if (this.exposed(h.pos.x, h.pos.z) <= 2 && this.exposed(l.at[0], l.at[1]) <= 2) continue;
+      if (this.exposed(h.pos.x, h.pos.z) <= 1 && this.exposed(l.at[0], l.at[1]) <= 1) continue;
       const spot = this.gunSpot(l.places, base);
       if (spot) { l.at = spot; h.order(spot[0], spot[1]); } else { this.endLift(h); this.heliHome(h, base); }
     }
@@ -509,9 +542,11 @@ export class Strategist {
   // any of our squads (the fight may be elsewhere, away from the enemy's APCs). Never in
   // reach of an APC's autocannon (165 m; tank guns can't shoot up); launchers (95 m) count against a point, and one with more
   // than two in reach is out; the fewest wins, then our side. Null if there is none.
-  exposed(x, z) {   // Infinity in reach of an APC, else the launchers that can reach (x, z)
+  // Infinity in reach of an APC, else the launchers within 150 m of (x, z): anti-tank squads now come for a helicopter in
+  // the air from that far and fire braced (skyward), so a fire-support helicopter stays only with one launcher about at most
+  exposed(x, z) {
     let n = 0;
-    for (const e of this.contacts()) { const d = Math.hypot(e.pos.x - x, e.pos.z - z); if (e.type === 'apc' && d < 165) return Infinity; if (e.kit === 'at' && d < 95) n++; }
+    for (const e of this.contacts()) { const d = Math.hypot(e.pos.x - x, e.pos.z - z); if (e.type === 'apc' && d < 165) return Infinity; if (e.kit === 'at' && d < 150) n++; }
     return n;
   }
   gunSpot(places, base) {
@@ -522,15 +557,15 @@ export class Strategist {
     // the knot of foes with the fewest launchers and APCs about: try the three biggest knots
     const knots = [], left = [...foes];
     while (left.length && knots.length < 3) { const c = this.cluster(left); knots.push(c); for (let i = left.length - 1; i >= 0; i--) if (Math.hypot(left[i].pos.x - c.x, left[i].pos.z - c.z) < 30) left.splice(i, 1); }
-    let best = null, bestN = 3;
+    let best = null, bestN = 2;
     for (const c of knots) { const s = this.gunSpotAt(c, base); if (s && s.n < bestN) { bestN = s.n; best = s.at; } }
     return best;
   }
-  // a hover point 40 m from c with the fewest launchers in reach (two at most), trying our side first; { at, n } or null
+  // a hover point 40 m from c with the fewest launchers about (one at most), trying our side first; { at, n } or null
   gunSpotAt(c, base) {
     const H = this.units.world.half - 10, ours = Math.atan2(base.x - c.x, base.z - c.z);
     let best = null;
-    for (const k of [0, 1, -1, 2, -2, 3, -3, 4]) { const a = ours + k * Math.PI / 4, x = c.x + Math.sin(a) * 40, z = c.z + Math.cos(a) * 40; if (Math.abs(x) > H || Math.abs(z) > H) continue; const n = this.exposed(x, z); if (n <= 2 && (!best || n < best.n)) best = { at: [x, z], n }; }
+    for (const k of [0, 1, -1, 2, -2, 3, -3, 4]) { const a = ours + k * Math.PI / 4, x = c.x + Math.sin(a) * 40, z = c.z + Math.cos(a) * 40; if (Math.abs(x) > H || Math.abs(z) > H) continue; const n = this.exposed(x, z); if (n <= 1 && (!best || n < best.n)) best = { at: [x, z], n }; }
     return best;
   }
   // Soldiers around base whose way to their squad (or to the squad's goal) runs past the landing zone, so the flight saves

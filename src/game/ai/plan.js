@@ -4,7 +4,7 @@
 export const POSTURES = ['cautious', 'balanced', 'aggressive'];
 export const LOGISTICS = ['fob', 'sandbags', 'traps', 'none'];
 export const WAITS = ['none', 'squadsAt', 'enemyBelow', 'apcAlive', 'seconds'];
-export const ROLES = ['assault', 'hold', 'reserve', 'screen', 'raid', 'escort', 'grab'];
+export const ROLES = ['assault', 'hold', 'reserve', 'screen', 'raid', 'escort', 'grab', 'antiair'];
 export const VROLES = ['attack', 'hold'];   // jobs for armour (APCs and tanks)
 
 export const PLAN_SCHEMA = {
@@ -33,8 +33,8 @@ export const PLAN_SCHEMA = {
       type: 'array', maxItems: 8,
       items: { type: 'object', additionalProperties: false, required: ['id', 'role'], properties: {
         id: { type: 'string', description: 'a squad id from the digest, e.g. SQ-11' },
-        role: { type: 'string', enum: ROLES, description: 'assault: join the attack. hold: stand at location at (ours). reserve: wait near at behind the front, not drawn into attacks. screen: overwatch position 50 m out from at towards the enemy. raid: go for the nearest enemy FOB. escort: stay with the supply truck. grab: take location at on its own, only where the digest marks it grabbable (no enemy we know of in or near it); a grab anywhere else is ignored and the squad follows attackShare' },
-        at: { type: 'string', description: 'location name for hold, reserve, screen and grab' },
+        role: { type: 'string', enum: ROLES, description: 'assault: join the attack. hold: stand at location at (ours). reserve: wait near at behind the front, not drawn into attacks. screen: overwatch position 50 m out from at towards the enemy. raid: go for the nearest enemy FOB. escort: stay with the supply truck. grab: take location at on its own, only where the digest marks it grabbable (no enemy we know of in or near it); a grab anywhere else is ignored and the squad follows attackShare. antiair: an anti-tank squad posted at location at (ours) goes for enemy helicopters within 180 m of it and fires braced, twice the usual chance of a rocket hit' },
+        at: { type: 'string', description: 'location name for hold, reserve, screen, grab and antiair' },
       } },
       description: 'jobs for particular squads; squads left out follow attackShare. Leave the engineer squad to logistics (with no job it waits at the first hold)',
     },

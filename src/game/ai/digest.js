@@ -29,6 +29,8 @@ export function buildDigest(match, team, remote = null) {
   const enemy = clusters.sort((a, b) => b.n - a.n).slice(0, 8).map(c => ({ at: [r(c.x), r(c.z)], near: nearLoc(c.x, c.z), units: c.types, lastSeen: c.age ? r(c.age) : undefined }));
   const fobs = (t) => (t === team ? U.filter(u => u.type === 'fob' && u.team === t && !u.dead) : known.filter(u => u.type === 'fob')).map(u => nearLoc(u.pos.x, u.pos.z));
   const sandbags = U.filter(u => u.type === 'sandbags' && u.team === team && !u.dead).map(u => nearLoc(u.pos.x, u.pos.z));
+  // enemy helicopters in the air (left out of the groups above): where we see them, or last saw them
+  const air = known.filter(u => u.spec && u.spec.air && u.alt > 2).map(u => ({ id: u.label, near: nearLoc(u.pos.x, u.pos.z), lastSeen: u.ghost ? r(u.age) : undefined }));
   const traps = { ours: U.filter(u => u.type === 'traps' && u.team === team && !u.dead).map(u => nearLoc(u.pos.x, u.pos.z)), theirs: known.filter(u => u.type === 'traps').map(u => nearLoc(u.pos.x, u.pos.z)) };   // rows of tank traps: they stop every vehicle, ours too
   const said = { captured: 'captured', lost: 'lost', fob: 'built a FOB', sandbags: 'dug in with sandbags', traps: 'laid tank traps', 'traps cleared': 'cleared tank traps', 'rally lost': 'lost a rally point', 'cache revealed': 'found a cache at', 'cache destroyed': 'destroyed the cache at' };
   // trends from the 5 s history: tickets 1, 2 and 3 minutes ago, losses per minute over the last 3 minutes, locations that changed hands in the last 5
@@ -46,7 +48,7 @@ export function buildDigest(match, team, remote = null) {
     side: T.name, mode: m.mode.constructor.key, minute: +(m.elapsed / 60).toFixed(1), minutesLeft: +(Math.max(0, m.time) / 60).toFixed(1),
     tickets: { ours: r(T.tickets), theirs: r(E.tickets) }, lost: { infantry: T.stats.losses.soldier || 0, vehicles: Object.entries(T.stats.losses).filter(([k]) => k !== 'soldier' && k !== 'fob').reduce((a, [, v]) => a + v, 0) },
     locations, next: o ? (o.nextFor(team) || {}).name || null : null, front: o ? (o.front(team) || {}).name || null : null,
-    squads, vehicles, enemy, fobs: { ours: fobs(team), theirs: fobs(1 - team), kitsLeft: m.fobs.kitsLeft(team) }, sandbags, traps,
+    squads, vehicles, enemy, air, fobs: { ours: fobs(team), theirs: fobs(1 - team), kitsLeft: m.fobs.kitsLeft(team) }, sandbags, traps,
     trends, events, plans: remote ? remote.planHistory() : [], notes: remote && remote.plan ? remote.plan.notes || '' : '', waiting: remote ? remote.waitState() : null,
   };
 }

@@ -119,9 +119,11 @@ vehicle selects it). Infantry and a vehicle selected together board at once on
 **L**. After Load the vehicle becomes the selection, ready to drive. The soldiers
 walk to it (a ground vehicle's tail) and get in once it has stopped or landed, and
 anyone past the seats stays behind. They stay aboard however often the vehicle
-stops or lands, until **U** (or the Unload button) lets them out, stopping a ground
-vehicle where it is (a helicopter has to land first). The CPU's own rides still drop
-their squad where the vehicle stops or lands. A truck or APC destroyed
+stops, until **U** (or the Unload button) lets them out, stopping a ground vehicle
+where it is. A helicopter you send somewhere does not land: it circles there (30 m
+out, 8 m/s), its door gun working on everything in reach, until **U** (Land and
+unload, or Land when empty) puts it down where it is and lets the passengers out.
+The CPU's own rides still drop their squad where the vehicle stops or lands. A truck or APC destroyed
 with troops aboard throws them out hurt; a helicopter shot down in the air takes
 them with it. The CPU uses its trucks to ferry a squad from around
 base toward a far objective, stopping 120 m short, and an APC leaving base takes
@@ -131,10 +133,16 @@ a squad with it; its helicopters fly anyone stranded at main base (waiting up to
 taking off when it is hit or threatened. A CPU helicopter with nothing to carry
 flies fire support: it hovers 40 m from the biggest knot of enemy infantry near
 the fight, broadside so a door gun (an M240: 80 m, 14-round bursts) bears, never
-within reach of an APC's autocannon and with at most two launchers in reach, and
+within reach of an APC's autocannon and with at most one launcher within 150 m
+(anti-tank squads come for helicopters from that far), and
 goes home when it drops below 70%. A helicopter landed in its own main base is
 repaired by the ground crew (full in a minute), and an unguided rocket at a
-helicopter in the air hits a third as often as at a ground vehicle. Its supply trucks pull back to base when
+helicopter in the air hits a third as often as at a ground vehicle, or twice that
+when braced for it: the CPU sends an anti-tank squad at any enemy helicopter
+within 150 m of its squads (or 180 m of an anti-air post an LLM commander set,
+the `antiair` job); the squad closes to 75 m and stands to fire, braced. Hovering
+60 m from such a squad, a helicopter went down in 20 to 54 s in five tries (two in
+five before, the others getting away at 225 to 288 hp). Its supply trucks pull back to base when
 enemy armour comes within 120 m. An engineer
 beside a supply truck can also throw up a **sandbag position** (**N**, 12
 supplies, about 12 seconds, up to eight per side): a U of bags open to the rear
@@ -233,7 +241,7 @@ Touch and pen pointers go to a gesture layer; a mouse or trackpad keeps the tabl
 | Gesture | Action |
 |---|---|
 | Tap a unit | Select it (its whole squad) |
-| Tap the ground (with a selection) | Move the selection there; tap an enemy to attack-move, a friendly helicopter, truck or APC to board it, a friendly sandbag position to man it |
+| Tap the ground (with a selection) | Move the selection there (a helicopter circles there until Unload or Land); tap an enemy to attack-move, a friendly sandbag position to man it |
 | Double-tap a unit | Select every friendly unit of that type on screen |
 | Hold on the ground | The same order as a tap (the ring fills in 0.45 s) |
 | Hold with nothing selected, then drag | Box select |

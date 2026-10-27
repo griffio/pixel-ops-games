@@ -275,8 +275,9 @@ export class Hud {
       const room = this.app.units.units.some(v => v.seats && v.team === me && !v.dead && v.passengers.length < v.seats);
       box.insertAdjacentHTML('beforeend', `<button data-act="load" class="${inp && inp.loading ? 'on' : ''}" ${room ? '' : 'disabled title="No vehicle with a free seat"'}>${inp && inp.loading ? `${this.app.touch ? 'Tap' : 'Click'} a vehicle (cancel)` : 'Load (L)'}${room ? '' : ' · no free seat'}</button>`);
     }
-    const car = list.find(u => u.seats && !u.dead && u.passengers.length);
-    if (car) box.insertAdjacentHTML('beforeend', `<button data-act="unload" ${car.alt > 0.5 ? 'disabled' : ''}>Unload ${car.passengers.length} (U)</button>`);
+    const car = list.find(u => u.seats && !u.dead && u.passengers.length), flying = (u) => u.spec.air && !u.dead && u.state !== 'parked' && u.state !== 'spooldown';
+    if (car) box.insertAdjacentHTML('beforeend', `<button data-act="unload">${flying(car) ? 'Land and unload' : 'Unload'} ${car.passengers.length} (U)</button>`);   // a helicopter in the air lands first
+    else if (list.some(flying)) box.insertAdjacentHTML('beforeend', `<button data-act="unload">Land (U)</button>`);
     else if (list.some(u => u.post && !u.dead)) box.insertAdjacentHTML('beforeend', `<button data-act="unload">Leave position (U)</button>`);
     const kits = m.fobs.kitsLeft(this.app.playerTeam ?? 0); if (eng) box.insertAdjacentHTML('beforeend', `<span class="hint">FOB kits left: ${kits}</span>`);
     box.onclick = (e) => { const b = e.target.closest('button'); if (b) this.action(b.dataset.act); };
@@ -298,11 +299,16 @@ export class Hud {
       this.toast(done.length ? `Rally ${done.join(', ')} placed` : why[0]); if (this.app.audio) this.app.audio.ui(done.length ? 'order' : 'deny');
       if (done.length && m.voices) m.voices.say('vo_sq_rally', 10);
     }
-    if (kind === 'unload') {   // a helicopter has to land; a ground vehicle stops where it is; soldiers in sandbags step out of the back
-      const cars = sel.filter(u => u.seats && !u.dead && u.passengers.length), crew = sel.filter(u => u.post && !u.dead);
+    if (kind === 'unload') {   // a helicopter in the air lands where it is and lets them out on the ground (or just lands, empty); a ground vehicle stops where it is; soldiers in sandbags step out of the back
+      const air = (u) => u.spec.air && !u.dead && u.state !== 'parked' && u.state !== 'spooldown';
+      const cars = sel.filter(u => u.seats && !u.dead && (u.passengers.length || air(u))), crew = sel.filter(u => u.post && !u.dead);
       if (cars.length) {
-        let n = 0; for (const c of cars) { if (c.alt > 0.5) continue; if (!c.spec.air) { c.dest = null; c.target = null; c.path = null; c.speed = 0; } n += c.passengers.length; c.unload(); }
-        this.toast(n ? `Unloaded ${n}` : 'Land first');
+        let n = 0, landing = 0;
+        for (const c of cars) {
+          if (air(c)) { c.orbit = null; c.hover = false; c.target = null; c.dest = null; c.dropOnLand = c.passengers.length > 0; if (c.state !== 'land') c.state = 'land'; landing++; continue; }
+          if (!c.spec.air) { c.dest = null; c.target = null; c.path = null; c.speed = 0; } n += c.passengers.length; c.unload();
+        }
+        this.toast(n ? `Unloaded ${n}${landing ? `; ${landing} landing` : ''}` : landing ? (cars.some(c => c.passengers.length) ? 'Landing: they get out on the ground' : 'Landing') : 'Nobody aboard');
       } else if (crew.length) {
         const where = new Set(crew.map(u => u.post.sb.label));
         for (const u of crew) { const [ex, ez] = u.post.sb.postEntry(); u.order(ex + (Math.random() - 0.5) * 3, ez + (Math.random() - 0.5) * 3); }

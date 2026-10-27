@@ -90,7 +90,7 @@ export class Unit {
     if (!keepPost) this.leavePost();
     const nav = this.mgr && this.mgr.nav && this.spec.nav ? this.mgr.nav[this.spec.nav] : null;
     if (nav && nav.inPocket(x, z)) { const c = nav.nearestMain(nav.cellOf(x), nav.cellOf(z)); if (c) { x = nav.world(c[0]); z = nav.world(c[1]); } }   // a goal inside a building, or in a pocket between buildings, becomes the nearest open ground
-    this.dest = new Vec3(x, 0, z); this.idle = 0; this.hold = false; this.bestDist = Infinity; this.noProgress = 0; this.turnT = 0;
+    this.dest = new Vec3(x, 0, z); this.idle = 0; this.hold = false; this.bestDist = Infinity; this.noProgress = 0; this.turnT = 0; this.orbit = null;
     this.path = nav ? nav.findPath(this.pos.x, this.pos.z, x, z) : null;
     if (nav && !this.path) this.path = this.escapeRoute(nav, x, z);
     const first = this.path && this.path.length ? this.path[0] : [x, z];
@@ -380,6 +380,14 @@ export class Unit {
       case 'spool': this.rotorT = 1; if (this.rotor > 0.95) { this.state = 'takeoff'; this.altT = rnd(7, 11); } break;
       case 'takeoff': if (this.alt > this.altT - 0.5) this.state = 'cruise'; break;
       case 'cruise': {
+        // circling (the player's helicopters at the end of a move): fly at a point a little ahead on a circle round the
+        // destination, so the door gun keeps working on everything in reach until Unload (or Land) brings it down
+        const o = this.orbit, circling = !!o && Math.hypot(this.pos.x - o.x, this.pos.z - o.z) < o.r + 10;
+        if (circling) {
+          const a = Math.atan2(this.pos.x - o.x, this.pos.z - o.z) + 0.6;
+          if (this.target) this.target.set(o.x + Math.sin(a) * o.r, 0, o.z + Math.cos(a) * o.r); else this.target = new Vec3(o.x + Math.sin(a) * o.r, 0, o.z + Math.cos(a) * o.r);
+          this.dest = null;
+        }
         if (!this.target) {
           if (!this.hover) { this.state = 'land'; break; }
           // hovering (CPU fire support): hold here and turn broadside to the target so a door gun bears on it
@@ -393,7 +401,7 @@ export class Unit {
         if (dist < 1.2 && this.speed < 1.5) { this.target = null; this.dest = null; if (!this.hover) this.state = 'land'; break; }
         const desired = Math.atan2(dx, dz), diff = wrap(desired - this.heading);
         const turn = clamp(diff, -s.turn * dt, s.turn * dt); this.heading += turn;
-        const want = s.speed * clamp(dist / 14, 0.08, 1) * clamp(1.3 - Math.abs(diff), 0.15, 1);
+        const want = Math.min(circling ? 8 : s.speed, s.speed * clamp(dist / 14, 0.08, 1) * clamp(1.3 - Math.abs(diff), 0.15, 1));   // circling at 8 m/s
         this.speed += clamp(want - this.speed, -s.accel * 1.5 * dt, s.accel * dt);
         if (dt > 0) this.bank = lerp(this.bank, -turn / dt * 0.25, 1 - Math.pow(0.02, dt));   // a paused frame (dt 0) would make it 0/0 and lose the helicopter for good
         break;
