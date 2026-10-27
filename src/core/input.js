@@ -113,7 +113,8 @@ export class Input {
       const [sx, sy] = this.rts.worldToScreen(u.pos.x, u.pos.y + 1, u.pos.z, r.width, r.height);
       return sx >= minX && sx <= maxX && sy >= minY && sy <= maxY;
     });
-    this.select(add ? [...new Set([...this.selected, ...found])] : found);
+    const movers = found.filter(u => !u.spec.structure), pick = movers.length ? movers : found;   // a FOB or sandbags only when nothing that moves is in the box
+    this.select(add ? [...new Set([...this.selected, ...pick])] : pick);
   }
 
   // every friendly unit of a type that is on screen (double-tap / double-click)
@@ -181,10 +182,11 @@ export class Input {
   canMan(u) { const me = this.app.playerTeam ?? 0; return !!(u && u.crew && u.team === me && !u.dead && this.selected.some(s => s.type === 'soldier' && !s.mounted)); }
   orderAt(gx, gz) {
     if (!this.selected.length) return;
+    if (this.selected.every(u => u.spec.structure)) { if (this.app.touch) this.select([]); return; }   // a FOB, sandbags or a gun can't move
     const g = { x: gx, z: gz };
     if (this.units.world.isBlocked(g.x, g.z, 1)) { this.hud.toast('Blocked'); if (this.app.audio) this.app.audio.ui('deny'); return; }
     const squads = new Set(), loose = [];
-    for (const u of this.selected) u.squad ? squads.add(u.squad) : loose.push(u);
+    for (const u of this.selected) if (!u.spec.structure) u.squad ? squads.add(u.squad) : loose.push(u);
     const all = [...squads, ...loose], n = all.length;
     const cols = Math.ceil(Math.sqrt(n)), gap = loose.some(u => u.spec.air) ? 12 : 7;
     all.forEach((t, i) => {
@@ -196,6 +198,6 @@ export class Input {
     });
     this.app.markers.add(g.x, g.z); if (this.app.audio) this.app.audio.ui('order');
     if (this.app.match && this.app.match.voices) this.app.match.voices.ordered(this.selected);
-    this.hud.toast(`Move order: ${this.selected.length} unit${this.selected.length > 1 ? 's' : ''}`);
+    const moving = this.selected.filter(u => !u.spec.structure).length; this.hud.toast(`Move order: ${moving} unit${moving > 1 ? 's' : ''}`);
   }
 }

@@ -270,6 +270,7 @@ export class Hud {
     const how = this.app.touch ? 'tap the ground to move · tap an enemy to attack' : 'right-click to move · F to follow';
     const GUN = { hmg: 'heavy machine gun', atgm: 'anti-tank launcher', mortar: 'mortar' };
     $('sel-d').textContent = one ? `${list.length}/${list[0].squad.members.length} men${list.some(u => u.post) ? ` · manning ${list.find(u => u.post).post.sb.label}` : ''} · ${this.app.touch ? 'tap the ground to move' : 'right-click to move'}`
+      : list.length === 1 && list[0].spec.structure && list[0].type !== 'emplacement' ? this.structureText(list[0])
       : list.length === 1 && list[0].type === 'emplacement'
       ? `${GUN[list[0].gun] || 'emplacement'} · ${list[0].crewAt(0) ? 'manned' : `no gunner: ${this.app.touch ? 'tap' : 'right-click'} it with soldiers selected`} · ${Math.round(100 * list[0].hp / list[0].maxHp)}%`
       : list.length === 1
@@ -278,13 +279,22 @@ export class Hud {
     $('sel-th').innerHTML = this.app.match ? `<img src="${portrait(picOf(list[0]))}" alt="" onerror="this.remove()">` : '';
     this.actHtml = null; this.renderActions(list);
   }
+  // what a structure is for: it never moves, so it gets no "moving" and no move hint
+  structureText(u) {
+    const m = this.app.match, hp = `${Math.round(100 * u.hp / u.maxHp)}%`, tap = this.app.touch ? 'tap' : 'right-click';
+    if (u.type === 'fob') return `forward operating base · every squad can respawn here · ${m ? `${m.fobs.emplacementsAt(u)}/${RULES.emplacement.perFob} guns · ` : ''}${hp}`;
+    if (u.type === 'sandbags') return `sandbag position · ${u.crew.length - u.freeSlots}/${u.crew.length} manned · ${tap} it with soldiers selected to man it`;
+    if (u.type === 'traps') return 'tank traps · no vehicle gets past, ours included · an engineer at the row clears them';
+    if (u.type === 'rally') return `rally point${u.rallyOf ? ' of ' + u.rallyOf.members[0].label : ''} · its men come back here every ${RULES.rally.wave} s${m && m.rallies ? ` · next in ${Math.ceil(m.rallies.nextWaveIn(u))} s` : ''}`;
+    return `${u.type} · ${hp}`;
+  }
   // the command bar: the selection's orders, then what its engineer can build (each with its supply cost), the build under
   // way counting down and Cancel. A tile that can't be used says why in a word; tapping it gives the whole reason.
   renderActions(list) {
     const m = this.app.match, box = $('sel-actions');
     if (!m) { box.innerHTML = ''; this.actHtml = null; return; }
     const me = this.app.playerTeam ?? 0, inp = this.app.input, U = this.app.units.units;
-    const orders = [{ act: 'follow', glyph: 'follow', name: 'Follow', key: 'F', on: list.includes(this.app.rts.follow), title: 'Keep the camera on it' }];
+    const orders = list.some(u => !u.spec.structure) ? [{ act: 'follow', glyph: 'follow', name: 'Follow', key: 'F', on: list.includes(this.app.rts.follow), title: 'Keep the camera on it' }] : [];   // nothing to follow on a FOB
     const sqs = [...new Set(list.filter(u => u.type === 'soldier' && u.squad && u.team === me).map(u => u.squad))];
     if (sqs.length && m.rallies) { const c = sqs.map(sq => m.rallies.canPlace(sq)), ok = c.some(x => x.ok), why = c.find(x => !x.ok); orders.push({ act: 'rally', glyph: 'rally', name: 'Rally', key: 'T', why: ok ? null : why.reason, title: 'Drop a rally point: the squad respawns here' }); }
     if (list.some(u => u.type === 'soldier' && !u.dead && !u.mounted && u.team === me)) {
