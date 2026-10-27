@@ -12,7 +12,7 @@ export const PLAN_SCHEMA = {
   properties: {
     attack: { type: 'string', description: 'the location to take next, by name, or "none" to stop attacking and hold' },
     hold: { type: 'array', items: { type: 'string' }, maxItems: 3, description: 'locations to keep squads at, by name, most important first' },
-    attackShare: { type: 'number', minimum: 0, maximum: 1, description: 'fraction of free squads committed to the attack' },
+    attackShare: { type: 'number', minimum: 0, maximum: 1, description: 'fraction of the squads you give no job that join the attack (0: none of them)' },
     posture: { type: 'string', enum: POSTURES, description: 'cautious keeps more distance and falls back sooner; aggressive closes in and holds ground' },
     logistics: { type: 'string', enum: LOGISTICS, description: 'what the engineer and supply truck do, followed exactly: fob (a FOB behind the front, sandbags when no kit or site is left), sandbags (positions at the first place we hold), traps (a row of tank traps at a river crossing or bridge end on our side, off our own vehicles\' way forward), none' },
     lift: { type: 'boolean', description: 'let vehicles carry squads that are at base toward the attack: helicopters fly them near distant objectives, APCs and troop trucks drive them; squads already out walk' },
@@ -36,7 +36,7 @@ export const PLAN_SCHEMA = {
         role: { type: 'string', enum: ROLES, description: 'assault: join the attack. hold: stand at location at (ours). reserve: wait near at behind the front, not drawn into attacks. screen: overwatch position 50 m out from at towards the enemy. raid: go for the nearest enemy FOB. escort: stay with the supply truck. grab: take location at on its own, only where the digest marks it grabbable (no enemy we know of in or near it); a grab anywhere else is ignored and the squad follows attackShare' },
         at: { type: 'string', description: 'location name for hold, reserve, screen and grab' },
       } },
-      description: 'jobs for particular squads; squads left out follow attackShare. Leave the engineer squad to logistics',
+      description: 'jobs for particular squads; squads left out follow attackShare. Leave the engineer squad to logistics (with no job it waits at the first hold)',
     },
     vehicles: {
       type: 'array', maxItems: 6,

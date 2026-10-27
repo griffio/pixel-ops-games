@@ -1554,6 +1554,35 @@ Engine changes needed in the existing core:
   6-10); Palm Valley's 12, two flipped, both against mechanized (by base 9-3, was 7-5,
   in a batch where the base follows the preset). No consistent shift.
 
+- **Opus game of 2026-10-26 22:17 (27 calls to minute 16.2, $1.19).** OPFOR (Opus,
+  `opus:high`, light infantry with a troop truck) took Pumps, then Souk and Mine with a
+  squad each, then the Bridge at 3.5 and held 4 of 7 to the end: 488 to 347 at minute 16,
+  the player bleeding 12 a minute. It sent three squads at an empty Depot, saw 11 soldiers
+  and a helicopter there at 5.4 and called it off; the player's two helicopters caught the
+  retreat in the open (7 of its 12 losses in under two minutes). The truck refill worked
+  (2 supplies at 6.6, home, 100 by 8.2) and the dig spots followed the first hold. Two
+  faults. (1) The attack share has a floor of 0.2 (plus the difficulty's bump), so Opus's
+  attack on Quarry with share 0 and one named squad also took the one squad it had left
+  without a job, the engineers: they walked three minutes to Quarry while the truck stood
+  at base full and no sandbags were dug from 6.6 to 12.4. Under a remote commander the
+  share is now exact, and an engineer squad with no job from it and no logistics job holds
+  at the first hold. (2) Opus ordered SQ-09 to grab "empty Quarry" (enemy-held, not seen
+  for over 30 s); the game refused it, correctly, but Opus was never told and kept writing
+  "SQ-09, keep going for Quarry" while the squad held the Bridge, then sent it alone on a
+  three-and-a-half-minute walk into four dug-in enemies. Now the strategist records each
+  job it does not carry out as given (`strategist.refused`: a grab with the reason from
+  `grabRefusal`, which mirrors `grabsFor`; a hold, reserve or screen at a place not ours;
+  a raid with no enemy FOB known; an armour hold at a place not ours), the digest gives it
+  on the squad or vehicle as `refused`, and the prompt says to read it before repeating a
+  job. Also: a lost rally point now reads "we lost a rally point" (was "we rally lost").
+  Tests: Palm Valley at 4 minutes, attack with share 0 and every squad but the engineers
+  given a job: none of the rest attacked, the engineers held the Bridge, the refused grab
+  and hold came back with their reasons; `grabRefusal` agreed with `grabsFor` on all 224
+  place checks over four minutes of a match, every reason seen. Desert Crossing's 16
+  replay identically (checked against the previous commit served from a worktree). Not
+  done: the CPU has no answer to helicopters (squads fire at one only when it comes within
+  their reach; the plan has no job for it).
+
 ## Open questions
 
 

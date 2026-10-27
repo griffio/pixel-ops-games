@@ -93,15 +93,19 @@ export class Strategist {
     const grabbable = this.grabsFor(attack);   // places a squad may take on its own
     const roles = new Map(); if (adviser) for (const r of adviser.plan.squads || []) roles.set(r.id, r);
     const assigned = free.filter(sq => roles.has(sq.leader.label)), rest = free.filter(sq => !roles.has(sq.leader.label));
+    // jobs a remote commander gave that are not carried out as given, with the reason (the digest tells it next time)
+    const refused = this.refused = new Map(), elsewhere = (r, why) => refused.set(r.id, `${r.role}${r.at ? ' at ' + r.at : ''}: ${why}`);
     for (const sq of assigned) {
       const r = roles.get(sq.leader.label), at = r.at ? byName(r.at) : null, ours = at && at.owner === this.team ? at : null;
+      if (r.at && !ours && (r.role === 'hold' || r.role === 'reserve' || r.role === 'screen')) elsewhere(r, `not ours, so at ${hold ? hold.name : 'base'} instead`);
+      if (r.role === 'raid' && !enemyFob) elsewhere(r, 'no enemy FOB known near the attack, so with the attack instead');
       if (r.role === 'assault') attackWith(sq);
       else if (r.role === 'hold') holdAt(sq, ours || hold);
       else if (r.role === 'reserve') reserveAt(sq, ours || reserve || hold);
       else if (r.role === 'screen') screenAt(sq, ours || hold);
       else if (r.role === 'raid') raid(sq);
       else if (r.role === 'escort') escort(sq);
-      else if (r.role === 'grab') { if (grabbable.includes(at)) { const [x, z] = this.inZone(at.x, at.z, at, 0.6); this.send(sq, x, z, 'grab' + at.index, at); } else rest.push(sq); }   // a free place only: anywhere else (held, guarded, the attack itself) it would be one squad attacking alone, so it joins the attack share
+      else if (r.role === 'grab') { if (grabbable.includes(at)) { const [x, z] = this.inZone(at.x, at.z, at, 0.6); this.send(sq, x, z, 'grab' + at.index, at); } else { rest.push(sq); elsewhere(r, `${this.grabRefusal(at, attack) || 'not grabbable'}, so it follows attackShare`); } }   // a free place only: anywhere else (held, guarded, the attack itself) it would be one squad attacking alone, so it joins the attack share
       else attackWith(sq);
     }
     // free places: another place we can take that no enemy we know of holds or is near gets a squad of its own (the nearest
@@ -114,7 +118,10 @@ export class Strategist {
       rest.splice(rest.indexOf(sq), 1);
       const [x, z] = this.inZone(l.x, l.z, l, 0.6); this.send(sq, x, z, key, l);
     }
-    const share = Math.min(0.95, Math.max(0.2, g.attackShare + this.diff.attackShare));
+    // a remote commander's share is exact (0 sends none of these squads; the built-in planners keep a fifth at least), and an
+    // engineer squad it left without a job, and without a logistics job, waits at the hold by the truck rather than attacking
+    const idleEng = this.exact ? rest.find(sq => sq.engineer) : null; if (idleEng) { rest.splice(rest.indexOf(idleEng), 1); holdAt(idleEng, hold); }
+    const share = this.exact ? g.attackShare : Math.min(0.95, Math.max(0.2, g.attackShare + this.diff.attackShare));
     const nAttack = attack ? Math.min(rest.length, Math.ceil((rest.length + manned.length) * share)) : 0;   // squads manning sandbags count as holders, not out of the attack
     rest.forEach((sq, i) => {
       if (enemyFob && i === 0 && attack && !assigned.length) { raid(sq); return; }   // one squad raids the nearest enemy FOB unless the commander hands out jobs itself
@@ -132,6 +139,7 @@ export class Strategist {
     for (const v of vehicles) {
       if (v.type === 'apc' || v.type === 'tank') {
         const job = vroles.get(v.label), at = job && job.role === 'hold' ? byName(job.at) : null, keep = job && job.role === 'hold' ? (at && at.owner === this.team ? at : hold) : null;
+        if (keep && keep !== at) refused.set(v.label, `hold at ${job.at}: not ours, so at ${keep.name} instead`);
         const goal = keep || attack || hold; if (!goal) continue;
         if (v.type === 'apc' && (!keep || this.lifts.has(v)) && this.ride(v, free, attack, base)) continue;   // an APC leaving base takes a squad with it (one holding finishes a drop under way, then starts none)
         const standoff = v.type === 'tank' ? 90 : 70;   // the tank's gun reaches 200 m: it stands further off
@@ -146,6 +154,20 @@ export class Strategist {
       } else if (v.type === 'heli') this.air(v, attack, base, perch, hold);
       else if (v.type === 'truck' && !v.supply) { if (!this.ride(v, free, attack, base) && !v.dest && Math.hypot(v.pos.x - base.x, v.pos.z - base.z) > 40) v.order(base.x + (Math.random() - 0.5) * 24, base.z + (Math.random() - 0.5) * 24); }   // a troop truck between runs waits at base
     }
+  }
+
+  // why grabsFor leaves place l out (the reason a remote commander's grab is refused), or null when it would take it
+  grabRefusal(l, attack) {
+    const o = this.match.objectives, t = this.team;
+    if (!l) return 'no such place';
+    if (l.owner === t) return 'already ours';
+    if (l === attack) return 'it is the attack';
+    if (!o.capturable(t, l)) return 'not next to a place we hold';
+    if (l.contested) return 'contested';
+    if (l.owner === 1 - t && this.match.vision.ageAt(t, l.x, l.z) > 30) return 'enemy-held and not seen empty in the last 30 s';
+    if (this.enemiesNear(l.x, l.z, l.r + 60).some(u => !u.spec.structure && (!u.ghost || u.age < 15))) return 'enemies seen in or near it';
+    if (this.armourNear(l.x, l.z, 120)) return 'enemy armour near it';
+    return null;
   }
 
   // Places worth a squad of their own: ones we can take besides the attack target, with no enemy we know of within 60 m of the

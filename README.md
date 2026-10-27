@@ -427,7 +427,13 @@ escort the supply truck, or grab a place the digest marks grabbable (one it can
 take with no enemy it knows of in or near it; a grab anywhere else leaves that squad
 to the attack share), with squads left out following the attack share; and jobs for
 APCs and tanks by id: attack, or hold at one of its locations, with armour left out
-going with the attack). The strategist follows the plan while it is
+going with the attack). The attack share is exact under a model (0 sends none of
+the squads without a job; the built-in planners keep a fifth at least), an engineer
+squad with neither a job from the model nor a logistics job waits at the first
+hold, and a job the game will not carry out as given (a grab at a place that is not
+grabbable, a hold at a place not ours, a raid with no enemy FOB known) comes back in
+the next digest as `refused`, with the reason and what the squad does instead. The
+strategist follows the plan while it is
 under 90 seconds old and its own goals otherwise, and every call is
 asynchronous, so a slow or failing endpoint never stalls the match. The posture
 scales the caution distances (cautious keeps 1.3× the distance, aggressive
