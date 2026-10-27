@@ -90,6 +90,9 @@ export class Input {
       if (e.code === 'KeyJ') { this.hud.action('emp_atgm'); return; }
       if (e.code === 'KeyK') { this.hud.action('emp_mortar'); return; }
       if (e.code === 'KeyM') { this.hud.toggleSound(); return; }
+      if (e.code === 'KeyC') { this.hud.action('cancel'); return; }   // stop the selected engineer's build
+      const dg = /^Digit([1-9])$/.exec(e.code);   // groups: 1-9 select one (twice: go there), Ctrl or Shift with the number makes one
+      if (dg) { e.preventDefault(); const g = +dg[1], R = this.hud.roster; if (e.ctrlKey || e.shiftKey || e.altKey || e.metaKey) R.assign(g); else if (!R.recall(g)) this.hud.toast(`No group ${g} yet: select units, then Ctrl or Shift + ${g}`); return; }
     }
     down ? this.rts.keys.add(e.code) : this.rts.keys.delete(e.code);
   }

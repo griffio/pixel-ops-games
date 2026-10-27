@@ -1,3 +1,6 @@
+import { Roster, squadKind } from './roster.js';
+import { icon, ring, mmss, BUILDS, buildKind, portrait } from './icons.js';
+import { RULES } from '../game/rules.js';
 const $ = (id) => document.getElementById(id);
 const fmtTime = (h) => { const hh = Math.floor(h) % 24, mm = Math.floor((h % 1) * 60); return `${String(hh).padStart(2, '0')}:${String(mm).padStart(2, '0')}`; };
 const fmtDur = (h) => `${Math.floor(h)}:${String(Math.floor((h % 1) * 60)).padStart(2, '0')}`;
@@ -15,6 +18,15 @@ const ICON = {
   skull: '<circle cx="8" cy="4" r="3.4"/><rect x="5.6" y="6.5" width="4.8" height="2.6"/><circle cx="6.6" cy="3.8" r="0.9" fill="#111"/><circle cx="9.4" cy="3.8" r="0.9" fill="#111"/>',
 };
 const ico = (k) => `<svg class="ico" viewBox="0 0 16 10">${ICON[k] || ''}</svg>`;
+const SQUAD_NAME = { rifle: 'Rifle squad', support: 'Support squad', at: 'Anti-tank squad', medic: 'Medic squad', engineer: 'Engineer squad', marksman: 'Marksman squad' };
+const picOf = (u) => u.squad ? squadKind(u.squad.members.map(m => m.kit))[0] : u.type === 'emplacement' ? u.gun : u.supply ? 'supply' : u.type === 'soldier' ? 'rifle' : u.type;
+// a refusal from the game, cut to a word or two for a tile; the whole reason comes up when the tile is tapped
+const SHORT = [[/already/, 'BUSY'], [/supply truck/, 'NO TRUCK'], [/FOB kits/, 'NO KITS'], [/one of your FOBs/, 'NEEDS FOB'], [/emplacements$/, 'FOB FULL'], [/enemy main base/, 'ENEMY BASE'], [/road/, 'ON ROAD'],
+  [/too close|traps within/, 'TOO CLOSE'], [/no more than/, 'LIMIT'], [/steep|wet|no room/, 'NO ROOM'], [/squadmate/, 'ALONE'], [/ready in (\d+)/, (r) => r[1] + ' S'], [/enemy within/, 'ENEMY NEAR'], [/on foot/, 'ON FOOT'], [/free seat/, 'NO SEAT']];
+const short = (why) => { for (const [re, out] of SHORT) { const r = why.match(re); if (r) return typeof out === 'function' ? out(r) : out; } return 'N/A'; };
+const esc = (t) => String(t).replace(/&/g, '&amp;').replace(/"/g, '&quot;').replace(/</g, '&lt;');
+const BUILD_ACTS = ['fob', 'sandbags', 'traps', 'emp_hmg', 'emp_atgm', 'emp_mortar'];
+const FOOT = { sandbags: 2.8, fob: 6, hmg: 2.4, atgm: 2.4, mortar: 2.4 };   // the ground a build takes, for its outline
 const KIT_NAME = { rifle: 'rifle', mg: 'MG', at: 'AT', marksman: 'marksman', medic: 'rifle', engineer: 'rifle', autocannon: 'autocannon', doorgun: 'door gun', tankgun: '120 mm', coax: 'coax MG', hmg: 'HMG', atgm: 'ATGM', mortar: 'mortar' };
 
 
@@ -24,7 +36,8 @@ export class Hud {
   constructor(app) {
     this.app = app; this.labelRoot = $('labels'); this.tags = new Map();
     this.paused = false; this.fpsAcc = 0; this.fpsN = 0; this.fps = 0;
-    this.bind();
+    this.marks = new Map(); this.actAcc = 0; this.busy = null;
+    this.bind(); this.roster = new Roster(app);
   }
 
   bind() {
@@ -49,7 +62,10 @@ export class Hud {
     $('b-pause').addEventListener('click', () => this.togglePause());
     $('b-manual').addEventListener('click', () => { if (a.guide) a.guide.toggle(); });
     if (a.guide) { $('c-hints').checked = a.guide.store.hints; $('c-hints').addEventListener('change', e => a.guide.setHints(e.target.checked)); }
-    for (const b of document.querySelectorAll('[data-tb]')) b.addEventListener('click', () => this.touchAction(b.dataset.tb));
+    // the touch toolbar (top left): box select, pause, the camera to base, the manual, sound, the engine panels
+    const TB = { box: ['box', 'Box'], pause: ['pause', ''], base: ['base', ''], help: ['help', ''], sound: ['sound', ''], dev: ['gear', ''] };
+    for (const b of document.querySelectorAll('[data-tb]')) { const t = TB[b.dataset.tb]; if (t) b.innerHTML = icon(t[0]) + (t[1] ? `<span>${t[1]}</span>` : ''); b.addEventListener('click', () => this.touchAction(b.dataset.tb)); }
+    $('btoast').addEventListener('click', e => { if (e.target.closest('button') && this.busy) this.cancelBuild(this.busy.eng); });
     $('c-sound').addEventListener('change', e => { if (a.audio) { a.audio.setEnabled(e.target.checked); this.syncSound(); } });
     $('c-vol').addEventListener('input', e => { if (a.audio) { a.audio.setVolume(+e.target.value / 100); this.syncSound(); } });
     setTimeout(() => this.syncSound(), 0);
@@ -74,7 +90,7 @@ export class Hud {
       this.modeShown = true; document.querySelector('#match .small').textContent = m.mode.constructor.name + (m.mode.constructor.sides ? (m.mode.attacker === (this.app.playerTeam ?? 0) ? ' · attacking' : ' · defending') : '') + (m.cpu && m.cpu.length === 1 ? ` · ${m.difficulty.name} CPU` : '');
       document.querySelector('#match .t0 .nm').innerHTML = `BLUFOR<br><em>${t0.doctrine.name}</em>`; document.querySelector('#match .t1 .nm').innerHTML = `OPFOR<br><em>${t1.doctrine.name}</em>`;
       for (const id of ['minimap', 'objs', 'match', 'reinf-h', 'reinf']) $(id).style.display = ''; this.mmHidden = false;
-      $('reinf-h').insertAdjacentHTML('afterend', `<select id="spawn-pref"><option value="auto">spawn nearest the squad</option><option value="base">spawn at main base</option>${t0.doctrine.heliSpawn ? '<option value="heli">spawn beside idle helicopter</option>' : ''}${t0.doctrine.truckSpawn ? '<option value="truck">spawn beside a parked truck</option>' : ''}</select>`); $('spawn-pref').addEventListener('change', e => { t0.spawnPref = e.target.value; });
+      this.roster.setupSpawnPref(m.teams[this.app.playerTeam ?? 0]); document.body.classList.add('match');   // the respawn choice lives on the unit strip
     }
 
     // under fog of war the enemy's own news stays theirs: its commander's radio, its FOB going up, its digging in
@@ -219,9 +235,9 @@ export class Hud {
   togglePause() { this.setPaused(!this.paused); }
   setPaused(on, quiet = false) {   // quiet: the field manual pausing behind itself, no toast
     this.paused = on; $('b-pause').textContent = this.paused ? 'Resume' : 'Pause'; if (!quiet) this.toast(this.paused ? 'Paused' : 'Running');
-    const tb = document.querySelector('[data-tb=pause]'); if (tb) tb.textContent = this.paused ? 'Resume' : 'Pause';
+    const tb = document.querySelector('[data-tb=pause]'); if (tb) { tb.innerHTML = icon(this.paused ? 'play' : 'pause'); tb.title = this.paused ? 'Resume' : 'Pause'; tb.classList.toggle('on', this.paused); }
   }
-  // touch toolbar (bottom left on tablets): box select, follow, pause, jump to base, dev panels
+  // the touch toolbar's buttons, and Follow and Clear from the command bar
   touchAction(k) {
     const a = this.app, inp = a.input, t = inp.touch;
     if (k === 'box') { t.boxArmed = !t.boxArmed; this.syncTouchbar(); this.toast(t.boxArmed ? 'Drag a box to select' : 'Box select off'); }
@@ -237,62 +253,111 @@ export class Hud {
   syncSound() {
     const au = this.app.audio; if (!au) return;
     $('c-sound').checked = au.enabled; $('c-vol').value = Math.round(au.volume * 100); $('v-vol').textContent = Math.round(au.volume * 100) + '%';
-    const tb = document.querySelector('[data-tb=sound]'); if (tb) { tb.textContent = au.enabled ? '\u266B' : '\u266B\u0338'; tb.classList.toggle('on', au.enabled); }
+    const tb = document.querySelector('[data-tb=sound]'); if (tb) { tb.innerHTML = icon(au.enabled ? 'sound' : 'mute'); tb.title = au.enabled ? 'Sound on' : 'Sound off'; }
   }
   syncTouchbar() { const b = document.querySelector('[data-tb=box]'); if (b) b.classList.toggle('on', !!this.app.input?.touch?.boxArmed); }
   toast(msg) { const t = $('toast'); t.textContent = msg; t.style.opacity = 1; clearTimeout(this.tt); this.tt = setTimeout(() => t.style.opacity = 0, 1400); }
 
   showSelection(list) {
     const el = $('selinfo'); document.body.classList.toggle('sel', list.length > 0);   // the key help hides and the dock drops into its place
-    if (!list.length) { el.style.display = 'none'; return; }
-    el.style.display = 'block';
+    if (this.roster) this.roster.refresh();
+    if (!list.length) { el.style.display = 'none'; this.actHtml = null; return; }
+    el.style.display = 'flex';
     const types = {}; for (const u of list) types[u.type] = (types[u.type] || 0) + 1;
     const desc = Object.entries(types).map(([k, v]) => `${v} ${k}${v > 1 ? 's' : ''}`).join(', ');
-    $('sel-n').textContent = list.length === 1 ? list[0].label : `${list.length} UNITS`;
+    const sqs = new Set(list.map(u => u.squad || u)), one = sqs.size === 1 && list[0].squad;
+    $('sel-n').textContent = one ? `${list[0].label} · ${SQUAD_NAME[squadKind(list[0].squad.members.map(u => u.kit))[0]]}` : list.length === 1 ? list[0].label : `${list.length} UNITS`;
     const how = this.app.touch ? 'tap the ground to move · tap an enemy to attack' : 'right-click to move · F to follow';
     const GUN = { hmg: 'heavy machine gun', atgm: 'anti-tank launcher', mortar: 'mortar' };
-    $('sel-d').textContent = list.length === 1 && list[0].type === 'emplacement'
+    $('sel-d').textContent = one ? `${list.length}/${list[0].squad.members.length} men${list.some(u => u.post) ? ` · manning ${list.find(u => u.post).post.sb.label}` : ''} · ${this.app.touch ? 'tap the ground to move' : 'right-click to move'}`
+      : list.length === 1 && list[0].type === 'emplacement'
       ? `${GUN[list[0].gun] || 'emplacement'} · ${list[0].crewAt(0) ? 'manned' : `no gunner: ${this.app.touch ? 'tap' : 'right-click'} it with soldiers selected`} · ${Math.round(100 * list[0].hp / list[0].maxHp)}%`
       : list.length === 1
       ? `${list[0].type} · ${list[0].post ? `manning ${list[0].post.sb.label}${list[0].post.settled ? '' : ' (on the way)'}` : list[0].spec.air ? list[0].state : (list[0].target ? 'moving' : 'idle')}${list[0].seats ? ` · ${list[0].passengers.length}/${list[0].seats} aboard` : ''}${list[0].crew ? ` · ${list[0].crew.length - list[0].freeSlots}/${list[0].crew.length} manned` : ''} · ${how}`
       : desc + (list.some(u => u.post) ? ` · ${list.filter(u => u.post).length} manning sandbags` : '') + (this.app.touch ? ' · tap the ground to move in formation' : ' · right-click to move in formation');
-    this.renderActions(list);
+    $('sel-th').innerHTML = this.app.match ? `<img src="${portrait(picOf(list[0]))}" alt="" onerror="this.remove()">` : '';
+    this.actHtml = null; this.renderActions(list);
   }
-  // context actions: build a FOB or sandbags with a selected engineer, unload a carrier, leave a sandbag position
+  // the command bar: the selection's orders, then what its engineer can build (each with its supply cost), the build under
+  // way counting down and Cancel. A tile that can't be used says why in a word; tapping it gives the whole reason.
   renderActions(list) {
-    const m = this.app.match, box = $('sel-actions'); box.innerHTML = '';
-    if (!m) return;
-    const eng = list.find(u => u.kit === 'engineer' && !u.dead);
-    // rally points for the squads in the selection
-    const sqs = [...new Set(list.filter(u => u.type === 'soldier' && u.squad && u.team === (this.app.playerTeam ?? 0)).map(u => u.squad))];
-    if (sqs.length && m.rallies) { const c = sqs.map(sq => m.rallies.canPlace(sq)), ok = c.some(x => x.ok), why = c.find(x => !x.ok); box.insertAdjacentHTML('beforeend', `<button data-act="rally" ${ok ? '' : 'disabled'} title="${why ? why.reason : ''}">Rally (T)${ok ? '' : ' · ' + why.reason}</button>`); }
-    if (eng) { const c = m.fobs.canBuild(eng); box.insertAdjacentHTML('beforeend', `<button data-act="fob" ${c.ok ? '' : 'disabled'} title="${c.reason || ''}">Build FOB (B)${c.ok ? '' : ' · ' + c.reason}</button>`); }
-    if (eng) { const c = m.fobs.canBuildSandbags(eng); box.insertAdjacentHTML('beforeend', `<button data-act="sandbags" ${c.ok ? '' : 'disabled'} title="${c.reason || ''}">Sandbags (N)${c.ok ? '' : ' · ' + c.reason}</button>`); }
-    if (eng) {   // tank traps: clear the row the engineer stands at, or lay one
-      const cl = m.fobs.canClear(eng), c = cl.ok ? cl : m.fobs.canBuildTraps(eng);
-      box.insertAdjacentHTML('beforeend', `<button data-act="traps" ${c.ok ? '' : 'disabled'} title="${c.reason || ''}">${cl.ok ? 'Clear traps' : 'Tank traps'} (X)${c.ok ? '' : ' · ' + c.reason}</button>`);
-    }
-    // FOB emplacements, once our side has a FOB: a heavy machine gun, an anti-tank launcher, a mortar
-    if (eng && m.fobs.active(eng.team).length) for (const [gun, name, key] of [['hmg', 'HMG', 'G'], ['atgm', 'AT launcher', 'J'], ['mortar', 'Mortar', 'K']]) {
-      const c = m.fobs.canBuildEmplacement(eng, gun);
-      box.insertAdjacentHTML('beforeend', `<button data-act="emp_${gun}" ${c.ok ? '' : 'disabled'} title="${c.reason || ''}">${name} (${key})${c.ok ? '' : ' · ' + c.reason}</button>`);
-    }
-    // boarding: Load, then the vehicle (at once into one selected with them)
-    const me = this.app.playerTeam ?? 0, inp = this.app.input;
+    const m = this.app.match, box = $('sel-actions');
+    if (!m) { box.innerHTML = ''; this.actHtml = null; return; }
+    const me = this.app.playerTeam ?? 0, inp = this.app.input, U = this.app.units.units;
+    const orders = [{ act: 'follow', glyph: 'follow', name: 'Follow', key: 'F', on: list.includes(this.app.rts.follow), title: 'Keep the camera on it' }];
+    const sqs = [...new Set(list.filter(u => u.type === 'soldier' && u.squad && u.team === me).map(u => u.squad))];
+    if (sqs.length && m.rallies) { const c = sqs.map(sq => m.rallies.canPlace(sq)), ok = c.some(x => x.ok), why = c.find(x => !x.ok); orders.push({ act: 'rally', glyph: 'rally', name: 'Rally', key: 'T', why: ok ? null : why.reason, title: 'Drop a rally point: the squad respawns here' }); }
     if (list.some(u => u.type === 'soldier' && !u.dead && !u.mounted && u.team === me)) {
-      const room = this.app.units.units.some(v => v.seats && v.team === me && !v.dead && v.passengers.length < v.seats);
-      box.insertAdjacentHTML('beforeend', `<button data-act="load" class="${inp && inp.loading ? 'on' : ''}" ${room ? '' : 'disabled title="No vehicle with a free seat"'}>${inp && inp.loading ? `${this.app.touch ? 'Tap' : 'Click'} a vehicle (cancel)` : 'Load (L)'}${room ? '' : ' · no free seat'}</button>`);
+      const room = U.some(v => v.seats && v.team === me && !v.dead && v.passengers.length < v.seats);
+      orders.push({ act: 'load', glyph: 'load', name: inp && inp.loading ? 'Pick one' : 'Load', key: 'L', on: inp && inp.loading, why: room ? null : 'No vehicle with a free seat', title: inp && inp.loading ? `${this.app.touch ? 'Tap' : 'Click'} a vehicle to board it, or Load again to cancel` : 'Board a vehicle' });
     }
     const car = list.find(u => u.seats && !u.dead && u.passengers.length), flying = (u) => u.spec.air && !u.dead && u.state !== 'parked' && u.state !== 'spooldown';
-    if (car) box.insertAdjacentHTML('beforeend', `<button data-act="unload">${flying(car) ? 'Land and unload' : 'Unload'} ${car.passengers.length} (U)</button>`);   // a helicopter in the air lands first
-    else if (list.some(flying)) box.insertAdjacentHTML('beforeend', `<button data-act="unload">Land (U)</button>`);
-    else if (list.some(u => u.post && !u.dead)) box.insertAdjacentHTML('beforeend', `<button data-act="unload">Leave position (U)</button>`);
-    const kits = m.fobs.kitsLeft(this.app.playerTeam ?? 0); if (eng) box.insertAdjacentHTML('beforeend', `<span class="hint">FOB kits left: ${kits}</span>`);
-    box.onclick = (e) => { const b = e.target.closest('button'); if (b) this.action(b.dataset.act); };
+    if (car) orders.push({ act: 'unload', glyph: 'unload', name: `${flying(car) ? 'Land' : 'Unload'} ${car.passengers.length}`, key: 'U', title: flying(car) ? 'Land and let them out' : 'Let them out' });   // a helicopter in the air lands first
+    else if (list.some(flying)) orders.push({ act: 'unload', glyph: 'unload', name: 'Land', key: 'U', title: 'Land here' });
+    else if (list.some(u => u.post && !u.dead)) orders.push({ act: 'unload', glyph: 'unload', name: 'Leave', key: 'U', title: 'Leave the position' });
+    orders.push({ act: 'clear', glyph: 'clear', name: 'Deselect', key: 'Esc', title: 'Clear the selection' });
+    let html = `<div class="grp"><h6>Orders</h6><div class="tiles">${orders.map(t => this.tile(t)).join('')}</div></div>`;
+    const eng = list.find(u => u.kit === 'engineer' && !u.dead);
+    if (eng) {
+      const b = eng.building, bk = b && buildKind(b), F = m.fobs, R = RULES;
+      const cl = F.canClear(eng), traps = cl.ok && !b ? ['clear', cl, 0] : ['traps', F.canBuildTraps(eng), R.traps.supplyCost];
+      const items = [['sandbags', F.canBuildSandbags(eng), R.sandbags.supplyCost, R.sandbags.buildTime], ['fob', F.canBuild(eng), R.fob.supplyCost, R.fob.buildTime], [...traps, R.traps.buildTime],
+        ...['hmg', 'atgm', 'mortar'].map(g => [g, F.canBuildEmplacement(eng, g), R.emplacement[g].supplyCost, R.emplacement[g].buildTime])];
+      const tiles = items.map(([k, c, cost, time]) => {
+        const B = BUILDS[k], t = { act: B.act, pic: B.pic, name: B.short || B.name, key: B.key, cost, title: `${B.name}${cost ? `: ${cost} supplies` : ''}${time ? `, about ${Math.round(time * (k === 'traps' || k === 'clear' ? 1 : (m.teams[eng.team].doctrine || {}).fobBuild || 1))} s` : ''}` };
+        if (b) return { ...t, state: bk === k || (bk === 'clear' && k === 'traps') ? 'act' : 'busy' };
+        return c.ok ? t : { ...t, state: 'off', why: c.reason };
+      });
+      if (b) tiles.push({ act: 'cancel', glyph: 'clear', name: 'Cancel', key: 'C', cls: 'cancel', title: `Stop ${BUILDS[bk].say}` });
+      const truck = U.filter(t => t.supply && !t.dead && t.team === eng.team && Math.hypot(t.pos.x - eng.pos.x, t.pos.z - eng.pos.z) <= R.fob.buildRange).sort((x, y) => y.supplies - x.supplies)[0];
+      const head = truck ? `${icon('sup')}${truck.label} ${Math.round(truck.supplies)} <i><b style="width:${Math.round(truck.supplies)}%"></b></i>` : `no supply truck within ${R.fob.buildRange} m`;
+      html += `<div class="vr"></div><div class="grp"><h6>Build <em>${head} · FOB kits ${F.kitsLeft(eng.team)}</em></h6><div class="tiles">${tiles.map(t => this.tile(t)).join('')}</div></div>`;
+    }
+    if (html !== this.actHtml) { this.actHtml = html; box.innerHTML = html; }
+    box.onclick = (e) => { const b = e.target.closest('button'); if (!b) return; if (b.dataset.why) { this.toast(b.dataset.why); if (this.app.audio) this.app.audio.ui('deny'); return; } this.action(b.dataset.act); };
+    this.tickActions(list);
+  }
+  tile(t) {
+    const face = t.pic ? `<span class="pi"><img src="${portrait(t.pic)}" alt=""></span>` : icon(t.glyph);
+    const flag = t.state === 'busy' ? '<span class="flag">BUSY</span>' : t.state === 'off' ? `<span class="flag">${short(t.why)}</span>` : '';
+    const live = t.state === 'act' ? '<span class="tm"></span><span class="fill"></span>' : '';
+    return `<button class="tile${t.state ? ' ' + t.state : ''}${t.cls ? ' ' + t.cls : ''}${t.on ? ' on' : ''}" data-act="${t.act}"${t.why ? ` data-why="${esc(t.why)}"` : ''} title="${esc(t.why || t.title || t.name)}">${face}<span class="nm">${t.name}</span>${this.app.touch ? '' : `<span class="key">${t.key}</span>`}${t.cost ? `<span class="cost">${t.cost}</span>` : ''}${flag}${live}</button>`;
+  }
+  // the parts of the command bar that change every frame: the build countdown and its bar, and the line under the name
+  tickActions(list) {
+    const eng = list.find(u => u.kit === 'engineer' && !u.dead && u.building), b = eng && eng.building, act = $('sel-actions').querySelector('.tile.act');
+    if (act && b) { act.querySelector('.tm').textContent = mmss(b.t); act.querySelector('.fill').style.width = `${Math.round(100 * (1 - b.t / b.total))}%`; }
+    const line = b ? `${BUILDS[buildKind(b)].say[0].toUpperCase()}${BUILDS[buildKind(b)].say.slice(1)} · ${mmss(b.t)}` : '';
+    const el = $('sel-b'); if (el.textContent !== line) el.textContent = line;
+  }
+  // a build button pressed while the engineer is busy: what he is doing, how long is left, and a way to stop it
+  busyToast(eng) {
+    const b = eng.building, B = BUILDS[buildKind(b)], who = eng.squad ? eng.squad.members[0].label : eng.label;
+    this.busy = { eng, until: performance.now() + 4000 }; $('toast').style.opacity = 0;
+    const el = $('btoast'); el.style.display = 'flex';
+    el.innerHTML = `${ring(1 - b.t / b.total, B.glyph, 30)}<span><b>${who} is ${B.say}</b> · ready in <em>${Math.ceil(b.t)}</em> s. Cancel to start something else.</span><button type="button">Cancel</button>`;
+    if (this.app.audio) this.app.audio.ui('deny');
+  }
+  tickBusy() {
+    const bz = this.busy; if (!bz) return;
+    const b = bz.eng.building, el = $('btoast');
+    if (!b || bz.eng.dead || performance.now() > bz.until) { this.busy = null; el.style.display = 'none'; return; }
+    const em = el.querySelector('em'); if (em) em.textContent = Math.ceil(b.t);
+    const arc = el.querySelector('.arc'); if (arc) { const C = +arc.getAttribute('stroke-dasharray').split(' ')[1]; arc.setAttribute('stroke-dasharray', `${(C * (1 - b.t / b.total)).toFixed(1)} ${C}`); }
+  }
+  cancelBuild(eng) {
+    const m = this.app.match, b = eng && m && m.fobs.cancel(eng); if (!b) { this.toast('Nothing is being built'); return; }
+    this.busy = null; $('btoast').style.display = 'none';
+    this.toast(`${BUILDS[buildKind(b)].name} cancelled`); if (this.app.audio) this.app.audio.ui('order');
+    this.showSelection(this.app.input.selected);
   }
   action(kind) {
     const m = this.app.match, sel = this.app.input.selected; if (!m) return;
     if (kind === 'load') { this.app.input.startLoad(); return; }
+    if (kind === 'follow' || kind === 'clear') { this.touchAction(kind); return; }
+    if (kind === 'cancel') { this.cancelBuild(sel.find(u => u.kit === 'engineer' && !u.dead && u.building)); return; }
+    const busy = BUILD_ACTS.includes(kind) && sel.find(u => u.kit === 'engineer' && !u.dead && u.building);
+    if (busy) { this.busyToast(busy); return; }   // one build at a time: say what he is on, and offer Cancel
     if (kind.startsWith('emp_')) {   // an emplacement where the engineer stands
       const gun = kind.slice(4), eng = sel.find(u => u.kit === 'engineer' && !u.dead); if (!eng) return this.toast('Select an engineer');
       const r = m.fobs.startEmplacement(eng, gun), name = { hmg: 'heavy machine gun', atgm: 'anti-tank launcher', mortar: 'mortar' }[gun];
@@ -371,10 +436,36 @@ export class Hud {
 
       const [sx, sy] = a.rts.worldToScreen(u.pos.x, u.pos.y + u.height + 0.3, u.pos.z, w, h);
       const vis = sx > -40 && sx < w + 40 && sy > -20 && sy < h + 20;
-      tag.style.display = vis ? 'block' : 'none';
+      tag.style.display = vis && !(u.building && u.team === me) ? 'block' : 'none';   // an engineer at work wears the build's marker instead
       if (vis) tag.style.transform = `translate(${Math.round(sx)}px, ${Math.round(sy)}px) translate(-50%, -100%)`;
       tag.classList.toggle('sel', u.selected);
     }
     for (const [u, tag] of this.tags) if (!want.has(u)) { tag.remove(); this.tags.delete(u); }
+    if (!a.match) return;
+    this.buildMarks(a.match, w, h);
+    this.roster.update(dt); this.roster.edges(w, h);
+    const sel = a.input.selected;
+    if (sel.length) { this.actAcc += dt; if (this.actAcc > 0.25) { this.actAcc = 0; this.renderActions(sel); } else this.tickActions(sel); }
+    this.tickBusy();
+  }
+  // our builds going up: a ring over the engineer with what he is building and the time left, where his tag was, and a
+  // dashed outline on the ground where it will stand
+  buildMarks(m, w, h) {
+    const me = this.app.playerTeam ?? 0, rts = this.app.rts, live = new Set();
+    for (const b of m.fobs.builds) {
+      if (b.team !== me) continue; live.add(b);
+      let mk = this.marks.get(b);
+      if (!mk) { mk = { el: document.createElement('div'), foot: document.createElement('div'), key: '' }; mk.el.className = 'bmark'; mk.foot.className = 'bfoot'; this.labelRoot.append(mk.foot, mk.el); this.marks.set(b, mk); }
+      const e = b.eng, k = buildKind(b), B = BUILDS[k], f = 1 - b.t / b.total, key = `${Math.ceil(b.t)}:${Math.round(f * 40)}`;
+      if (mk.key !== key) { mk.key = key; mk.el.innerHTML = `${ring(f, B.glyph, 40)}<span class="bt"><span>${e.squad ? e.squad.members[0].label : e.label} · ${(b.kind === 'clear' ? 'Clearing' : B.name).toUpperCase()}</span>${mmss(b.t)}</span>`; }
+      const [sx, sy] = rts.worldToScreen(e.pos.x, e.pos.y + e.height + 0.3, e.pos.z, w, h), on = !e.mounted && sx > -60 && sx < w + 60 && sy > -60 && sy < h + 60;
+      mk.el.style.display = on ? '' : 'none'; if (on) mk.el.style.transform = `translate(${Math.round(sx)}px, ${Math.round(sy)}px) translate(-50%, -100%)`;
+      const r = FOOT[k], gy = this.app.world.heightAt(b.x, b.z);
+      if (!r) { mk.foot.style.display = 'none'; continue; }
+      const [cx, cy] = rts.worldToScreen(b.x, gy, b.z, w, h), [rx] = rts.worldToScreen(b.x + r * Math.cos(rts.yaw), gy, b.z - r * Math.sin(rts.yaw), w, h), [, ry] = rts.worldToScreen(b.x - r * Math.sin(rts.yaw), gy, b.z - r * Math.cos(rts.yaw), w, h);
+      const W = Math.abs(rx - cx) * 2, H = Math.abs(ry - cy) * 2;
+      mk.foot.style.display = on ? '' : 'none'; mk.foot.style.width = `${Math.round(W)}px`; mk.foot.style.height = `${Math.round(H)}px`; mk.foot.style.transform = `translate(${Math.round(cx - W / 2)}px, ${Math.round(cy - H / 2)}px)`;
+    }
+    for (const [b, mk] of this.marks) if (!live.has(b)) { mk.el.remove(); mk.foot.remove(); this.marks.delete(b); }
   }
 }

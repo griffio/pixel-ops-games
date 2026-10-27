@@ -121,6 +121,11 @@ export class Fobs {
     eng.building = b; eng.hold = true; eng.target = null; eng.dest = null; eng.path = null;
     this.builds.push(b); return { ok: true, build: b };
   }
+  // stop what this engineer is building; nothing has been spent yet (the truck pays when it is done)
+  cancel(eng) {
+    const i = this.builds.findIndex(b => b.eng === eng); if (i < 0) return null;
+    const b = this.builds[i]; this.builds.splice(i, 1); eng.building = null; eng.hold = false; return b;
+  }
   nearestTruck(u) {
     const r = RULES.fob;
     return this.units.units.filter(t => t.supply && !t.dead && t.team === u.team && t.supplies >= r.supplyCost && Math.hypot(t.pos.x - u.pos.x, t.pos.z - u.pos.z) <= r.buildRange)[0] || null;

@@ -251,6 +251,45 @@ off. On a touch screen both name the buttons instead of the keys
 | `Space` | Pause simulation |
 | `R` / Reset view | Default camera |
 | `M` | Mute / unmute |
+| `C` | Cancel the selected engineer's build (nothing is spent until a build finishes) |
+| `1`–`9` | Select a group (press twice to take the camera there) |
+| `Ctrl` or `Shift` + `1`–`9` | Make a group of the selection |
+
+### Unit strip and command bar
+
+**The unit strip** along the bottom has a card for every squad, vehicle and build of
+yours: a portrait, the label, what it is doing ("Depot · 89 m", "Taking Quarry 54%",
+"Supplying SQ-07", "Back in 0:17 · RP-04") and a bar per man (yellow when wounded, grey
+when dead) or a health bar (supply trucks add their supplies, carriers their free
+seats). A card goes red along the top for a few seconds after its unit is hit or while
+its men are pinned down; a squad wiped out keeps its card, greyed, with a ring
+counting down to its respawn (its rally's wave, or its own timer); a destroyed vehicle
+counts down to its return at main; a build going up has a dashed card of its own.
+Tap or click a card to select the unit, again to take the camera there, hold to
+follow it (shift-click adds to the selection; after Load, a vehicle's card boards
+it). Tabs filter All, Squads, Vehicles and Built; **+** makes a group of the
+selection (its number shows on the cards, tap its tab to select it, hold the tab to
+remove it). The **Under fire** and **Idle** chips step the camera through those
+units, and the strip carries the respawn choice (near the squad, main base, or the
+doctrine's helicopter or truck). Units out of view get a pointer on the screen edge
+with their distance; pointers that would overlap merge ("SQ-01 +2"), and a tap takes
+the camera there. The strip folds to its tabs with the arrow at its right end (it
+starts folded on a screen under 560 px tall). Portraits are PNGs in `icons/units/`,
+rendered from the game's own models by `node tools/make-portraits.mjs` (with the
+game served on :8787).
+
+**The command bar** above the strip shows the selection and its actions in groups:
+**Orders** (Follow, Rally, Load, Unload or Land or Leave, Deselect) and, with an
+engineer selected, **Build** (Sandbags, FOB, Traps or Clear, HMG, AT gun, Mortar), each
+with its supply cost; the group's header shows the supply truck in range and the
+FOB kits left. A tile that can't be used now says why in a word (NO TRUCK, NEEDS FOB,
+TOO CLOSE...); tapping it gives the whole reason.
+
+**Build countdown.** While an engineer builds, his name tag turns into a ring with
+the structure's icon, filling as the work goes, and "SQ-07 · SANDBAGS 0:06", with a
+dashed outline on the ground where it will stand. The build's tile counts down, the
+other build tiles read BUSY and a Cancel tile appears (`C`). Pressing another build
+says what he is on and when it is ready, with a Cancel button, instead of refusing.
 
 ### Touch (iPad)
 
@@ -267,7 +306,8 @@ Touch and pen pointers go to a gesture layer; a mouse or trackpad keeps the tabl
 | Pinch | Zoom about the midpoint |
 | Twist | Rotate about the midpoint |
 | Three-finger drag up/down | Tilt |
-| Toolbar | **Box** arms a one-shot box select, **Clear** drops the selection, **Follow**, **Pause**, **Base** jumps to your main, **⚙** shows the engine panels |
+| Toolbar (top left) | **Box** arms a one-shot box select, **Pause**, **Base** jumps to your main, **?** the field manual, sound, **⚙** shows the engine panels. Follow and Deselect are in the command bar |
+| Unit strip | Tap a card to select, tap again to go there, hold to follow; **+** groups the selection |
 
 Tablets and phones (a coarse primary pointer with multi-touch) get the mobile
 profile: device pixel ratio 1, a 2048 shadow map, no edge panning, keyboard hints
@@ -362,7 +402,9 @@ src/core/           renderer-agnostic engine
   units.js          steering, obstacle sliding, separation, squads, helicopter state machine
   dust.js           particle simulation: dust, smoke, fire, tracers, muzzle flashes and brief flash lights for the renderer
   projectiles.js    rounds in flight: straight bullets, cannon shells on a gravity arc, rockets; tracer streaks for the renderer
-  input.js, hud.js  RTS input / selection and the HUD; picking delegated to the back end
+  input.js, hud.js  RTS input / selection and the HUD (command bar, build markers); picking delegated to the back end
+  roster.js         the unit strip: a card per squad, vehicle and build, tabs, groups, Under fire / Idle, edge pointers
+  icons.js          glyphs, progress rings and the build names the strip and command bar share
   app.js            URL params, match or sandbox population, frame loop (with ?warp pre-stepping)
 src/game/           milestone 1 game layer (renderer-agnostic)
   rules.js          tickets, costs, respawn timers, fixed M1 force
@@ -381,6 +423,7 @@ src/game/           milestone 1 game layer (renderer-agnostic)
   ui/lobby.js       the pre-match force builder screen
   maps/             map definitions (desert1km.js) and ground texture generators
   match.js          AAS / Skirmish match flow, 10 Hz game tick, bleed, win checks
+icons/units/        unit-strip portraits (tools/make-portraits.mjs renders them from the game's models)
 src/three/          three.js back end: models, world, PixelRenderer (low-res target + outline), dust, markers
 src/gl/             WebGL2 back end
   scene.js          Node / Mesh scene graph with the same position/rotation/visible surface

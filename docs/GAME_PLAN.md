@@ -1695,6 +1695,27 @@ Engine changes needed in the existing core:
   rally's wave, then 4 men; a job for it passed `validatePlan`. Air Assault on Palm
   Valley (v light and v balanced, both ways round, seeds 1 to 3): 4 of 12 replay
   identically, no winner changes, 2 helicopters lost as before, air 1 of 12 as before.
+- **Unit strip, grouped orders, build countdown (2026-10-27).** The user found that finding
+  units meant hunting round the map, and that "already building" said nothing about what
+  or for how long. After mock-ups over real frames (a card strip built from the user's
+  reference, and a side list with an action ring; the user picked the strip), the HUD
+  gets `src/core/roster.js`: a card along the bottom for each squad, vehicle and build,
+  with a portrait (`icons/units/`, rendered from the game's models by
+  `tools/make-portraits.mjs`), what it is doing, its men or health, red after a hit,
+  greyed with a respawn countdown when down; tabs, groups (+, keys 1-9, Ctrl or Shift
+  to make one), Under fire and Idle chips that step the camera through those units, the
+  respawn choice (moved off the Reinforcements panel, which touch screens now hide), and
+  pointers on the screen edge to units out of view. The selection panel becomes a
+  command bar of tiles in Orders and Build groups with supply costs and one-word
+  reasons. While an engineer builds, his tag becomes a ring with the build's icon and
+  time left over a dashed outline of the site, the build's tile counts down, the others
+  read BUSY, and a Cancel tile (C) calls the new `Fobs.cancel`; another build button
+  says what he is on and offers Cancel. The touch toolbar moves to the top left;
+  in portrait the minimap moves to the top right and the strip takes two rows. Checked
+  in headless Chrome on iPad 11" landscape and portrait, a 1024 x 768 iPad, a phone on
+  its side (the strip starts folded) and desktop: taps, holds, chips, groups, keys,
+  Cancel from the bar, the toast and C; a five-minute CPU match with the HUD refreshed
+  every second threw nothing; `tools/touch-test.mjs` gives the same results as before.
 
 ## Open questions
 

@@ -154,12 +154,111 @@
 
   /* the bottom-centre dock: messages (#toast) stack on top of the selection panel, so they never cover its buttons; it keeps
      clear of the minimap on the right and of the key help on the left, which hides while something is selected (body.sel) */
-  #dock { position: absolute; left: 10px; right: 240px; bottom: 70px; display: flex; flex-direction: column; align-items: center; gap: 6px; pointer-events: none; }
-  body.sel #dock { bottom: 10px; } body.sel #help { display: none; }
-  #selinfo { position: static; display: none; min-width: 260px; max-width: 100%; text-align: center; pointer-events: auto; }
-  #selinfo .n { font-size: 14px; color: var(--accent); letter-spacing: 0.06em; }
-  #selinfo .d { color: var(--muted); font-size: 11px; margin-top: 2px; }
-  #sel-actions { justify-content: center; margin-top: 6px; align-items: center; } #sel-actions:empty { display: none; } #sel-actions .hint { color: var(--muted); font-size: 10px; } #sel-actions button.on { border-color: var(--accent); color: var(--accent); }
+  #dock { position: absolute; left: 10px; right: 240px; bottom: calc(var(--strip-h) + 70px); display: flex; flex-direction: column; align-items: center; gap: 6px; pointer-events: none; }
+  body.sel #dock { bottom: calc(var(--strip-h) + 16px); } body.sel #help { display: none; }
+  #help { bottom: calc(var(--strip-h) + 16px); }
+  /* the command bar: who is selected, then the orders and the builds as tiles in groups */
+  #selinfo { position: static; display: none; align-self: flex-start; flex-wrap: wrap; align-items: stretch; gap: 10px; max-width: 100%; padding: 8px 10px; border-radius: 8px; pointer-events: auto; }
+  #selinfo .who { display: flex; gap: 8px; align-items: center; min-width: 0; max-width: 200px; }
+  #selinfo .th { position: relative; flex: 0 0 64px; width: 64px; height: 44px; border: 1px solid var(--accent); border-radius: 5px; overflow: hidden; background: #2a2620; }
+  #selinfo .th:empty { display: none; } #selinfo .th img { position: absolute; left: 50%; top: 50%; width: 84px; transform: translate(-50%, -50%); }
+  #selinfo .wt { min-width: 0; }
+  #selinfo .n { font-size: 14px; font-weight: 600; color: var(--accent); letter-spacing: 0.04em; }
+  #selinfo .d { color: var(--muted); font-size: 11px; margin-top: 1px; }
+  #selinfo .b { color: var(--accent); font-size: 11px; margin-top: 2px; } #selinfo .b:empty { display: none; }
+  #sel-actions { display: flex; gap: 10px; align-items: stretch; flex-wrap: wrap; } #sel-actions:empty { display: none; }
+  #sel-actions .vr { width: 1px; background: rgba(255,255,255,0.1); }
+  #sel-actions .grp { display: flex; flex-direction: column; gap: 4px; min-width: 0; }
+  #sel-actions h6 { margin: 0; display: flex; gap: 6px; align-items: center; font-size: 9px; font-weight: 700; letter-spacing: 0.14em; text-transform: uppercase; color: #8a857a; white-space: nowrap; }
+  #sel-actions h6 em { display: inline-flex; gap: 4px; align-items: center; font-style: normal; font-weight: 600; letter-spacing: 0.04em; text-transform: none; color: #cfcac0; }
+  #sel-actions h6 em i { display: inline-block; width: 34px; height: 4px; background: #333; } #sel-actions h6 em i b { display: block; height: 100%; background: #d9b26a; }
+  #sel-actions h6 .gi { width: 11px; height: 11px; fill: #d9b26a; }
+  #sel-actions .tiles { display: flex; flex-wrap: wrap; gap: 5px; }
+  #sel-actions .tile { position: relative; width: 54px; height: 58px; min-height: 0; padding: 0; border-radius: 6px; background: #262629; border: 1px solid #3c3c41; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 3px; font-size: 9.5px; font-weight: 600; color: var(--text); overflow: hidden; }
+  #sel-actions .tile:hover { background: #303034; border-color: #5a5a60; }
+  #sel-actions .tile .gi { width: 20px; height: 20px; fill: var(--text); }
+  #sel-actions .tile .pi { position: relative; width: 52px; height: 30px; margin-top: -2px; overflow: hidden; } #sel-actions .tile .pi img { position: absolute; left: 50%; top: 52%; width: 80px; transform: translate(-50%, -50%); }
+  #sel-actions .tile .nm { white-space: nowrap; }
+  #sel-actions .tile .cost { position: absolute; top: 2px; right: 3px; font: 600 9px "SF Mono", Menlo, monospace; color: #d9b26a; text-shadow: 0 1px 0 #000; }
+  #sel-actions .tile .key { position: absolute; top: 2px; left: 4px; font: 600 9px "SF Mono", Menlo, monospace; color: #8a857a; text-shadow: 0 1px 0 #000; }
+  #sel-actions .tile .flag { position: absolute; left: 0; right: 0; top: 13px; padding: 1px 0; text-align: center; font-size: 8.5px; letter-spacing: 0.08em; color: #fff; background: rgba(0,0,0,0.62); }
+  #sel-actions .tile.off, #sel-actions .tile.busy { opacity: 0.5; } #sel-actions .tile.off .flag { color: #f3c9c3; }
+  #sel-actions .tile.act { border: 2px solid var(--accent); background: #2d2716; }
+  #sel-actions .tile .tm { position: absolute; left: 0; right: 0; top: 9px; text-align: center; font: 700 13px "SF Mono", Menlo, monospace; color: #fff; text-shadow: 0 1px 2px #000; }
+  #sel-actions .tile .fill { position: absolute; left: 0; bottom: 0; height: 3px; background: var(--accent); }
+  #sel-actions .tile.cancel { border-color: rgba(232,106,90,0.6); color: #f3c9c3; } #sel-actions .tile.cancel .gi { fill: var(--danger); }
+  #sel-actions .tile.on { border-color: var(--accent); color: var(--accent); } #sel-actions .tile.on .gi { fill: var(--accent); }
+  /* what a busy engineer is doing, with Cancel: in place of "already building" */
+  #btoast { display: none; align-items: center; gap: 8px; max-width: 100%; padding: 6px 8px; background: rgba(16,16,18,0.94); border: 1px solid rgba(242,193,78,0.6); border-radius: 8px; font-size: 12px; pointer-events: auto; }
+  #btoast b { color: var(--accent); font-weight: 600; } #btoast em { font-style: normal; font-family: "SF Mono", Menlo, monospace; }
+  #btoast button { border-color: rgba(232,106,90,0.6); color: #f3c9c3; border-radius: 4px; flex: 0 0 auto; }
+  /* progress rings: the build countdown, a squad's respawn */
+  .ring { position: relative; display: inline-grid; place-items: center; flex: 0 0 auto; }
+  .ring > svg:first-child { position: absolute; inset: 0; width: 100%; height: 100%; transform: rotate(-90deg); }
+  .ring > .gi { position: relative; width: 46%; height: 46%; fill: var(--accent); }
+  /* a build going up: the marker over the engineer and the outline of where it will stand (game: hud.buildMarks) */
+  .bmark { position: absolute; left: 0; top: 0; display: flex; flex-direction: column; align-items: center; gap: 3px; will-change: transform; }
+  .bmark .ring { background: rgba(14,14,16,0.88); border-radius: 50%; }
+  .bmark .bt { background: rgba(14,14,16,0.92); border: 1px solid rgba(242,193,78,0.6); border-radius: 3px; padding: 1px 6px; font: 700 11px "SF Mono", Menlo, monospace; color: var(--accent); white-space: nowrap; }
+  .bmark .bt span { margin-right: 5px; font: 600 9.5px -apple-system, "Helvetica Neue", Arial, sans-serif; letter-spacing: 0.1em; color: #cfcac0; }
+  .bfoot { position: absolute; left: 0; top: 0; border: 2px dashed rgba(242,193,78,0.85); border-radius: 50%; will-change: transform; }
+  /* ---- the unit strip (core/roster.js): a card per squad, vehicle and build. JS sets --strip-h to its height */
+  :root { --strip-h: 0px; --cw: 112px; --ch: 106px; --ph: 66px; }
+  #roster { display: none; left: calc(10px + env(safe-area-inset-left)); right: calc(240px + env(safe-area-inset-right)); bottom: calc(10px + env(safe-area-inset-bottom)); padding: 2px 8px 8px; border-radius: 8px; }
+  body.match #roster { display: block; }
+  #roster.folded { padding-bottom: 2px; } #roster.folded .cards { display: none; } #roster.folded .fold .gi { transform: rotate(180deg); }
+  #roster .tabs { display: flex; align-items: center; gap: 6px; min-width: 0; padding: 2px 0 6px; }
+  #roster.folded .tabs { padding-bottom: 2px; }
+  #roster .tl { display: flex; align-items: center; gap: 1px; min-width: 0; overflow-x: auto; scrollbar-width: none; }
+  #roster .sp { flex: 1; } #roster .chips { display: flex; gap: 5px; }
+  #roster .tl::-webkit-scrollbar, #roster .cards::-webkit-scrollbar { display: none; }
+  #roster .tab { min-height: 0; padding: 5px 7px 3px; background: none; border: 0; border-bottom: 2px solid transparent; border-radius: 0; color: var(--muted); font-size: 12px; font-weight: 600; white-space: nowrap; }
+  #roster .tab:hover { background: none; color: var(--text); }
+  #roster .tab.on { color: #fff; border-bottom-color: var(--accent); }
+  #roster .tab i { margin-left: 4px; font-style: normal; font-weight: 500; color: #8a857a; }
+  #roster .tab.grp b { display: inline-block; padding: 0 5px; border-radius: 3px; background: #2f6db3; color: #fff; }
+  #roster .tab.add { padding: 2px 9px 1px; font-size: 16px; line-height: 1.2; color: var(--text); }
+  #roster .chip { display: inline-flex; align-items: center; gap: 5px; min-height: 0; padding: 3px 9px; border-radius: 12px; background: #232326; border: 1px solid #3a3a3e; color: #cfcac0; font-size: 11px; font-weight: 600; white-space: nowrap; }
+  #roster .chip .gi { width: 12px; height: 12px; fill: currentColor; }
+  #roster .chip.red { border-color: rgba(232,106,90,0.7); color: #f3c9c3; } #roster .chip.red .gi { fill: var(--danger); }
+  #roster .chip.y { border-color: rgba(242,193,78,0.6); color: var(--accent); }
+  #spawn-pref { max-width: 170px; padding: 3px 6px; background: #232326; color: var(--text); border: 1px solid #3a3a3e; border-radius: 12px; font: inherit; font-size: 11px; }
+  #roster .fold { display: grid; place-items: center; width: 30px; min-height: 0; padding: 4px 0; border-radius: 12px; background: #232326; }
+  #roster .fold .gi { width: 12px; height: 12px; fill: var(--text); }
+  #roster .cards { display: flex; gap: 6px; overflow-x: auto; overflow-y: hidden; scrollbar-width: none; overscroll-behavior: contain; touch-action: pan-x; }
+  .card { position: relative; flex: 0 0 var(--cw); width: var(--cw); height: var(--ch); overflow: hidden; background: #19191c; border: 1px solid #34343a; border-radius: 6px; cursor: pointer; }
+  .card * { pointer-events: none; }
+  .card:hover { border-color: #5a5a60; }
+  .card .pic { position: relative; height: var(--ph); overflow: hidden; background: #2a2620; }
+  .card .pic img { position: absolute; left: 50%; top: 50%; width: 120px; transform: translate(-50%, -50%); }
+  .card .pic::after { content: ''; position: absolute; inset: 0; background: linear-gradient(180deg, rgba(0,0,0,0.3) 0%, rgba(0,0,0,0) 30%, rgba(0,0,0,0) 55%, rgba(16,16,18,0.92) 100%); }
+  .card .st { position: absolute; top: 4px; left: 4px; right: 4px; display: flex; gap: 3px; }
+  .card .st b { display: flex; align-items: center; justify-content: center; gap: 3px; min-width: 19px; height: 19px; padding: 0 4px; border-radius: 4px; background: rgba(10,10,12,0.85); color: #fff; font-size: 11px; }
+  .card .st b .gi { width: 12px; height: 12px; fill: #fff; } .card .st b.g { background: #2f6db3; } .card .st i { flex: 1; }
+  .card .st b.seat { font-size: 10px; font-weight: 600; color: #cfcac0; } .card .st b.seat .gi { fill: #cfcac0; }
+  .card .ov { position: absolute; left: 0; right: 0; top: 0; height: var(--ph); display: flex; align-items: center; justify-content: center; gap: 6px; }
+  .card .ov:empty { display: none; } .card .ov .ring { background: rgba(14,14,16,0.75); border-radius: 50%; }
+  .card .ov > span:last-child { font: 700 15px "SF Mono", Menlo, monospace; color: #fff; text-shadow: 0 1px 2px #000; }
+  .card .lbl { position: absolute; left: 7px; top: calc(var(--ph) - 19px); font-size: 13px; font-weight: 700; letter-spacing: 0.02em; color: #fff; text-shadow: 0 1px 0 #000; white-space: nowrap; }
+  .card .lbl small { margin-left: 4px; font-size: 9px; font-weight: 600; letter-spacing: 0.08em; color: #b9b3a6; }
+  .card .what { display: flex; align-items: center; gap: 4px; padding: 4px 7px 0; font-size: 9.5px; font-weight: 600; letter-spacing: 0.05em; text-transform: uppercase; color: var(--muted); white-space: nowrap; overflow: hidden; }
+  .card .what span { overflow: hidden; text-overflow: ellipsis; } .card .what .gi { flex: 0 0 11px; width: 11px; height: 11px; fill: currentColor; }
+  .card .what.go { color: #cfe3f7; } .card .what.cap { color: var(--accent2); } .card .what.red { color: #f08a7c; } .card .what.y { color: var(--accent); }
+  .card .foot { position: absolute; left: 7px; right: 7px; bottom: 7px; }
+  .card .pips { display: flex; gap: 3px; } .card .pips i { flex: 1; height: 6px; border-radius: 1px; background: var(--accent2); }
+  .card .pips i.hurt { background: linear-gradient(90deg, var(--accent) 50%, #3a3a3a 50%); } .card .pips i.dead { background: #3a3a3a; }
+  .card .bar { height: 6px; border-radius: 1px; background: #333; } .card .bar i { display: block; height: 100%; border-radius: 1px; background: var(--accent2); }
+  .card .bar.sup { height: 3px; margin-bottom: 3px; } .card .bar.sup i { background: #d9b26a; }
+  .card.sel { border: 2px solid var(--accent); }
+  .card.alert::before { content: ''; position: absolute; left: 0; right: 0; top: 0; height: 3px; background: var(--danger); z-index: 2; }
+  .card.down .pic img { filter: grayscale(1) brightness(0.4); } .card.down .lbl { color: #b5b0a4; }
+  .card.ghost { border-style: dashed; border-color: rgba(242,193,78,0.6); } .card.ghost .pic img { opacity: 0.5; filter: sepia(0.6); }
+  /* pointers on the screen edge to our units out of view */
+  #edges { position: absolute; inset: 0; overflow: hidden; pointer-events: none; }
+  #edges .edge { position: absolute; left: 0; top: 0; display: flex; align-items: center; gap: 4px; min-height: 0; padding: 3px 8px 3px 5px; background: rgba(14,14,16,0.9); border: 1px solid rgba(127,178,229,0.55); border-radius: 12px; color: var(--text); font-size: 10.5px; font-weight: 700; white-space: nowrap; pointer-events: auto; will-change: transform; }
+  #edges .edge .dir { display: inline-grid; } #edges .edge .gi { width: 12px; height: 12px; fill: #7fb2e5; }
+  #edges .edge small { font-size: 9.5px; font-weight: 500; color: var(--muted); }
+  #edges .edge.red { border-color: rgba(232,106,90,0.85); } #edges .edge.red .gi { fill: var(--danger); }
 
   #manual { display: none; flex-direction: column; top: 50%; left: 50%; transform: translate(-50%, -50%); width: 760px; max-width: calc(100vw - 24px); height: 520px; max-height: calc(100vh - 24px); padding: 0; z-index: 20; }
   #manual .hd { display: flex; justify-content: space-between; align-items: center; padding: 10px 14px; border-bottom: 1px solid var(--panel-border); color: var(--accent); letter-spacing: 0.14em; font-size: 12px; }
@@ -180,22 +279,52 @@
     opacity: 0; transition: opacity .3s; pointer-events: none; }
 
   /* ---- touch profile (body.touch: iPad / phones, or ?mobile=1). Dev panels return with the gear button (body.dev). */
-  #touchbar { position: absolute; left: calc(10px + env(safe-area-inset-left)); bottom: calc(10px + env(safe-area-inset-bottom)); display: none; gap: 6px; }
-  #touchbar button { min-width: 58px; min-height: 40px; font-size: 12px; letter-spacing: 0.04em; background: var(--panel); backdrop-filter: blur(4px); }
+  #touchbar { position: absolute; left: calc(10px + env(safe-area-inset-left)); top: calc(10px + env(safe-area-inset-top)); display: none; gap: 5px; }
+  #touchbar button { display: inline-flex; align-items: center; justify-content: center; gap: 6px; min-width: 44px; min-height: 40px; padding: 0 10px; font-size: 12px; letter-spacing: 0.04em; background: var(--panel); backdrop-filter: blur(4px); border-radius: 6px; }
+  #touchbar .gi { width: 16px; height: 16px; fill: currentColor; }
   #touchbar button.on { border-color: var(--accent); color: var(--accent); }
   #help .tb { display: none; }
   body.touch #touchbar { display: flex; }
-  body.touch #help { bottom: calc(58px + env(safe-area-inset-bottom)); left: calc(10px + env(safe-area-inset-left)); padding: 5px 9px; font-size: 10px; }
+  body.touch #help { bottom: calc(var(--strip-h) + 16px + env(safe-area-inset-bottom)); left: calc(10px + env(safe-area-inset-left)); padding: 5px 9px; font-size: 10px; }
   body.touch #help .kb { display: none; } body.touch #help .tb { display: inline; }
   body.touch:not(.dev) #stats { display: none; }
-  body.touch:not(.dev) #controls > :not(#reinf-h):not(#reinf):not(#spawn-pref) { display: none; }
+  body.touch:not(.dev) #controls { display: none; }   /* the reinforcements list is on the unit strip's cards */
   body.touch #controls { top: calc(10px + env(safe-area-inset-top)); right: calc(10px + env(safe-area-inset-right)); }
   body.touch #minimap { right: calc(10px + env(safe-area-inset-right)); bottom: calc(10px + env(safe-area-inset-bottom)); touch-action: none; }
   body.touch #feed { bottom: calc(240px + env(safe-area-inset-bottom)); }
-  body.touch #dock { left: calc(10px + env(safe-area-inset-left)); right: calc(240px + env(safe-area-inset-right)); bottom: calc(95px + env(safe-area-inset-bottom)); }   /* above the toolbar and the gesture help */
-  body.touch.sel #dock { bottom: calc(60px + env(safe-area-inset-bottom)); }
+  body.touch #dock { left: calc(10px + env(safe-area-inset-left)); right: calc(240px + env(safe-area-inset-right)); bottom: calc(var(--strip-h) + 56px + env(safe-area-inset-bottom)); }   /* above the strip and the gesture help */
+  body.touch.sel #dock { bottom: calc(var(--strip-h) + 16px + env(safe-area-inset-bottom)); }
   body.touch button { min-height: 34px; padding: 6px 12px; font-size: 12px; }
-  body.touch #sel-actions button { min-height: 38px; }
+  body.touch #sel-actions .tile { width: 54px; height: 60px; min-height: 0; padding: 0; font-size: 9.5px; }
+  body.touch #roster .tab { min-height: 32px; padding: 5px 8px 3px; font-size: 12px; } body.touch #roster .chip { min-height: 28px; padding: 3px 10px; font-size: 11px; }
+  body.touch #roster .fold { min-height: 28px; padding: 0; width: 34px; }
+  body.touch #edges .edge { min-height: 0; padding: 5px 10px 5px 7px; font-size: 11px; }
+  body.touch #touchbar button { min-height: 40px; padding: 0 10px; }
+  /* iPad portrait: the minimap moves up to the right, the strip takes the full width in two rows of cards */
+  @media (orientation: portrait) {
+    body.touch #roster { right: calc(10px + env(safe-area-inset-right)); }
+    body.touch #roster .cards { display: grid; grid-template-columns: repeat(auto-fill, minmax(var(--cw), 1fr)); grid-auto-rows: var(--ch); max-height: calc(2 * var(--ch) + 6px); overflow-x: hidden; overflow-y: auto; touch-action: pan-y; }
+    body.touch .card { width: auto; }
+    body.touch #minimap { top: calc(146px + env(safe-area-inset-top)); bottom: auto; width: 170px; height: 170px; }
+    body.touch #feed { top: calc(326px + env(safe-area-inset-top)); bottom: auto !important; }
+    body.touch #touchbar { top: calc(146px + env(safe-area-inset-top)); }
+    body.touch #hint { top: calc(200px + env(safe-area-inset-top)); }
+    body.touch #dock { right: calc(10px + env(safe-area-inset-right)); }
+  }
+  /* phones and short screens: smaller cards, chips without words; on a short screen the strip starts folded (roster.js) and
+     the command bar keeps only its tiles */
+  @media (max-height: 560px), (max-width: 700px) {
+    :root { --cw: 94px; --ch: 88px; --ph: 50px; }
+    .card .pic img { width: 100px; } .card .lbl { font-size: 11.5px; } .card .lbl small { display: none; }
+    #roster .chip span { display: none; } #spawn-pref { max-width: 120px; }
+  }
+  @media (max-height: 560px) {
+    #minimap { width: 150px; height: 150px; } #feed { bottom: 170px !important; }
+    #roster, #dock, body.touch #dock { right: calc(170px + env(safe-area-inset-right)); }
+    #selinfo { gap: 6px; padding: 6px 8px; } #selinfo .th, #selinfo .d, #sel-actions h6 { display: none; }
+    #sel-actions .tile, body.touch #sel-actions .tile { width: 46px; height: 46px; font-size: 8.5px; }
+    #sel-actions .tile .pi { height: 22px; } #sel-actions .tile .gi { width: 16px; height: 16px; } #sel-actions .tile .flag { top: 8px; } #sel-actions .tile .tm { top: 5px; }
+  }
   body.touch .lb-item .q button { width: 38px; min-height: 34px; padding: 4px 0; } body.touch .lb-item { padding: 6px 0; }
   body.touch .lb-doc { padding: 8px 0; } body.touch .lb-doc input, body.touch #lb-side input { width: 18px; height: 18px; }
   body.touch #lobby { -webkit-overflow-scrolling: touch; touch-action: pan-y; }
@@ -204,7 +333,7 @@
   #lobby[style*="block"] ~ #touchbar, #lobby[style*="block"] ~ #help { display: none !important; }   /* the force builder is a full-height sheet on tablets */
   body.touch #lobby { padding-bottom: calc(16px + env(safe-area-inset-bottom)); }
   @media (max-width: 900px) { #lobby { width: calc(100vw - 24px); padding: 14px 14px 12px; } #lobby .cols { flex-direction: column; gap: 6px; } }
-  @media (max-width: 700px) { #minimap { width: 150px; height: 150px; } #dock, body.touch #dock { right: 170px; } #feed { bottom: 170px !important; } #match .side { min-width: 70px; } #objs .obj { width: 60px; } }
+  @media (max-width: 700px) { #minimap { width: 150px; height: 150px; } #dock, body.touch #dock, #roster { right: 170px; } #feed { bottom: 170px !important; } #match .side { min-width: 70px; } #objs .obj { width: 60px; } }
   @media (max-width: 700px) { body.touch #help { display: none; } }
 </style>
 </head>
@@ -212,6 +341,7 @@
 <div id="app">
   <canvas id="view"></canvas>
   <div id="labels"></div>
+  <div id="edges"></div>
   <div id="selbox"></div>
 
   <div id="clock" class="panel">
@@ -289,13 +419,15 @@
 
   <div id="help" class="panel"><span class="kb">
     <kbd>LMB</kbd> select / drag box &nbsp; <kbd>RMB</kbd> move order &nbsp; <kbd>RMB drag</kbd> / <kbd>Q</kbd><kbd>E</kbd> rotate<br>
-    <kbd>Wheel</kbd> zoom &nbsp; <kbd>WASD</kbd> / edge pan &nbsp; <kbd>MMB drag</kbd> pan &nbsp; <kbd>Space</kbd> pause &nbsp; <kbd>F</kbd> follow &nbsp; <kbd>T</kbd> rally &nbsp; <kbd>H</kbd> manual</span><span class="tb">
+    <kbd>Wheel</kbd> zoom &nbsp; <kbd>WASD</kbd> / edge pan &nbsp; <kbd>MMB drag</kbd> pan &nbsp; <kbd>Space</kbd> pause &nbsp; <kbd>F</kbd> follow &nbsp; <kbd>T</kbd> rally &nbsp; <kbd>H</kbd> manual<br>
+    <kbd>1</kbd>–<kbd>9</kbd> select a group &nbsp; <kbd>Ctrl</kbd>/<kbd>Shift</kbd>+<kbd>1</kbd>–<kbd>9</kbd> make one &nbsp; <kbd>C</kbd> cancel a build</span><span class="tb">
     <kbd>tap</kbd> select / move &nbsp; <kbd>hold</kbd> box &nbsp; <kbd>drag</kbd> pan &nbsp; <kbd>pinch</kbd> zoom &nbsp; <kbd>twist</kbd> rotate &nbsp; <kbd>3 fingers</kbd> tilt</span>
   </div>
-  <div id="touchbar"><button data-tb="box">Box</button><button data-tb="clear">Clear</button><button data-tb="follow">Follow</button><button data-tb="pause">Pause</button><button data-tb="base">Base</button><button data-tb="help" title="field manual">?</button><button data-tb="sound" title="sound">&#9835;</button><button data-tb="dev" title="engine panels">&#9881;</button></div>
+  <div id="touchbar"><button data-tb="box" title="Drag a selection box">Box</button><button data-tb="pause" title="Pause">Pause</button><button data-tb="base" title="Camera to your base">Base</button><button data-tb="help" title="Field manual">?</button><button data-tb="sound" title="Sound">&#9835;</button><button data-tb="dev" title="Engine panels">&#9881;</button></div>
   <div id="hold"></div>
 
-  <div id="dock"><div id="toast"></div><div id="selinfo" class="panel"><div class="n" id="sel-n"></div><div class="d" id="sel-d"></div><div id="sel-actions" class="row"></div></div></div>
+  <div id="roster" class="panel"></div>
+  <div id="dock"><div id="toast"></div><div id="btoast"></div><div id="selinfo" class="panel"><div class="who"><div class="th" id="sel-th"></div><div class="wt"><div class="n" id="sel-n"></div><div class="d" id="sel-d"></div><div class="b" id="sel-b"></div></div></div><div id="sel-actions"></div></div></div>
 </div>
 
 <script type="importmap">
