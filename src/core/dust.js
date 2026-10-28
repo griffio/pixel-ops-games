@@ -11,7 +11,7 @@ export const PCOL = {
   flame: hexToLinear(0xffc240), ember: hexToLinear(0xffb060), debris: hexToLinear(0x3a3530), soot: hexToLinear(0x151515),
   flashCore: hexToLinear(0xfff8dc), flashHalo: hexToLinear(0xffa23a), brass: hexToLinear(0xd9ab4e), spark: hexToLinear(0xffd36a),
 };
-const FOAM = [0.93, 0.96, 0.97], STEAM = [0.9, 0.92, 0.93], SOOT = [0.42, 0.42, 0.44], HEARTH = [0.6, 0.6, 0.63];   // ambient: wakes, steam, coal smoke, a cottage's hearth
+const FOAM = [0.93, 0.96, 0.97], STEAM = [0.9, 0.92, 0.93], SOOT = [0.42, 0.42, 0.44], HEARTH = [0.6, 0.6, 0.63], DIRT = [0.4, 0.31, 0.2], DARK = [0.16, 0.15, 0.14];   // ambient: wakes, steam, coal smoke, a cottage's hearth
 const ADD = 2;
 // muzzle flash recipes per weapon class: halo/core sprite sizes (m), flash life (s), light power and reach, extras
 export const MUZZLE = {
@@ -32,6 +32,7 @@ export class DustSim {
     this.color = new Float32Array(max * 3); this.params = new Float32Array(max * 2); // params: grow factor, max alpha
     this.damp = new Float32Array(max); this.grav = new Float32Array(max); this.free = [];   // recycled slots of dead particles
     this.lights = []; this.shots = new ProjectileSim(this);   // rounds in flight; renderers draw their tracer streaks
+    this.marks = []; this.shakes = [];   // what explosions leave for the world: scorch and crater marks to lay, and shakes for the camera (gl/world.js drains both)
   }
 
   emit(x, y, z, vx, vy, vz, size, life, color = PCOL.dust, grow = 1, alpha = 0.55, damp = 0.92, grav = 0) {
@@ -62,14 +63,19 @@ export class DustSim {
     const dx = x1 - x0, dy = y1 - y0, dz = z1 - z0, d = Math.hypot(dx, dy, dz) || 1, v = 110;
     this.emit(x0, y0, z0, dx / d * v, dy / d * v, dz / d * v, size, d / v, PCOL.tracer, 0, ADD + 1, 1);
   }
+  // a round into the ground: a spurt of dirt with a wink of light, and now and then a ricochet whining off at an angle
   impact(x, y, z) {
-    for (let i = 0; i < 3; i++) this.emit(x, y, z, (Math.random() - 0.5) * 2, 0.8 + Math.random(), (Math.random() - 0.5) * 2, 0.28, 0.35 + Math.random() * 0.2, PCOL.impact, 1, 0.8);
+    const r = Math.random;
+    for (let i = 0; i < 6; i++) this.emit(x + (r() - 0.5) * 0.3, y, z + (r() - 0.5) * 0.3, (r() - 0.5) * 2.5, 1.5 + r() * 2.5, (r() - 0.5) * 2.5, 0.22 + r() * 0.18, 0.4 + r() * 0.3, r() < 0.6 ? DIRT : PCOL.impact, 1, 0.8, 0.95, 6);
+    this.emit(x, y + 0.1, z, 0, 0, 0, 0.5, 0.06, PCOL.flashHalo, 0, ADD + 0.7, 1);
+    if (r() < 0.25) { const a = r() * Math.PI * 2, s = 22 + r() * 18; this.emit(x, y + 0.1, z, Math.cos(a) * s, 6 + r() * 10, Math.sin(a) * s, 0.2, 0.35 + r() * 0.25, PCOL.tracer, 0, ADD + 1, 0.995, 14); }
   }
-  // a round hit: a glowing dot and a few sparks that bounce away under gravity
+  // a round hit: a glowing dot, a burst of sparks that bounce away under gravity, a wisp of smoke
   hitSpark(x, y, z) {
     const r = Math.random;
-    this.emit(x, y, z, 0, 0.5, 0, 0.45, 0.12, PCOL.fire, 0, ADD + 1, 1);
-    for (let i = 0; i < 3; i++) this.emit(x, y, z, (r() - 0.5) * 7, 1 + r() * 4, (r() - 0.5) * 7, 0.1, 0.2 + r() * 0.25, PCOL.spark, 0, ADD + 1, 0.95, 12);
+    this.emit(x, y, z, 0, 0.5, 0, 0.55, 0.12, PCOL.fire, 0, ADD + 1, 1);
+    for (let i = 0; i < 7; i++) this.emit(x, y, z, (r() - 0.5) * 9, 1 + r() * 5, (r() - 0.5) * 9, 0.1, 0.25 + r() * 0.3, PCOL.spark, 0, ADD + 1, 0.95, 12);
+    this.emit(x, y + 0.2, z, (r() - 0.5) * 0.6, 1 + r() * 0.5, (r() - 0.5) * 0.6, 0.4, 0.5 + r() * 0.3, PCOL.smokeLight, 1, 0.4, 0.94);
   }
   puff(x, y, z) { const r = Math.random; for (let i = 0; i < 2; i++) this.emit(x + (r() - 0.5) * 0.4, y, z + (r() - 0.5) * 0.4, (r() - 0.5) * 1.2, 0.8 + r() * 0.6, (r() - 0.5) * 1.2, 0.5, 0.5 + r() * 0.3, PCOL.smokeLight, 1, 0.5, 0.95); }
   // burning wreck: shrinking tongues of flame, the odd ember, and thick soot
@@ -84,16 +90,31 @@ export class DustSim {
     this.emit(x + (r() - 0.5) * k, y, z + (r() - 0.5) * k, (r() - 0.5) * 0.8, 2.2 + r() * 1.4, (r() - 0.5) * 0.8, 1.0 * k, 3 + r() * 1.5, r() < 0.7 ? PCOL.smoke : PCOL.smokeLight, 1, 0.8, 0.992);
     if (r() < 0.35) this.emit(x + (r() - 0.5) * 0.6 * k, y, z + (r() - 0.5) * 0.6 * k, 0, 1.5 + r(), 0, 0.5 * k, 0.25 + r() * 0.2, PCOL.fire, 0, ADD + 1, 0.9);
   }
+  // an explosion of size k (a rifle grenade 0.3, a tank shell 0.7, a dying APC 1.5, a tank 1.9): a flash and a wink of light
+  // with a slower glow behind it, a fireball of tongues that climb and shrink, a shock ring racing out along the ground, debris
+  // and embers on ballistic arcs, a column of smoke that hangs for seconds, a mark on the ground and a shake for the camera
   explosion(x, y, z, k = 1) {
     const r = Math.random;
+    this.emit(x, y + 0.5, z, 0, 0, 0, 2.4 * k, 0.12, PCOL.flash, -1, ADD + 0.9, 1);                                                   // the first-frame flash, shrinking
+    this.light(x, y + 1, z, PCOL.fire, 70 * k, 14 + 6 * k, 0.16); this.light(x, y + 1.5, z, PCOL.flame, 28 * k, 10 + 5 * k, 0.5);
+    for (let i = 0; i < 8 * k; i++) this.emit(x + (r() - 0.5) * 1.6 * k, y + 0.4, z + (r() - 0.5) * 1.6 * k, (r() - 0.5) * 3, 3 + r() * 4, (r() - 0.5) * 3, (1.0 + r() * 1.2) * k, 0.3 + r() * 0.4, r() < 0.5 ? PCOL.flame : PCOL.fire, -1, ADD + 0.9, 0.96);   // fireball
+    for (let i = 0; i < 24; i++) { const a = i / 24 * Math.PI * 2 + r() * 0.2, s = (14 + r() * 6) * Math.sqrt(k); this.emit(x + Math.cos(a) * 0.5, y + 0.15, z + Math.sin(a) * 0.5, Math.cos(a) * s, 0.3, Math.sin(a) * s, (0.5 + r() * 0.3) * k, 0.3 + r() * 0.15, PCOL.dust, 2, 0.55, 0.86); }   // the shock ring
     for (let i = 0; i < 14 * k; i++) { const a = r() * Math.PI * 2, s = 2 + r() * 6; this.emit(x, y + 0.3, z, Math.cos(a) * s, 2 + r() * 5, Math.sin(a) * s, 0.5 + r() * 0.5, 0.5 + r() * 0.6, r() < 0.5 ? PCOL.fire : PCOL.smoke, 1, 0.9, 0.9); }
-    this.emit(x, y + 0.5, z, 0, 0, 0, 1.6 * k, 0.12, PCOL.flash, -1, ADD + 0.8, 1);   // the first-frame flash, shrinking
-    this.light(x, y + 1, z, PCOL.fire, 45 * k, 12 + 5 * k, 0.18);
-    // fireball, debris on ballistic arcs, a dust ring along the ground
-    for (let i = 0; i < 6 * k; i++) this.emit(x + (r() - 0.5) * 1.6 * k, y + 0.4, z + (r() - 0.5) * 1.6 * k, (r() - 0.5) * 2, 2.5 + r() * 3, (r() - 0.5) * 2, (1.0 + r() * 1.0) * k, 0.35 + r() * 0.35, r() < 0.5 ? PCOL.flame : PCOL.fire, -1, ADD + 0.85, 0.95);
-    for (let i = 0; i < 12 * k; i++) { const a = r() * Math.PI * 2, s = 5 + r() * 9; this.emit(x, y + 0.5, z, Math.cos(a) * s, 6 + r() * 8, Math.sin(a) * s, 0.22, 0.9 + r() * 0.7, PCOL.debris, 0, 1, 0.985, 16); }
-    for (let i = 0; i < 10 * k; i++) { const a = r() * Math.PI * 2, s = 5 + r() * 5; this.emit(x, y + 0.15, z, Math.cos(a) * s, 0.6, Math.sin(a) * s, (0.7 + r() * 0.5) * k, 1 + r() * 0.7, PCOL.dust, 1, 0.5, 0.9); }
+    for (let i = 0; i < 14 * k; i++) { const a = r() * Math.PI * 2, s = 5 + r() * 10; this.emit(x, y + 0.5, z, Math.cos(a) * s, 7 + r() * 9, Math.sin(a) * s, 0.22, 1 + r() * 0.8, PCOL.debris, 0, 1, 0.985, 16); }   // debris
+    for (let i = 0; i < 8 * k; i++) { const a = r() * Math.PI * 2, s = 4 + r() * 8; this.emit(x, y + 0.5, z, Math.cos(a) * s, 6 + r() * 8, Math.sin(a) * s, 0.16, 0.7 + r() * 0.6, PCOL.ember, 0, ADD + 1, 0.985, 10); }   // embers
+    for (let i = 0; i < 10 * k; i++) { const a = r() * Math.PI * 2, s = 5 + r() * 5; this.emit(x, y + 0.15, z, Math.cos(a) * s, 0.6, Math.sin(a) * s, (0.7 + r() * 0.5) * k, 1 + r() * 0.7, PCOL.dust, 1, 0.5, 0.9); }   // dust along the ground
+    for (let i = 0; i < 5 * k; i++) this.emit(x + (r() - 0.5) * 1.2 * k, y + 1 + r() * 1.5, z + (r() - 0.5) * 1.2 * k, (r() - 0.5) * 0.8, 1.8 + r() * 1.8, (r() - 0.5) * 0.8, (0.9 + r() * 0.6) * k, 2.5 + r() * 2.5, r() < 0.5 ? PCOL.smoke : SOOT, 1.6, 0.55, 0.992);   // the column
+    if (k >= 0.5) this.marks.push({ x, z, r: 1.2 + 1.6 * k, kind: k >= 1 ? 'scorch' : 'crater' });   // shells, rockets and dying vehicles mark the ground; autocannon rounds would carpet it
+    this.shakes.push({ x, z, k });
   }
+  // a wreck's ammunition cooking off: a pop of light and sparks
+  pop(x, y, z) {
+    const r = Math.random;
+    this.emit(x + (r() - 0.5), y, z + (r() - 0.5), 0, 1, 0, 0.9, 0.1, PCOL.flash, -1, ADD + 0.9, 1); this.light(x, y + 1, z, PCOL.flame, 25, 9, 0.12);
+    for (let i = 0; i < 9; i++) this.emit(x, y, z, (r() - 0.5) * 8, 4 + r() * 8, (r() - 0.5) * 8, 0.12, 0.5 + r() * 0.5, PCOL.spark, 0, ADD + 1, 0.985, 12);
+    this.emit(x, y + 0.5, z, 0, 2.5, 0, 0.6, 1 + r(), PCOL.smoke, 1.5, 0.5, 0.99);
+  }
+
 
   // ---- ambient: emitters a map places (chimneys, steam, mist) and the wake of a craft. wind: [vx, vz] in metres a second
   ambient(kind, x, y, z, k = 1, wind = [0.8, 0.3]) {

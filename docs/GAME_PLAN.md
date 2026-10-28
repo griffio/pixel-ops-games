@@ -2155,6 +2155,31 @@ Engine changes needed in the existing core:
   - **Lesson.** Headless Chrome without the frame-rate flags runs the animation loop at a few
     frames a second, and the simulation with it, so emitters barely fire in screenshots; the
     scratchpad's shoot2.mjs steps the whole simulation explicitly before each frame.
+  - **The rest, and the combat made kinetic (2026-10-28).** The user asked for the remaining
+    effects and for tracer fire and explosions with more punch.
+    - **Explosions** (`DustSim.explosion`): a bigger first-frame flash with a bright short light
+      and a dimmer half-second glow behind it; a fireball of tongues that climb and shrink; a
+      shock ring of 24 fast dust particles racing out along the ground; debris and glowing
+      embers on ballistic arcs; a column of smoke that hangs for seconds. Each explosion queues a
+      mark and a shake, which `World.ambient` drains.
+    - **Marks.** Scorch (ragged soot, 4 to 9 m) and crater (a dark bowl in a rim of thrown earth,
+      2.5 to 3.5 m) decals from shells, rockets and dying vehicles, not autocannon misses, which
+      would carpet the ground: cutout decals on the ground, turned at random, 150 at most, gone
+      after two minutes, culled like units, never on water.
+    - **Shake.** `RtsCamera.shake(k, dist)`: a jitter of a few texels in the camera's own axes,
+      quantised to the pixel grid, decaying in about three seconds, scaled by the blast and
+      damped by its distance from the camera's target.
+    - **Misses and hits.** A round into the ground spurts dirt with a wink of light and, one time
+      in four, a ricochet streaking off at an angle; a hit on armour throws seven sparks and a
+      wisp of smoke. Wrecked tanks and APCs cook off for ten seconds: pops of light and sparks.
+    - **Tracers.** Trails by weapon: tank 14 m and white-hot, machine guns 8 m, rifles 4.5 m at
+      three-quarter brightness, autocannon and mortar shells 7 m.
+    - **The opening.** `RtsCamera.flyTo`: 3.5 s from high over the map (a quarter of the way to
+      the base from the centre, pitch 1.2, zoomed out by map size) down to the base; any pan,
+      zoom, rotation or follow ends it, and `?x=` skips it. The scratchpad tools cancel it.
+    - Tested headless (marks and shakes flow, the shake decays, a wreck pops, a five-minute CPU
+      match runs clean) and in staged frames on the GPU: a blast at 0.15 s, 1 s and 4 s, a
+      burning wreck, a firefight's tracers.
 
 ## Open questions
 

@@ -4,7 +4,7 @@ import { hexToLinear } from './math.js';
 // trail. A shot is launched so that it arrives at a chosen point; the game resolves what it
 // does there through `onArrive` once it gets there. Renderers draw `segs` (tracer streaks,
 // two vertices of x,y,z,r,g,b,intensity each) every frame.
-const C = { tracer: hexToLinear(0xffe9a0), rifle: hexToLinear(0xffd98a), shell: hexToLinear(0xffb060), rocket: hexToLinear(0xffc080), smoke: hexToLinear(0x8a8a8a), flame: hexToLinear(0xffc240) };
+const C = { tracer: hexToLinear(0xffe9a0), rifle: hexToLinear(0xffd98a), shell: hexToLinear(0xffb060), sabot: hexToLinear(0xf2f6ff), rocket: hexToLinear(0xffc080), smoke: hexToLinear(0x8a8a8a), flame: hexToLinear(0xffc240) };
 const G = 9.8;
 
 export class ProjectileSim {
@@ -46,7 +46,7 @@ export class ProjectileSim {
     const s = this.segs; let k = 0;
     for (const p of this.list) {
       const vl = Math.hypot(p.vx, p.vy, p.vz) || 1, len = Math.min(p.trail, p.t * vl);
-      const col = p.kind === 'shell' ? C.shell : p.kind === 'rocket' ? C.rocket : p.trail > 4 ? C.tracer : C.rifle, a = p.kind === 'bullet' && p.trail <= 4 ? 0.6 : 0.95;
+      const col = p.kind === 'shell' ? (p.trail >= 12 ? C.sabot : C.shell) : p.kind === 'rocket' ? C.rocket : p.trail > 5 ? C.tracer : C.rifle, a = p.kind === 'bullet' && p.trail <= 5 ? 0.75 : 1.0;   // the tank's long-rod round is white-hot
       s[k++] = p.x - p.vx / vl * len; s[k++] = p.y - p.vy / vl * len; s[k++] = p.z - p.vz / vl * len; s[k++] = col[0]; s[k++] = col[1]; s[k++] = col[2]; s[k++] = 0;
       s[k++] = p.x; s[k++] = p.y; s[k++] = p.z; s[k++] = col[0]; s[k++] = col[1]; s[k++] = col[2]; s[k++] = a;
     }

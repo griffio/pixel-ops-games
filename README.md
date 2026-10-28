@@ -542,7 +542,15 @@ src/gl/             WebGL2 back end
   shader (parts flagged `sway`, leaning by the square of their height over the
   ground). A match plays at the map's own hour (`map.hour`: Narva's low morning sun,
   Peninsula's evening, Desert Crossing's afternoon) unless the force builder's Time
-  row or `?hour=` says otherwise.
+  row or `?hour=` says otherwise, and opens with a flight from high over the map down
+  to your base (any input ends it).
+- Combat: tracers are streaks sized by the weapon (a tank's long-rod round white-hot
+  over 14 m, machine guns 8 m, rifles 4.5 m); a miss spurts dirt and now and then
+  ricochets; a hit on armour sparks and smokes. An explosion is a flash with two lights,
+  a fireball, a shock ring along the ground, debris and embers on arcs, and a column of
+  smoke; shells, rockets and dying vehicles leave scorch or crater decals (`World.marks`,
+  150 at most, two minutes each) and shake the camera by their size and distance; a dead
+  tank or APC cooks off for ten seconds.
 - Water is a plane at the water level drawn after the opaque pass, lit like the
   ground and blended over the bed. Its shader reads a depth map built from the
   terrain: teal paling in the shallows, a broken foam rim at the shore and curling

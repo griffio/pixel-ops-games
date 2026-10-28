@@ -10,7 +10,7 @@ import { stripGeometry, decalGeometry } from './strips.js';
 // baked into chunked instance buffers, lamps. Produces `lightState` for the renderer.
 export class World extends WorldState {
   constructor(scene, renderer, map = null) {
-    super(map); this.scene = scene; this.renderer = renderer; this.heads = []; this.beams = []; this.focus = { x: 0, z: 0 };
+    super(map); this.scene = scene; this.renderer = renderer; this.heads = []; this.beams = []; this.marks = []; this.onShake = null; this.focus = { x: 0, z: 0 };
     // ambient emitters (chimneys, steam, mist): their height is above the ground, or absolute with `abs`; ticked by ambient()
     this.emitters = (this.layout.emitters || []).map(e => ({ ...e, y: e.abs !== undefined ? e.abs + e.y : this.heightAt(e.x, e.z) + e.y, acc: Math.random() }));
     map ? this.buildMapGround() : this.buildLegacyGround();
@@ -122,11 +122,26 @@ export class World extends WorldState {
     const night = this.light.night > 0.5;
     for (const b of this.beams) { b.visible = night; if (night) b.rotation.y += dt * 0.5; }
   }
-  // the ambient emitters, at the sim's pace (paused with it)
+  // the ambient emitters, at the sim's pace (paused with it); and what the explosions left: marks to lay, shakes for the camera
   ambient(dt) {
-    if (!this.dust || dt <= 0) return;
+    if (!this.dust) return;
+    for (const m of this.dust.marks.splice(0)) this.addMark(m);
+    for (const s of this.dust.shakes.splice(0)) if (this.onShake) this.onShake(s);
+    if (dt <= 0) return;
+    for (let i = this.marks.length - 1; i >= 0; i--) { const m = this.marks[i]; if ((m.t += dt) > m.life) { this.scene.remove(m.mesh); this.marks.splice(i, 1); } }
     const wind = this.map.wind || [0.8, 0.3];
     for (const e of this.emitters) { e.acc += dt * e.rate; while (e.acc >= 1) { e.acc -= 1; this.dust.ambient(e.kind, e.x, e.y, e.z, e.k, wind); } }
+  }
+  // a mark of battle on the ground: a scorch or crater decal, one of a few sizes, turned at random, gone after two minutes;
+  // at most 150, the oldest making way
+  addMark({ x, z, r, kind }) {
+    if (this.terrain && this.terrain.height(x, z) < this.terrain.water) return;   // not on the water
+    const sizes = kind === 'scorch' ? [4, 6, 9] : [2.5, 3.5], s = sizes.reduce((p, q) => Math.abs(q - r * 2) < Math.abs(p - r * 2) ? q : p);
+    const rd = this.renderer, key = rd.registerGeometry(`decal:${s},${s}`, decalGeometry(s, s));
+    this.markMats = this.markMats || {}; const mat = this.markMats[kind] || (this.markMats[kind] = { color: [1, 1, 1, 1], tex: this.tex(kind, { nearest: true, repeat: false, mips: false }), emissive: [0, 0, 0], cast: false, cutout: true });
+    const m = new Mesh(key, mat); m.position.set(x, this.heightAt(x, z) + 0.07, z); m.rotation.y = Math.random() * Math.PI * 2; m.bound = s;
+    this.scene.add(m); this.marks.push({ mesh: m, t: 0, life: 120 });
+    if (this.marks.length > 150) { const old = this.marks.shift(); this.scene.remove(old.mesh); }
   }
 
   applyLighting() {

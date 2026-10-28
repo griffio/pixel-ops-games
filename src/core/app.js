@@ -66,7 +66,11 @@ export function populate(app) {
       app.world.timeSpeed = 0; if (!q.has('hour')) { app.world.time = modeOpts.hour ? +modeOpts.hour : (app.world.map && app.world.map.hour !== undefined ? app.world.map.hour : 9.5); app.world.update(0); }
       document.getElementById('c-tspeed').value = 0; document.getElementById('v-tspeed').textContent = '0×';
       document.getElementById('c-auto').checked = false;
-      if (!q.has('x')) rts.target.set(app.match.teams[0].base.x + 10, 0, app.match.teams[0].base.z + 10);
+      app.world.onShake = (s) => rts.shake(s.k, Math.hypot(s.x - rts.target.x, s.z - rts.target.z));   // explosions shake the camera, less the further off
+      if (!q.has('x')) {   // the opening: a flight from high over the middle of the map down to your base, unless the link fixes the view
+        const b = app.match.teams[app.playerTeam ?? 0].base, size = app.world.size || 1000;
+        rts.flyTo({ x: b.x * 0.25, z: b.z * 0.25, zoom: Math.max(rts.minZoom, 0.45 * 1000 / size), yaw: rts.yawT + 0.9, pitch: 1.2 }, { x: b.x + 10, z: b.z + 10, zoom: 3, yaw: rts.yawT, pitch: rts.pitchT }, 3.5);
+      }
       app.hud.toast(`${app.match.teams[0].loadoutName} vs ${app.match.teams[1].loadoutName}`);
     };
     if (cpu.includes(0) || q.has('loadout')) app.startMatch(preset(q.get('loadout') || 'balanced'));
