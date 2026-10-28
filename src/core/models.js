@@ -263,6 +263,61 @@ export function makeBuilders(F) {
     return { group: g, parts: p, height: 5.9, radius: 3.0 };
   }
 
+  // Amphibious assault vehicle (Peninsula's sea side: its APCs swim ashore from the ship instead of riding a craft): a tall
+  // boxy tracked hull with a blunt sloped bow and a trim vane folded over it, side skirts over six road wheels, a small
+  // one-man turret with an autocannon forward of centre, troop hatches aft, a rear ramp, and bilge-pump outlets high on the
+  // rear quarters. The supply carrier is the same hull without the turret, its troop bay opened into a cargo well of
+  // crates, cans and drums under a cargo gantry.
+  function amphibHull(g) {
+    const p = { wheels: [], steer: [] };
+    box(2.6, 1.3, 7.2, 'camo', 0, 0.95, 0, g);                                                   // lower hull
+    box(3.3, 1.35, 6.6, 'camo', 0, 2.2, -0.5, g);                                                // upper hull (roof at 2.875)
+    mesh('wedge:3.3,1.35,1.6,1.3,0', 'camo', 0, 2.2, 3.3, g);                                     // bow, sloping back over the nose
+    const chin = mesh('wedge:2.6,0.9,1.4,0.9,0', 'camo', 0, 0.75, 3.3, g); chin.rotation.z = Math.PI;   // under the bow, sloping back beneath
+    box(3.0, 0.08, 1.5, 'metal', 0, 2.92, 3.0, g); for (const s of [-1, 1]) box(0.08, 0.3, 1.5, 'metal', s * 1.5, 2.75, 3.0, g);   // trim vane folded on the bow, its hinges
+    box(2.9, 0.12, 0.5, 'camo', 0, 1.0, 3.9, g);                                                  // nose plate
+    for (const s of [-1, 1]) {
+      const x = s * 1.42;
+      box(0.62, 0.22, 6.4, 'trackLinks', x, 0.11, 0, g); box(0.62, 0.12, 6.1, 'trackLinks', x, 0.95, -0.1, g);   // track runs
+      box(0.04, 0.16, 6.3, 'trackEdge', x + s * 0.32, 0.16, 0, g);
+      for (const z of [3.05, -3.1]) { const sp = mesh('cyl:0.44,0.44,0.6,10', 'trackLinks', x, 0.5, z, g); sp.rotation.z = Math.PI / 2; }   // sprocket, idler
+      for (let i = 0; i < 6; i++) { const w = wheel(0.36, 0.42, x, 0.46, -2.45 + i * 0.98, g); p.wheels.push(w); }   // road wheels
+      box(0.1, 0.55, 6.5, 'camo', s * 1.7, 0.85, 0, g);                                            // side skirt
+      box(0.16, 0.5, 0.5, 'metal', s * 1.6, 2.5, -2.9, g); box(0.1, 0.1, 0.4, 'metal', s * 1.68, 2.35, -2.9, g);   // bilge-pump outlet
+      box(0.05, 0.05, 2.8, 'metal', s * 1.7, 2.4, 0.2, g);                                        // grab rail
+      box(0.36, 0.22, 0.12, 'grille', s * 1.05, 1.5, 3.95, g); box(0.14, 0.12, 0.06, 'headlight', s * 0.95, 1.5, 4.0, g); box(0.1, 0.1, 0.06, 'amber', s * 1.17, 1.5, 4.0, g);   // light cluster
+      box(0.15, 0.2, 0.06, 'navRed', s * 1.35, 2.3, -3.83, g);                                     // tail light
+      box(0.14, 0.14, 0.14, 'metal', s * 1.25, 2.95, -2.3, g); box(0.06, 1.3, 0.06, 'metal', s * 1.25, 3.6, -2.3, g);   // antennas
+    }
+    box(2.4, 1.4, 0.06, 'camo', 0, 1.95, -3.83, g);                                               // rear ramp
+    box(0.7, 0.28, 0.7, 'camo', -0.95, 2.95, 1.9, g); box(0.55, 0.06, 0.55, 'sand', -0.95, 3.12, 1.9, g);   // driver's hatch
+    box(0.45, 0.1, 0.06, 'glass', -0.95, 3.0, 2.28, g);                                           // periscopes
+    return p;
+  }
+  function amphib() {
+    const g = group(), p = amphibHull(g);
+    for (const x of [-0.65, 0.65]) for (const z of [-1.1, -2.2]) { box(1.0, 0.1, 0.95, 'camo', x, 2.92, z, g); box(0.8, 0.08, 0.75, 'sand', x, 2.98, z, g); }   // troop hatches
+    p.turret = group(); p.turret.position.set(0.55, 2.875, 0.9); g.add(p.turret); const T = p.turret;
+    mesh('cyl:0.75,0.8,0.2,10', 'camo', 0, 0.1, 0, T);                                           // ring
+    box(1.3, 0.55, 1.4, 'camo', 0, 0.47, 0, T); mesh('wedge:1.3,0.55,0.6,0.5,0', 'camo', 0, 0.47, 1.0, T);   // turret and its sloped front
+    box(0.55, 0.22, 0.55, 'camo', -0.25, 0.85, -0.3, T); box(0.4, 0.06, 0.4, 'sand', -0.25, 0.99, -0.3, T);   // gunner's hatch
+    box(0.3, 0.3, 0.3, 'camo', 0.4, 0.85, 0.2, T); box(0.2, 0.12, 0.04, 'glass', 0.4, 0.88, 0.37, T);   // sight
+    box(0.3, 0.3, 0.6, 'metal', 0.2, 0.5, 1.2, T); box(0.14, 0.14, 1.7, 'metal', 0.2, 0.5, 2.3, T); box(0.2, 0.2, 0.2, 'metal', 0.2, 0.5, 3.1, T);   // mantlet, autocannon, muzzle
+    box(0.1, 0.1, 1.1, 'metal', -0.25, 0.55, 1.6, T);                                              // coaxial MG
+    p.ring = ring(3.8, g);
+    return { group: g, parts: p, height: 3.9, radius: 2.5 };
+  }
+  function amphibSupply() {
+    const g = group(), p = amphibHull(g);
+    box(2.5, 0.5, 4.0, 'camo', 0, 3.05, -1.2, g);                                                 // the bay's coaming
+    box(2.2, 0.3, 3.7, 'canvas', 0, 3.2, -1.2, g);                                                // tarpaulin over the well
+    for (const [w, h, d, m, x, z, y] of [[0.9, 0.6, 0.8, 'wood', -0.6, 0.2, 3.3], [0.8, 0.5, 0.7, 'case', 0.55, 0.3, 3.3], [0.7, 0.45, 0.6, 'olive', 0.5, -0.8, 3.3], [0.18, 0.5, 0.36, 'olive', -0.7, -1.0, 3.3], [0.18, 0.5, 0.36, 'olive', -0.45, -1.0, 3.3], [0.9, 0.7, 0.8, 'wood', 0.1, -2.1, 3.3]]) box(w, h, d, m, x, y + h / 2, z, g);   // the load
+    for (const x of [-0.55, 0.2]) mesh('cyl:0.26,0.26,0.8,8', 'drum', x, 3.75, -2.6, g);          // drums
+    for (const s of [-1, 1]) box(0.1, 1.4, 0.1, 'metal', s * 1.2, 3.6, -3.3, g); box(2.6, 0.1, 0.1, 'metal', 0, 4.3, -3.3, g);   // cargo gantry
+    p.ring = ring(3.8, g);
+    return { group: g, parts: p, height: 4.4, radius: 2.5 };
+  }
+
   // Forward operating base: radio mast, HAB tent and a sandbag ring. Static structure.
   function fob() {
     const g = group(); const p = {};
@@ -423,7 +478,7 @@ export function makeBuilders(F) {
 
   // each builder takes the team so the whole model picks the right camo set
   const forTeam = (fn) => (t = 0) => { team = t; const r = fn(); team = 0; return r; };
-  return { soldier: forTeam(soldier), truck: forTeam(() => truck(false)), supplyTruck: forTeam(() => truck(true)), apc: forTeam(apc), heli: forTeam(heli), fob: forTeam(fob), cache: forTeam(cache), sandbags: forTeam(sandbags), emp_hmg: forTeam(empHmg), emp_atgm: forTeam(empAtgm), emp_mortar: forTeam(empMortar), traps: forTeam(traps), rally: forTeam(rally), tank: forTeam(tank), craft: forTeam(craft) };
+  return { soldier: forTeam(soldier), truck: forTeam(() => truck(false)), supplyTruck: forTeam(() => truck(true)), apc: forTeam(apc), heli: forTeam(heli), fob: forTeam(fob), cache: forTeam(cache), sandbags: forTeam(sandbags), emp_hmg: forTeam(empHmg), emp_atgm: forTeam(empAtgm), emp_mortar: forTeam(empMortar), traps: forTeam(traps), rally: forTeam(rally), tank: forTeam(tank), craft: forTeam(craft), amphib: forTeam(amphib), amphibSupply: forTeam(amphibSupply) };
 
 
 

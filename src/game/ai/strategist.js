@@ -499,7 +499,7 @@ export class Strategist {
       if (v.refilling && v.supplies >= RULES.fob.truckSupplies) v.refilling = false;
       if (v.supplies >= RULES.sandbags.supplyCost || (this.plan && this.plan.truck === v)) continue;
       v.refilling = true;
-      const R = team.landing ? team.landing.refillPoint(v.pos.x, v.pos.z) : base;   // a side on a ship: a held beach's dump, or the beach its craft use (a craft takes it home)
+      const R = team.landing ? team.landing.refillPoint(v.pos.x, v.pos.z, v.amphib) : base;   // a side on a ship: a held beach's dump, or the beach its craft use (a craft takes it home)
       if (Math.hypot(v.pos.x - R.x, v.pos.z - R.z) > R.r - 6 && (!v.dest || Math.hypot(v.dest.x - R.x, v.dest.z - R.z) > 30)) v.order(R.x + (Math.random() - 0.5) * 24, R.z + (Math.random() - 0.5) * 24);
     }
     const stocked = (v, cost) => v.supply && !v.refilling && v.supplies >= cost;
@@ -627,7 +627,7 @@ export class Strategist {
   // can vehicle v drive to (x, z)? Both ends on the same patch of the vehicle grid's open ground (nav.js regions: an island, or
   // water under a footbridge, is not)
   vehicleReaches(v, x, z) {
-    const nav = this.units.nav.vehicle, a = nav.nearest(nav.cellOf(v.pos.x), nav.cellOf(v.pos.z), 4), b = nav.nearest(nav.cellOf(x), nav.cellOf(z), 3);
+    const nav = this.units.nav[v.spec.nav] || this.units.nav.vehicle, a = nav.nearest(nav.cellOf(v.pos.x), nav.cellOf(v.pos.z), 4), b = nav.nearest(nav.cellOf(x), nav.cellOf(z), 3);
     return !!(a && b && nav.region(a[0], a[1]) === nav.region(b[0], b[1]));
   }
   // which side of the map's river lines (nav gates) a point is on; 0 on a map without any

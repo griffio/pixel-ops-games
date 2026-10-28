@@ -2332,6 +2332,37 @@ Engine changes needed in the existing core:
     the dock 9 m before, 18 m after; a craft casting off past a docked one 9 m before, 16 m
     after.
 
+- **Peninsula P3: amphibious vehicles (2026-10-28, "Go P3").** The plan's phase B. A side
+  based on a ship gets its APCs and supply trucks amphibious; tanks and infantry still go by
+  craft.
+  - **Models.** `amphib` (an AAV-style tracked hull: a blunt sloped bow under a folded trim
+    vane, six road wheels under skirts, a one-man autocannon turret, troop hatches, bilge-pump
+    outlets, a rear ramp) and `amphibSupply` (the same hull with the bay opened into a cargo
+    well of crates, cans and drums under a gantry), code-built and exported to `.vox` like the
+    rest (64 and 65 KB).
+  - **The amphibious grid.** `match.nav.amphib`, built on sea maps at the vehicle cell size and
+    clearance: open over any water and over land a vehicle can take, so a beach is a way in and
+    a cliff is not; tank traps, sandbags and collapses reach it like the vehicle grid.
+  - **Who swims.** `UnitManager.amphibFor` (set by the match): on a sea map, the ship side's
+    `apc` and supply `truck` spawn with the amphibious model and their own spec (`nav:
+    'amphib'`, `swim` 3.6 and 3.0 m/s), labelled AV. Every spawn path goes through it: the
+    deployment, respawns, `?stage=apc`.
+  - **Afloat.** A unit with a `swim` speed over water deeper than 0.2 m is swimming: its speed
+    is capped, it sits 0.45 m down on the swell, it leaves a wake sized to its beam instead of
+    dust, it will not unload (passengers wait until it has driven ashore) and nobody boards
+    it. Tank traps still stop it (`veh` covers both grids).
+  - **Home is a mooring.** `Landing.mooring` gives ten spots off the stern quarters; `embark`
+    sends an amphibian there instead of into the dock, at deployment and on respawn, so the
+    player and the CPU see it as an ordinary vehicle (the CPU's `vehicleReaches` now asks the
+    unit's own grid, or it saw no way off the ship). A craft never loads or picks one up. The
+    carrier's refill point with no beach held is the water off the stern (`pen`), and it fills
+    up there as a truck does in its base.
+  - Tested: an AV ordered to West Beach's muster swam 56 s at 3.6 m/s, drove up the sand at 8
+    and arrived in 62 s; the carrier, sent to fill with 5 supplies, swam to the pen and came
+    back to 93; in six minutes of a CPU match the commander's AV swam ashore inside the first
+    minute and fought inland until it was lost, and its carrier landed and went to a FOB
+    site; no errors. The unit strip shows them with the APC and supply-truck portraits.
+
 ## Open questions
 
 None open. Answered:

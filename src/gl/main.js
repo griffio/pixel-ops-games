@@ -21,7 +21,7 @@ const touch = detectTouch();
 const renderer = new GLRenderer(canvas, touch ? { shadowSize: 2048, dprCap: 1 } : {});   // tablets: smaller shadow map, no retina composite
 const pixel = renderer.pixel;
 registerTextures(renderer);
-if (q.get('vox') !== '0') Object.assign(builders, await loadVoxModels(renderer, ['tank', 'apc', 'truck', 'supplyTruck', 'craft', 'heli', 'soldier']));   // unit models from models/vox/*.vox replace the code-built ones of the same type; ?vox=0 keeps the code ones
+if (q.get('vox') !== '0') Object.assign(builders, await loadVoxModels(renderer, ['tank', 'apc', 'truck', 'supplyTruck', 'craft', 'heli', 'soldier', 'amphib', 'amphibSupply']));   // unit models from models/vox/*.vox replace the code-built ones of the same type; ?vox=0 keeps the code ones
 
 const scene = new Scene();
 const savedMap = (() => { try { return localStorage.getItem('pixelops.map'); } catch { return null; } })();   // the map last picked in the lobby

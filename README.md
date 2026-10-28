@@ -103,8 +103,11 @@ https://claude.ai/artifact/6ELRURFGdPwxMJDvSNVuKN), a 1.2 km Invasion map and th
 only mode it offers. A rocky peninsula runs north into the sea, cut off from the
 mainland by a canal across its neck with one bridge. The attacker comes from the sea:
 its main base is an assault ship off the west coast. Its helicopters fly from the flight
-deck. Everything else waits in the well dock and goes ashore in three landing craft that
-run fixed lanes to the beach you pick on the unit strip ("Land at ..."); they cast off one
+deck. Its APCs and supply trucks are amphibious: they lie at moorings off the stern and
+swim ashore under your orders (3.6 m/s afloat, slower still for the carrier), landing
+wherever the shore is gentle enough to drive up, and the carrier swims home to fill up.
+Infantry and tanks wait in the well dock and go ashore in three landing craft that run
+fixed lanes to the beach you pick on the unit strip ("Land at ..."); they cast off one
 at a time, run abreast 18 m apart and beach side by side. North Cove takes
 infantry only, so vehicles go to the nearest beach that takes them. A CPU attacker picks
 the beach nearest the place it wants, avoiding beaches where it has seen defenders. Craft
@@ -512,7 +515,7 @@ src/game/           milestone 1 game layer (renderer-agnostic)
   maps/             map definitions (valley2km.js, desert1km.js, narva3km.js, peninsula.js), the shared prop kit and ground texture generators (natural ground: fine low-contrast detail, 128 px over 12.8 m, one texel to a pixel of the game's buffer; everything bigger comes from the shader)
   match.js          AAS / Skirmish match flow, 10 Hz game tick, bleed, win checks
 icons/units/        unit-strip portraits (tools/make-portraits.mjs renders them from the game's models)
-models/vox/         unit models as MagicaVoxel files with a .json each (soldier, tank, apc, truck, supplyTruck, craft, heli); exported by tools/export-vox.mjs, editable in MagicaVoxel, loaded by src/gl/voxmodels.js
+models/vox/         unit models as MagicaVoxel files with a .json each (soldier, tank, apc, truck, supplyTruck, craft, heli, amphib, amphibSupply); exported by tools/export-vox.mjs, editable in MagicaVoxel, loaded by src/gl/voxmodels.js
 src/three/          three.js back end: models, world, PixelRenderer (low-res target + outline), dust, markers
 src/gl/             WebGL2 back end
   scene.js          Node / Mesh scene graph with the same position/rotation/visible surface

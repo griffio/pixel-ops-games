@@ -41,9 +41,14 @@ export class Match {
     const nc = (map && map.nav) || {};   // grid cells: 1 m and 2 m; a 2 km map uses coarser ones (memory: 4 M cells at 1 m is 130 MB)
     this.nav = { foot: new NavGrid(this.world.size, nc.foot || 1, 0.6), vehicle: new NavGrid(this.world.size, nc.vehicle || 2, 2.2) };
     this.nav.foot.build(this.world.obstacles, this.world.terrain, 0.9, this.world.onBridge); this.nav.vehicle.build(this.world.obstacles, this.world.terrain, 0.45, (x, z) => this.world.onBridge(x, z, true));
-    if (nc.cap) this.nav.foot.cap = this.nav.vehicle.cap = nc.cap;
+    if (map && map.sea) {   // a side based on a ship: its APCs and supply trucks swim, on a grid open over any water and vehicle-passable land
+      const T = this.world.terrain, A = this.nav.amphib = new NavGrid(this.world.size, nc.vehicle || 2, 2.2);
+      A.build(this.world.obstacles, T, 0.45, (x, z) => this.world.onBridge(x, z, true) || (T && T.height(x, z) < T.water));
+      this.units.amphibFor = (team, type, opts) => !!(this.teams[team] && this.teams[team].base.ship && (type === 'apc' || (type === 'truck' && opts.supply)));
+    }
+    if (nc.cap) { this.nav.foot.cap = this.nav.vehicle.cap = nc.cap; if (this.nav.amphib) this.nav.amphib.cap = nc.cap; }
     if (map && map.gates) { this.nav.foot.setGates(map.gates, false, map.gateAxis); this.nav.vehicle.setGates(map.gates, true, map.gateAxis); }   // long barriers crossed portal to portal (nav.js); gateAxis 'x' for lines running north-south
-    this.nav.foot.labelRegions(); this.nav.vehicle.labelRegions();   // now, not inside the first order: labelling the big grids took the first plan's frame 110 ms
+    this.nav.foot.labelRegions(); this.nav.vehicle.labelRegions(); if (this.nav.amphib) this.nav.amphib.labelRegions();   // now, not inside the first order: labelling the big grids took the first plan's frame 110 ms
     this.units.nav = this.nav;
     this.spatial = new SpatialHash(8); this.units.spatial = this.spatial;
     this.combat = new Combat(this.units, this.spatial, this.world, app.dust); this.combat.teams = this.teams; this.combat.audio = app.audio || null;
@@ -59,7 +64,7 @@ export class Match {
     this.fobs.onBuilt = (fob) => this.event({ type: 'fob', team: fob.team, fob });
     // a finished sandbag position becomes low cover: obstacles for movement, cover for combat; anyone caught inside a bag steps out
     this.fobs.onSandbags = (u, boxes) => {
-      for (const o of boxes) { this.world.obstacles.push(o); this.nav.foot.block(o, 0.3); this.nav.vehicle.block(o); this.combat.addLow(o); }   // a tighter foot pad keeps the inside of the U open
+      for (const o of boxes) { this.world.obstacles.push(o); this.nav.foot.block(o, 0.3); this.nav.vehicle.block(o); if (this.nav.amphib) this.nav.amphib.block(o); this.combat.addLow(o); }   // a tighter foot pad keeps the inside of the U open
       for (const v of this.units.units) {
         if (v.dead || v === u || v.spec.structure || !v.spec.nav || Math.hypot(v.pos.x - u.pos.x, v.pos.z - u.pos.z) > 7) continue;
         const nav = this.nav[v.spec.nav]; if (!nav.blocked(v.pos.x, v.pos.z)) continue;
@@ -69,7 +74,7 @@ export class Match {
     };
     // an emplacement's ring of bags is low cover and an obstacle like a sandbag position's
     this.fobs.onEmplacement = (u, boxes) => {
-      for (const o of boxes) { this.world.obstacles.push(o); this.nav.foot.block(o, 0.3); this.nav.vehicle.block(o); this.combat.addLow(o); }
+      for (const o of boxes) { this.world.obstacles.push(o); this.nav.foot.block(o, 0.3); this.nav.vehicle.block(o); if (this.nav.amphib) this.nav.amphib.block(o); this.combat.addLow(o); }
       for (const v of this.units.units) {
         if (v.dead || v === u || v.spec.structure || !v.spec.nav || Math.hypot(v.pos.x - u.pos.x, v.pos.z - u.pos.z) > 5) continue;
         const nav = this.nav[v.spec.nav]; if (!nav.blocked(v.pos.x, v.pos.z)) continue;
@@ -79,10 +84,10 @@ export class Match {
     };
     // tank traps: boxes that stop vehicles only (world.vehicleObstacles, and the vehicle grid's extra blocks); a vehicle caught
     // in the row is put on the nearest free ground. Cleared, the boxes go and the grid round them is worked out again.
-    this.nav.vehicle.extra = this.world.vehicleObstacles;
+    this.nav.vehicle.extra = this.world.vehicleObstacles; if (this.nav.amphib) this.nav.amphib.extra = this.world.vehicleObstacles;
     this.fobs.onTraps = (u, boxes) => {
       u.trapBoxes = boxes;
-      for (const o of boxes) { this.world.vehicleObstacles.push(o); this.nav.vehicle.block(o); }
+      for (const o of boxes) { this.world.vehicleObstacles.push(o); this.nav.vehicle.block(o); if (this.nav.amphib) this.nav.amphib.block(o); }
       const nav = this.nav.vehicle;
       for (const v of this.units.units) {
         if (v.dead || v.spec.nav !== 'vehicle' || Math.hypot(v.pos.x - u.pos.x, v.pos.z - u.pos.z) > 14 || !nav.blocked(v.pos.x, v.pos.z)) continue;

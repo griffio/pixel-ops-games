@@ -27,10 +27,20 @@ export class Landing {
   home() { return this.last.at; }   // where the side's ground units go home to: the beach its craft used last
   held(l) { const o = this.m.objectives, p = o && o.list.find(q => q.name === l.place); return !!p && p.owner === this.team; }
   dumpAt(x, z) { return this.lanes.some(l => this.held(l) && Math.hypot(x - l.at.x, z - l.at.z) < RULES.landing.dump); }
-  refillPoint(x, z) { const d = this.lanes.filter(l => this.held(l)).sort((a, b) => Math.hypot(a.at.x - x, a.at.z - z) - Math.hypot(b.at.x - x, b.at.z - z))[0]; return d ? d.at : this.home(); }
+  refillPoint(x, z, amphib = false) { const d = this.lanes.filter(l => this.held(l)).sort((a, b) => Math.hypot(a.at.x - x, a.at.z - z) - Math.hypot(b.at.x - x, b.at.z - z))[0]; return d ? d.at : amphib ? this.pen() : this.home(); }
+  pen() { const [dx, dz] = this.sea.dock, h = this.sea.out; return { x: dx + Math.sin(h) * 30, z: dz + Math.cos(h) * 30, r: 40 }; }   // the water off the stern, where an amphibious carrier comes home to fill up
+  atPen(x, z) { const p = this.pen(); return Math.hypot(x - p.x, z - p.z) < p.r || this.atShip(x, z); }
 
-  // a unit into the well dock: hidden, aboard nothing yet, waiting for the next craft out
+  // where an amphibious vehicle lies when it is home: moorings off the stern quarters, the first with no vehicle on it
+  mooring() {
+    const [dx, dz] = this.sea.dock, h = this.sea.out, c = Math.cos(h), s = Math.sin(h), U = this.units.units, spots = [];
+    for (let k = 0; k < 5; k++) for (const o of [-26, 26]) spots.push([dx + c * o + s * (18 + k * 11), dz - s * o + c * (18 + k * 11)]);
+    return spots.find(([x, z]) => !U.some(u => !u.dead && !u.afloat && !u.spec.naval && Math.hypot(u.pos.x - x, u.pos.z - z) < 6)) || spots[0];
+  }
+  moor(u) { const [x, z] = this.mooring(); u.afloat = false; u.mounted = null; u.group.visible = true; u.pos.set(x, this.m.world.terrain.water, z); u.heading = this.sea.out; u.group.rotation.y = u.heading; u.speed = 0; u.target = null; u.dest = null; u.path = null; }
+  // a unit into the well dock: hidden, aboard nothing yet, waiting for the next craft out (an amphibian to a mooring instead)
   embark(u) {
+    if (u.amphib) { this.moor(u); return; }
     u.afloat = true; u.mounted = this.dock; this.dock.passengers.push(u); u.group.visible = false; u.pos.copy(this.dock.pos);
     u.target = null; u.dest = null; u.path = null; u.enemy = null; u.speed = 0; u.hold = false; u.boardTarget = null;
   }
@@ -40,7 +50,7 @@ export class Landing {
     for (const u of this.units.units) {
       if (u.team !== this.team || u.dead || u.spec.naval || u.spec.structure) continue;
       if (u.spec.air) { const [x, z] = this.deckSpot(); u.pos.set(x, W.heightAt(x, z), z); }
-      else this.embark(u);
+      else this.embark(u);   // an amphibian goes to a mooring
     }
   }
   launch(i) {
@@ -158,7 +168,7 @@ export class Landing {
     if (this.held(c.lane)) return;
     const P = RULES.landing.places, at = c.lane.at; let room = RULES.landing.room;
     for (const t of this.units.units) {
-      if (!t.supply || t.team !== this.team || t.dead || t.afloat || !t.refilling || t.supplies >= RULES.sandbags.supplyCost * 2 || Math.abs(t.speed) > 0.5 || Math.hypot(t.pos.x - at.x, t.pos.z - at.z) > 45 || P.truck > room) continue;
+      if (!t.supply || t.amphib || t.team !== this.team || t.dead || t.afloat || !t.refilling || t.supplies >= RULES.sandbags.supplyCost * 2 || Math.abs(t.speed) > 0.5 || Math.hypot(t.pos.x - at.x, t.pos.z - at.z) > 45 || P.truck > room) continue;
       t.afloat = true; t.mounted = c; c.passengers.push(t); t.group.visible = false; t.dest = null; t.path = null; t.target = null; room -= P.truck;
     }
   }

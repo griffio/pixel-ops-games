@@ -19,6 +19,7 @@ export const SPEC = {
   emplacement: { speed: 0, turn: 0, accel: 0, label: 'EM', air: false, hp: 250, nav: null, structure: true, hollow: true, slots: [[0, -0.55]], entry: -2.8 },
 };
 const counters = {}; let pickSeq = 0;
+const SWIM = { apc: 3.6, truck: 3.0 };   // m/s afloat (a tracked amphibian makes 12 km/h in the water)
 const POST_SLOTS = [[-1.0, 0.75], [1.0, 0.75], [-1.85, -0.5], [1.85, -0.5]];   // a sandbag position's firing slots (local: x across, z out over the front wall)
 const slotsOf = (spec) => spec.slots || POST_SLOTS;                                // an emplacement has one, the gunner's
 const LANDED = 90;   // seconds a soldier a helicopter set down counts as freshly landed (Air Assault captures)
@@ -133,7 +134,7 @@ export class Unit {
     if (c.spec.air) return [c.pos.x, c.pos.z + 3];
     return [c.pos.x - Math.sin(c.heading) * 4.5, c.pos.z - Math.cos(c.heading) * 4.5];   // the tail: the APC's ramp, the truck's tailgate
   }
-  board(c) { if (this.type !== 'soldier' || this.dead || this.mounted) return; this.boardTarget = c; this.boardT = 0; const [x, z] = this.boardPoint(c); this.order(x, z); }
+  board(c) { if (this.type !== 'soldier' || this.dead || this.mounted || c.swimming) return; this.boardTarget = c; this.boardT = 0; const [x, z] = this.boardPoint(c); this.order(x, z); }
   mount(c) {
     this.mounted = c; c.passengers.push(this); this.boardTarget = null; this.group.visible = false;
     this.target = null; this.dest = null; this.path = null; this.hold = false; this.enemy = null; this.speed = 0;
@@ -152,7 +153,7 @@ export class Unit {
     return out;
   }
   unload() {
-    const n = this.passengers.length; if (!n) return;
+    const n = this.passengers.length; if (!n || this.swimming) return;   // not into the sea: an amphibian unloads once it has driven ashore
     const pts = this.exitPoints(n), y = this.spec.air ? this.pos.y : (this.mgr ? this.mgr.world.heightAt(this.pos.x, this.pos.z) : this.pos.y);
     this.passengers.forEach((p, i) => { const [x, z, a] = pts[i]; p.mounted = null; p.group.visible = true; p.pos.set(x, y, z); p.heading = a; p.group.rotation.y = a; p.landedT = this.spec.air ? LANDED : 0; });
     this.passengers = []; this.dropOnArrive = false;
@@ -299,7 +300,10 @@ export class Unit {
       const diff = wrap(Math.atan2(this.enemy.pos.x - this.pos.x, this.enemy.pos.z - this.pos.z) - this.heading);
       this.heading += clamp(diff, -s.turn * dt, s.turn * dt);
     }
-    const W = this.mgr.world; if (want && W.terrain && W.terrain.wade > 0 && W.heightAt(this.pos.x, this.pos.z) < W.terrain.water) want *= 0.5;   // wading (a ford, on a map with wadable water): half speed
+    const W = this.mgr.world, T = W.terrain, ground = W.heightAt(this.pos.x, this.pos.z);
+    const swim = this.spec.swim !== undefined && T && ground < T.water - 0.2; this.swimming = swim;   // an amphibian afloat: slower, on the waterline, a wake instead of dust
+    if (swim) want = clamp(want, -s.swim * 0.6, s.swim);
+    else if (want && T && T.wade > 0 && ground < T.water) want *= 0.5;   // wading (a ford, on a map with wadable water): half speed
     this.speed += clamp(want - this.speed, -s.accel * 2 * dt, s.accel * dt);
     if (Math.abs(this.speed) < 0.01) this.speed = 0;
     const step = this.speed * dt, sx = Math.sin(this.heading) * step, sz = Math.cos(this.heading) * step;
@@ -307,7 +311,7 @@ export class Unit {
     const pad = this.radius * 0.9;
     // a unit already inside a wall's clearance (shoved there, or sandbags went up beside it) squeezes out with half the
     // clearance, so it can leave a slot narrower than its full clearance, and any step that doesn't take it deeper is allowed
-    const veh = this.spec.nav === 'vehicle';   // vehicles also stop at tank traps
+    const veh = this.spec.nav === 'vehicle' || this.spec.nav === 'amphib';   // vehicles also stop at tank traps
     const p = world.isBlocked(this.pos.x, this.pos.z, pad, veh) ? pad * 0.5 : pad, deep = world.penetration(this.pos.x, this.pos.z, p, veh);
     const free = (x, z) => !world.isBlocked(x, z, p, veh) || (deep > 0 && world.penetration(x, z, p, veh) <= deep + 1e-3);
     if (!free(nx, nz)) {
@@ -317,7 +321,8 @@ export class Unit {
     }
     this.dist += Math.hypot(nx - this.pos.x, nz - this.pos.z);
     const H = this.mgr.world.half; this.pos.x = clamp(nx, -H + 2, H - 2); this.pos.z = clamp(nz, -H + 2, H - 2);
-    this.pos.y = this.mgr.world.heightAt(this.pos.x, this.pos.z);
+    const h = this.mgr.world.heightAt(this.pos.x, this.pos.z);
+    this.pos.y = this.swimming ? Math.max(h, T.water - 0.45 + Math.sin(performance.now() * 0.0014 + this.phase) * 0.06) : h;   // afloat: sat low on the water, riding the swell
     this.group.rotation.y = this.heading;
     this.animate(dt);
   }
@@ -506,10 +511,13 @@ export class UnitManager {
   add(unit) { unit.mgr = this; this.units.push(unit); unit.group.bound = 14; this.scene.add(unit.group); return unit; }   // bound: how far its parts reach, for the renderer's culling (a helicopter's rotors)
   spawn(type, x, z, heading, team = 0, opts = {}) {
     if (x === undefined) [x, z] = this.freePoint(SPEC[type].air ? 6 : 3);
-    const u = this.add(new Unit(type, (opts.supply && this.builders.supplyTruck) || (opts.gun && this.builders['emp_' + opts.gun]) || this.builders[type], x, z, heading, team));   // the supply truck shows its load; an emplacement its gun
+    const amphib = opts.amphib !== undefined ? opts.amphib : !!(this.amphibFor && this.amphibFor(team, type, opts));   // a ship's APCs and supply trucks swim (game/landing.js)
+    const build = amphib ? this.builders[type === 'truck' ? 'amphibSupply' : 'amphib'] || this.builders[type] : (opts.supply && this.builders.supplyTruck) || (opts.gun && this.builders['emp_' + opts.gun]) || this.builders[type];   // the supply truck shows its load; an emplacement its gun
+    const u = this.add(new Unit(type, build, x, z, heading, team));
     if (opts.gun) u.gun = opts.gun;
     u.pos.y = this.world.heightAt(x, z);
     if (opts.supply) { u.supply = true; u.supplies = 100; u.label = u.label.replace('TR', 'SP'); }
+    if (amphib) { u.amphib = true; u.spec = { ...u.spec, nav: 'amphib', swim: SWIM[type] || 3.5 }; if (type === 'apc') u.label = u.label.replace('AP', 'AV'); }   // its own spec: the amphibious grid, a swimming speed
     return u;
   }
   spawnSquad(x, z, team = 0, kits = KITS) {
@@ -525,7 +533,11 @@ export class UnitManager {
 
   update(dt) {
     const w = this.world;
-    for (const u of this.units) { u.step(dt, w); if (this.dust && dt > 0 && !u.dead && !u.spec.naval) this.dust.fromUnit(u, dt); }   // no dust off a craft at sea
+    for (const u of this.units) {
+      u.step(dt, w);
+      if (!this.dust || dt <= 0 || u.dead || u.spec.naval) continue;   // no dust off a craft at sea
+      if (u.swimming) { if (Math.abs(u.speed) > 0.8) this.dust.wake(u.pos.x, w.terrain.water + 0.05, u.pos.z, u.heading, Math.abs(u.speed), 3.2, 9, dt); } else this.dust.fromUnit(u, dt);
+    }
     for (let i = this.units.length - 1; i >= 0; i--) if (this.units[i].remove) this.removeUnit(this.units[i]);
     // separation between ground units
     const push = (a, b) => {

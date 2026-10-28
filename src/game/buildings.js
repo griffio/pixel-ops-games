@@ -60,7 +60,7 @@ export class Buildings {
     const heaps = W.collapse(b);   // the props go and rubble stands in their place; back come the heaps as low obstacles
     for (const o of heaps) O.push(o);
     const pad = 3;
-    m.nav.foot.refresh(b.minX - pad, b.maxX + pad, b.minZ - pad, b.maxZ + pad); m.nav.vehicle.refresh(b.minX - pad, b.maxX + pad, b.minZ - pad, b.maxZ + pad);
+    for (const g of ['foot', 'vehicle', 'amphib']) if (m.nav[g]) m.nav[g].refresh(b.minX - pad, b.maxX + pad, b.minZ - pad, b.maxZ + pad);
     m.combat.rebuildGrids();
     for (const v of m.units.units) {   // anyone standing where a heap now is steps clear
       if (v.dead || v.spec.structure || !v.spec.nav || v.pos.x < b.minX - pad || v.pos.x > b.maxX + pad || v.pos.z < b.minZ - pad || v.pos.z > b.maxZ + pad) continue;

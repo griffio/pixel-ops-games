@@ -6,11 +6,11 @@ export const REVIVE_WINDOW = 12, REVIVE_TIME = 3, REVIVE_RANGE = 14;
 export class Support {
   constructor(units, respawn, teams) { this.units = units; this.respawn = respawn; this.teams = teams; this.match = null; }
   landing(t) { const L = this.match && this.match.landing; return L && L.team === t.team ? L : null; }
-  atRefill(t) { const L = this.landing(t), b = this.teams[t.team].base; return L ? L.dumpAt(t.pos.x, t.pos.z) : Math.hypot(t.pos.x - b.x, t.pos.z - b.z) < b.r; }   // inside main base, or a held beach's dump
+  atRefill(t) { const L = this.landing(t), b = this.teams[t.team].base; return L ? L.dumpAt(t.pos.x, t.pos.z) || (t.amphib && L.atPen(t.pos.x, t.pos.z)) : Math.hypot(t.pos.x - b.x, t.pos.z - b.z) < b.r; }   // an amphibious carrier also fills up alongside the ship   // inside main base, or a held beach's dump
   // A refill trip: the truck drives home, fills up, and drives back to where it was (or stays, if it set out from base). The
   // Refill order starts one; a player's truck starts one on its own (trips) when it has less than the cheapest job costs.
   startRefill(t) {
-    const L = this.landing(t), b = L ? L.refillPoint(t.pos.x, t.pos.z) : this.teams[t.team].base, home = [b.x + (Math.random() - 0.5) * 16, b.z + (Math.random() - 0.5) * 16];   // a side on a ship: a held beach's dump, or the beach its craft use
+    const L = this.landing(t), b = L ? L.refillPoint(t.pos.x, t.pos.z, t.amphib) : this.teams[t.team].base, home = [b.x + (Math.random() - 0.5) * 16, b.z + (Math.random() - 0.5) * 16];   // a side on a ship: a held beach's dump, or the beach its craft use
     t.refillBack = Math.hypot(t.pos.x - b.x, t.pos.z - b.z) < b.r ? null : [t.pos.x, t.pos.z];
     t.refilling = true; t.order(home[0], home[1]); t.refillHome = t.dest ? [t.dest.x, t.dest.z] : home;   // order() may move a goal out of a pocket
   }

@@ -127,10 +127,10 @@ export class DustSim {
   }
   // foam off the stern and spray at the bow of a boat len long and beam wide, heading h at speed v (metres a second)
   wake(x, y, z, h, v, beam, len, dt) {
-    const r = Math.random, sx = Math.sin(h), cz = Math.cos(h), rx = cz, rz = -sx, n = v * dt * 0.8;
+    const r = Math.random, sx = Math.sin(h), cz = Math.cos(h), rx = cz, rz = -sx, n = v * dt * 0.8, k = Math.min(1, beam / 7.2);   // k: foam sized to the hull (a craft's beam is 7.2 m; an amphibian's is 3.2)
     for (let i = 0; i < n + (r() < n - Math.floor(n) ? 1 : 0); i++) {
       const side = (r() - 0.5) * beam, back = len / 2 + r() * 2;
-      this.emit(x - sx * back + rx * side, y, z - cz * back + rz * side, -sx * 0.5 + rx * side * 0.25 + (r() - 0.5) * 0.4, 0.03, -cz * 0.5 + rz * side * 0.25 + (r() - 0.5) * 0.4, 1.2 + r() * 1.4, 3 + r() * 2.5, FOAM, 2.0, 0.38, 0.94);
+      this.emit(x - sx * back + rx * side, y, z - cz * back + rz * side, -sx * 0.5 + rx * side * 0.25 + (r() - 0.5) * 0.4, 0.03, -cz * 0.5 + rz * side * 0.25 + (r() - 0.5) * 0.4, (1.2 + r() * 1.4) * k, 3 + r() * 2.5, FOAM, 2.0 * k, 0.38, 0.94);
     }
     if (r() < v * dt * 0.45) { const s = r() < 0.5 ? -1 : 1; this.emit(x + sx * (len / 2 - 1) + rx * s * beam * 0.45, y + 0.3, z + cz * (len / 2 - 1) + rz * s * beam * 0.45, rx * s * 1.8 + sx * 1.5, 1.6 + r(), rz * s * 1.8 + cz * 1.5, 0.5, 0.45 + r() * 0.3, FOAM, 0.6, 0.7, 0.9, 6); }
   }
