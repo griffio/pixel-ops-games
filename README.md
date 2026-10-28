@@ -15,18 +15,18 @@ pixels chunkier while the camera rotates freely. No build step.
 <table>
 <tr>
 <td width="50%"><img src="docs/screenshots/peninsula-landing.webp" alt="Three grey landing craft beached side by side on West Beach in evening light; soldiers come down a ramp while an APC and a supply truck drive up the sand"><br><sub><b>Peninsula.</b> The first wave beaches at West Beach at dusk; the APC and supply truck are already heading up the sand.</sub></td>
-<td width="50%"><img src="docs/screenshots/peninsula-village.webp" alt="Whitewashed cottages and a church on a green slope, with tracer fire and rocket trails crossing between squads"><br><sub><b>Peninsula.</b> The attackers fight up through the village behind the beach.</sub></td>
+<td width="50%"><img src="docs/screenshots/peninsula-fight.webp" alt="Squads trading fire in dusky fields beside a road and a cottage, rocket trails, tracers and a burst between them"><br><sub><b>Peninsula.</b> Squads clash in the fields behind the village at dusk.</sub></td>
 </tr>
 <tr>
 <td><img src="docs/screenshots/palm-valley-bridge.webp" alt="A desert road crossing a river bridge, a row of tank traps across it and squads fighting on either side, an explosion near a container"><br><sub><b>Palm Valley.</b> The fight for the Bridge, behind a row of tank traps.</sub></td>
-<td><img src="docs/screenshots/narva-rail-bridge.webp" alt="Soldiers crossing a blue steel truss railway bridge over a river, an APC on the far bank"><br><sub><b>Narva.</b> Infantry cross the truss railway bridge under fire.</sub></td>
+<td><img src="docs/screenshots/narva-friendship-bridge.webp" alt="A firefight where a road bridge meets the river bank in green meadow, a fire burning beside the road"><br><sub><b>Narva.</b> A fight for the end of the Friendship Bridge.</sub></td>
 </tr>
 <tr>
-<td><img src="docs/screenshots/desert-airfield.webp" alt="Squads trading fire on a concrete airfield apron beside fuel tanks and painted helipads, a rocket bursting"><br><sub><b>Desert Crossing.</b> A firefight on the airfield apron.</sub></td>
+<td><img src="docs/screenshots/desert-village.webp" alt="Two APC wrecks burning and smoking on a road through a desert village of flat-roofed houses, squads fighting between the houses"><br><sub><b>Desert Crossing.</b> APC wrecks burn on the road through the village.</sub></td>
 <td><img src="docs/screenshots/air-assault.webp" alt="Two tandem-rotor transport helicopters lifting off inside a sandbagged main base with containers, floodlights and a watchtower"><br><sub><b>Air Assault.</b> Chinooks lift off from the main base.</sub></td>
 </tr>
 <tr>
-<td colspan="2"><img src="docs/screenshots/hud.webp" alt="The match screen on Narva: the places bar and tickets along the top, reinforcements at the right, the unit strip of squad cards and the minimap along the bottom"><br><sub><b>The match HUD</b> (Narva, fog of war on): the places and tickets along the top, reinforcements at the right, the unit strip and the minimap below.</sub></td>
+<td colspan="2"><img src="docs/screenshots/hud.webp" alt="The match screen on Narva: an APC and squads on the blue truss railway bridge, the places bar and tickets along the top, reinforcements at the right, the unit strip and the minimap along the bottom"><br><sub><b>The match HUD</b> (Narva's railway bridge, fog of war on): the places and tickets along the top, reinforcements at the right, the unit strip and the minimap below.</sub></td>
 </tr>
 </table>
 
