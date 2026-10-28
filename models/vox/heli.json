@@ -3,6 +3,7 @@
  "voxel": 0.1,
  "height": 5.9,
  "radius": 3,
+ "ring": 6.5,
  "pivots": {
   "body": [0,0,0],
   "beacon": [0,5.55,-5.6],

@@ -508,7 +508,7 @@ src/game/           milestone 1 game layer (renderer-agnostic)
   maps/             map definitions (valley2km.js, desert1km.js, narva3km.js, peninsula.js), the shared prop kit and ground texture generators (natural ground: fine low-contrast detail, 128 px over 12.8 m, one texel to a pixel of the game's buffer; everything bigger comes from the shader)
   match.js          AAS / Skirmish match flow, 10 Hz game tick, bleed, win checks
 icons/units/        unit-strip portraits (tools/make-portraits.mjs renders them from the game's models)
-models/vox/         unit models as MagicaVoxel files with a .json each (tank, apc, truck, supplyTruck, craft, heli); exported by tools/export-vox.mjs, editable in MagicaVoxel, loaded by src/gl/voxmodels.js
+models/vox/         unit models as MagicaVoxel files with a .json each (soldier, tank, apc, truck, supplyTruck, craft, heli); exported by tools/export-vox.mjs, editable in MagicaVoxel, loaded by src/gl/voxmodels.js
 src/three/          three.js back end: models, world, PixelRenderer (low-res target + outline), dust, markers
 src/gl/             WebGL2 back end
   scene.js          Node / Mesh scene graph with the same position/rotation/visible surface
@@ -530,24 +530,27 @@ src/gl/             WebGL2 back end
   rather than one per size: the units on screen cost about 20 batches a pass, a map
   chunk a dozen or two. Units and lamp heads outside the view by more than the light
   frustum's reach are not instanced at all.
-- Vehicle models come from MagicaVoxel files (`models/vox/<type>.vox` with a
+- Unit models come from MagicaVoxel files (`models/vox/<type>.vox` with a
   `.json` beside it; `?vox=0` falls back to the code-built ones). `src/core/vox.js`
   reads the file, and each named shape in its scene graph (`hull`, `turret`,
-  `wheels_<i>`, `hull.glow` for the tail lights) is greedy-meshed into one geometry at
-  0.1 m a voxel: a quad's UV is the index of its colour in a 256 × 1 palette texture,
+  `wheels_<i>`, `hull.glow` for the tail lights; the soldier's `torso`, `head`,
+  `legL`, `kneeL`, `armL`, `elbowL`, `rifle`, `mg`, `bipod`, `launcher` and their
+  right-hand twins) is greedy-meshed into one geometry at 0.1 m a voxel (0.05 m for
+  the soldier): a quad's UV is the index of its colour in a 256 × 1 palette texture,
   so a model is one texture and a part one batch, and OPFOR is the same geometry with
   a second palette texture whose team slots are recoloured from the `.json`. The
   `.json` also holds each part's pivot (a turret turns about its ring, not its box's
   centre), which part a part hangs from (the helicopter's rotor heads under the body
   that banks), which wheels steer, the rotor sets (`rotors_<i>` turns, `blades_<i>`
-  hides at speed behind a blur disc the loader still builds in code), and the glow
-  colour of emissive parts.
+  hides at speed behind a blur disc the loader still builds in code), the glow
+  colour of emissive parts, the selection ring's radius, and palette variants (the
+  soldier's second skin tone, picked per soldier as the code model picked it).
   `tools/export-vox.mjs` made the first files by voxelising the code models in the
   page (`src/core/voxexport.js`, sampling each box's camo at its UVs and splitting
   glowing materials off into their own shape); from here the files can be edited in
   MagicaVoxel, keeping the shape names, and re-exported from code when a code model
   changes. Voxels boxed in on all sides are dropped before writing, which cuts a
-  solid hull to a shell (the tank is 79 KB).
+  solid hull to a shell (the tank is 69 KB, the soldier 14 KB).
 - Shadow pass renders depth from an orthographic light camera into a 4096²
   depth texture (2048² on tablets). The light frustum is sized from the camera's
   footprint in quarter-octave steps and its eye is snapped to shadow texels, so the

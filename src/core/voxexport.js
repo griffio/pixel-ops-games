@@ -3,7 +3,8 @@
 // a soldier's limbs) becomes its own named model, so the loader (gl/voxmodels.js) can drive it as before; the rest is the
 // 'hull'. Colours are sampled from the part's material: a plain colour as itself, a camo texture at the voxel's UV on the box
 // face it sits on, snapped to that camo's own colours so the palette stays small. Team-coloured materials also record the
-// OPFOR colour for each palette slot they use (meta.team), and each part's pivot (meta.pivots), since a part turns about its
+// OPFOR colour for each palette slot they use (meta.team), a second skin tone for the soldier's skin slots (meta.variants,
+// one palette variant a build picks at random, as the code model picks its skin), and each part's pivot (meta.pivots), since a part turns about its
 // rig node, not its model's centre. Glowing materials (tail lights, nav lights) go in a '<part>.glow' model of their own with
 // the glow colour in meta.emissive, since a palette holds no emissive. Runs in the page: tools/export-vox.mjs calls exportVox()
 // and saves what it returns.
@@ -15,6 +16,7 @@ import { writeVox, VOXEL } from './vox.js';
 import { UV_SCALE } from './geometry.js';
 
 const UNIT = new Vec3(1, 1, 1);
+const VOXEL_FOR = { soldier: 0.05 };   // finer than the vehicles' 0.1 m: a rifle barrel or a pair of glasses is one voxel either way, but limbs keep their shape
 const TEAMED = ['uniform', 'vest', 'desert', 'camo', 'sand', 'tarp', 'rim', 'boots'];   // the recoloured-per-team materials of core/models.js
 const NAME = new Map(Object.entries(MAT).map(([k, v]) => [v, k]));
 const canvases = new Map(), canvasFor = (n) => { if (!canvases.has(n)) canvases.set(n, CAMO[n] ? (() => { const c = camoCanvas(CAMO[n]); return { w: c.width, h: c.height, d: c.getContext('2d').getImageData(0, 0, c.width, c.height).data }; })() : null); return canvases.get(n); };
@@ -39,7 +41,7 @@ function sample(matName, lx, ly, lz, hw, hh, hd, sc) {
 
 // -> { vox: ArrayBuffer, meta: { height, radius, pivots: { part: [x, y, z] }, team: { paletteIndex: [r, g, b] } } }
 export function exportVox(type) {
-  const built = makeBuilders(F)[type](0), g = built.group, p = built.parts;
+  const built = makeBuilders(F)[type](0), g = built.group, p = built.parts, V = VOXEL_FOR[type] || VOXEL;
   const partOf = new Map();   // rig node -> part name
   const steer = (p.steer || []).map(w => (p.wheels || []).indexOf(w)).filter(i => i >= 0), rotors = [];
   for (const [k, v] of Object.entries(p)) {
@@ -75,8 +77,8 @@ export function exportVox(type) {
     part.meshes = lit;
     let i = 0; for (const ms of glows.values()) { const gn = `${name}.glow${glows.size > 1 ? i++ : ''}`; parts.set(gn, { pivot: part.pivot, meshes: ms }); emissive[gn] = ms[0].emis.map(x => +x.toFixed(4)); }
   }
-  const palette = new Uint8Array(256 * 4), index = new Map(), team = {}, models = [], scene = [], pivots = {};
-  const slot = (rgb, rgbB) => { const k = rgb.join(','); if (!index.has(k)) { const i = index.size + 1; if (i > 255) return 255; index.set(k, i); palette.set([rgb[0], rgb[1], rgb[2], 255], i * 4); if (rgbB) team[i] = rgbB; } return index.get(k); };
+  const palette = new Uint8Array(256 * 4), index = new Map(), team = {}, models = [], scene = [], pivots = {}, matOf = {};
+  const slot = (rgb, rgbB, mat) => { const k = rgb.join(','); if (!index.has(k)) { const i = index.size + 1; if (i > 255) return 255; index.set(k, i); palette.set([rgb[0], rgb[1], rgb[2], 255], i * 4); if (rgbB) team[i] = rgbB; matOf[i] = mat; } return index.get(k); };
   const inv = Mat4.create(), local = Mat4.create(), tmp = new Vec3();
   for (const [name, part] of parts) {
     if (!part.meshes.length) continue;
@@ -92,18 +94,20 @@ export function exportVox(type) {
       for (const sx of [-1, 1]) for (const sy of [-1, 1]) for (const sz of [-1, 1]) { const q = Mat4.transformPoint(local, tmp.set(sx * he[0], sy * he[1], sz * he[2])); min = min.map((v, i) => Math.min(v, [q.x, q.y, q.z][i])); max = max.map((v, i) => Math.max(v, [q.x, q.y, q.z][i])); }
       return { ...m, kind, local: Float32Array.from(local), inv: (() => { const o = Mat4.create(); Mat4.invert(o, local); return o; })(), he, box, a, sc, min, max };
     });
-    const lo = [0, 1, 2].map(i => Math.min(...ms.map(m => m.min[i])) - VOXEL * 0.5), hi = [0, 1, 2].map(i => Math.max(...ms.map(m => m.max[i])) + VOXEL * 0.5);
-    const sx = Math.max(1, Math.ceil((hi[0] - lo[0]) / VOXEL)), sy = Math.max(1, Math.ceil((hi[2] - lo[2]) / VOXEL)), sz = Math.max(1, Math.ceil((hi[1] - lo[1]) / VOXEL));
-    const v = new Uint8Array(sx * sy * sz), gmaxX = lo[0] + sx * VOXEL;
+    const lo = [0, 1, 2].map(i => Math.min(...ms.map(m => m.min[i])) - V * 0.5), hi = [0, 1, 2].map(i => Math.max(...ms.map(m => m.max[i])) + V * 0.5);
+    const sx = Math.max(1, Math.ceil((hi[0] - lo[0]) / V)), sy = Math.max(1, Math.ceil((hi[2] - lo[2]) / V)), sz = Math.max(1, Math.ceil((hi[1] - lo[1]) / V));
+    const v = new Uint8Array(sx * sy * sz), gmaxX = lo[0] + sx * V;
     const prio = new Float32Array(sx * sy * sz).fill(Infinity);   // where shapes overlap the thinnest claims the voxel: plates, lights and glass over the bulk they sit on
     for (const m of ms) {
-      const tol = m.sc.map(s => 0.5 * VOXEL / s);   // half a voxel of slack in each local axis, so thin parts keep a layer
+      // a voxel is taken by its centre, so a box keeps its size; one thinner than a voxel in some axis widens to a voxel in
+      // that axis (a skirt, a window, a pair of glasses keeps one layer) rather than every box growing half a voxel a side
+      const tol = m.sc.map((s, i) => Math.max(0.02 * V, (V - 2 * m.he[i] * s) / 2) / s);
       const thin = Math.min(m.he[0] * m.sc[0], m.he[1] * m.sc[1], m.he[2] * m.sc[2]);
-      const i0 = Math.max(0, Math.floor((gmaxX - m.max[0]) / VOXEL)), i1 = Math.min(sx - 1, Math.floor((gmaxX - m.min[0]) / VOXEL));
-      const j0 = Math.max(0, Math.floor((m.min[2] - lo[2]) / VOXEL)), j1 = Math.min(sy - 1, Math.floor((m.max[2] - lo[2]) / VOXEL));
-      const k0 = Math.max(0, Math.floor((m.min[1] - lo[1]) / VOXEL)), k1 = Math.min(sz - 1, Math.floor((m.max[1] - lo[1]) / VOXEL));
+      const i0 = Math.max(0, Math.floor((gmaxX - m.max[0]) / V)), i1 = Math.min(sx - 1, Math.floor((gmaxX - m.min[0]) / V));
+      const j0 = Math.max(0, Math.floor((m.min[2] - lo[2]) / V)), j1 = Math.min(sy - 1, Math.floor((m.max[2] - lo[2]) / V));
+      const k0 = Math.max(0, Math.floor((m.min[1] - lo[1]) / V)), k1 = Math.min(sz - 1, Math.floor((m.max[1] - lo[1]) / V));
       for (let k = k0; k <= k1; k++) for (let j = j0; j <= j1; j++) for (let i = i0; i <= i1; i++) {
-        const gx = gmaxX - (i + 0.5) * VOXEL, gy = lo[1] + (k + 0.5) * VOXEL, gz = lo[2] + (j + 0.5) * VOXEL;
+        const gx = gmaxX - (i + 0.5) * V, gy = lo[1] + (k + 0.5) * V, gz = lo[2] + (j + 0.5) * V;
         const q = Mat4.transformPoint(m.inv, tmp.set(gx, gy, gz));
         let inside;
         if (m.kind === 'box') inside = Math.abs(q.x) <= m.he[0] + tol[0] && Math.abs(q.y) <= m.he[1] + tol[1] && Math.abs(q.z) <= m.he[2] + tol[2];
@@ -113,15 +117,19 @@ export function exportVox(type) {
         const at = (k * sy + j) * sx + i;
         if (!inside || thin > prio[at]) continue;
         const c = sample(m.mat, q.x, q.y, q.z, m.he[0], m.he[1], m.he[2], m.sc);
-        v[at] = slot(c.a, c.b); prio[at] = thin;
+        v[at] = slot(c.a, c.b, m.mat); prio[at] = thin;
       }
     }
     // hollow: a voxel boxed in on all six sides never shows, and a solid hull would make the file several times the size
     const solid = Uint8Array.from(v), at = (x, y, z) => x >= 0 && y >= 0 && z >= 0 && x < sx && y < sy && z < sz && solid[(z * sy + y) * sx + x];
     for (let k = 1; k < sz - 1; k++) for (let j = 1; j < sy - 1; j++) for (let i = 1; i < sx - 1; i++) if (at(i, j, k) && at(i - 1, j, k) && at(i + 1, j, k) && at(i, j - 1, k) && at(i, j + 1, k) && at(i, j, k - 1) && at(i, j, k + 1)) v[(k * sy + j) * sx + i] = 0;
-    const centre = [(lo[0] + gmaxX) / 2, lo[1] + sz * VOXEL / 2, lo[2] + sy * VOXEL / 2], pv = [part.pivot[12], part.pivot[13], part.pivot[14]];
-    const t = [-(pv[0] + centre[0]) / VOXEL, (pv[2] + centre[2]) / VOXEL, (pv[1] + centre[1]) / VOXEL];   // the model's centre in the root frame, vox units
+    const centre = [(lo[0] + gmaxX) / 2, lo[1] + sz * V / 2, lo[2] + sy * V / 2], pv = [part.pivot[12], part.pivot[13], part.pivot[14]];
+    const t = [-(pv[0] + centre[0]) / V, (pv[2] + centre[2]) / V, (pv[1] + centre[1]) / V];   // the model's centre in the root frame, vox units
     scene.push({ name, t, model: models.length }); models.push({ sx, sy, sz, v }); pivots[name] = pv.map(x => +x.toFixed(3));
   }
-  return { vox: writeVox({ palette, models, scene }), meta: { type, voxel: VOXEL, height: built.height, radius: built.radius, pivots, parent, steer, rotors: rotors.length ? rotors : undefined, team, emissive, colours: index.size } };
+  // the other skin tone as a palette variant, for the slots the skin took
+  const skin = Object.values(matOf).find(m => m === 'skin' || m === 'skin2'), other = skin === 'skin' ? 'skin2' : 'skin', variants = [];
+  if (skin) { const c = MAT[other].color, rgb = [srgb(c[0]), srgb(c[1]), srgb(c[2])], v = {}; for (const [i, m] of Object.entries(matOf)) if (m === skin) v[i] = rgb; variants.push(v); }
+  const ring = p.ring && p.ring.geo ? +p.ring.geo.split(':')[1].split(',')[1] : undefined;   // the selection ring's radius (ring:in,out,seg)
+  return { vox: writeVox({ palette, models, scene }), meta: { type, voxel: V, height: built.height, radius: built.radius, ring, pivots, parent, steer, rotors: rotors.length ? rotors : undefined, team, variants: variants.length ? variants : undefined, emissive, colours: index.size } };
 }

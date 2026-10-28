@@ -3,6 +3,7 @@
  "voxel": 0.1,
  "height": 3.6,
  "radius": 2.5,
+ "ring": 3.8,
  "pivots": {
   "hull": [0,0,0],
   "turret": [-0.35,2.55,0.6],
