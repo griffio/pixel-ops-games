@@ -14,6 +14,7 @@ import { Mat4, Vec3 } from './math.js';
 import { writeVox, VOXEL } from './vox.js';
 import { UV_SCALE } from './geometry.js';
 
+const UNIT = new Vec3(1, 1, 1);
 const TEAMED = ['uniform', 'vest', 'desert', 'camo', 'sand', 'tarp', 'rim', 'boots'];   // the recoloured-per-team materials of core/models.js
 const NAME = new Map(Object.entries(MAT).map(([k, v]) => [v, k]));
 const canvases = new Map(), canvasFor = (n) => { if (!canvases.has(n)) canvases.set(n, CAMO[n] ? (() => { const c = camoCanvas(CAMO[n]); return { w: c.width, h: c.height, d: c.getContext('2d').getImageData(0, 0, c.width, c.height).data }; })() : null); return canvases.get(n); };
@@ -40,14 +41,28 @@ function sample(matName, lx, ly, lz, hw, hh, hd, sc) {
 export function exportVox(type) {
   const built = makeBuilders(F)[type](0), g = built.group, p = built.parts;
   const partOf = new Map();   // rig node -> part name
-  const steer = (p.steer || []).map(w => (p.wheels || []).indexOf(w)).filter(i => i >= 0);
-  for (const [k, v] of Object.entries(p)) { if (k === 'ring' || k === 'steer') continue; if (Array.isArray(v)) v.forEach((n, i) => { if (n && n.position && !partOf.has(n)) partOf.set(n, `${k}_${i}`); }); else if (v && v.position) partOf.set(v, k); }
-  const parts = new Map([['hull', { pivot: Mat4.create(), meshes: [] }]]);
+  const steer = (p.steer || []).map(w => (p.wheels || []).indexOf(w)).filter(i => i >= 0), rotors = [];
+  for (const [k, v] of Object.entries(p)) {
+    if (k === 'ring' || k === 'steer') continue;
+    if (Array.isArray(v)) v.forEach((n, i) => {
+      if (n && n.head) {   // a rotor: its head turns, its blades hide behind a blur disc at speed (code-built by the loader)
+        partOf.set(n.head, `rotors_${i}`); if (n.blades) partOf.set(n.blades, `blades_${i}`);
+        const d = n.disc, a = d && d.geo.slice(4).split(',').map(Number);
+        rotors[i] = { dir: n.dir, disc: d ? { geo: `cyl:${d.scale.x},${d.scale.x},${d.scale.y},${a[3]}`, y: +d.position.y.toFixed(3) } : null };
+      } else if (n && n.position && !partOf.has(n)) partOf.set(n, `${k}_${i}`);
+    });
+    else if (v && v.position) partOf.set(v, k);
+  }
+  const parts = new Map([['hull', { pivot: Mat4.create(), meshes: [] }]]), parent = {};
   const visit = (node, parentWorld, part) => {
     if (node.visible === false) return;
     Mat4.fromTRS(node.local, node.position, node.rotation, node.scale); parentWorld ? Mat4.multiply(node.world, parentWorld, node.local) : node.world.set(node.local);
-    const name = partOf.get(node); if (name) { part = name; parts.set(name, { pivot: Float32Array.from(node.world), meshes: [] }); }
-    if (node.geo && NAME.has(node.mat) && /^(box|cyl|wedge):/.test(node.geo)) { const e = node.mat.emissive; parts.get(part).meshes.push({ geo: node.geo, mat: NAME.get(node.mat), world: Float32Array.from(node.world), emis: e && (e[0] || e[1] || e[2]) ? e : null }); }
+    const name = partOf.get(node);
+    if (name) {   // a part's frame is its rig node's place and turn, never its scale (a beacon is a scaled unit box: its voxels are 0.1 m, not 0.1 of its size)
+      const pivot = Mat4.fromTRS(Mat4.create(), node.position, node.rotation, UNIT); if (parentWorld) Mat4.multiply(pivot, parentWorld, Float32Array.from(pivot));
+      if (part !== 'hull') parent[name] = part; part = name; parts.set(name, { pivot, meshes: [] });
+    }
+    if (node.geo && NAME.has(node.mat) && /^(box|cyl|wedge|frustum):/.test(node.geo)) { const e = node.mat.emissive; parts.get(part).meshes.push({ geo: node.geo, mat: NAME.get(node.mat), world: Float32Array.from(node.world), emis: e && (e[0] || e[1] || e[2]) ? e : null }); }
     for (const c of node.children) visit(c, node.world, part);
   };
   visit(g, null, 'hull');
@@ -69,8 +84,9 @@ export function exportVox(type) {
     // each mesh in the part's frame, with its half extents and the corners' bounding box
     const ms = part.meshes.map(m => {
       Mat4.multiply(local, inv, m.world); const kind = m.geo.slice(0, m.geo.indexOf(':')), a = m.geo.slice(kind.length + 1).split(',').map(Number), box = kind !== 'cyl';
-      // half extents of the shape's own box: a wedge (w, h, d, w2, h2) tapers from its +z face (w x h) to its -z face (w2 x h2)
-      const he = kind === 'box' ? [a[0] / 2, a[1] / 2, a[2] / 2] : kind === 'wedge' ? [Math.max(a[0], a[3]) / 2, Math.max(a[1], a[4]) / 2, a[2] / 2] : [Math.max(a[0], a[1]), a[2] / 2, Math.max(a[0], a[1])];
+      // half extents of the shape's own box: a wedge (w, h, d, sf, sb) is a box whose top face is set back sf from the front and sb from
+      // the back, so its ends slope; a frustum (w, h, d, w2, h2) tapers from its +z face (w x h) to its -z face (w2 x h2)
+      const he = kind === 'box' || kind === 'wedge' ? [a[0] / 2, a[1] / 2, a[2] / 2] : kind === 'frustum' ? [Math.max(a[0], a[3]) / 2, Math.max(a[1], a[4]) / 2, a[2] / 2] : [Math.max(a[0], a[1]), a[2] / 2, Math.max(a[0], a[1])];
       const sc = [Math.hypot(local[0], local[1], local[2]), Math.hypot(local[4], local[5], local[6]), Math.hypot(local[8], local[9], local[10])];
       let min = [Infinity, Infinity, Infinity], max = [-Infinity, -Infinity, -Infinity];
       for (const sx of [-1, 1]) for (const sy of [-1, 1]) for (const sz of [-1, 1]) { const q = Mat4.transformPoint(local, tmp.set(sx * he[0], sy * he[1], sz * he[2])); min = min.map((v, i) => Math.min(v, [q.x, q.y, q.z][i])); max = max.map((v, i) => Math.max(v, [q.x, q.y, q.z][i])); }
@@ -91,7 +107,8 @@ export function exportVox(type) {
         const q = Mat4.transformPoint(m.inv, tmp.set(gx, gy, gz));
         let inside;
         if (m.kind === 'box') inside = Math.abs(q.x) <= m.he[0] + tol[0] && Math.abs(q.y) <= m.he[1] + tol[1] && Math.abs(q.z) <= m.he[2] + tol[2];
-        else if (m.kind === 'wedge') { const t = Math.max(0, Math.min(1, (m.he[2] - q.z) / (2 * m.he[2]))), hw = (m.a[0] + (m.a[3] - m.a[0]) * t) / 2, hh = (m.a[1] + (m.a[4] - m.a[1]) * t) / 2; inside = Math.abs(q.z) <= m.he[2] + tol[2] && Math.abs(q.x) <= hw + tol[0] && Math.abs(q.y) <= hh + tol[1]; }
+        else if (m.kind === 'frustum') { const t = Math.max(0, Math.min(1, (m.he[2] - q.z) / (2 * m.he[2]))), hw = (m.a[0] + (m.a[3] - m.a[0]) * t) / 2, hh = (m.a[1] + (m.a[4] - m.a[1]) * t) / 2; inside = Math.abs(q.z) <= m.he[2] + tol[2] && Math.abs(q.x) <= hw + tol[0] && Math.abs(q.y) <= hh + tol[1]; }
+        else if (m.kind === 'wedge') { const t = Math.max(0, Math.min(1, (q.y + m.he[1]) / (2 * m.he[1]))), zf = m.he[2] - (m.a[3] || 0) * t, zb = -m.he[2] + (m.a[4] || 0) * t; inside = Math.abs(q.x) <= m.he[0] + tol[0] && Math.abs(q.y) <= m.he[1] + tol[1] && q.z <= zf + tol[2] && q.z >= zb - tol[2]; }
         else { const rt = m.a[0], rb = m.a[1], h = m.a[2], t = h ? (q.y + h / 2) / h : 0.5, r = rb + (rt - rb) * Math.max(0, Math.min(1, t)); inside = Math.abs(q.y) <= h / 2 + tol[1] && Math.hypot(q.x, q.z) <= r + Math.max(tol[0], tol[2]); }
         const at = (k * sy + j) * sx + i;
         if (!inside || thin > prio[at]) continue;
@@ -106,5 +123,5 @@ export function exportVox(type) {
     const t = [-(pv[0] + centre[0]) / VOXEL, (pv[2] + centre[2]) / VOXEL, (pv[1] + centre[1]) / VOXEL];   // the model's centre in the root frame, vox units
     scene.push({ name, t, model: models.length }); models.push({ sx, sy, sz, v }); pivots[name] = pv.map(x => +x.toFixed(3));
   }
-  return { vox: writeVox({ palette, models, scene }), meta: { type, voxel: VOXEL, height: built.height, radius: built.radius, pivots, steer, team, emissive, colours: index.size } };
+  return { vox: writeVox({ palette, models, scene }), meta: { type, voxel: VOXEL, height: built.height, radius: built.radius, pivots, parent, steer, rotors: rotors.length ? rotors : undefined, team, emissive, colours: index.size } };
 }

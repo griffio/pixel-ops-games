@@ -507,7 +507,7 @@ src/game/           milestone 1 game layer (renderer-agnostic)
   maps/             map definitions (valley2km.js, desert1km.js, narva3km.js, peninsula.js), the shared prop kit and ground texture generators (natural ground: fine low-contrast detail, 128 px over 12.8 m, one texel to a pixel of the game's buffer; everything bigger comes from the shader)
   match.js          AAS / Skirmish match flow, 10 Hz game tick, bleed, win checks
 icons/units/        unit-strip portraits (tools/make-portraits.mjs renders them from the game's models)
-models/vox/         unit models as MagicaVoxel files with a .json each (tank, apc, truck, supplyTruck, craft); exported by tools/export-vox.mjs, editable in MagicaVoxel, loaded by src/gl/voxmodels.js
+models/vox/         unit models as MagicaVoxel files with a .json each (tank, apc, truck, supplyTruck, craft, heli); exported by tools/export-vox.mjs, editable in MagicaVoxel, loaded by src/gl/voxmodels.js
 src/three/          three.js back end: models, world, PixelRenderer (low-res target + outline), dust, markers
 src/gl/             WebGL2 back end
   scene.js          Node / Mesh scene graph with the same position/rotation/visible surface
@@ -537,7 +537,10 @@ src/gl/             WebGL2 back end
   so a model is one texture and a part one batch, and OPFOR is the same geometry with
   a second palette texture whose team slots are recoloured from the `.json`. The
   `.json` also holds each part's pivot (a turret turns about its ring, not its box's
-  centre), which wheels steer, and the glow colour of emissive parts.
+  centre), which part a part hangs from (the helicopter's rotor heads under the body
+  that banks), which wheels steer, the rotor sets (`rotors_<i>` turns, `blades_<i>`
+  hides at speed behind a blur disc the loader still builds in code), and the glow
+  colour of emissive parts.
   `tools/export-vox.mjs` made the first files by voxelising the code models in the
   page (`src/core/voxexport.js`, sampling each box's camo at its UVs and splitting
   glowing materials off into their own shape); from here the files can be edited in

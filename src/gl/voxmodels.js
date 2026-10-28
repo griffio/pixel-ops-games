@@ -3,7 +3,9 @@
 // `steer` lists which of them steer), the rest keep their names in parts. A part's node sits at its pivot from the json (its model's centre without one)
 // and carries its mesh; nested groups nest. The palette is a 256 x 1 texture the quads' UVs index, one per team: the json's
 // `team` map recolours OPFOR's slots; its `emissive` map gives glowing parts (tail lights: '<part>.glow', hung under their
-// part) their glow. A builder here replaces the code-built one of the same type (main.js).
+// part) their glow; `parent` nests parts (a helicopter's rotors under the body that banks); `rotors` rebuilds the rotor sets
+// (rotors_<i> turns, blades_<i> hides at speed behind a code-built blur disc). A builder here replaces the code-built one of
+// the same type (main.js).
 import { Node, Mesh } from './scene.js';
 import { F } from './models.js';
 import { parseVox, meshModel, paletteCanvas, VOXEL } from '../core/vox.js';
@@ -38,8 +40,8 @@ function build(file, geos, name, meta, team) {
     if (base && nodes.has(base)) {   // a glowing piece of a part sits under that part's node
       const holder = new Node(); holder.position.set(centre[0] - pivot[0], centre[1] - pivot[1], centre[2] - pivot[2]); nodes.get(base).add(holder); place(n.child, holder, n.name); return;
     }
-    const node = n.name === 'hull' ? g : new Node();
-    if (node !== g) { node.position.set(pivot[0], pivot[1], pivot[2]); parent.add(node); nodes.set(n.name, node); }
+    const node = n.name === 'hull' ? g : new Node(), par = meta.parent && meta.parent[n.name], parentNode = (par && nodes.get(par)) || parent, pp = (par && meta.pivots && meta.pivots[par]) || [0, 0, 0];
+    if (node !== g) { node.position.set(pivot[0] - pp[0], pivot[1] - pp[1], pivot[2] - pp[2]); parentNode.add(node); nodes.set(n.name, node); }
     if (shape) { const holder = new Node(); holder.position.set(centre[0] - pivot[0], centre[1] - pivot[1], centre[2] - pivot[2]); node.add(holder); place(n.child, holder, n.name); }
     else place(n.child, node, n.name);
     const m = /^wheels_(\d+)$/.exec(n.name);
@@ -47,6 +49,11 @@ function build(file, geos, name, meta, team) {
   };
   place(file.root, g, 'hull');
   p.wheels = p.wheels.filter(Boolean); p.steer = (meta.steer || []).map(i => p.wheels[i]).filter(Boolean);
+  if (meta.rotors) p.rotors = meta.rotors.map((r, i) => {
+    const head = p[`rotors_${i}`] || new Node(), blades = p[`blades_${i}`] || new Node(); delete p[`rotors_${i}`]; delete p[`blades_${i}`];
+    const disc = r.disc ? F.mesh(r.disc.geo, 'rotorBlur', 0, r.disc.y, 0, head) : new Node(); disc.visible = false;
+    return { head, blades, disc, dir: r.dir };
+  });
   p.ring = F.ring(meta.radius || 3, g);
   return { group: g, parts: p, height: meta.height || 3, radius: meta.radius || 2.5 };
 }

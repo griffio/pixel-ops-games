@@ -2228,9 +2228,22 @@ Engine changes needed in the existing core:
     (the tank went from 8.2k to 14.3k quads), so the mesher floods the air from outside the
     grid first and faces onto enclosed air are never emitted: tank 8.0k quads, APC 4.5k,
     trucks 4.3k and 5.3k, craft 85.
-  - **Not yet:** the helicopter (its rotors are `{ head, blades, disc }` with a blur disc that
-    the exporter skips as invisible) and the soldier (nine animated parts and three weapons
-    shown by visibility); both stay code-built until their rigs get vox names.
+  - **Helicopter (2026-10-28, "Go helicopter").** Its rig is nested and partly code-built, so
+    the format grew three things: `parent` in the json (a part hangs from another part: the
+    rotor heads and beacon under `body`, which banks and pitches; blades under their head),
+    `rotors` (each set's direction and its blur disc, which the loader builds in code as before
+    since a translucent unlit disc has no place in a voxel file), and part names `rotors_<i>`
+    and `blades_<i>` so `units.js` can turn the head and swap blades for the disc. The beacon
+    is a part of its own (it blinks by visibility) and fully emissive; the nav lights are
+    `body.glow0` and `body.glow1`. Two exporter bugs surfaced: a part's frame carried its rig
+    node's scale, so the beacon (a scaled unit box) came out 1 m across (frames are now place
+    and turn only); and `wedge` had been read as the tapered `frustum`, so the tank's glacis
+    and the APC's nose were tapered blocks instead of slopes (both shapes now match
+    geometry.js, and all six files were re-exported). Checked landed (blades), in flight
+    (blur discs, shadow), as OPFOR at night (beacon and nav lights), and in a 200 s Air
+    Assault CPU match with no errors. heli.vox is 91 KB, 16 colours.
+  - **Not yet:** the soldier (nine animated parts and three weapons shown by visibility),
+    which stays code-built until its rig gets vox names.
 
 ## Open questions
 
