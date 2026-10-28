@@ -2184,6 +2184,53 @@ Engine changes needed in the existing core:
     fainter, half the spray) and for tanks to belch exhaust when they pull away from a stop:
     `DustSim.exhaust`, eight dark puffs off the rear deck (four for an APC), fired by `fromUnit`
     when a vehicle's speed crosses 0.5 m/s after being under 0.2.
+- **Vox models (2026-10-28, branch `vox-models`).** The user asked what a MagicaVoxel pipeline
+  would need of them and then said "Go vox". Milestone 1: the vehicles come from `.vox` files
+  that can be opened and edited in MagicaVoxel, with no change to the rig the game drives.
+  - **Format** (`src/core/vox.js`): a reader and writer for MagicaVoxel's chunks (SIZE, XYZI,
+    RGBA, nTRN, nGRP, nSHP), a greedy mesher (one quad per run of same-coloured faces, interior
+    faces never emitted) and a palette-to-canvas helper. Game axes from vox: x = -vx, y = vz,
+    z = vy, about the model's centre, 0.1 m a voxel.
+  - **Colour without vertex colours.** The renderer's vertex layout is position, normal, UV, so
+    a quad's UV is `((index + 0.5) / 256, 0.5)` into a 256 × 1 palette texture, nearest
+    sampled: one texture per model, a second for OPFOR with the team slots recoloured, and
+    no shader change. The ground, props and soldiers are untouched.
+  - **Rig by name.** Each animated part is a named shape: `hull`, `turret`, `wheels_<i>`, and
+    `<part>.glow` for the emissive pieces (tail lights, which a palette cannot hold; the
+    loader hangs them under their part with the glow colour from the json). The json holds
+    each part's pivot (the file's transforms give a shape's centre; a turret turns about its
+    ring), which wheels steer, the team colour map, height and radius.
+  - **Export** (`src/core/voxexport.js`, run in the page by `tools/export-vox.mjs` over CDP):
+    walks a code-built model, groups its boxes, cylinders and wedges by rig part, voxelises
+    each part in the part's own frame (inside tests through the inverse matrices, half a voxel
+    of slack so thin plates keep a layer), samples a camo box's texture at the UV the shader
+    would use and snaps it to the camo's own colours, so the tank has 20 colours, and drops any
+    voxel boxed in on six sides: the solid craft fell from 1.5 MB to 246 KB, the tank to 79 KB.
+  - **Loader** (`src/gl/voxmodels.js`): fetches the pair, registers a geometry per shape and
+    the two palette textures, and returns a builder with the same `{ group, parts, height,
+    radius }` surface as the code builders; `main.js` swaps it in for every type whose file
+    loads, so a missing file (or `?vox=0`) leaves the code model in place.
+  - **Checked** on the GPU against the code models, front, rear, top, at play zoom, at night
+    and as OPFOR: the tank, APC, truck and supply truck match in silhouette and camo, with the
+    camo a little bolder (snapped colours, 0.1 m blocks against 0.0625 m texels), tail lights
+    glowing, the turret traversing, wheels spinning and steering through the same part names.
+  - **Cost.** Interleaved GPU benchmark (bench2, best of two, median frame ms, code → vox):
+    Palm Valley zoom 3 8.2 → 8.8, zoom 0.5 16.7 → 16.1, an armoured match at zoom 1.5
+    11.0 → 10.8, Peninsula 4.9 → 4.7: within noise, with ten more draw calls a frame (each vox
+    part is its own geometry, instanced across every unit of the type, where the code models'
+    boxes shared the unit-box batches). The tank is 8.2k quads against the code model's few
+    hundred, which the GPU does not notice at this pixel size. Loading adds five fetches,
+    520 KB in all, before the first frame.
+  - **Two mesher lessons.** Dark specks appeared on the craft's deck: pixel cracks where greedy
+    quads meet at T-junctions, which the rasteriser can miss, and the outline filter drew a
+    cross round each. Every quad now grows 2 mm past its voxels, so neighbours overlap and the
+    cracks close; nothing else changed. And hollowing left the shell's inner walls to be meshed
+    (the tank went from 8.2k to 14.3k quads), so the mesher floods the air from outside the
+    grid first and faces onto enclosed air are never emitted: tank 8.0k quads, APC 4.5k,
+    trucks 4.3k and 5.3k, craft 85.
+  - **Not yet:** the helicopter (its rotors are `{ head, blades, disc }` with a blur disc that
+    the exporter skips as invisible) and the soldier (nine animated parts and three weapons
+    shown by visibility); both stay code-built until their rigs get vox names.
 
 ## Open questions
 
