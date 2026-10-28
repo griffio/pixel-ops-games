@@ -3,6 +3,7 @@ import { makeTeams } from './teams.js';
 import { NavGrid } from './nav.js';
 import { SpatialHash } from './spatial.js';
 import { Combat } from './combat.js';
+import { Buildings } from './buildings.js';
 import { Respawn } from './respawn.js';
 import { Support } from './support.js';
 import { Fobs } from './fob.js';
@@ -47,6 +48,7 @@ export class Match {
     this.spatial = new SpatialHash(8); this.units.spatial = this.spatial;
     this.combat = new Combat(this.units, this.spatial, this.world, app.dust); this.combat.teams = this.teams; this.combat.audio = app.audio || null;
     this.vision = new Vision(this.units, this.world, this.combat, !app.fogOff); this.combat.vision = this.vision;   // fog of war: what each side sees (?fog=0: everything)
+    this.buildings = new Buildings(this); this.combat.buildings = this.buildings;   // what stray rounds can knock down
     this.respawn = new Respawn(this.units, this.teams, this.world);
     this.support = new Support(this.units, this.respawn, this.teams); this.support.match = this;   // the match: which sides are CPU, the builds under way
     this.fobs = new Fobs(this.units, this.teams, this.world);

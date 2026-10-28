@@ -17,6 +17,42 @@ export class Combat {
     const h = (o) => (o.h === undefined ? 2 : o.h);
     this.tall = this.gridOf(world.obstacles.filter(o => h(o) >= 1.5));
     this.low = this.gridOf(world.obstacles.filter(o => h(o) >= 0.7 && h(o) < 1.5));
+    this.buildings = null;   // game/buildings.js, set by the match
+    dust.shots.walls = (x0, y0, z0, x1, y1, z1) => this.wallHit(x0, y0, z0, x1, y1, z1);
+  }
+  // the obstacles changed in height or number (a building came down): the grids again
+  rebuildGrids() {
+    const h = (o) => (o.h === undefined ? 2 : o.h), O = this.world.obstacles; for (const o of O) delete o.top;
+    this.tall = this.gridOf(O.filter(o => h(o) >= 1.5)); this.low = this.gridOf(O.filter(o => h(o) >= 0.7 && h(o) < 1.5));
+  }
+  // where a stray round's step meets a tall box: into a wall where the line enters below the top, onto the roof where it comes
+  // down inside; a step that starts inside a box (a muzzle against a wall) passes. Only misses are stopped: a hit was settled at
+  // the trigger, and stopping those at walls the line-of-sight test had let the shooter see past cut kills by two fifths
+  wallHit(ax, ay, az, bx, by, bz) {
+    const G = this.tall, B = G.list, st = G.stamp, gen = ++G.gen, dx = bx - ax, dz = bz - az;
+    const x0 = this.ci(Math.min(ax, bx)), x1 = this.ci(Math.max(ax, bx)), z0 = this.ci(Math.min(az, bz)), z1 = this.ci(Math.max(az, bz));
+    let best = null;
+    for (let cz = z0; cz <= z1; cz++) for (let cx = x0; cx <= x1; cx++) {
+      const a = G.cells.get(cz * this.nx + cx); if (!a) continue;
+      for (const i of a) {
+        if (st[i] === gen) continue; st[i] = gen;
+        const o = B[i]; let t0 = 0, t1 = 1, inside = true;
+        for (const [p, d, lo, hi] of [[ax, dx, o.minX, o.maxX], [az, dz, o.minZ, o.maxZ]]) {
+          if (Math.abs(d) < 1e-9) { if (p < lo || p > hi) { t0 = 2; break; } continue; }
+          let ta = (lo - p) / d, tb = (hi - p) / d; if (ta > tb) [ta, tb] = [tb, ta];
+          if (ta > 0) inside = false;
+          t0 = Math.max(t0, ta); t1 = Math.min(t1, tb);
+          if (t0 > t1) break;
+        }
+        if (t0 > t1 || inside) continue;
+        if (o.top === undefined) o.top = this.groundAt((o.minX + o.maxX) / 2, (o.minZ + o.maxZ) / 2) + (o.h === undefined ? 2 : o.h);
+        let t = -1;
+        if (ay + (by - ay) * t0 < o.top) t = t0;                                                      // into the wall
+        else if (by < ay && ay + (by - ay) * t1 < o.top) t = Math.max(t0, (o.top - ay) / (by - ay));   // down onto the roof
+        if (t >= 0 && (!best || t < best.t)) best = { t, o };
+      }
+    }
+    return best ? { x: ax + dx * best.t, y: ay + (by - ay) * best.t, z: az + dz * best.t, o: best.o, b: best.o.bld || null } : null;
   }
   ci(v) { return Math.max(0, Math.min(this.nx - 1, Math.floor((v + this.half) / CELL))); }
   gridOf(list) {
@@ -197,6 +233,12 @@ export class Combat {
     const flight = d / (w.arc ? w.speed * 0.85 : w.speed), ev = Math.abs(e.speed) > 0.05 && !e.dead && !w.indirect ? e.speed : 0;   // a mortar lays on where the target is
     let tx = e.pos.x + Math.sin(e.heading) * ev * flight, tz = e.pos.z + Math.cos(e.heading) * ev * flight, ty = e.pos.y + (e.spec.air ? 2 : e.type === 'soldier' ? 1.1 - 0.35 * (e.kneelK || 0) - 0.75 * (e.proneK || 0) : 2.2);
     if (!hit) { const sp = (w.arc ? 2 : 1.5) + d * (w.arc ? 0.06 : 0.04); tx += (Math.random() - 0.5) * 2 * sp; tz += (Math.random() - 0.5) * 2 * sp; ty = e.spec.air && e.alt > 2 ? ty + (Math.random() - 0.5) * 6 : this.groundAt(tx, tz) + 0.1; }
+    let near = null;
+    if (!hit && !w.arc && !w.splash && !(e.spec.air && e.alt > 2)) {   // a missed bullet or rocket flies on past the target, into the ground beyond or whatever stands there (a bursting shell still comes down around the target)
+      near = { x: tx, z: tz };
+      const ox = tx - mx, oz = tz - mz, od = Math.hypot(ox, oz) || 1, over = 4 + Math.random() * 24;
+      tx += ox / od * over; tz += oz / od * over; ty = this.groundAt(tx, tz) + 0.1;
+    }
     const vx = tx - mx, vz = tz - mz, vy = w.elev ? Math.tan(w.elev) * Math.hypot(vx, vz) : ty - gy, vl = Math.hypot(vx, vy, vz) || 1;   // the flash points the way the tube does
     this.dust.muzzle(mx, gy, mz, vx / vl, vy / vl, vz / vl, MUZZLE_KIND[kit] || 'rifle');
     if (this.audio) {
@@ -207,11 +249,19 @@ export class Combat {
     if (this.onShot) this.onShot(u, w, e, hit);
     if (this.vision) { this.vision.reveal(u, e.team); this.vision.reveal(e, u.team); }   // the flash and the noise give the shooter away; whoever is aimed at is seen
     this.dust.shots.fire({ x: mx, y: gy, z: mz, tx, ty, tz, speed: w.speed, arc: !!w.arc, high: !!w.indirect, elev: w.elev || 0, kind: w.arc || kit === 'tankgun' ? 'shell' : w.rocket ? 'rocket' : 'bullet',
-      trail: w.arc ? 7 : kit === 'tankgun' ? 14 : w.rocket ? 2.5 : (kit === 'mg' || kit === 'doorgun' || kit === 'coax' || kit === 'hmg') ? 8 : 4.5, onArrive: (p) => this.arrive(p, u, w, e, hit, kit) });
+      trail: w.arc ? 7 : kit === 'tankgun' ? 14 : w.rocket ? 2.5 : (kit === 'mg' || kit === 'doorgun' || kit === 'coax' || kit === 'hmg') ? 8 : 4.5, stray: !hit, near, onArrive: (p) => this.arrive(p, u, w, e, hit, kit) });
   }
 
   arrive(p, u, w, e, hit, kit = u.kit) {
     const T = this.teams ? this.teams[u.team] : null;
+    if (p.wall) {   // into a wall or a roof before it got anywhere: sparks or a burst on the face, the building the worse for it
+      if (w.explosive) this.dust.explosion(p.x, p.y, p.z, kit === 'tankgun' ? 0.7 : w.splash ? 0.6 : 0.35); else this.dust.hitSpark(p.x, p.y, p.z);
+      if (this.audio) w.explosive ? this.audio.blast(p.x, p.z, kit === 'tankgun' || w.splash ? 1.4 : 1) : this.audio.hit(p.x, p.z);
+      this.suppress(p.near ? p.near.x : p.x, p.near ? p.near.z : p.z, w, u.team);   // the round cracked past the target on its way to the wall
+      if (w.splash) this.splashAt(p.x, p.z, w, u, kit, null);
+      if (p.wall.b && this.buildings) this.buildings.hit(p.wall.b, p, w, kit, u);
+      return;
+    }
     const close = hit && !e.dead && !e.mounted && Math.hypot(e.pos.x - p.x, e.pos.z - p.z) < (e.type === 'soldier' ? 2.5 : 4.5);
     if (close) {
       let dmg = (e.type === 'soldier' ? w.dmgInf : w.dmgVeh) * ((T && T.dmg) || 1);
@@ -225,13 +275,14 @@ export class Combat {
       const gy = this.groundAt(p.x, p.z), y = Math.max(p.y, gy + 0.1);
       if (w.explosive) this.dust.explosion(p.x, y, p.z, w.splash ? 0.6 : 0.3); else this.dust.impact(p.x, y, p.z);
       if (this.audio) w.explosive ? this.audio.blast(p.x, p.z, kit === 'tankgun' || w.splash ? 1.4 : 1) : this.audio.impact(p.x, p.z);
-      this.suppress(p.x, p.z, w, u.team);
+      this.suppress(p.near ? p.near.x : p.x, p.near ? p.near.z : p.z, w, u.team);   // a miss that flew on still cracked past the target
     }
     if (w.splash) this.splashAt(p.x, p.z, w, u, kit, close ? e : null);
   }
   // a shell bursting at (x, z) hurts everyone of the other side within w.splash: less further out, a third as much in a
   // manned position facing the burst or behind cover, less again lying down; the target it struck is not hit twice
   splashAt(x, z, w, u, kit, skip) {
+    if (this.buildings) this.buildings.splash(x, z, Math.min(w.splash, 3), u);   // a burst against a wall
     const T = this.teams ? this.teams[u.team] : null, near = this.spatial.query(x, z, w.splash, this.splashList || (this.splashList = []));
     const at = { pos: { x, z } };
     for (const o of [...near]) {

@@ -184,6 +184,10 @@ export class GLRenderer {
     for (const c of this.chunks.values()) for (const b of c.batches.values()) { gl.deleteVertexArray(b.vao); gl.deleteBuffer(b.ibo); }
     this.chunks.clear();
   }
+  // one chunk rebuilt (a building came down): drop it, add its meshes again, upload it
+  dropChunk(key) { const gl = this.gl, c = this.chunks.get(key); if (!c) return; for (const b of c.batches.values()) { gl.deleteVertexArray(b.vao); gl.deleteBuffer(b.ibo); } this.chunks.delete(key); }
+  uploadChunk(key) { const gl = this.gl, c = this.chunks.get(key); if (!c) return; for (const b of c.batches.values()) { gl.bindBuffer(gl.ARRAY_BUFFER, b.ibo); gl.bufferData(gl.ARRAY_BUFFER, b.data.subarray(0, b.n * STRIDE), gl.STATIC_DRAW); } }
+  chunkKey(x, z) { const cs = this.chunkSize; return Math.floor(x / cs) + ',' + Math.floor(z / cs); }
   setGround(g) { this.ground = g; }
   // water: the depth map (one byte per terrain vertex, n x n from -half, cell apart: (depth + 0.5) / 4.5), for the water's
   // colour and foam and the wet banks

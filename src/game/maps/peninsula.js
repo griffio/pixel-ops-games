@@ -113,7 +113,7 @@ export const peninsula = {
       Q(0, 0, 0, w, h, d, wall); footprint(w, d, x, z, rot, h + 2.4);
       for (let k = 0; k < 4; k++) Q(0, h + k * 0.62, 0, w + 0.5, 0.62, +((d + 0.7) * (1 - k / 4.3)).toFixed(2), roof);
       Q(w / 2 - 0.8, h, 0, 0.9, 3.4, 0.9, wall); Q(w / 2 - 0.8, h + 3.4, 0, 1.0, 0.2, 1.0, 0x6b6660);
-      if (rd() < 0.45) { const c = Math.cos(rot), s = Math.sin(rot), lx = w / 2 - 0.8; K.emitters.push({ x: x + lx * c, y: h + 3.8, z: z - lx * s, kind: 'smoke', k: 0.8, rate: 1.4 }); }   // a hearth lit
+      rd();   // (the hearth smoke that used to be rolled here is gone; the roll stays so the rest of the village keeps its layout)
       Q(du, 0, -d / 2 - 0.04, 1.0, 2.1, 0.08, DOORS[Math.floor(rd() * DOORS.length)]);
       for (const s of [-1, 1]) for (let fl = 0; fl < floors; fl++) for (const u of [-w / 3, 0, w / 3]) if (!(s < 0 && fl === 0 && Math.abs(u - du) < 1.4)) Q(u, fl * 3.1 + 1.1, s * (d / 2 + 0.03), 0.9, 1.0, 0.06, GLASS);
     };

@@ -8,14 +8,14 @@ const C = { tracer: hexToLinear(0xffe9a0), rifle: hexToLinear(0xffd98a), shell: 
 const G = 9.8;
 
 export class ProjectileSim {
-  constructor(dust) { this.dust = dust; this.list = []; this.segs = new Float32Array(64 * 14); this.segCount = 0; }
+  constructor(dust) { this.dust = dust; this.list = []; this.segs = new Float32Array(64 * 14); this.segCount = 0; this.walls = null; }   // walls: (x0, y0, z0, x1, y1, z1) -> where a stray round's step meets a wall or roof, or null (game/combat.js)
 
   // launch from (x,y,z) to (tx,ty,tz): straight at `speed`, or lofted under gravity when `arc`
   // (the low-angle solution for a fixed muzzle speed, or with `high` the plunging one; out of reach, it lobs at 45 degrees
   // and falls short). With `elev` (radians) the round leaves at that elevation with whatever speed carries it there, as a
   // mortar's charge is chosen for the range: a near-vertical shot climbs 200 m, off the top of the screen and seemingly
   // away from its target, and takes 13 s to come down
-  fire({ x, y, z, tx, ty, tz, speed, arc = false, high = false, elev = 0, kind = 'bullet', trail = 3, onArrive = null }) {
+  fire({ x, y, z, tx, ty, tz, speed, arc = false, high = false, elev = 0, kind = 'bullet', trail = 3, stray = false, near = null, onArrive = null }) {
     const dx = tx - x, dy = ty - y, dz = tz - z, dh = Math.hypot(dx, dz) || 0.01;
     let vx, vy, vz, T;
     const c = Math.cos(elev), den = arc && elev ? 2 * c * c * (dh * Math.tan(elev) - dy) : 0;   // no solution when the target stands above that line
@@ -25,14 +25,16 @@ export class ProjectileSim {
       const tan = disc >= 0 ? (v2 + (high ? 1 : -1) * Math.sqrt(disc)) / (G * dh) : 1, cos = 1 / Math.sqrt(1 + tan * tan), vh = speed * cos;
       vx = dx / dh * vh; vz = dz / dh * vh; vy = speed * tan * cos; T = dh / vh;
     } else { const d = Math.hypot(dx, dy, dz) || 0.01; vx = dx / d * speed; vy = dy / d * speed; vz = dz / d * speed; T = d / speed; }
-    this.list.push({ x, y, z, vx, vy, vz, grav: arc ? G : 0, t: 0, T, kind, trail, onArrive });
+    this.list.push({ x, y, z, vx, vy, vz, grav: arc ? G : 0, t: 0, T, kind, trail, stray, near, onArrive });   // near: where a miss passed its target, for the suppression it causes
   }
 
   update(dt) {
     const L = this.list, d = this.dust, r = Math.random;
     for (let i = L.length - 1; i >= 0; i--) {
-      const p = L[i], step = Math.min(dt, p.T - p.t);
+      const p = L[i], step = Math.min(dt, p.T - p.t), x0 = p.x, y0 = p.y, z0 = p.z;
       p.t += step; p.x += p.vx * step; p.y += p.vy * step; p.z += p.vz * step; p.vy -= p.grav * step;
+      const wall = p.stray && this.walls && this.walls(x0, y0, z0, p.x, p.y, p.z);   // a miss stops at a wall; a hit was settled at the trigger and lands as it did
+      if (wall) { p.x = wall.x; p.y = wall.y; p.z = wall.z; p.wall = wall; L.splice(i, 1); if (p.onArrive) p.onArrive(p); continue; }
       if (p.kind === 'shell') { d.emit(p.x, p.y, p.z, 0, 0, 0, 0.5, 0.06, C.shell, 0, 3, 1); d.emit(p.x, p.y, p.z, (r() - 0.5) * 0.4, 0.3, (r() - 0.5) * 0.4, 0.3, 0.6 + r() * 0.3, C.smoke, 1, 0.35, 0.95); }
       else if (p.kind === 'rocket') { d.emit(p.x, p.y, p.z, 0, 0, 0, 0.35, 0.05, C.flame, 0, 3, 1); d.emit(p.x, p.y, p.z, (r() - 0.5) * 0.6, 0.4 + r() * 0.4, (r() - 0.5) * 0.6, 0.4 + r() * 0.3, 0.9 + r() * 0.6, C.smoke, 1, 0.5, 0.96); }
       if (p.t >= p.T - 1e-6) { L.splice(i, 1); if (p.onArrive) p.onArrive(p); }

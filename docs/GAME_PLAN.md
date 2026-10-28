@@ -2265,6 +2265,68 @@ Engine changes needed in the existing core:
     parts, each its own batch per team and skin). A 200 s CPU match ran clean.
   - Every unit now comes from a `.vox`; the code builders remain as the fallback and the
     exporter's source.
+- **Cold hearths (2026-10-28).** The user asked for no smoke from house chimneys, keeping the
+  industrial kind. Peninsula's cottage hearths were the only ones; their emitter is gone (the
+  `rd()` roll stays so the village's layout does not shift). Narva keeps the boiler house, the
+  four factory stacks and the dam's mist; the other maps had none.
+- **Buildings that stray rounds knock down (2026-10-28).** The user's second ask: a shot into a
+  house should damage or destroy it. `src/game/buildings.js`:
+  - **What a building is.** Tall obstacles (3 to 40 m, 12 to 1500 m²: not a trunk, a mast, a
+    chimney or the ship) that touch make one building (a turned house is rows of them), found
+    through an 8 m grid so Narva's 549 cost nothing at setup; the props standing on it are
+    the parts sharing its anchor and the plain boxes inside its footprint. Hits to bring it
+    down: volume / 450 m³, three at least, eight at most.
+  - **Strays meet walls.** `ProjectileSim` asks `Combat.wallHit` for each step of a round
+    that missed: the first tall box the step enters below its top (a wall), or comes down
+    into (a roof); a step starting inside a box passes, so a muzzle against a wall still
+    fires out. The round stops there: sparks or a burst on the face, suppression and splash
+    as before, and the building takes a hit (shell, rocket or bomb 1, autocannon round a
+    third, bullet nothing; a burst within 3 m of a wall 0.6). A direct-fire miss now flies on
+    4 to 28 m past its target instead of landing at its feet, so the house behind catches it.
+    Hits are not stopped: they were settled at the trigger, and a first cut that stopped
+    every round at walls dropped a Peninsula match's kills from 86 to 49 in six minutes,
+    because the flight path and the line-of-sight test disagree near walls often enough
+    (the muzzle sits ahead of the shooter, the aim point leads the target) that walls the
+    shooter could see past were swallowing rounds.
+  - **Coming down.** The building's props leave their static chunks (`World.statics` keeps
+    each chunk's meshes so `World.collapse` can drop the chunk, re-add the rest and upload
+    it: `Renderer.dropChunk`/`uploadChunk`), 6 to 18 heaps of rubble in the building's own
+    plaster and a darker shade of its colour stand in the footprint as new obstacles 0.2 to
+    1.3 m high, the nav grids refresh the box (infantry pick through, vehicles go round), the
+    line-of-sight grids rebuild, anyone stood in a heap steps clear, a big burst with dirt
+    thrown across the footprint scorches the ground, and the feed says who brought it down.
+  - Bursting shells are not sent past the target: a tank's missed HE round still comes down
+    around it, where its splash and its burst against a nearby wall do their work; only
+    bullets and rockets fly on, and the suppression they cause is laid where they passed
+    the target, not where they land.
+  - Tested: a cottage knocked down by hand on Desert Crossing (59 props out, 6 heaps in, 3
+    tall boxes fewer, 4 low ones more, 5 of 44 foot cells open inside); `wallHit` on a
+    30 × 22 × 11 m block: across it stops at the near wall, over it passes, a falling round
+    stops on the roof, a muzzle inside fires out, alongside passes. Six-minute CPU matches:
+    Peninsula's village 1800 stray rounds into walls, 330 of them into buildings, 3 down and
+    7 damaged; Desert Crossing 27 and 17, 1 down; no errors.
+  - **Lesson on judging balance.** Kills in six minutes of the same Peninsula seed were 86,
+    77 and 46 on the unchanged code: combat rolls `Math.random`, so a seed fixes the map
+    and the commanders but not the fight. One run says nothing about balance; a change
+    needs a batch (as the map balancing did), and this one keeps hits as they were by
+    design rather than by measurement.
+- **Landing craft spaced out (2026-10-28).** The user saw the craft bunch when embarking and
+  debarking. They had waited 10 m apart off the stern gate, run the same lane line (only the
+  last point was spread, 14 m along the beach) and cast off together, so a wave sailed as one
+  clump. Now (`RULES.landing.spacing` 18, `stagger` 5):
+  - each craft runs its own copy of the lane, shifted sideways by its slot (each point moved
+    along the normal of the chord through its neighbours), from the gate to a berth on the
+    beach, so a wave runs abreast 18 m apart and beaches side by side; the first leg is square
+    to the gate and runs 25 m clear of the slots before the line turns, because North Cove's
+    lane doubles back along the ship's side and took a craft across its neighbours' slots;
+  - the slots off the gate are 18 m apart;
+  - one craft casts off at a time, five seconds apart (`Landing.clear`), from the dock and
+    from the beach, so a wave runs in echelon.
+  - Measured over four minutes of CPU matches on two seeds (scratchpad vox/craft-space.js,
+    the closest any two craft came, by state): under way 10 m before, 14 and 18 m after (the
+    inside craft cuts the corner at the first turn); on the beach 14 m before, 18 m after; at
+    the dock 9 m before, 18 m after; a craft casting off past a docked one 9 m before, 16 m
+    after.
 
 ## Open questions
 

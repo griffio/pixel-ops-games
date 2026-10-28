@@ -562,8 +562,9 @@ src/gl/             WebGL2 back end
   ends produce the same image from the same `lighting(time)` values.
 - Picking renders instance ids into a small colour buffer on click and reads
   one pixel; no CPU raycasting.
-- Ambient life: a map's chimneys, hearths and the dam's tailwater are particle
-  emitters (`layout.emitters`, ticked with the simulation and drifting on `map.wind`);
+- Ambient life: a map's factory chimneys, Narva's boiler house and the dam's tailwater
+  are particle emitters (`layout.emitters`, ticked with the simulation and drifting on
+  `map.wind`; house chimneys stay cold);
   landing craft leave a little foam astern and spray at the bow; a tank (an APC more lightly)
   belches exhaust as it pulls away from a stop; the lighthouse turns a beam at night; trees and bushes sway in the vertex
   shader (parts flagged `sway`, leaning by the square of their height over the
@@ -577,7 +578,15 @@ src/gl/             WebGL2 back end
   a fireball, a shock ring along the ground, debris and embers on arcs, and a column of
   smoke; shells, rockets and dying vehicles leave scorch or crater decals (`World.marks`,
   150 at most, two minutes each) and shake the camera by their size and distance; a dead
-  tank or APC cooks off for ten seconds.
+  tank or APC cooks off for ten seconds. A round that missed stops at the first wall or
+  roof it meets (a hit is settled at the trigger and lands as before), and a direct-fire
+  miss flies on past its target, so stray fire lands on whatever stands behind: bullets
+  chip a building, shells, rockets and mortar bombs
+  damage it (`src/game/buildings.js`: a building is the group of tall obstacles under a
+  house or block, three hits for a cottage, eight for a block of flats), and enough of
+  them bring it down into a heap of rubble in its own colours, low cover that infantry
+  pick through and vehicles go round, with the ground scorched and the line-of-sight and
+  nav grids updated.
 - Water is a plane at the water level drawn after the opaque pass, lit like the
   ground and blended over the bed. Its shader reads a depth map built from the
   terrain: teal paling in the shallows, a broken foam rim at the shore and curling
