@@ -2,6 +2,11 @@ import { rand } from '../../core/layout.js';
 import { smooth } from '../../core/math.js';
 import { makeKit } from './kit.js';
 
+// the two road bridges, and the road's line over each: dead straight along the deck with a 30 m lead-in at each end that the
+// smoothing leaves on the line (a corner on or beside a deck bent the asphalt across it)
+const BRIDGES = [{ x: 130, z: 109, len: 64, w: 14, angle: 0.78, y: 1.3 }, { x: -35, z: -97, len: 64, w: 14, angle: 0.733, y: 1.3 }];
+const deckLine = (b, lead = 30) => [-b.len / 2 - lead, -b.len / 2, b.len / 2, b.len / 2 + lead].map(k => [+(b.x + Math.sin(b.angle) * k).toFixed(1), +(b.z + Math.cos(b.angle) * k).toFixed(1)]);
+
 // "Desert Crossing": 1 km map. Bases in the SW and NE corners; five locations in
 // Advance-and-Secure order between them; an asphalt road joins the chain.
 export const desert1km = {
@@ -16,7 +21,7 @@ export const desert1km = {
     { name: 'Depot', x: 210, z: 190, r: 24 },
     { name: 'Relay', x: 310, z: 300, r: 20 },
   ],
-  roadPath: [[-400, -400], [-340, -345], [-300, -290], [-250, -250], [-205, -216], [-160, -190], [-110, -180], [-20, -80], [4, -38], [40, 10], [76, 58], [130, 110], [210, 190], [330, 330], [430, 430]],
+  roadPath: [[-400, -400], [-340, -345], [-300, -290], [-250, -250], [-205, -216], [-160, -190], [-110, -180], ...deckLine(BRIDGES[1]), [40, 10], ...deckLine(BRIDGES[0]), [210, 190], [330, 330], [430, 430]],
   tracks: [[[72, -32], [150, -50], [250, -20], [320, 150], [310, 300]], [[-300, -290], [-380, -250], [-450, -310]], [[-140, -160], [20, -240], [200, -170]], [[150, 136], [120, 220], [60, 330]]],
   // Ridges with cut passes and two rivers form the choke points. Each river is bridged where the road
   // crosses it and fordable further out; the village sits on the land between them, so both sides
@@ -43,7 +48,7 @@ export const desert1km = {
     ],
     fords: [{ x: 250, z: -20, r: 24, bed: -2.2 }, { x: -170, z: 40, r: 24, bed: -2.2 }],
   },
-  bridges: [{ x: 130, z: 109, len: 64, w: 14, angle: 0.78, y: 1.3 }, { x: -35, z: -97, len: 64, w: 14, angle: 0.733, y: 1.3 }],
+  bridges: BRIDGES,
   flats: [
     { x: -400, z: -400, r: 48, m: 25 }, { x: 430, z: 430, r: 48, m: 25 },
     { x: -300, z: -290, r: 30, m: 20 }, { x: -140, z: -160, r: 84, m: 18 }, { x: 40, z: 10, r: 72, m: 22 },

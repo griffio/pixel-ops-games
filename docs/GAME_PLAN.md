@@ -2014,6 +2014,14 @@ Engine changes needed in the existing core:
     splat says, sampled from three sides by the normal so cliff faces show strata. It shows on
     Peninsula's cliffs and canal walls, the cove, and Palm Valley's bluffs. Narva's banks are
     gentler than that.
+- **README screenshots; Desert Crossing's bridges (2026-10-28).** The README has a Screenshots
+  section: seven action shots in `docs/screenshots/` as lossless WebP, about 3.3 MB. The deploy
+  leaves `docs/` out, so they are for GitHub. They were taken headless by finding the busiest fight
+  (or a helicopter in the air) a few minutes into a CPU match.
+  - The user spotted Desert Crossing's road bending across its bridge decks. Both bridges had a
+    road corner on or beside the deck, and smoothing curved the asphalt over it. The road's line
+    is now worked out from each bridge (`deckLine`): straight along the deck with a 30 m lead-in
+    at each end.
 
 ## Open questions
 
