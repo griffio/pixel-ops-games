@@ -2038,6 +2038,17 @@ Engine changes needed in the existing core:
     darkens and greens some stretches and lifts and dries others; never on concrete. Each natural
     tile is also sampled twice, the second a fraction of a tile over, and switched between in
     patches on that noise (`tile2`), so a field no longer shows its 12.8 m period.
+  - **Second pass.** The user found the first pass still uniform: even, round blobs all of one
+    size, like a camouflage print.
+    - The texture's pattern is now organic. Five octaves from about 6 m down to 0.4 m are
+      pushed about by a warp field, then mixed with streaks drawn out along the diagonal. The
+      streaks are sampled in sheared coordinates, u = x + y, which still tile.
+    - Each layer is standardised, then mapped to distinct light streaks and patches and dark
+      hollows instead of a gentle brightness wave. Dabs lean along the streaks.
+    - The shader varies brightness at three scales (about 170, 50 and 21 m). It adds zones
+      about 90 m across where grass dries to straw or runs lush and dark. The tints scale with
+      how green the ground is, so sand and dirt only lighten and darken.
+    - Sand is kept calmer (wind drift), dirt blotchy.
 
 ## Open questions
 

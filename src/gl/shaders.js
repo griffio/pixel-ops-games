@@ -59,8 +59,14 @@ void main() {
     vec3 c = tile2(uBase, w * uBaseInv, k) * rest + texture(uT0, w * uTileInv.x).rgb * s.r + tile2(uT1, w * uTileInv.y, k) * s.g
            + tile2(uT2, w * uTileInv.z, k) * s.b + tile2(uT3, w * uTileInv.w, k) * s.a;   // concrete (T0) keeps its slabs aligned
     if (uMacroOn > 0.5) {
-      float m = texture(uMacro, w * 0.0059).r * 0.62 + texture(uMacro, w * 0.019 + 0.37).r * 0.38;
-      c *= mix(vec3(1.0), mix(vec3(0.86, 0.91, 0.85), vec3(1.09, 1.06, 0.93), m), 1.0 - s.r);
+      // lighter and darker stretches at three scales (about 170, 50 and 21 m), then zones about 90 m across where grass dries
+      // to straw or runs lush and dark; the tints follow how green the ground is, so sand and dirt only lighten and darken
+      float m = texture(uMacro, w * 0.0059).r * 0.5 + texture(uMacro, w * 0.019 + 0.37).r * 0.3 + texture(uMacro, w * 0.047 + 0.71).r * 0.2;
+      float zone = texture(uMacro, w * 0.011 + vec2(0.23, 0.58)).r, nat = 1.0 - s.r;
+      float green = clamp((c.g - c.r) * 8.0 + (c.g - c.b) * 3.0 - 0.15, 0.0, 1.0);
+      c *= mix(1.0, 0.82 + 0.36 * m, nat);
+      c = mix(c, c * vec3(1.14, 1.06, 0.76), smoothstep(0.58, 0.8, zone) * green * nat);
+      c = mix(c, c * vec3(0.76, 0.9, 0.78), smoothstep(0.42, 0.2, zone) * green * nat);
     }
     if (uRockOn > 0.5) {
       vec3 n = normalize(vN), a = abs(n);
