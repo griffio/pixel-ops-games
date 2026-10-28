@@ -1765,10 +1765,56 @@ Engine changes needed in the existing core:
   The minimap was mirrored: it drew +x to the right with north up, while the camera draws the
   world with +x on screen-left when facing north, so panning right moved the minimap's view box
   left and no camera turn made the two agree. It now keeps north up with +x on the left (terrain,
-  roads, fog shading, units and click-to-jump). Open: CPU batches since the route change show
-  the north base winning about two games in three (43% before it); switching the route detour
-  off brings it back to about half, while `detour` itself answers mirrored situations alike, so
-  the long detours (up to 2.5 times the walk) are under test.
+  roads, fog shading, units and click-to-jump). A suspected north-side bias after the route
+  change (69% north wins over seeds 1-6) did not survive fresh seeds: on seeds 11-16 the north
+  base won 23 of 47 with the detour and 22 of 47 without. The sim is deterministic per seed, so
+  reusing seeds across variants replays near-identical matches; judge side balance on fresh ones.
+- **Narva blockout, step N1 (2026-10-27).** The user chose 3 km, nine places and north up from the
+  plan (claude.ai artifact "Narva Map Plan"); the other choices are as sketched there (BLUFOR on
+  the Narva bank, the railway bridge for infantry only, summer green). `maps/narva3km.js` lays
+  the map out in real east/north metres through one helper, because facing north this engine
+  shows +x on the left. The river runs south to north, so `nav.js` gates now take an axis
+  (`map.gateAxis: 'x'`): one gate at x = 0 with four portals (the dam and the Friendship Bridge
+  for everyone, the falls and the railway bridge for infantry), and the river is kept within
+  25 m of that line so each bank is one side of it. Kreenholm's islands are fords raised above
+  the water; the dry falls are a rock bed just above it; a 6 m footbridge joins the island to
+  the east bank (a 4 m deck's railings close every 2 m cell). Buildings are plain blocks: about
+  250 Soviet blocks of 5 and 9 storeys, Ivangorod's houses, the castle, the fortress, the mills,
+  the stations, Balti's hall and chimneys, the HES hall and switchyard; about 1,400 pines and
+  birches. Grids: 2 m and 3 m cells, about 95 MB. Also new: a findPath that rejects two ends on
+  separate patches of open ground at once (a vehicle sent to an island used to flood the map for
+  100-200 ms), a green `meadow` ground tile, and minimap colours taken from the map's ground set.
+  32 CPU matches (four pairings, seeds 21-24, both ways): no page errors, every one went the
+  distance, about 15 captures a match; the west base won 17 and the east 15. The map strongly
+  favours infantry: Balanced won 15 of 16, Light 14 of 16, Mechanized 3 of 16, Armoured and Air
+  Assault none of 8. Armour reaches only two crossings and stops at the bank when sent at
+  Kreenholm or the Rail Bridge, which N4 needs to look at (vehicle stand-off points for the
+  infantry-only places).
+- **Narva city kit and landmarks (2026-10-28).** The user sent a voxel diorama of the city
+  kit and references for Hermann Castle, Ivangorod Fortress and a Kreenholm mill; all are built
+  in `maps/kit.js` and placed on Narva (gallery: claude.ai artifact "Narva City Kit").
+  - **Panel blocks.** Windows are one dark band per floor cut by full-height pilasters, so a
+    block costs about a hundred parts, not one per pane (about 200 blocks, 40 point towers).
+  - **Placement.** Narva places blocks and garages by their rectangles. Circles round long
+    blocks had left the city half empty.
+  - **Rail.** A railway strip texture, sidings with boxcars and tank wagons, platforms. The
+    railway bridge is a blue truss (`bridge.truss`; its members tilt only for bridges running
+    along x or z).
+  - **Landmarks.** Walls with merlons and weathered patches (`stoneWall`); voxel roofs as
+    stacked boxes or cylinders. Tall Hermann has quoins, a clock, a timber gallery and a
+    stepped roof. The fortress has round towers with stepped cones. The mills have
+    white-framed windows, stair towers, a pediment and a slate gable; the mill race's arched
+    sluices spill foam onto the water.
+  - **Ground colours.** The ground shader adds the splat's four weights without normalising,
+    and canvas alpha is the fourth. A half-transparent fill therefore also painted the fourth
+    tile (sand on Narva): the yards looked like desert. Narva now makes the meadow its fourth
+    tile and paints exact mixes, alpha being the grass that is left. Green maps' road edges
+    drift into grass.
+  - **Line-up.** Roads and the railway now run dead straight over each bridge deck with a
+    straight lead-in at each end; they had been smoothed through one point at mid-deck and
+    sat 5-9 m off at the deck ends. The ground track stops at the truss deck, which carries
+    its own rails.
+  About 58k parts on the map; routes and CPU play unchanged.
 
 ## Open questions
 

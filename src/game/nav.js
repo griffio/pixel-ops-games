@@ -103,43 +103,51 @@ export class NavGrid {
   }
 
   // world start/end -> array of [x, z] waypoints (excluding start), or null if unreachable
-  // Gates: a map's long barriers (a river, a line of bluffs) that run the width of the map along z = at and are crossed only
-  // at a few portals ({ x, d, foot }: crossed from d metres before the line to d metres past it; foot: infantry only). A
-  // route from one side to the other goes portal to portal, the shortest chain in straight lines, each leg a search that
-  // stays on one side, so a search never floods a whole river bank looking for the way over.
-  setGates(gates, vehicle) { this.gates = gates.map(g => ({ at: g.at, portals: g.portals.filter(p => !(vehicle && p.foot)) })).sort((a, b) => a.at - b.at); }
-  zone(z) { let k = 0; for (const g of this.gates) if (z > g.at) k++; return k; }
+  // Gates: a map's long barriers (a river, a line of bluffs) that run the width of the map along z = at (axis 'z', the
+  // default) or its height along x = at (axis 'x': a river running north-south), crossed only at a few portals ({ x, d,
+  // foot }: x is the portal's place along the line, crossed from d metres before the line to d metres past it; foot:
+  // infantry only). A route from one side to the other goes portal to portal, the shortest chain in straight lines, each
+  // leg a search that stays on one side, so a search never floods a whole river bank looking for the way over.
+  setGates(gates, vehicle, axis = 'z') { this.gateAxis = axis; this.gates = gates.map(g => ({ at: g.at, portals: g.portals.filter(p => !(vehicle && p.foot)) })).sort((a, b) => a.at - b.at); }
+  across(x, z) { return this.gateAxis === 'x' ? x : z; }   // the coordinate the gate lines cut
+  zone(v) { let k = 0; for (const g of this.gates) if (v > g.at) k++; return k; }
+  // worked in (u along the lines, v across them); W turns a (u, v) pair back into world (x, z)
   gatedPath(sx, sz, tx, tz, a, b, maxExpand) {
+    const X = this.gateAxis === 'x', W = (u, v) => (X ? [v, u] : [u, v]);
+    const [su, sv] = W(sx, sz), [tu, tv] = W(tx, tz);   // W is its own inverse
     const dir = b > a ? 1 : -1, lines = []; for (let k = a; k !== b; k += dir) lines.push(this.gates[dir > 0 ? k : k - 1]);
-    const inside = (x, z, g, p) => Math.abs(z - g.at) <= p.d && Math.abs(x - p.x) <= 25;   // already in the pass or on the bridge
+    const inside = (u, v, g, p) => Math.abs(v - g.at) <= p.d && Math.abs(u - p.x) <= 25;   // already in the pass or on the bridge
     // every chain of portals with its length in straight lines; the shortest first, and if one fails (a crossing blocked:
     // tank traps on the bridge) the next, up to four
     const chains = [];
-    const walk = (i, px, pz, len, picks) => {
-      if (i === lines.length) { chains.push({ len: len + Math.hypot(tx - px, tz - pz), picks: picks.slice() }); return; }
+    const walk = (i, pu, pv, len, picks) => {
+      if (i === lines.length) { chains.push({ len: len + Math.hypot(tu - pu, tv - pv), picks: picks.slice() }); return; }
       const g = lines[i];
-      for (const p of g.portals) { picks.push(p); walk(i + 1, p.x, g.at + dir * p.d, len + Math.hypot(p.x - px, g.at - dir * p.d - pz) + 2 * p.d, picks); picks.pop(); }
+      for (const p of g.portals) { picks.push(p); walk(i + 1, p.x, g.at + dir * p.d, len + Math.hypot(p.x - pu, g.at - dir * p.d - pv) + 2 * p.d, picks); picks.pop(); }
     };
-    walk(0, sx, sz, 0, []);
+    walk(0, su, sv, 0, []);
     chains.sort((a, b) => a.len - b.len);
     for (const { picks } of chains.slice(0, 4)) {
-      const out = []; let px = sx, pz = sz;
-      const leg = (x0, z0, x1, z1) => { const p = this.findPath(x0, z0, x1, z1, maxExpand, true); if (!p) throw new Error('leg'); out.push(...p); };
+      const out = []; let pu = su, pv = sv;
+      const leg = (u0, v0, u1, v1) => { const p = this.findPath(...W(u0, v0), ...W(u1, v1), maxExpand, true); if (!p) throw new Error('leg'); out.push(...p); };
       try {
         picks.forEach((p, i) => {
-          const g = lines[i], ez = g.at - dir * p.d, xz = g.at + dir * p.d;
-          if (!(i === 0 && inside(sx, sz, g, p))) leg(px, pz, p.x, ez);
-          leg(i === 0 && inside(sx, sz, g, p) ? sx : p.x, i === 0 && inside(sx, sz, g, p) ? sz : ez, p.x, xz);   // over the bridge, through the pass
-          px = p.x; pz = xz;
+          const g = lines[i], ev = g.at - dir * p.d, xv = g.at + dir * p.d, inS = i === 0 && inside(su, sv, g, p);
+          if (!inS) leg(pu, pv, p.x, ev);
+          leg(inS ? su : p.x, inS ? sv : ev, p.x, xv);   // over the bridge, through the pass
+          pu = p.x; pv = xv;
         });
-        leg(px, pz, tx, tz);
+        leg(pu, pv, tu, tv);
         return out;
       } catch { /* this chain is blocked somewhere: the next */ }
     }
     return null;
   }
   findPath(sx, sz, tx, tz, maxExpand = this.cap, oneSide = false) {
-    if (this.gates && !oneSide) { const a = this.zone(sz), b = this.zone(tz); if (a !== b) return this.gatedPath(sx, sz, tx, tz, a, b, maxExpand); }
+    // two ends on separate patches of open ground (an island for a vehicle, a pocket between buildings) have no route:
+    // say so at once rather than flood the map looking for one
+    if (!oneSide) { const s = this.nearest(this.cellOf(sx), this.cellOf(sz)), t = this.nearest(this.cellOf(tx), this.cellOf(tz)); if (!s || !t || this.region(s[0], s[1]) !== this.region(t[0], t[1])) return null; }
+    if (this.gates && !oneSide) { const a = this.zone(this.across(sx, sz)), b = this.zone(this.across(tx, tz)); if (a !== b) return this.gatedPath(sx, sz, tx, tz, a, b, maxExpand); }
     const n = this.n;
     const s = this.nearest(this.cellOf(sx), this.cellOf(sz)), t = this.nearest(this.cellOf(tx), this.cellOf(tz));
     if (!s || !t) return null;

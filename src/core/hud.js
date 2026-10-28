@@ -130,7 +130,8 @@ export class Hud {
     const S = 220, bg = document.createElement('canvas'); bg.width = bg.height = S; const g = bg.getContext('2d');
     const splat = document.createElement('canvas'); splat.width = splat.height = S; map.paintSplat(splat.getContext('2d'), S, map.size / 2);
     const sp = splat.getContext('2d').getImageData(0, 0, S, S).data, out = g.createImageData(S, S), o = out.data;
-    const sand = [196, 176, 136], tiles = [[182, 176, 164], [91, 91, 93], [138, 138, 88], [163, 142, 102]];
+    const TONE = { sand: [196, 176, 136], concrete: [182, 176, 164], asphalt: [91, 91, 93], grass: [138, 138, 88], meadow: [108, 138, 68], dirt: [163, 142, 102] };   // each ground tile's average colour
+    const sand = TONE[map.ground.base] || TONE.sand, tiles = map.ground.tiles.map(t => TONE[t] || TONE.sand);
     for (let i = 0; i < S * S; i++) {
       const j = i - (i % S) + (S - 1 - (i % S));   // the splat is painted with +x to the right: read it mirrored
       const w = [sp[j * 4] / 255, sp[j * 4 + 1] / 255, sp[j * 4 + 2] / 255, sp[j * 4 + 3] / 255], rest = Math.max(0, 1 - w[0] - w[1] - w[2] - w[3]);

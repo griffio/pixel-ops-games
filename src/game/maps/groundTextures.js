@@ -33,6 +33,12 @@ export function grassTile() {
   for (let i = 0; i < 60; i++) { g.fillStyle = r() < 0.5 ? 'rgba(60,70,30,0.35)' : 'rgba(190,185,120,0.35)'; g.fillRect(Math.floor(r() * 64), Math.floor(r() * 64), 1 + Math.floor(r() * 3), 1 + Math.floor(r() * 2)); }
   return c;
 }
+export function meadowTile() {   // Narva's summer grass: greener than the oasis grass, with clover-dark and sun-bleached flecks
+  const [c, g] = canvas(64, 64), r = prng(43);
+  noisy(g, 64, 64, '#6c8a44', 0.15, r);
+  for (let i = 0; i < 70; i++) { g.fillStyle = r() < 0.55 ? 'rgba(40,62,26,0.35)' : 'rgba(170,186,110,0.35)'; g.fillRect(Math.floor(r() * 64), Math.floor(r() * 64), 1 + Math.floor(r() * 3), 1 + Math.floor(r() * 2)); }
+  return c;
+}
 export function dirtTile() { const [c, g] = canvas(64, 64); noisy(g, 64, 64, '#a38e66', 0.14, prng(51)); return c; }
 
 // sand drifted over a strip's edges: each row of the texture gets its own ragged edge from both sides, sand-coloured
@@ -53,7 +59,7 @@ function driftEdges(g, w, h, r, reach, sand = [196, 176, 136]) {
 // road strip: u across the width (12 m), v along 12 m, about 10 pixels a metre each way. Worn asphalt: patches, cracks,
 // lighter wheel tracks in each lane; broken white edge lines, faded lane dashes, a double yellow centre line; sand drifted
 // over ragged edges.
-export function roadStrip() {
+export function roadStrip(edge) {
   const W = 128, H = 128, [c, g] = canvas(W, H), r = prng(61);
   noisy(g, W, H, '#5a5a5c', 0.1, r, 6000);
   for (let i = 0; i < 7; i++) { const v = 78 + Math.floor(r() * 16); g.fillStyle = `rgba(${v},${v},${v + 2},0.55)`; g.fillRect(10 + Math.floor(r() * 100), Math.floor(r() * H), 8 + Math.floor(r() * 18), 6 + Math.floor(r() * 16)); }   // repair patches
@@ -64,17 +70,27 @@ export function roadStrip() {
   paint(5, 2, '#d8d6cf', 0, H, 0.12); paint(121, 2, '#d8d6cf', 0, H, 0.12);                                              // edge lines
   for (const x of [34, 93]) { paint(x, 2, '#d8d6cf', 8, 48, 0.25); paint(x, 2, '#d8d6cf', 72, 112, 0.25); }               // lane dashes, 4 m on, 2 m off
   paint(61, 2, '#d4ad3a', 0, H, 0.08); paint(65, 2, '#d4ad3a', 0, H, 0.08);                                              // centre line
-  driftEdges(g, W, H, r, 7);
+  driftEdges(g, W, H, r, 7, edge);
   return c;
 }
 // dirt track: 5 m across, v along 5 m. Two darker wheel ruts with pebbles, a paler hump between them, ragged sandy edges.
-export function trackStrip() {
+export function trackStrip(edge) {
   const W = 64, H = 64, [c, g] = canvas(W, H), r = prng(71);
   noisy(g, W, H, '#a28c64', 0.13, r, 1600);
   g.fillStyle = 'rgba(214,196,152,0.35)'; g.fillRect(24, 0, 16, H);                                                     // the hump, paler
   for (const x of [11, 46]) { g.fillStyle = 'rgba(84,70,48,0.5)'; g.fillRect(x, 0, 7, H); g.fillStyle = 'rgba(60,50,34,0.35)'; g.fillRect(x + 2, 0, 3, H); }   // ruts
   for (let i = 0; i < 40; i++) { const v = 120 + Math.floor(r() * 60); g.fillStyle = `rgb(${v},${v - 8},${v - 24})`; g.fillRect(Math.floor(r() * W), Math.floor(r() * H), 1, 1); }   // pebbles
-  driftEdges(g, W, H, r, 5);
+  driftEdges(g, W, H, r, 5, edge);
+  return c;
+}
+// railway: 5 m across, v along 5 m. Grey ballast, dark sleepers 2.6 m long every 0.7 m, the rails' shine (the rails themselves
+// are props), grass growing in at the ragged edges.
+export function railwayStrip() {
+  const W = 64, H = 64, [c, g] = canvas(W, H), r = prng(81);
+  noisy(g, W, H, '#8b8883', 0.16, r, 2200);
+  for (let i = 0; i < 7; i++) { const y = Math.round(i * H / 7) + 2; g.fillStyle = '#5b4433'; g.fillRect(15, y, 34, 4); g.fillStyle = 'rgba(30,22,16,0.4)'; g.fillRect(15, y + 3, 34, 1); }
+  for (const x of [22, 41]) { g.fillStyle = 'rgba(70,66,62,0.9)'; g.fillRect(x, 0, 2, H); g.fillStyle = 'rgba(200,198,190,0.6)'; g.fillRect(x, 0, 1, H); }
+  driftEdges(g, W, H, r, 5, MEADOW);
   return c;
 }
 export function lineStrip() { const [c, g] = canvas(8, 8); g.fillStyle = '#d4ad3a'; g.fillRect(0, 0, 8, 8); return c; }
@@ -89,7 +105,8 @@ export function bayDecal() {   // 7 x 12 m parking bay outline
   const [c, g] = canvas(112, 192); g.clearRect(0, 0, 112, 192); g.strokeStyle = 'rgba(240,236,224,0.8)'; g.lineWidth = 6; g.strokeRect(4, 4, 104, 184);
   return c;
 }
+const MEADOW = [108, 138, 68];   // the meadow tile's average: green maps' road edges drift into grass, not sand
 export const GROUND_TEXTURES = {
-  sand: sandTile, concrete: concreteTile, asphalt: asphaltTile, grass: grassTile, dirt: dirtTile,
-  road: roadStrip, track: trackStrip, line: lineStrip, dash: dashStrip, helipad: helipadDecal, bay: bayDecal,
+  sand: sandTile, concrete: concreteTile, asphalt: asphaltTile, grass: grassTile, meadow: meadowTile, dirt: dirtTile,
+  road: () => roadStrip(), track: () => trackStrip(), roadM: () => roadStrip(MEADOW), trackM: () => trackStrip(MEADOW), railway: railwayStrip, line: lineStrip, dash: dashStrip, helipad: helipadDecal, bay: bayDecal,
 };

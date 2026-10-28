@@ -57,6 +57,19 @@ place lists sandbag positions covering its approaches, and the CPU digs in at th
 ones facing the enemy. `?map=desert1km` plays Desert Crossing, the first 1 km map
 (five places in a line; it favours the north-east base).
 
+`?map=narva3km` plays *Narva*, a 3 km map of the Estonia-Russia border city (plan in
+docs/GAME_PLAN.md). Its city kit and landmarks follow the user's voxel references: Soviet
+panel blocks of five and nine storeys, garage rows, pine and birch, station yards with
+wagons, a blue truss railway bridge, Balti's banded chimneys, Hermann Castle, Ivangorod
+Fortress and the Kreenholm mills; the Town Hall, the stations and the hydro station are
+still plain blocks. The Narva River runs
+south to north from the reservoir: armour crosses on the dam and the Friendship
+Bridge, infantry also at Kreenholm's dry falls and on the railway bridge. BLUFOR
+holds the Narva bank (Old Town, Narva Station, Balti Plant), OPFOR the Ivangorod
+bank (Ivangorod Fortress, Ivangorod Station, Narva HES), and the three river places
+(Friendship Bridge, Rail Bridge, Kreenholm) sit on the crossings; five of nine for
+the majority. North is up, as on a real map.
+
 **Fog of war.** Your side sees what its units see: soldiers 120 m, APCs 160 m,
 tanks 210 m, trucks 100 m, a landed helicopter 120 m and one in the air 250 m
 (over buildings), FOBs and sandbag positions 100 m. Hills and buildings block
@@ -431,7 +444,7 @@ src/game/           milestone 1 game layer (renderer-agnostic)
   support.js        medic revives, engineer repairs, supply truck refills
   fob.js            forward operating bases: build rules, construction, spawn points
   ui/lobby.js       the pre-match force builder screen
-  maps/             map definitions (desert1km.js) and ground texture generators
+  maps/             map definitions (valley2km.js, desert1km.js, narva3km.js), the shared prop kit and ground texture generators
   match.js          AAS / Skirmish match flow, 10 Hz game tick, bleed, win checks
 icons/units/        unit-strip portraits (tools/make-portraits.mjs renders them from the game's models)
 src/three/          three.js back end: models, world, PixelRenderer (low-res target + outline), dust, markers

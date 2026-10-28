@@ -336,7 +336,32 @@ export function makeKit({ r, rd, onRoad = () => false }) {
     const c = Math.cos(b.angle), s = Math.sin(b.angle), L = b.len, W = b.w;
     const P = (lx, ly, lz, w, h, d, color) => props.push({ geo: 'box:1,1,1', color, scale: [w, h, d], x: b.x + lx * c + lz * s, y: ly + h / 2, z: b.z - lx * s + lz * c, rot: [0, b.angle, 0], cast: Math.min(w, h, d) >= 0.25 || Math.max(w, h, d) >= 3, absY: true });
     const pile = (lx, lz, r, y0, h, color) => props.push({ geo: `cyl:${r},${r},${+h.toFixed(2)},8`, color, x: b.x + lx * c + lz * s, y: y0 + h / 2, z: b.z - lx * s + lz * c, rot: [0, 0, 0], cast: true, absY: true });
-    if (b.foot) {
+    if (b.truss) {
+      // a railway truss after the user's diorama: blue steel through-trusses (chords, end posts, verticals, diagonals sloping
+      // down to mid-span, cross-bracing overhead) in spans of up to 70 m on stone piers, a steel deck with sleepers and two
+      // rails. Its members tilt in the bridge's own vertical plane, so a truss runs along x or z (angle 0 or a right angle).
+      const BLUE = 0x3a6db0, STONE = 0x8d8880, H = 6.5, spans = Math.ceil(L / 70), Ls = L / spans, n = Math.max(4, Math.round(Ls / 6.2)), pl = Ls / n, alongX = Math.abs(s) > 0.5;
+      const beam = (lx, z0, y0, z1, y1, t, color) => {   // a member in the plane x = lx of the bridge's frame, from (z0, y0) to (z1, y1)
+        const len = Math.hypot(z1 - z0, y1 - y0), a = Math.atan2(y1 - y0, z1 - z0), mz = (z0 + z1) / 2, my = (y0 + y1) / 2;
+        props.push({ geo: 'box:1,1,1', color, scale: alongX ? [len, t, t] : [t, t, len], x: b.x + lx * c + mz * s, y: my, z: b.z - lx * s + mz * c, rot: alongX ? [0, 0, a * Math.sign(s)] : [-a * Math.sign(c), 0, 0], cast: true, absY: true });
+      };
+      P(0, b.y - 0.45, 0, W, 0.45, L, 0x46484a);                                                                                       // deck
+      for (let k = -L / 2 + 0.6; k < L / 2; k += 1.2) P(0, b.y, +k.toFixed(2), 2.6, 0.12, 0.25, 0x5b4433);                          // sleepers
+      for (const sx of [-0.75, 0.75]) P(sx, b.y + 0.12, 0, 0.12, 0.16, L, 0x6e6a66);                                               // rails
+      const top = b.y + H;
+      for (let k = 0; k < spans; k++) {
+        const z0 = -L / 2 + k * Ls, z1 = z0 + Ls, mid = (z0 + z1) / 2;
+        for (const sx of [-1, 1].map(v => v * (W / 2 + 0.25))) {
+          P(sx, b.y - 0.5, mid, 0.5, 0.5, Ls, BLUE); P(sx, top - 0.25, mid, 0.5, 0.5, Ls - 2 * pl, BLUE);                         // chords
+          beam(sx, z0, b.y, z0 + pl, top, 0.55, BLUE); beam(sx, z1, b.y, z1 - pl, top, 0.55, BLUE);                               // end posts
+          for (let i = 1; i < n; i++) P(sx, b.y, z0 + i * pl, 0.35, H, 0.35, BLUE);                                                 // verticals
+          for (let i = 1; i < n - 1; i++) { const a0 = z0 + i * pl, a1 = a0 + pl, down = i < n / 2; beam(sx, a0, down ? top : b.y, a1, down ? b.y : top, 0.32, BLUE); }   // diagonals
+        }
+        for (let i = 1; i < n; i++) P(0, top - 0.3, z0 + i * pl, W + 0.5, 0.3, 0.3, BLUE);                                         // overhead bracing
+        if (k > 0) P(0, bed, z0, W + 2.4, +(b.y - 0.9 - bed).toFixed(2), 3.2, STONE);                                               // a pier between spans
+      }
+      for (const sz of [-1, 1]) P(0, -2.5, sz * (L / 2 - 1.0), W + 1.6, +(b.y + 1.5).toFixed(2), 2.0, STONE);                      // abutments
+    } else if (b.foot) {
       const WOODS = [0x8a6a46, 0x7a5c3c, 0x957552];
       for (const sx of [-1, 1]) P(sx * (W / 2 - 0.5), b.y - 0.55, 0, 0.3, 0.35, L, TIMBER);                                           // stringers
       for (let k = -L / 2 + 0.25, i = 0; k < L / 2; k += 0.46, i++) P(+((rd() - 0.5) * 0.06).toFixed(3), b.y - 0.2, +k.toFixed(2), W - 0.1, 0.2, 0.4, WOODS[i % 3]);   // planks, the odd one askew
@@ -365,5 +390,204 @@ export function makeKit({ r, rd, onRoad = () => false }) {
       obstacles.push({ minX: b.x + ox - (hw * ac + L / 2 * as), maxX: b.x + ox + (hw * ac + L / 2 * as), minZ: b.z + oz - (hw * as + L / 2 * ac), maxZ: b.z + oz + (hw * as + L / 2 * ac), h: b.y + 1.1 });
     }
   };
-  return { props, obstacles, lamps, tufts, decals, bridge, box, footprint, part, BAG, bagStack, BLOCK, blockWall, palm, bush, rock, PLASTER, house, controlTower, wallRun, MESH, hesco, shade, container, cyl, tilt, CONC, stains, watchtower, hangar, barracks, fuelTank, floodlight, radioMast, equipmentHut, FRUIT, stall, STONE, well, sandbagRing, containers, scrub, TRIM, WOOD, DOOR, DARK, STAIN, TIN, TIMBER, STEEL, DARKM };
+  // ---- Narva's city kit, after the user's voxel diorama (2026-10-28): Soviet panel blocks of five and nine storeys with
+  // entrance canopies, a nine-storey point block, brick lock-up garages, pine and birch, wagons and a platform, banded chimneys.
+  const PANEL = [0xcac5b8, 0xbfb9ab, 0xd3cec2], GLASS = 0x4a5562, ROOFG = 0x8e8b84, CANOPY = 0xb3aea3, BENCH = 0x6e5a44, DOORP = 0x5b4b3d;
+  // Windows cost little: one dark band per floor along a face, cut into panes by full-height pilasters at each 3.2 m bay, so a
+  // facade is a few parts per floor and bay rather than one per pane. Q places parts in the building's frame; the face runs
+  // along local x at z = s * half (ax 'x') or along local z at x = s * half (ax 'z').
+  const facade = (Q, ax, s, half, len, floors, h, col) => {
+    const F = (u, ly, out, w, hh, t, m) => (ax === 'x' ? Q(u, ly, s * (half + out), w, hh, t, m) : Q(s * (half + out), ly, u, t, hh, w, m));
+    const bays = Math.max(1, Math.round(len / 3.2)), bw = len / bays;
+    for (let f = 0; f < floors; f++) F(0, f * 2.8 + 0.85, 0.03, len - 0.8, 1.35, 0.06, GLASS);
+    for (let i = 0; i <= bays; i++) F(-len / 2 + i * bw, 0, 0.07, 1.5, h - 0.3, 0.1, col);
+    return bw;
+  };
+  const roofOf = (Q, w, d, h, col) => {   // a flat roof inside a parapet
+    Q(0, h, 0, w - 0.6, 0.1, d - 0.6, ROOFG);
+    for (const s of [-1, 1]) { Q(0, h, s * (d / 2 - 0.15), w, 0.45, 0.3, col); Q(s * (w / 2 - 0.15), h, 0, 0.3, 0.45, d - 0.6, col); }
+  };
+  const entrance = (Q, u, zFace, col) => {   // a door under a concrete canopy with side walls, a bench beside it (on the -z face)
+    Q(u, 0, zFace - 0.08, 1.3, 2.2, 0.08, DOORP); Q(u, 2.5, zFace - 0.9, 2.4, 0.18, 1.8, CANOPY);
+    for (const k of [-1, 1]) Q(u + k * 1.1, 0, zFace - 0.9, 0.18, 2.5, 1.8, col);
+    Q(u + 2.6, 0, zFace - 2.4, 1.6, 0.45, 0.5, BENCH);
+  };
+  // A panel block along its local x, len long and depth deep, floors of 2.8 m: windows on all four faces, entrances on the -z
+  // face with a stair hut above each on the roof.
+  const panelBlock = (x, z, len, floors = 5, rot = 0, depth = 12) => {
+    const col = PANEL[Math.floor(rd() * 3)], h = +(floors * 2.8 + 0.5).toFixed(2), Q = (lx, ly, lz, w, hh, d, m) => part(x, z, rot, lx, ly, lz, w, hh, d, m);
+    Q(0, 0, 0, len, h, depth, col); footprint(len, depth, x, z, rot, h);
+    let bw = 0; for (const s of [-1, 1]) { bw = facade(Q, 'x', s, depth / 2, len, floors, h, col); facade(Q, 'z', s, len / 2, depth, floors, h, col); }
+    roofOf(Q, len, depth, h, col);
+    const n = Math.max(2, Math.round(len / 18));
+    for (let k = 0; k < n; k++) {
+      const u = -len / 2 + (Math.floor((k + 0.5) * len / n / bw) + 0.5) * bw;
+      entrance(Q, u, -depth / 2, col); Q(u, h, -depth / 2 + 3, 3, 2.2, 4, col);
+    }
+  };
+  // A nine-storey point block: w x d, windows on all faces, a lift and stair column standing out of the +z face with slit
+  // windows, the entrance on -z, a machine room on the roof.
+  const panelTower = (x, z, rot = 0, floors = 9, w = 18, d = 15) => {
+    const col = PANEL[Math.floor(rd() * 3)], h = +(floors * 2.8 + 0.5).toFixed(2), Q = (lx, ly, lz, bw, hh, bd, m) => part(x, z, rot, lx, ly, lz, bw, hh, bd, m);
+    Q(0, 0, 0, w, h, d, col); footprint(w, d + 3, x, z, rot, h);
+    for (const s of [-1, 1]) { facade(Q, 'x', s, d / 2, w, floors, h, col); facade(Q, 'z', s, w / 2, d, floors, h, col); }
+    Q(0, 0, d / 2 + 1.5, 4, h + 2.4, 3, col);
+    for (let f = 0; f < floors; f++) Q(0, f * 2.8 + 1.1, d / 2 + 3.03, 0.8, 1.2, 0.06, GLASS);
+    roofOf(Q, w, d, h, col); Q(-3, h, -1, 6, 2.6, 5, col);
+    entrance(Q, 0, -d / 2, col);
+  };
+  // A row of n brick lock-up garages along local x (3.4 m each, 6.5 deep, 2.6 high) under one dark roof slab overhanging the
+  // doors on the local -z face, a door and lintel per garage, brick piers between them.
+  const BRICK = [0x9b4a33, 0x8f432e, 0xa5533a], GROOF = 0x4d4845, GDOOR = 0x6b3a2a;
+  const garages = (x, z, n, rot = 0) => {
+    const col = BRICK[Math.floor(rd() * 3)], W = n * 3.4, Q = (lx, ly, lz, w, hh, d, m) => part(x, z, rot, lx, ly, lz, w, hh, d, m);
+    Q(0, 0, 0, W, 2.6, 6.5, col); footprint(W, 6.5, x, z, rot, 2.6);
+    Q(0, 2.6, -0.2, W + 0.3, 0.25, 7.1, GROOF);
+    for (let i = 0; i < n; i++) { const u = -W / 2 + (i + 0.5) * 3.4; Q(u, 0.05, -3.29, 2.6, 2.15, 0.08, GDOOR); Q(u, 2.2, -3.31, 2.9, 0.22, 0.1, shade(col, 0.8)); }
+    for (let i = 0; i <= n; i++) Q(-W / 2 + i * 3.4, 0, -3.3, 0.4, 2.6, 0.14, col);
+  };
+  // Voxel trees after the diorama: a pine of stacked square tiers on a brown trunk; a birch with a white, black-flecked trunk under
+  // a few bright-green blocks. Each blocks sight at its trunk like any tall box. h is the height.
+  const PINE = [0x2c5a35, 0x356a3c, 0x2a4f31], BIRCHL = [0x8cbf4e, 0x7db043, 0x9acb5b];
+  const pine = (x, z, h = 11) => {
+    const yaw = rd() * Math.PI / 2, s = h / 11, t = h * 0.22, Q = (ly, w, hh, m) => part(x, z, yaw, 0, ly, 0, w, hh, w, m);
+    Q(0, 0.5, t + 0.5, 0x5a3e2a);
+    let y = t; [[3.6, 0.3], [2.8, 0.3], [2.0, 0.25], [1.2, 0.2]].forEach(([w, k], i) => { const th = (h - t) * k; Q(y, w * s, th + 0.4, PINE[i % 3]); y += th; });
+    Q(y, 0.5 * s, 0.8 * s, PINE[1]);
+    obstacles.push({ minX: x - 0.6, maxX: x + 0.6, minZ: z - 0.6, maxZ: z + 0.6, h });
+  };
+  const birch = (x, z, h = 9) => {
+    const yaw = rd() * Math.PI / 2, s = h / 9, t = h * 0.5, Q = (lx, ly, lz, w, hh, d, m) => part(x, z, yaw, lx, ly, lz, w, hh, d, m);
+    Q(0, 0, 0, 0.42, t + 1, 0.42, 0xe6e2d6);
+    for (let k = 0; k < 3; k++) Q(0, 0.8 + k * t / 3, 0.2, 0.44, 0.18, 0.06, 0x2b2a28);
+    Q(0, t, 0, 3 * s, 2.6 * s, 3 * s, BIRCHL[0]); Q(0.9 * s, t + 1.6 * s, -0.5 * s, 2.2 * s, 2.2 * s, 2.2 * s, BIRCHL[1]);
+    Q(-0.8 * s, t + 1.2 * s, 0.7 * s, 2 * s, 2 * s, 2 * s, BIRCHL[2]); Q(0, t + 3 * s, 0, 1.4 * s, 1.4 * s, 1.4 * s, BIRCHL[0]);
+    obstacles.push({ minX: x - 0.6, maxX: x + 0.6, minZ: z - 0.6, maxZ: z + 0.6, h });
+  };
+  // Rolling stock along its local x (rot turns it onto the track): a rust-brown boxcar with ribbed sides and sliding doors, a
+  // grey tank wagon on a dark-green frame; both on two bogies.
+  const WAGON = [0x7b3626, 0x6e3122, 0x84402c];
+  const bogies = (Q) => { for (const u of [-4.6, 4.6]) Q(u, 0.15, 0, 2.6, 0.75, 2.0, 0x2a2a2a); };
+  const boxcar = (x, z, rot = 0) => {
+    const col = WAGON[Math.floor(rd() * 3)], Q = (lx, ly, lz, w, hh, d, m) => part(x, z, rot, lx, ly, lz, w, hh, d, m);
+    bogies(Q); Q(0, 0.85, 0, 13, 0.35, 2.6, 0x2c2c2c); Q(0, 1.2, 0, 13.6, 2.7, 2.9, col);
+    Q(0, 3.9, 0, 13.6, 0.25, 3.0, shade(col, 0.82)); Q(0, 4.15, 0, 13.2, 0.18, 2.4, shade(col, 0.82));
+    for (const s of [-1, 1]) { Q(0, 1.4, s * 1.47, 3.0, 2.3, 0.06, shade(col, 0.88)); for (const u of [-5, -2.5, 2.5, 5]) Q(u, 1.25, s * 1.47, 0.12, 2.6, 0.05, shade(col, 0.72)); }
+    footprint(13.6, 2.9, x, z, rot, 4.3);
+  };
+  const tankWagon = (x, z, rot = 0) => {
+    const Q = (lx, ly, lz, w, hh, d, m) => part(x, z, rot, lx, ly, lz, w, hh, d, m);
+    bogies(Q); Q(0, 0.85, 0, 12, 0.4, 2.5, 0x2f4a36);
+    props.push({ geo: 'cyl:1.35,1.35,11,12', color: 0xb9b8b0, x, y: 2.65, z, rot: [0, rot, Math.PI / 2], cast: true, ax: x, az: z });   // turned onto its side, then along the track
+    props.push({ geo: 'cyl:0.6,0.6,0.6,10', color: 0xa3a29a, x, y: 4.2, z, rot: [0, 0, 0], cast: true, ax: x, az: z });                 // the dome
+    for (const u of [-3.5, 0, 3.5]) Q(u, 1.25, 0, 0.2, 1.5, 2.9, 0x2f4a36);                                                            // the straps' saddles
+    footprint(12, 2.8, x, z, rot, 4.0);
+  };
+  // a platform beside a track along local x: a concrete slab with a yellow edge on the -z side, lamp posts, a small shelter
+  const platform = (x, z, len, rot = 0) => {
+    const Q = (lx, ly, lz, w, hh, d, m) => part(x, z, rot, lx, ly, lz, w, hh, d, m);
+    Q(0, 0, 0, len, 0.95, 3.4, 0xa9a59c); Q(0, 0.95, -1.5, len, 0.03, 0.3, 0xd8c24a);
+    for (let u = -len / 2 + 6; u <= len / 2 - 6; u += 18) { Q(u, 0.95, 1.0, 0.16, 4.2, 0.16, 0x5c5f62); Q(u, 5.1, 0.7, 0.3, 0.18, 0.8, 0x5c5f62); }
+    Q(0, 0.95, 1.1, 0.14, 2.5, 0.14, 0x5c5f62); Q(4, 0.95, 1.1, 0.14, 2.5, 0.14, 0x5c5f62); Q(2, 3.45, 0.9, 5, 0.15, 1.6, 0x6a6e70); Q(2, 0.95, 1.6, 4.4, 1.6, 0.08, 0x8fa0a8);
+    footprint(len, 3.4, x, z, rot, 0.95);
+  };
+  // a power-station chimney in red and white bands, tapering, a dark cap
+  const chimney = (x, z, h = 120, r0 = 4.2) => {
+    const n = 9, bh = h / n;
+    for (let i = 0; i < n; i++) { const rb = r0 * (1 - 0.25 * i / n), rt = r0 * (1 - 0.25 * (i + 1) / n); props.push({ geo: `cyl:${rt.toFixed(2)},${rb.toFixed(2)},${bh.toFixed(2)},12`, color: i % 2 ? 0xe8e4dc : 0xb5432f, x, y: (i + 0.5) * bh, z, rot: [0, 0, 0], cast: true, ax: x, az: z }); }
+    props.push({ geo: `cyl:${(r0 * 0.8).toFixed(2)},${(r0 * 0.8).toFixed(2)},1.2,12`, color: 0x3a3a3a, x, y: h + 0.6, z, rot: [0, 0, 0], cast: true, ax: x, az: z });
+    obstacles.push({ minX: x - r0, maxX: x + r0, minZ: z - r0, maxZ: z + r0, h });
+  };
+  // ---- Narva's landmarks, after the user's voxel references (2026-10-28): Hermann Castle, Ivangorod Fortress, a Kreenholm mill.
+  // Roofs are stepped like the voxel references (stacked boxes or cylinders), so nothing but the mill's gable needs a tilt.
+  const LIME = [0xb2ab9e, 0xa79f92, 0xbbb5a9], GREYST = [0x969087, 0x8a847a, 0xa19b91], MOSS = 0x7f7c62, ROOFT = [0xc4572f, 0xb04b28], TIMBERB = 0x6e4a2e;
+  const frameOf = (ox, oz, rot) => { const c = Math.cos(rot), s = Math.sin(rot); return (lx, lz) => [ox + lx * c + lz * s, oz - lx * s + lz * c]; };   // a building's local (lx, lz) in the world, as part() places
+  // A stone wall from (lx0, lz0) to (lx1, lz1) in a building's frame, t thick and h high, merlons along its top and a few
+  // weathered patches on its faces; it blocks movement and sight.
+  const stoneWall = (ox, oz, rot, lx0, lz0, lx1, lz1, h, cols = LIME, t = 2.4, merlons = true) => {
+    const len = Math.hypot(lx1 - lx0, lz1 - lz0), r2 = rot + Math.atan2(lx1 - lx0, lz1 - lz0), [cx, cz] = frameOf(ox, oz, rot)((lx0 + lx1) / 2, (lz0 + lz1) / 2);
+    const Q = (lx, ly, lz, w, hh, d, m) => part(cx, cz, r2, lx, ly, lz, w, hh, d, m, ox, oz);
+    Q(0, 0, 0, t, h, len, cols[0]); footprint(t, len, cx, cz, r2, h);
+    if (merlons) for (let u = -len / 2 + 1; u <= len / 2 - 0.5; u += 2.2) Q(0, h, u, t, 1.2, 1.1, cols[1]);
+    for (let k = 0; k < Math.round(len / 9); k++) { const u = (rd() - 0.5) * (len - 6), y = 1 + rd() * (h - 4), side = rd() < 0.5 ? -1 : 1; Q(side * (t / 2 + 0.03), y, u, 0.06, 1.5 + rd() * 2.5, 2 + rd() * 4, rd() < 0.4 ? MOSS : cols[2]); }
+  };
+  const stepRoof = (Q, lx, ly, lz, w, d, h, steps, cols) => { for (let k = 0; k < steps; k++) { const f = 1 - k / steps; Q(lx, ly + k * h / steps, lz, +(w * f).toFixed(2), +(h / steps).toFixed(2), +(d * f).toFixed(2), cols[k % cols.length]); } };   // a pyramid in voxel steps
+  const flag = (Q, lx, ly, lz, col = 0xb5432f) => { Q(lx, ly, lz, 0.14, 3, 0.14, 0x4a4a4a); Q(lx + 0.6, ly + 2.2, lz, 1.1, 0.7, 0.06, col); };
+  // Hermann Castle: a square of limestone curtain walls round a grass court, red gallery roofs stepped down inside the walls,
+  // a gate in the +x wall, a square corner turret at (+x, -z) under a red stepped roof, and the white Tall Hermann at the
+  // (-x, +z) corner (stone quoins, small windows, a clock, a timber gallery, a steep stepped roof with a dormer and a vane)
+  // rising out of a lower walled forecourt.
+  const hermannCastle = (ox, oz, rot = 0) => {
+    const S = 44, hs = S / 2, H = 13, Q = (lx, ly, lz, w, hh, d, m) => part(ox, oz, rot, lx, ly, lz, w, hh, d, m), W = frameOf(ox, oz, rot);
+    stoneWall(ox, oz, rot, -hs, -hs, hs, -hs, H); stoneWall(ox, oz, rot, -hs, hs, hs, hs, H); stoneWall(ox, oz, rot, -hs, -hs, -hs, hs, H);
+    stoneWall(ox, oz, rot, hs, -hs, hs, -5, H); stoneWall(ox, oz, rot, hs, 5, hs, hs, H);
+    Q(hs, 5.5, 0, 2.4, H - 5.5, 10.2, LIME[1]); Q(hs + 1.25, 0, 0, 0.1, 5.5, 4, 0x3a3226);                                        // over the gate, its dark arch
+    for (const [ax, s] of [['x', -1], ['x', 1], ['z', -1], ['z', 1]]) for (const [off, y, wd, col] of [[2.5, H - 1.2, 2.6, ROOFT[0]], [4.8, H - 2.2, 2.4, ROOFT[1]]]) {   // gallery roofs in two steps
+      const len = S - 2 * off - 1; ax === 'x' ? Q(0, y, s * (hs - off), len, 0.45, wd, col) : Q(s * (hs - off), y, 0, wd, 0.45, len, col);
+    }
+    for (const [ax, s] of [['x', -1], ['x', 1], ['z', -1], ['z', 1]]) { const len = S - 13; ax === 'x' ? Q(0, H - 6.5, s * (hs - 6.0), len, 4.3, 0.3, TIMBERB) : Q(s * (hs - 6.0), H - 6.5, 0, 0.3, 4.3, len, TIMBERB); }   // the galleries' timber fronts
+    { const tx = hs - 2, tz = -hs + 2; Q(tx, 0, tz, 7, 19, 7, LIME[0]); stepRoof(Q, tx, 19, tz, 8, 8, 6, 6, ROOFT); flag(Q, tx, 25, tz); const [wx, wz] = W(tx, tz); footprint(7, 7, wx, wz, rot, 19); }   // the corner turret
+    // the forecourt: lower crenellated walls round the tower's outer corner
+    stoneWall(ox, oz, rot, -hs - 12, hs - 16, -hs - 12, hs + 10, 7); stoneWall(ox, oz, rot, -hs - 12, hs + 10, -hs + 14, hs + 10, 7); stoneWall(ox, oz, rot, -hs + 14, hs + 10, -hs + 14, hs, 7);
+    // Tall Hermann
+    const tx = -hs + 4, tz = hs - 4, T = 11, TH = 44;
+    Q(tx, 0, tz, T, TH, T, 0xe6e2d8); { const [wx, wz] = W(tx, tz); footprint(T, T, wx, wz, rot, TH + 12); }
+    for (const sx of [-1, 1]) for (const sz of [-1, 1]) for (let y = 0.4, k = 0; y < TH - 1; y += 2.4, k++) Q(tx + sx * (T / 2 - 0.45), y, tz + sz * (T / 2 - 0.45), k % 2 ? 1.3 : 1.0, 1.0, k % 2 ? 1.0 : 1.3, 0x9b958a);   // quoins
+    for (const [fx, fz] of [[1, 0], [-1, 0], [0, 1], [0, -1]]) for (const y of [9, 19, 29]) Q(tx + fx * (T / 2 + 0.03), y, tz + fz * (T / 2 + 0.03), fx ? 0.08 : 1.0, 1.3, fz ? 0.08 : 1.0, 0x35302a);   // small windows
+    Q(tx + T / 2 + 0.05, 37.5, tz, 0.12, 2.8, 2.8, 0x7a4f2c); Q(tx + T / 2 + 0.12, 37.8, tz, 0.08, 2.2, 2.2, 0xf1ece0); Q(tx + T / 2 + 0.18, 38.9, tz, 0.05, 1.0, 0.18, 0x2a2a2a); Q(tx + T / 2 + 0.18, 38.8, tz + 0.35, 0.05, 0.18, 0.8, 0x2a2a2a);   // the clock, facing the town
+    Q(tx, TH, tz, T + 1.6, 2.6, T + 1.6, TIMBERB); for (let u = -6; u <= 6; u += 1.5) { Q(tx + u, TH + 0.3, tz + (T + 1.6) / 2 + 0.02, 0.12, 2, 0.06, 0x4f3420); Q(tx + (T + 1.6) / 2 + 0.02, TH + 0.3, tz + u, 0.06, 2, 0.12, 0x4f3420); }   // the timber gallery
+    stepRoof(Q, tx, TH + 2.6, tz, T + 2.4, T + 2.4, 12, 9, ROOFT);
+    Q(tx - 2.2, TH + 4.6, tz, 2.4, 2.2, 2.0, 0xe6e2d8); Q(tx - 2.2, TH + 6.8, tz, 2.8, 0.5, 2.4, ROOFT[1]); Q(tx - 2.2, TH + 5.2, tz - 1.03, 0.9, 1.0, 0.06, 0x35302a);   // a dormer
+    flag(Q, tx, TH + 14.6, tz, 0x5a5a5a);
+    for (const [bx, bz] of [[-6, -4], [4, 6], [-2, 8]]) Q(bx, 0, bz, 1.2, 1.0, 1.2, 0x8a6a46);   // crates in the court
+  };
+  // Ivangorod Fortress: grey crenellated walls (w along x, d along z) with round towers at the corners and halfway along the
+  // long sides, each under a conical roof stepped in brown or red courses, a gate in the -x wall.
+  const CONES = [[0x6e4a33, 0x5e3f2b], [0xb4552f, 0xa04a29], [0x9c7468, 0x8a655a], [0x7a5238, 0x684631]];
+  const fortress = (ox, oz, w, d, rot = 0) => {
+    const H = 12, hw = w / 2, hd = d / 2, W = frameOf(ox, oz, rot), cyl = (lx, lz, y, r1, r2, h, col) => { const [x, z] = W(lx, lz); props.push({ geo: `cyl:${r1.toFixed(2)},${r2.toFixed(2)},${h.toFixed(2)},14`, color: col, x, y, z, rot: [0, 0, 0], cast: true, ax: ox, az: oz }); };
+    stoneWall(ox, oz, rot, -hw, -hd, hw, -hd, H, GREYST, 3); stoneWall(ox, oz, rot, -hw, hd, hw, hd, H, GREYST, 3); stoneWall(ox, oz, rot, hw, -hd, hw, hd, H, GREYST, 3);
+    stoneWall(ox, oz, rot, -hw, -hd, -hw, -6, H, GREYST, 3); stoneWall(ox, oz, rot, -hw, 6, -hw, hd, H, GREYST, 3);
+    part(ox, oz, rot, -hw, 5.5, 0, 3, H - 5.5, 12.2, GREYST[1]); part(ox, oz, rot, -hw - 1.55, 0, 0, 0.1, 5.5, 4.5, 0x2e2a24);   // over the gate, its arch
+    const towers = [[-hw, -hd, 7.5], [hw, -hd, 7.5], [-hw, hd, 7.5], [hw, hd, 7.5], [hw, 0, 6.5], [-hw, hd / 2, 6]];
+    towers.forEach(([lx, lz, r], i) => {
+      const th = r > 7 ? 18 : 15, cone = CONES[i % CONES.length];
+      cyl(lx, lz, th / 2, r, r, th, GREYST[i % 3]); cyl(lx, lz, th + 0.4, r + 0.5, r + 0.5, 0.8, GREYST[1]);   // the drum and a corbelled ring
+      for (let k = 0; k < 6; k++) { const r1 = (r + 0.8) * (1 - (k + 1) / 6.4), r0 = (r + 0.8) * (1 - k / 6.4), h = (r * 1.2) / 6; cyl(lx, lz, th + 0.8 + (k + 0.5) * h, Math.max(0.3, r1), r0, h, cone[k % 2]); }
+      const [x, z] = W(lx, lz); obstacles.push({ minX: x - r, maxX: x + r, minZ: z - r, maxZ: z + r, h: th });
+    });
+  };
+  // A Kreenholm mill along its local x: red brick, `floors` of 3.6 m with white-framed windows between brick piers, a white
+  // transom across each floor's panes, a cornice, stair towers at both ends, a pediment and door at the middle of the -z face,
+  // and a slate gable roof. Its long axis runs along x or z (the roof's tilt), as rot 0, pi or +-pi/2 give.
+  const BRICKM = [0xa04a35, 0x93432f];
+  const millBuilding = (x, z, len, floors = 6, rot = 0, depth = 20) => {
+    const col = BRICKM[Math.floor(rd() * 2)], fh = 3.6, h = floors * fh + 1, Q = (lx, ly, lz, w, hh, d, m) => part(x, z, rot, lx, ly, lz, w, hh, d, m);
+    Q(0, 0, 0, len, h, depth, col); footprint(len + 8, depth, x, z, rot, h + 6);
+    const face = (ax, s, half, flen) => {
+      const F = (u, ly, out, w, hh, t, m) => (ax === 'x' ? Q(u, ly, s * (half + out), w, hh, t, m) : Q(s * (half + out), ly, u, t, hh, w, m));
+      const bays = Math.max(1, Math.round(flen / 3.4)), bw = flen / bays;
+      for (let f = 0; f < floors; f++) { const y = f * fh + 1.0; F(0, y, 0.02, flen - 0.6, 2.2, 0.05, 0xe8e2d4); F(0, y + 0.18, 0.05, flen - 0.6, 1.84, 0.05, 0x2f343a); F(0, y + 1.15, 0.08, flen - 0.6, 0.14, 0.04, 0xe8e2d4); }
+      for (let i = 0; i <= bays; i++) F(-flen / 2 + i * bw, 0, 0.1, 1.5, h, 0.1, col);
+    };
+    for (const s of [-1, 1]) { face('x', s, depth / 2, len); face('z', s, len / 2, depth); }
+    Q(0, h - 0.6, 0, len + 0.6, 0.6, depth + 0.6, 0x7e3a2a);                                                                           // cornice
+    for (const s of [-1, 1]) { Q(s * (len / 2 + 2), 0, 0, 4, h + 4, depth * 0.55, col); Q(s * (len / 2 + 2), h + 4, 0, 4.4, 0.6, depth * 0.55 + 0.4, 0x7e3a2a); for (let f = 0; f < floors; f++) Q(s * (len / 2 + 4.03), f * fh + 1.4, 0, 0.06, 1.6, 1.2, 0x2f343a); }   // stair towers
+    for (let k = 0; k < 3; k++) Q(0, h + k * 1.3, -depth / 2 + 0.6, 14 - k * 4.5, 1.3, 1.2, col);                                      // pediment, stepped
+    Q(0, h + 1.3, -depth / 2 - 0.02, 1.4, 1.4, 0.06, 0xe8e2d4);                                                                      // its round window
+    Q(0, 0, -depth / 2 - 0.08, 2.6, 3.4, 0.12, 0x5a3a26); Q(0, 3.4, -depth / 2 - 0.1, 3.4, 0.4, 0.16, 0xe8e2d4);                        // door, lintel
+    // the gable roof: two slopes tilted about the long axis
+    const [wx, wz] = [x, z], alongX = Math.abs(Math.cos(rot)) > 0.5, th = 0.38, run = depth / 2 + 0.5, rise = run * Math.tan(th), sw = run / Math.cos(th);
+    for (const s of [-1, 1]) { const [px, pz] = frameOf(x, z, rot)(0, s * run / 2); props.push({ geo: 'box:1,1,1', color: s > 0 ? 0x5d6266 : 0x6a6f73, scale: alongX ? [len + 0.8, 0.5, sw] : [sw, 0.5, len + 0.8], x: px, y: h + rise / 2, z: pz, rot: alongX ? [s * th * Math.sign(Math.cos(rot)), 0, 0] : [0, 0, -s * th * Math.sign(Math.sin(rot))], cast: true, ax: wx, az: wz }); }
+  };
+  // the mill race: a stone quay wall along local x with arched sluices, white water foaming out of each onto the river at +z
+  // At absolute heights, from the river bed up to `top` (the island's level), so the foam lies on the water (at `water`)
+  // however high the bank is where the wall stands.
+  const millRace = (x, z, len, rot = 0, top = 1.0, water = -3, n = 5) => {
+    const W = frameOf(x, z, rot), A = (lx, y0, lz, w, h, d, color) => { const [px, pz] = W(lx, lz); props.push({ geo: 'box:1,1,1', color, scale: [w, h, d], x: px, y: y0 + h / 2, z: pz, rot: [0, rot, 0], cast: h > 0.3, absY: true }); };
+    A(0, water - 3, 0, len, top - water + 3, 2.4, 0x9a958c); A(0, top, 0, len, 0.3, 2.8, 0xb0aba1);
+    for (let i = 0; i < n; i++) { const u = -len / 2 + (i + 0.5) * len / n; A(u, water - 0.2, 1.22, 3, 2.9, 0.1, 0x262a2c); A(u, water + 0.02, 2.4, 3.2, 0.1, 2.6, 0xeef4f6); A(u + 0.6, water + 0.02, 4.2, 2.2, 0.1, 1.6, 0xdde9ee); A(u - 0.5, water + 0.02, 5.6, 1.4, 0.08, 1.2, 0xeef4f6); }
+    const [cx, cz] = W(0, 0); footprint(len, 2.4, cx, cz, rot, top + 0.3);
+  };
+  return { props, obstacles, lamps, tufts, decals, bridge, box, hermannCastle, fortress, millBuilding, millRace, panelBlock, panelTower, garages, pine, birch, boxcar, tankWagon, platform, chimney, footprint, part, BAG, bagStack, BLOCK, blockWall, palm, bush, rock, PLASTER, house, controlTower, wallRun, MESH, hesco, shade, container, cyl, tilt, CONC, stains, watchtower, hangar, barracks, fuelTank, floodlight, radioMast, equipmentHut, FRUIT, stall, STONE, well, sandbagRing, containers, scrub, TRIM, WOOD, DOOR, DARK, STAIN, TIN, TIMBER, STEEL, DARKM };
 }
