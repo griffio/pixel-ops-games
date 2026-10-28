@@ -233,6 +233,9 @@ export class Strategist {
         // that the turret does the work from where it stands, and caution() backs it off when something gets close
         if (c) { const dx = c.x - v.pos.x, dz = c.z - v.pos.z, d = Math.hypot(dx, dz) || 1; if (d < standoff + 15) continue; const k = (d - standoff) / d; x = v.pos.x + dx * k; z = v.pos.z + dz * k; }
         else [x, z] = this.inZone(goal.x, goal.z, goal, 0.8);
+        // a place armour cannot get to (an island, a footbridge, a railway bridge's deck), or a standoff point in the river: it
+        // supports from a spot it can reach on our bank, within its gun's reach of the place instead of stalling at the water
+        if (!this.vehicleReaches(v, x, z)) { const p = this.supportSpot(v, goal, v.type === 'tank' ? 180 : 140); if (!p) continue; [x, z] = p; }
         if (v.dest && v.goal && Math.hypot(v.goal[0] - x, v.goal[1] - z) < 12) continue;
         v.goal = [x, z]; v.order(x, z);
       } else if (v.type === 'heli') this.air(v, attack, base, perch, hold);
@@ -619,7 +622,32 @@ export class Strategist {
     for (let k = 0; k < 3 && hot(x, z); k++) [x, z] = this.toward(base, { x, z }, 50, 0);
     return this.units.nav.vehicle.blocked(x, z) || hot(x, z) ? null : [x, z];
   }
-  perchAt(base, at) { return this.quietSpot(base, at, 130, 100, 180); }   // out of sight of the fight, out of autocannon reach
+  perchAt(base, at) { return this.quietSpot(base, at, 130, 100, 180); }
+  // can vehicle v drive to (x, z)? Both ends on the same patch of the vehicle grid's open ground (nav.js regions: an island, or
+  // water under a footbridge, is not)
+  vehicleReaches(v, x, z) {
+    const nav = this.units.nav.vehicle, a = nav.nearest(nav.cellOf(v.pos.x), nav.cellOf(v.pos.z), 4), b = nav.nearest(nav.cellOf(x), nav.cellOf(z), 3);
+    return !!(a && b && nav.region(a[0], a[1]) === nav.region(b[0], b[1]));
+  }
+  // which side of the map's river lines (nav gates) a point is on; 0 on a map without any
+  sideOf(x, z) { const nav = this.units.nav.vehicle; return nav.gates ? nav.zone(nav.across(x, z)) : 0; }
+  // Where armour supports a place it cannot reach: a point 40 m to `range` from it that the vehicle can drive to on its own side
+  // of any river line, preferring one in sight of the place (hills and tall buildings in the way), then the nearest the vehicle,
+  // then the nearer the place. Null when there is none. Kept per place and side for a minute.
+  supportSpot(v, goal, range) {
+    const side = this.sideOf(v.pos.x, v.pos.z), key = goal.name + ':' + side + ':' + range, now = this.match.elapsed, memo = this.supportMemo || (this.supportMemo = new Map()), hit = memo.get(key);
+    if (hit && now - hit.t < 60) return hit.p;
+    const C = this.match.combat, T = this.match.world.terrain, gy = C.groundAt(goal.x, goal.z) + 1.5;
+    let best = null, bd = Infinity;
+    for (let r = 40; r <= range; r += 20) for (let k = 0; k < 24; k++) {
+      const a = k / 24 * Math.PI * 2, px = goal.x + Math.cos(a) * r, pz = goal.z + Math.sin(a) * r;
+      if (this.sideOf(px, pz) !== side || !this.vehicleReaches(v, px, pz)) continue;
+      const py = C.groundAt(px, pz) + 2.6, sees = (!T || T.los(px, py, pz, goal.x, gy, goal.z)) && C.los(px, pz, goal.x, goal.z, py, gy);
+      const d = Math.hypot(px - v.pos.x, pz - v.pos.z) + r * 0.5 + (sees ? 0 : 500);
+      if (d < bd) { bd = d; best = [px, pz]; }
+    }
+    memo.set(key, { t: now, p: best }); return best;
+  }   // out of sight of the fight, out of autocannon reach
 
   // Air: a helicopter at base ferries whoever is around it with a long walk ahead (a squad that respawned there,
   // stragglers going back to their squads), waiting up to 15 s for more to come aboard, lands them 70 m short of the
@@ -740,7 +768,8 @@ export class Strategist {
     const sq = squads.filter(s => { const c = s.centroid(); return !s.mounted && !this.lifts.has(s) && s.aliveCount <= v.seats && Math.hypot(c.x - base.x, c.z - base.z) < 150 && Math.hypot(c.x - goal.x, c.z - goal.z) > 250; })
       .sort((p, q) => Math.hypot(p.centroid().x - v.pos.x, p.centroid().z - v.pos.z) - Math.hypot(q.centroid().x - v.pos.x, q.centroid().z - v.pos.z))[0];
     if (!sq) return false;
-    const drop = this.quietSpot(base, goal, v.type === 'apc' ? 100 : 120, 80); if (!drop) return false;   // short of the objective on our side, only to a quiet spot
+    let drop = this.quietSpot(base, goal, v.type === 'apc' ? 100 : 120, 80); if (!drop) return false;   // short of the objective on our side, only to a quiet spot
+    if (!this.vehicleReaches(v, drop[0], drop[1])) { drop = this.supportSpot(v, goal, 140); if (!drop) return false; }   // not in the river or on an island it cannot reach
     sq.board(v); sq.tag = 'lift'; this.lifts.set(v, { sq, drop, stage: 'board', t: 0 }); this.lifts.set(sq, v);
     return true;
   }

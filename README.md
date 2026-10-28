@@ -196,7 +196,11 @@ commander builds a FOB one hop behind its front and lifts squads toward distant
 objectives. It is cautious: squads close to about 35 m of a defended objective
 and shoot from there, fall back when an enemy gets inside 22 m unless they hold
 the zone or clearly outnumber it, and its APCs keep a 70 m standoff (tanks 90 m),
-reversing away when something gets inside 50 m. Squads an enemy APC or tank can
+reversing away when something gets inside 50 m. Armour sent at a place it cannot drive to (an
+island, a footbridge, a railway bridge's deck), or whose standoff point falls in a
+river, supports from a spot it can reach on its own bank within its gun's reach,
+in sight of the place where there is one; an APC's drop-off point gets the same
+check. Squads an enemy APC or tank can
 see get behind the nearest building or hill out of its sight and stay there while
 it is about; anti-tank squads stalk it to rocket range instead, unless more than a
 squad of infantry or another APC or tank stands round it. An enemy APC near one of

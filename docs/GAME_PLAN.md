@@ -1837,8 +1837,26 @@ Engine changes needed in the existing core:
   fortress's court, r 34. The north lane becomes castle against fortress across the bridge:
   180 and 200 m from the Friendship Bridge place, down from about 350 m, with the walk from
   each base unchanged at about 1,050 m. The town squares are kept open now that no place
-  holds them clear. A balance check (32 CPU matches on seeds 31-34, against the same seeds
-  before the move) was running when this shipped.
+  holds them clear. Balance (32 CPU matches on seeds 31-34, the same seeds before the move):
+  - West and east bases: 16-16, against 17-15 before.
+  - Armour lost ground. Mechanized won 2 matches against 7 before, Balanced 16 against 13,
+    Light 14 against 10.
+- **Armour no longer stalls at the riverbank (2026-10-28).**
+  - **The bug.** The CPU sent tanks and APCs at the place it attacked or held, or 70 m short
+    of enemies there. For Kreenholm island or the railway bridge's deck, that point was in the
+    river or on ground vehicles cannot reach. The path failed and the vehicle drove straight
+    at it until the bank stopped it. A 90 s test showed it: the old code's tank was still
+    pushing at the deck end and its APC wandering.
+  - **The fix.** `strategist.vehicleReaches` compares the vehicle grid's regions.
+    `supportSpot` picks a reachable point on the vehicle's own side of any river line, 40 m
+    to gun range (140 m APC, 180 m tank) from the place, in sight of it where possible,
+    nearest the vehicle, cached a minute per place and side. APC drop-off points get the
+    same check.
+  - **Tests.** With the fix, both vehicles reach bank positions: 140 and 180 m from the rail
+    bridge with it in sight, and 137 and 181 m from Kreenholm, whose mills hide the court
+    between them. Palm Valley used it 14 times in 10 minutes (standoff points in its river),
+    with no errors.
+  - A balance batch on seeds 31-34 was running when this shipped.
 
 ## Open questions
 
