@@ -65,7 +65,7 @@ Fortress, the Kreenholm mills, the Town Hall, both railway stations and the hydr
 (dam, hall, switchyard). The Narva River runs
 south to north from the reservoir: armour crosses on the dam and the Friendship
 Bridge, infantry also at Kreenholm's dry falls and on the railway bridge. BLUFOR
-holds the Narva bank (Old Town, Narva Station, Balti Plant), OPFOR the Ivangorod
+holds the Narva bank (Hermann Castle, Narva Station, Balti Plant), OPFOR the Ivangorod
 bank (Ivangorod Fortress, Ivangorod Station, Narva HES), and the three river places
 (Friendship Bridge, Rail Bridge, Kreenholm) sit on the crossings; five of nine for
 the majority. North is up, as on a real map.

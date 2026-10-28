@@ -1831,6 +1831,14 @@ Engine changes needed in the existing core:
     cream with tall windows, pilasters and a clock turret; `switchyard` has a lattice pylon,
     gantries and transformers; rocks break the tailwater. Every landmark now follows a
     reference.
+- **North-lane places in the courtyards (2026-10-28).** The user chose to move the two northern
+  home places onto their landmarks. BLUFOR's Old Town place became *Hermann Castle*: r 16
+  inside the castle's 44 m court, entered by its gate. *Ivangorod Fortress* now sits in the
+  fortress's court, r 34. The north lane becomes castle against fortress across the bridge:
+  180 and 200 m from the Friendship Bridge place, down from about 350 m, with the walk from
+  each base unchanged at about 1,050 m. The town squares are kept open now that no place
+  holds them clear. A balance check (32 CPU matches on seeds 31-34, against the same seeds
+  before the move) was running when this shipped.
 
 ## Open questions
 

@@ -43,17 +43,17 @@ export const narva3km = {
   locations: [
     at(-480, -1000, { name: 'Balti Plant', r: 38, home: 0 }),
     at(-560, -90, { name: 'Narva Station', r: 34, home: 0 }),
-    at(-330, 580, { name: 'Old Town', r: 38, home: 0 }),
+    at(-166, 384, { name: 'Hermann Castle', r: 16, home: 0 }),   // inside the castle's walls, entered by its gate (the court is 44 m square)
     at(40, FALLS_N, { name: 'Kreenholm', r: 36 }),
     at(0, RAIL_N, { name: 'Rail Bridge', r: 28 }),
     at(0, BRIDGE_N, { name: 'Friendship Bridge', r: 30 }),
-    at(330, 540, { name: 'Ivangorod Fortress', r: 38, home: 1 }),
+    at(190, 380, { name: 'Ivangorod Fortress', r: 34, home: 1 }),   // inside the fortress's walls, entered by its gate
     at(560, -70, { name: 'Ivangorod Station', r: 34, home: 1 }),
     at(480, -1000, { name: 'Narva HES', r: 36, home: 1 }),
   ],
-  links: [['Balti Plant', 'Narva Station'], ['Narva Station', 'Old Town'], ['Kreenholm', 'Rail Bridge'], ['Rail Bridge', 'Friendship Bridge'],
+  links: [['Balti Plant', 'Narva Station'], ['Narva Station', 'Hermann Castle'], ['Kreenholm', 'Rail Bridge'], ['Rail Bridge', 'Friendship Bridge'],
     ['Narva HES', 'Ivangorod Station'], ['Ivangorod Station', 'Ivangorod Fortress'], ['Balti Plant', 'Kreenholm'], ['Narva Station', 'Rail Bridge'],
-    ['Old Town', 'Friendship Bridge'], ['Kreenholm', 'Narva HES'], ['Rail Bridge', 'Ivangorod Station'], ['Friendship Bridge', 'Ivangorod Fortress']],
+    ['Hermann Castle', 'Friendship Bridge'], ['Kreenholm', 'Narva HES'], ['Rail Bridge', 'Ivangorod Station'], ['Friendship Bridge', 'Ivangorod Fortress']],
   roads: [
     // roads cross the Friendship Bridge (e -66 to 66) and the dam (e -70 to 70) dead straight, with a straight lead-in at each end that
     // the smoothing leaves on the line, so the asphalt lies on the deck
@@ -144,7 +144,8 @@ export const narva3km = {
     // user's voxel references, like the Town Hall, the stations and the hydro station below
     { const [cx, cz] = P(-165, 385); hermannCastle(cx, cz, 0); take(cx, cz, 54); }          // Hermann Castle: its gate faces the town, Tall Hermann the bridge
     { const [fx, fz] = P(190, 380); fortress(fx, fz, 80, 110, 0); take(fx, fz, 80); }         // Ivangorod Fortress: a riverside tower, its gate on the town side
-    { const [tx, tz] = P(-330, 640); townHall(tx, tz, 0); take(tx, tz, 32); }               // the Town Hall on the square's north side, its stair down to the square
+    { const [tx, tz] = P(-330, 640); townHall(tx, tz, 0); take(tx, tz, 32); }
+    for (const [e, n, r0] of [[-330, 580, 48], [330, 540, 44]]) { const [x, z] = P(e, n); take(x, z, r0); }   // Old Town's square and Ivangorod's, kept open               // the Town Hall on the square's north side, its stair down to the square
     { const m1 = P(40, -705), m2 = P(40, -592);                                                // Kreenholm: two mills fronting the falls, a boiler house and its chimney, the race
       millBuilding(m1[0], m1[1], 64, 6, -Math.PI / 2, 20); take(m1[0], m1[1], 34); millBuilding(m2[0], m2[1], 50, 5, -Math.PI / 2, 18); take(m2[0], m2[1], 28);
       B(64, -650, 12, 9, 26, 0x93432f); const [cx, cz] = P(68, -632); props.push({ geo: 'cyl:1.7,2.4,46,12', color: 0x8a3c2a, x: cx, y: 23, z: cz, rot: [0, 0, 0], cast: true }); obstacles.push({ minX: cx - 2.4, maxX: cx + 2.4, minZ: cz - 2.4, maxZ: cz + 2.4, h: 46 });
