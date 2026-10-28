@@ -19,7 +19,7 @@ export class Roster {
   constructor(app) {
     this.app = app;
     const el = this.el = document.getElementById('roster');
-    el.innerHTML = `<div class="tabs"><span class="tl"></span><span class="sp"></span><span class="chips"></span><select id="spawn-pref" title="Where your infantry respawn"></select><button class="fold" data-k="fold" title="Show or hide the cards">${icon('fold')}</button></div><div class="cards"></div>`;
+    el.innerHTML = `<div class="tabs"><span class="tl"></span><span class="sp"></span><span class="chips"></span><select id="land-at" title="Where your landing craft put men and vehicles ashore"></select><select id="spawn-pref" title="Where your infantry respawn"></select><button class="fold" data-k="fold" title="Show or hide the cards">${icon('fold')}</button></div><div class="cards"></div>`;
     this.tabsEl = el.querySelector('.tl'); this.chipsEl = el.querySelector('.chips'); this.cardsEl = el.querySelector('.cards'); this.edgesEl = document.getElementById('edges');
     this.cards = new Map(); this.list = []; this.byKey = new Map();
     this.tab = 'all'; this.groups = new Map(); this.last = { fire: -1, idle: -1 };
@@ -50,6 +50,9 @@ export class Roster {
     const s = document.getElementById('spawn-pref'), d = team.doctrine || {};
     s.innerHTML = `<option value="auto">Respawn near squad</option><option value="base">Respawn at main base</option>${d.heliSpawn ? '<option value="heli">Respawn by helicopter</option>' : ''}${d.truckSpawn ? '<option value="truck">Respawn by truck</option>' : ''}`;
     s.value = team.spawnPref || 'auto'; s.onchange = () => { team.spawnPref = s.value; this.acc = 1; };
+    // a side based on a ship: which beach its landing craft run to (game/landing.js); vehicles go to the nearest beach that takes them
+    const L = team.landing, b = document.getElementById('land-at'); b.style.display = L ? '' : 'none';
+    if (L) { b.innerHTML = L.lanes.map(l => `<option value="${l.name}">Land at ${l.name}${l.vehicles ? '' : ' (infantry)'}</option>`).join(''); b.value = L.choice; b.onchange = () => { L.choice = b.value; }; }
   }
 
   // ---- what each card says
@@ -90,7 +93,7 @@ export class Roster {
     const eng = sq.engineer, b = eng && !eng.dead && eng.building, mv = foot.find(u => u.dest || u.target), post = foot.find(u => u.post);
     if (b) { const B = BUILDS[buildKind(b)]; Object.assign(d, { glyph: 'build', tone: 'y', text: `${B.name} ${mmss(b.t)}`, ring: { f: 1 - b.t / b.total, t: b.t, glyph: B.glyph } }); }
     else if (d.alert) Object.assign(d, { glyph: 'fire', tone: 'red', text: `Under fire${this.place(cx, cz) ? ' · ' + this.place(cx, cz) : ''}` });
-    else if (car) Object.assign(d, { glyph: car.spec.air ? 'air' : 'ride', tone: 'go', text: `${car.spec.air ? 'Flying in' : 'In'} ${car.label}` });
+    else if (car) Object.assign(d, { glyph: car.spec.air ? 'air' : 'ride', tone: 'go', text: car.type === 'dock' ? 'On the ship' : `${car.spec.air ? 'Flying in' : 'In'} ${car.label}` });   // the dock: waiting for a landing craft
     else if (post) Object.assign(d, { glyph: 'post', text: `Manning ${post.post.sb.label}` });
     else if (mv) Object.assign(d, { glyph: 'move', tone: 'go', text: this.toward(mv, mv.dest || mv.target) });
     else if (foot.some(u => u.enemy)) Object.assign(d, { glyph: 'aim', text: `Engaging${this.place(cx, cz) ? ' · ' + this.place(cx, cz) : ''}` });
@@ -106,7 +109,8 @@ export class Roster {
     d.hp = u.hp / u.maxHp; if (u.supply) d.sup = u.supplies / RULES.fob.truckSupplies; if (u.seats) d.seat = `${u.passengers.length}/${u.seats}`;
     d.alert = this.hit(d.key, [u], u.hp);
     const feeding = m.fobs.builds.find(b => b.truck === u), go = u.dest || u.target, air = u.spec.air;
-    if (feeding) Object.assign(d, { glyph: 'sup', tone: 'y', text: `Supplying ${feeding.eng.label}` });
+    if (u.afloat) Object.assign(d, { glyph: 'ride', tone: 'go', text: u.mounted && u.mounted.type !== 'dock' ? `In ${u.mounted.label}` : 'On the ship' });   // waiting for, or aboard, a landing craft
+    else if (feeding) Object.assign(d, { glyph: 'sup', tone: 'y', text: `Supplying ${feeding.eng.label}` });
     else if (d.alert) Object.assign(d, { glyph: 'fire', tone: 'red', text: 'Under fire' });
     else if (air && u.state === 'land') Object.assign(d, { glyph: 'air', tone: 'go', text: 'Landing' });
     else if (air && u.orbit) Object.assign(d, { glyph: 'air', tone: 'go', text: `Circling ${this.place(u.orbit.x, u.orbit.z, 80) || 'the spot'}` });

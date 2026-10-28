@@ -4,7 +4,7 @@
 export const RULES = {
   matchLength: 25 * 60,
   startTickets: { skirmish: 500, aas: 500 },
-  ticketCost: { soldier: 1, truck: 10, supply: 16, apc: 20, tank: 30, heli: 30, fob: 40, emplacement: 10, location: 20 },
+  ticketCost: { soldier: 1, truck: 10, supply: 16, apc: 20, tank: 30, heli: 30, craft: 20, fob: 40, emplacement: 10, location: 20 },
   respawnTime: { soldier: 15, truck: 60, apc: 90, tank: 150, heli: 120 },
   waveSlack: 8,              // squadmates who died within this many seconds come back together
   captureRate: 1.2,          // progress per unit-second; 4 soldiers take ~21 s
@@ -14,7 +14,7 @@ export const RULES = {
   // 150, tank gun 200); `air` is a helicopter in the air, which also looks over buildings. A shooter shows to the side it
   // fires at for `reveal` s; a last-known position stays `ghost` s. Cells are `cell` m, refreshed every `every` s. The CPU
   // takes a place the enemy holds that it has not seen for 30 s to hold `guess` (combat weight: about four soldiers).
-  vision: { cell: 8, every: 0.2, reveal: 5, ghost: 30, guess: 4, sight: { soldier: 120, apc: 160, tank: 210, truck: 100, heli: 120, air: 250, fob: 100, sandbags: 100 } },
+  vision: { cell: 8, every: 0.2, reveal: 5, ghost: 30, guess: 4, sight: { soldier: 120, apc: 160, tank: 210, truck: 100, heli: 120, craft: 120, air: 250, fob: 100, sandbags: 100 } },
   // tank traps (a row of hedgehogs, 15 m): an engineer by a supply truck lays them; any engineer standing at a row clears it
   traps: { buildTime: 10, supplyCost: 20, max: 6, minSpacing: 18, enemyBaseDistance: 100, clearTime: 8, clearRange: 8 },
   sandbags: { buildTime: 12, supplyCost: 12, max: 8, minSpacing: 12, enemyBaseDistance: 60, roadClear: 10 },
@@ -26,5 +26,8 @@ export const RULES = {
   // armourRadius it can't be dropped and nobody comes back at it (they use the next spawn) until the armour leaves
   rally: { wave: 30, cutoff: 10, cooldown: 60, placeRange: 8, blockRadius: 30, burnRadius: 18, armourRadius: 100, enemyBaseDistance: 120 },
   heli: { capacity: 8, boardRange: 5 },
+  // landing craft for a side based on a ship (game/landing.js): cruising speed, room aboard (a soldier takes one place, a
+  // vehicle more), seconds on the beach, seconds to replace a sunk craft, the radius of a held beach's supply dump
+  landing: { speed: 12, room: 16, places: { soldier: 1, truck: 8, apc: 8, tank: 16 }, beach: 6, rebuild: 60, dump: 35 },
   force: { squads: 8, truck: 3, apc: 3, heli: 2 },
 };

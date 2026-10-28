@@ -129,7 +129,7 @@ export class Input {
     this.loading = false;
     for (const u of this.selected) u.setSelected(false);
     const me = this.app.playerTeam ?? 0;
-    this.selected = list.filter(u => !u.dead && u.team === me);
+    this.selected = list.filter(u => !u.dead && u.team === me && !u.spec.naval && !u.afloat);   // landing craft run themselves
     for (const u of this.selected) u.setSelected(true);
     if (this.selected.length && this.app.audio) this.app.audio.ui('select');
     this.hud.showSelection(this.selected);

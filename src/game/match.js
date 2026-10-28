@@ -14,6 +14,7 @@ import { Vision } from './vision.js';
 import { VoiceDirector } from './voices.js';
 import { DOCTRINES, PRESETS, expand, preset } from './loadout.js';
 import { createMode } from './modes/index.js';
+import { Landing } from './landing.js';
 import { difficulty } from './difficulty.js';
 
 // Match flow. The mode object owns objectives and win conditions; the match owns
@@ -49,6 +50,7 @@ export class Match {
     this.support = new Support(this.units, this.respawn, this.teams); this.support.match = this;   // the match: which sides are CPU, the builds under way
     this.fobs = new Fobs(this.units, this.teams, this.world);
     this.rallies = new Rallies(this.units, this.teams, this); this.respawn.rallies = this.rallies;
+    this.landing = map && map.sea ? new Landing(this, map.sea) : null; this.respawn.landing = this.landing;   // a side based on a ship comes ashore by landing craft
     this.voices = null; if (app.audio) this.attachAudio(app.audio);
     this.feed = []; this.events = []; this.feedId = 0; this.history = []; this.histAcc = 5; this.elapsed = 0; this.log = [];   // log: captures and losses with times
     this.fobs.onBuilt = (fob) => this.event({ type: 'fob', team: fob.team, fob });
@@ -104,7 +106,7 @@ export class Match {
     };
     this.time = this.mode.length; this.state = 'play'; this.winner = null; this.reason = ''; this.acc = 0;
     this.units.auto = false;
-    this.deploy();
+    this.deploy(); if (this.landing) this.landing.afterDeploy();
     this.mode.setup();
     this.objectives = this.mode.objectives || null;
     this.strategists = cpu.map(t => new Strategist(t, this.units, this.teams, this));
@@ -166,6 +168,7 @@ export class Match {
     this.time -= dt; this.elapsed += dt;
     if ((this.histAcc += dt) >= 5) { this.histAcc = 0; this.history.push(this.sample()); }
     this.spatial.rebuild(this.units.units);
+    if (this.landing) this.landing.move(dt);   // landing craft sail every frame; their loading and beaching run at the tick
     this.acc += dt;
     while (this.acc >= 0.1) { this.acc -= 0.1; this.tick(0.1); }
     for (const f of this.feed) f.t += dt;
@@ -181,6 +184,7 @@ export class Match {
     this.combat.tick(dt);
     this.rallies.tick(dt);   // before respawns: burned rallies are gone and due waves are flagged
     this.respawn.tick(dt);
+    if (this.landing) this.landing.tick(dt);
     this.support.tick(dt);
     this.fobs.tick(dt);
     this.mode.tick(dt);

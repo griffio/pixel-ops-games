@@ -113,12 +113,12 @@ export class Strategist {
     if (this.remote) this.remote.tick(dt);
     if ((this.reflex -= dt) <= 0) { this.reflex = 1; this.note(); this.caution(); }
     this.timer -= dt; if (this.timer > 0) return; this.timer = this.diff.plan + Math.random() * 2;
-    const base = this.teams[this.team].base;
+    const base = this.teams[this.team].base, land = this.teams[this.team].home;   // home on land: the main base, or the beach a ship's landing craft use
     // drop lifts whose carrier or troops are gone, so squads return to the pool
     // (lift keys are carriers, which are units with a type, and the squads riding them whole)
     for (const [k, v] of [...this.lifts]) if (k.type && (k.dead || (v.sq ? !v.sq.leader : v.riders.length && !k.passengers.length && v.riders.every(m => m.dead)))) this.endLift(k);
     const squads = this.units.squads.filter(s => s.team === this.team && s.leader && !this.lifts.has(s) && !s.members.some(m => m.building) && !(s.pinUntil > this.match.elapsed));   // pinned squads (in cover from armour, or stalking it) keep doing that
-    const vehicles = this.units.units.filter(u => u.team === this.team && !u.dead && !u.squad && !u.spec.structure);
+    const vehicles = this.units.units.filter(u => u.team === this.team && !u.dead && !u.squad && !u.spec.structure && !u.spec.naval && !u.afloat);   // not landing craft, nor what waits on the ship
     const myFobs = this.units.units.filter(u => u.type === 'fob' && u.team === this.team && !u.dead).map(f => ({ x: f.pos.x, z: f.pos.z, r: 18, index: 'fob' + f.id }));
     const g = this.match.mode.goals(this.team, myFobs);
     // who sets the plan: a fresh remote commander, else the utility commander, else the mode's goals as they are
@@ -126,7 +126,7 @@ export class Strategist {
     if (adviser) this.applyPlan(g, adviser);
     this.posture = g.posture || 'balanced'; this.prefer = g.logistics || 'fob'; this.lift = g.lift !== false;
     this.exact = adviser !== null && adviser === this.remote;   // a remote commander's logistics are orders; the others' are preferences
-    if (g.hunt) return this.skirmish(squads, vehicles, base);
+    if (g.hunt) return this.skirmish(squads, vehicles, land);
     const attack = g.attack, hold = g.hold, reserve = g.reserve || null;
     const enemyFob = this.contacts().find(u => u.type === 'fob' && (attack ? Math.hypot(u.pos.x - attack.x, u.pos.z - attack.z) < 160 : true));
     const logisticsSquad = this.logistics(squads, vehicles, g.fobAnchor, hold, attack);
@@ -151,14 +151,14 @@ export class Strategist {
       else { const [x, z] = this.inZone(attack.x, attack.z, attack); this.send(sq, x, z, 'cap' + attack.index, attack); }
     };
     const holdAt = (sq, loc) => {
-      if (!loc) return this.send(sq, base.x + (Math.random() - 0.5) * 20, base.z + (Math.random() - 0.5) * 20, 'home', null, true);
+      if (!loc) return this.send(sq, land.x + (Math.random() - 0.5) * 20, land.z + (Math.random() - 0.5) * 20, 'home', null, true);
       if (loc === hold && post < posts.length) return this.manPost(sq, posts[post++], hold);
       const [x, z] = this.inZone(loc.x, loc.z, loc, 0.7); this.send(sq, x, z, 'hold' + loc.index, loc, true);
     };
     const reserveAt = (sq, loc) => { if (!loc) return holdAt(sq, hold); const [x, z] = this.inZone(loc.x, loc.z, loc, 0.6); this.send(sq, x, z, 'reserve' + loc.index, loc, true); };
     const screenAt = (sq, loc) => {   // an overwatch position 50 m out from our location towards the enemy, in cover if armour overlooks it
       if (!loc) return holdAt(sq, hold);
-      const to = attack || this.teams[1 - this.team].base; let [x, z] = this.toward(loc, to, Math.max(0, Math.hypot(to.x - loc.x, to.z - loc.z) - 50), 8);
+      const to = attack || this.teams[1 - this.team].home; let [x, z] = this.toward(loc, to, Math.max(0, Math.hypot(to.x - loc.x, to.z - loc.z) - 50), 8);
       const apc = this.contacts().find(f => (f.type === 'apc' || f.type === 'tank') && Math.hypot(f.pos.x - x, f.pos.z - z) < 150 && this.match.combat.canSeePoint(f, x, z));
       if (apc) { const p = this.match.combat.coverPoint(x, z, apc.pos.x, apc.pos.z, 30, this.units.nav.foot); if (p) [x, z] = p; }
       this.send(sq, x, z, 'screen' + loc.index, loc, true);
@@ -225,7 +225,7 @@ export class Strategist {
         const job = vroles.get(v.label), at = job && job.role === 'hold' ? byName(job.at) : null, keep = job && job.role === 'hold' ? (at && at.owner === this.team ? at : hold) : null;
         if (keep && keep !== at) refused.set(v.label, `hold at ${job.at}: not ours, so at ${keep.name} instead`);
         const goal = keep || attack || hold; if (!goal) continue;
-        if (v.type === 'apc' && (!keep || this.lifts.has(v)) && this.ride(v, free, attack, base)) continue;   // an APC leaving base takes a squad with it (one holding finishes a drop under way, then starts none)
+        if (v.type === 'apc' && (!keep || this.lifts.has(v)) && this.ride(v, free, attack, land)) continue;   // an APC leaving base takes a squad with it (one holding finishes a drop under way, then starts none)
         const standoff = v.type === 'tank' ? 90 : 70;   // the tank's gun reaches 200 m: it stands further off
         const foes = this.enemiesNear(goal.x, goal.z, goal.r + 40), c = this.cluster(foes);
         let x, z;
@@ -239,7 +239,7 @@ export class Strategist {
         if (v.dest && v.goal && Math.hypot(v.goal[0] - x, v.goal[1] - z) < 12) continue;
         v.goal = [x, z]; v.order(x, z);
       } else if (v.type === 'heli') this.air(v, attack, base, perch, hold);
-      else if (v.type === 'truck' && !v.supply) { if (!this.ride(v, free, attack, base) && !v.dest && Math.hypot(v.pos.x - base.x, v.pos.z - base.z) > 40) v.order(base.x + (Math.random() - 0.5) * 24, base.z + (Math.random() - 0.5) * 24); }   // a troop truck between runs waits at base
+      else if (v.type === 'truck' && !v.supply) { if (!this.ride(v, free, attack, land) && !v.dest && Math.hypot(v.pos.x - land.x, v.pos.z - land.z) > 40) v.order(land.x + (Math.random() - 0.5) * 24, land.z + (Math.random() - 0.5) * 24); }   // a troop truck between runs waits at base
     }
   }
 
@@ -302,7 +302,7 @@ export class Strategist {
   // unless we have seen it in the last 30 s (an unseen place they hold may well be defended). Neutral ones first, then nearest.
   grabsFor(attack) {
     const o = this.match.objectives; if (!o) return [];
-    const t = this.team, V = this.match.vision, base = this.teams[t].base;
+    const t = this.team, V = this.match.vision, base = this.teams[t].home;
     return o.list.filter(l => l !== attack && l.owner !== t && o.capturable(t, l) && !l.contested && !(l.owner === 1 - t && V.ageAt(t, l.x, l.z) > 30)
       && !this.enemiesNear(l.x, l.z, l.r + 60).some(u => !u.spec.structure && (!u.ghost || u.age < 15)) && !this.armourNear(l.x, l.z, 120))
       .sort((a, b) => (a.owner === -1 ? 0 : 1) - (b.owner === -1 ? 0 : 1) || Math.hypot(a.x - base.x, a.z - base.z) - Math.hypot(b.x - base.x, b.z - base.z));
@@ -458,7 +458,7 @@ export class Strategist {
     }
     // soft vehicles: the perched helicopter takes off when it is hit or enemies or armour come close, and a supply truck
     // with enemy armour within 120 m (or enemies within 40 m) drives home, dropping its job; a lost truck costs 16 tickets
-    const base = this.teams[this.team].base, home = (v) => v.order(base.x + (Math.random() - 0.5) * 24, base.z + (Math.random() - 0.5) * 24);
+    const base = this.teams[this.team].base, land = this.teams[this.team].home, home = (v) => v.order(land.x + (Math.random() - 0.5) * 24, land.z + (Math.random() - 0.5) * 24);
     const pl = this.percher && this.lifts.get(this.percher);
     if (pl && pl.stage === 'perch') {
       const h = this.percher, hit = h.hp < (pl.hp ?? h.hp); pl.hp = h.hp;
@@ -499,7 +499,8 @@ export class Strategist {
       if (v.refilling && v.supplies >= RULES.fob.truckSupplies) v.refilling = false;
       if (v.supplies >= RULES.sandbags.supplyCost || (this.plan && this.plan.truck === v)) continue;
       v.refilling = true;
-      if (Math.hypot(v.pos.x - base.x, v.pos.z - base.z) > base.r - 6 && (!v.dest || Math.hypot(v.dest.x - base.x, v.dest.z - base.z) > 30)) v.order(base.x + (Math.random() - 0.5) * 24, base.z + (Math.random() - 0.5) * 24);
+      const R = team.landing ? team.landing.refillPoint(v.pos.x, v.pos.z) : base;   // a side on a ship: a held beach's dump, or the beach its craft use (a craft takes it home)
+      if (Math.hypot(v.pos.x - R.x, v.pos.z - R.z) > R.r - 6 && (!v.dest || Math.hypot(v.dest.x - R.x, v.dest.z - R.z) > 30)) v.order(R.x + (Math.random() - 0.5) * 24, R.z + (Math.random() - 0.5) * 24);
     }
     const stocked = (v, cost) => v.supply && !v.refilling && v.supplies >= cost;
     if (!this.plan) {
@@ -574,7 +575,7 @@ export class Strategist {
   routeTo(l) {
     if (!l) return null; const now = this.match.elapsed, c = this.routeCache;
     if (c && c.name === l.name && now - c.at < 20) return c.pts;
-    const b = this.teams[this.team].base, p = this.units.nav.vehicle.findPath(b.x, b.z, l.x, l.z);
+    const b = this.teams[this.team].home, p = this.units.nav.vehicle.findPath(b.x, b.z, l.x, l.z);
     this.routeCache = { name: l.name, at: now, pts: p ? [[b.x, b.z], ...p] : null }; return this.routeCache.pts;
   }
   onRoute(pts, x, z, r) {
@@ -777,7 +778,7 @@ export class Strategist {
   // no objectives: hunt the enemy's main cluster as far as we know it (milestone 1 behaviour); knowing of none, sweep toward
   // their base until something shows
   skirmish(squads, vehicles, base) {
-    const eb = this.teams[1 - this.team].base, target = this.cluster(this.contacts().filter(u => !(u.spec.air && u.alt > 2))) || { x: eb.x, z: eb.z };
+    const eb = this.teams[1 - this.team].home, target = this.cluster(this.contacts().filter(u => !(u.spec.air && u.alt > 2))) || { x: eb.x, z: eb.z };
     squads.forEach((sq, i) => {
       if (i < 2 || !target) { if (!sq.busy) this.send(sq, base.x + (Math.random() - 0.5) * 16, base.z + (Math.random() - 0.5) * 16, 'home'); return; }
       const c = sq.centroid(), [x, z] = this.toward(c, target, 18); this.send(sq, x, z, 'hunt');

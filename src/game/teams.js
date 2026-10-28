@@ -1,5 +1,7 @@
 export class Team {
-  constructor(id, name, base, tickets, color) { this.id = id; this.name = name; this.base = base; this.tickets = tickets; this.color = color; this.kills = 0; this.losses = 0; this.loadout = null; this.doctrine = null; this.loadoutName = ''; this.spawnPref = 'auto'; this.fobKits = 0; }
+  constructor(id, name, base, tickets, color) { this.id = id; this.name = name; this.base = base; this.tickets = tickets; this.color = color; this.kills = 0; this.losses = 0; this.loadout = null; this.doctrine = null; this.loadoutName = ''; this.spawnPref = 'auto'; this.fobKits = 0; this.landing = null; }
+  // where ground units go home to: the main base, or for a side based on a ship the beach its landing craft use (game/landing.js)
+  get home() { return this.landing ? this.landing.home() : this.base; }
   // random point inside the base circle that is not blocked
   spawnPoint(world, pad = 3) {
     for (let i = 0; i < 40; i++) {

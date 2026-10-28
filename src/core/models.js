@@ -405,9 +405,25 @@ export function makeBuilders(F) {
     return { group: g, parts: p, height: 1.9, radius: 0.6 };
   }
 
+  // Landing craft (an LCU): a flat steel hull riding low in the water, side walls round the open well deck, a bow ramp (+z)
+  // with the team's band along its top, the wheelhouse and mast aft on the starboard side. Its origin is the waterline.
+  function craft() {
+    const g = group(); const p = {};
+    box(7.2, 1.6, 22, 'hullDark', 0, 0.2, 0, g);                                     // hull, half under water
+    box(7.6, 0.25, 22.2, 'hull', 0, 1.12, 0, g);                                    // deck edge
+    box(6.2, 0.1, 17, 'case', 0, 1.02, 1.5, g);                                     // well deck
+    for (const s of [-1, 1]) box(0.5, 1.6, 18, 'hull', s * 3.55, 1.95, 1, g);       // side walls
+    box(6.6, 2.2, 0.35, 'hull', 0, 2.1, 11.1, g); box(6.6, 0.3, 0.4, 'sand', 0, 3.2, 11.1, g);   // bow ramp, raised, and the team band
+    box(6.8, 0.8, 1.8, 'hull', 0, 1.6, -10.4, g);                                   // stern
+    box(3.0, 2.8, 3.4, 'hull', -1.8, 2.6, -8.6, g); box(3.02, 0.6, 0.06, 'glass', -1.8, 3.4, -6.88, g);   // wheelhouse, its windows
+    box(0.18, 3.5, 0.18, 'metal', -1.8, 5.7, -8.6, g);                              // mast
+    p.ring = ring(12, g);
+    return { group: g, parts: p, height: 4, radius: 9 };
+  }
+
   // each builder takes the team so the whole model picks the right camo set
   const forTeam = (fn) => (t = 0) => { team = t; const r = fn(); team = 0; return r; };
-  return { soldier: forTeam(soldier), truck: forTeam(() => truck(false)), supplyTruck: forTeam(() => truck(true)), apc: forTeam(apc), heli: forTeam(heli), fob: forTeam(fob), cache: forTeam(cache), sandbags: forTeam(sandbags), emp_hmg: forTeam(empHmg), emp_atgm: forTeam(empAtgm), emp_mortar: forTeam(empMortar), traps: forTeam(traps), rally: forTeam(rally), tank: forTeam(tank) };
+  return { soldier: forTeam(soldier), truck: forTeam(() => truck(false)), supplyTruck: forTeam(() => truck(true)), apc: forTeam(apc), heli: forTeam(heli), fob: forTeam(fob), cache: forTeam(cache), sandbags: forTeam(sandbags), emp_hmg: forTeam(empHmg), emp_atgm: forTeam(empAtgm), emp_mortar: forTeam(empMortar), traps: forTeam(traps), rally: forTeam(rally), tank: forTeam(tank), craft: forTeam(craft) };
 
 
 
@@ -446,6 +462,7 @@ export const COLORS = {
   skin: 0xc9966b, skin2: 0x7a5236, hair: 0x1a1512, belt: 0x3b3127, boots: 0x8a7350, bootsB: 0x2f2a24, rifle: 0x1f1f1f, gun: 0x34373a, medRed: 0xb3261e, launcher: 0x56603c,
   heliDark: 0x2e3330, olive: 0x5c6b3f, trap: 0x4c4741, trap2: 0x6b4a35, sandbag: 0x9c8b64, sandbag2: 0xa8976f, sandbag3: 0x8f7f5a, bagCore: 0x5e5139, glass: 0x1d2328, tire: 0x1a1a1a, rim: 0xb09a64, rimB: 0x6c7550, metal: 0x2a2a2a, canvas: 0x6f6448,
   hub: 0x5e5340, tread: 0x2c2c2c, headlight: 0xf2ecd0, grille: 0x171717, amber: 0xd9822b,
+  hull: 0x858a8e, hullDark: 0x4f5458,   // landing craft
   sand: 0xd6c08a, sandB: 0x87915f, engine: 0x6b6e6c, wood: 0x8a6a43, drum: 0x3e4a33, case: 0x3a3d40,   // vehicle plates, engines, cargo
 };
 export const TEXTURED = ['uniform', 'vest', 'desert', 'camo', 'tarp', 'trunk', 'frond', 'bush', 'uniformB', 'vestB', 'desertB', 'camoB', 'tarpB', 'wreck', 'net', 'trackLinks', 'trackEdge', 'plaster1', 'plaster2', 'plaster3', 'render', 'liner'];

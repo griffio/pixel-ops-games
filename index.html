@@ -222,7 +222,7 @@
   #roster .chip .gi { width: 12px; height: 12px; fill: currentColor; }
   #roster .chip.red { border-color: rgba(232,106,90,0.7); color: #f3c9c3; } #roster .chip.red .gi { fill: var(--danger); }
   #roster .chip.y { border-color: rgba(242,193,78,0.6); color: var(--accent); }
-  #spawn-pref { max-width: 170px; padding: 3px 6px; background: #232326; color: var(--text); border: 1px solid #3a3a3e; border-radius: 12px; font: inherit; font-size: 11px; }
+  #spawn-pref, #land-at { max-width: 170px; padding: 3px 6px; background: #232326; color: var(--text); border: 1px solid #3a3a3e; border-radius: 12px; font: inherit; font-size: 11px; }
   #roster .fold { display: grid; place-items: center; width: 30px; min-height: 0; padding: 4px 0; border-radius: 12px; background: #232326; }
   #roster .fold .gi { width: 12px; height: 12px; fill: var(--text); }
   #roster .cards { display: flex; gap: 6px; overflow-x: auto; overflow-y: hidden; scrollbar-width: none; overscroll-behavior: contain; touch-action: pan-x; }
@@ -316,7 +316,7 @@
   @media (max-height: 560px), (max-width: 700px) {
     :root { --cw: 94px; --ch: 88px; --ph: 50px; }
     .card .pic img { width: 100px; } .card .lbl { font-size: 11.5px; } .card .lbl small { display: none; }
-    #roster .chip span { display: none; } #spawn-pref { max-width: 120px; }
+    #roster .chip span { display: none; } #spawn-pref, #land-at { max-width: 120px; }
   }
   @media (max-height: 560px) {
     #minimap { width: 150px; height: 150px; } #feed { bottom: 170px !important; }

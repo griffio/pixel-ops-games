@@ -4,7 +4,8 @@ import { RULES } from './rules.js';
 // respawns are charged when the soldier comes back. Doctrines scale the timers;
 // Air Assault may put infantry down beside an idle friendly helicopter, Light Infantry beside a parked truck.
 export class Respawn {
-  constructor(units, teams, world) { this.units = units; this.teams = teams; this.world = world; this.queue = []; this.clock = 0; this.rallies = null; }
+  constructor(units, teams, world) { this.units = units; this.teams = teams; this.world = world; this.queue = []; this.clock = 0; this.rallies = null; this.landing = null; }
+  sea(team) { return this.landing && this.landing.team === team.id ? this.landing : null; }   // the landing craft, for a side based on a ship
 
   cost(u) { return u.supply ? RULES.ticketCost.supply : (RULES.ticketCost[u.type] || 0); }   // fob: 40; caches are charged by the mode
   timer(u) { const t = this.teams[u.team], d = t.doctrine || {}; return RULES.respawnTime[u.type] * (u.type === 'soldier' ? (d.infantryRespawn || 1) : (d.vehicleRespawn || 1)) * (u.type === 'heli' ? d.heliRespawn || 1 : 1) * (t.respawnMul || 1); }
@@ -13,7 +14,7 @@ export class Respawn {
     const team = this.teams[victim.team]; team.losses++;
     if (killer) this.teams[killer.team].kills++;
     if (victim.type !== 'soldier') team.tickets -= this.cost(victim);
-    if (victim.spec.structure) return;                                    // FOBs are not rebuilt by the queue
+    if (victim.spec.structure || victim.spec.naval) return;              // FOBs are not rebuilt by the queue; landing craft are replaced by their own (landing.js)
     this.queue.push({ unit: victim, t: this.timer(victim), died: this.clock });
   }
   cancel(unit) { const i = this.queue.findIndex(q => q.unit === unit); if (i >= 0) this.queue.splice(i, 1); }
@@ -38,7 +39,8 @@ export class Respawn {
     const hit = this.carrierCache[team.id]; if (hit) return hit;
     const d = team.doctrine || {}, U = this.units.units;
     const list = U.filter(v => v.team === team.id && !v.dead && (v.type === 'heli' ? d.heliSpawn && v.state === 'parked' : v.type === 'truck' && d.truckSpawn && !v.supply && Math.abs(v.speed) < 0.3 && !v.dest)
-      && !U.some(e => e.team !== team.id && !e.dead && !e.mounted && !e.spec.structure && Math.hypot(e.pos.x - v.pos.x, e.pos.z - v.pos.z) < 30));
+      && !U.some(e => e.team !== team.id && !e.dead && !e.mounted && !e.spec.structure && Math.hypot(e.pos.x - v.pos.x, e.pos.z - v.pos.z) < 30)
+      && !(v.type === 'heli' && this.sea(team) && this.sea(team).atShip(v.pos.x, v.pos.z)));   // not one on a ship's flight deck: men there would be stranded
     return (this.carrierCache[team.id] = list);
   }
   beside(v) { const [x, z] = v.exitPoints(1 + Math.floor(Math.random() * (v.spec.air ? 8 : 6))).pop(); return [x, z]; }   // round the airframe, or behind the tailgate
@@ -87,11 +89,13 @@ export class Respawn {
         team.tickets -= RULES.ticketCost.soldier;
         const [x, z] = rally ? this.atRally(rally) : this.spawnPoint(u, team);
         u.revive(x, z, Math.random() * Math.PI * 2);
-        const L = u.squad && u.squad.members.find(m => !m.dead && m !== u);
-        if (L) u.order(L.pos.x + (Math.random() - 0.5) * 3, L.pos.z + (Math.random() - 0.5) * 3);   // rejoin the squad
+        const L = u.squad && u.squad.members.find(m => !m.dead && m !== u && !m.afloat);
+        if (this.sea(team) && this.sea(team).atShip(x, z)) this.sea(team).embark(u);   // back on the ship: into the well dock for a landing craft
+        else if (L) u.order(L.pos.x + (Math.random() - 0.5) * 3, L.pos.z + (Math.random() - 0.5) * 3);   // rejoin the squad
       } else {
-        const [x, z] = this.spawnPoint(u, team);
+        const S = this.sea(team), [x, z] = S && u.spec.air ? S.deckSpot() : this.spawnPoint(u, team);   // a ship's helicopters on its flight deck
         const n = this.units.spawn(u.type, x, z, Math.random() * Math.PI * 2, u.team, { supply: u.supply }); n.label = u.label;
+        if (S && !n.spec.air) S.embark(n);
       }
       this.queue.splice(i, 1);
     }

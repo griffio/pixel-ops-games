@@ -23,8 +23,8 @@ export class Vision {
     // it, where they cover an eighth of the cell or more (8 m2): a house wall (houses are walls 1 m thick) or a container stack
     // blocks the view, a lamp post or a fence post does not (a whole cell would make a 0.6 m pole an 8 m wall; combat's own
     // line of sight stays exact)
-    const n = this.n, c = this.cell, ground = this.ground = new Float32Array(n * n);
-    for (let cz = 0; cz < n; cz++) for (let cx = 0; cx < n; cx++) ground[cz * n + cx] = combat.groundAt((cx + 0.5) * c - this.half, (cz + 0.5) * c - this.half);
+    const n = this.n, c = this.cell, ground = this.ground = new Float32Array(n * n), sea = world.terrain ? world.terrain.water : -Infinity;   // over water, its surface: a boat floats on it
+    for (let cz = 0; cz < n; cz++) for (let cx = 0; cx < n; cx++) ground[cz * n + cx] = Math.max(sea, combat.groundAt((cx + 0.5) * c - this.half, (cz + 0.5) * c - this.half));
     const top = this.top = new Float32Array(n * n).fill(-Infinity), cover = new Float32Array(n * n), ci = (v) => Math.max(0, Math.min(n - 1, Math.floor((v + this.half) / c)));
     const highest = new Float32Array(n * n).fill(-Infinity);
     for (const o of world.obstacles) {

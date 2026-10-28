@@ -5,10 +5,12 @@ export const REVIVE_WINDOW = 12, REVIVE_TIME = 3, REVIVE_RANGE = 14;
 
 export class Support {
   constructor(units, respawn, teams) { this.units = units; this.respawn = respawn; this.teams = teams; this.match = null; }
+  landing(t) { const L = this.match && this.match.landing; return L && L.team === t.team ? L : null; }
+  atRefill(t) { const L = this.landing(t), b = this.teams[t.team].base; return L ? L.dumpAt(t.pos.x, t.pos.z) : Math.hypot(t.pos.x - b.x, t.pos.z - b.z) < b.r; }   // inside main base, or a held beach's dump
   // A refill trip: the truck drives home, fills up, and drives back to where it was (or stays, if it set out from base). The
   // Refill order starts one; a player's truck starts one on its own (trips) when it has less than the cheapest job costs.
   startRefill(t) {
-    const b = this.teams[t.team].base, home = [b.x + (Math.random() - 0.5) * 16, b.z + (Math.random() - 0.5) * 16];
+    const L = this.landing(t), b = L ? L.refillPoint(t.pos.x, t.pos.z) : this.teams[t.team].base, home = [b.x + (Math.random() - 0.5) * 16, b.z + (Math.random() - 0.5) * 16];   // a side on a ship: a held beach's dump, or the beach its craft use
     t.refillBack = Math.hypot(t.pos.x - b.x, t.pos.z - b.z) < b.r ? null : [t.pos.x, t.pos.z];
     t.refilling = true; t.order(home[0], home[1]); t.refillHome = t.dest ? [t.dest.x, t.dest.z] : home;   // order() may move a goal out of a pocket
   }
@@ -18,14 +20,14 @@ export class Support {
   trips() {
     const M = this.match, full = RULES.fob.truckSupplies;
     for (const t of this.units.units) {
-      if (!t.supply || t.dead) continue;
+      if (!t.supply || t.dead || t.afloat) continue;   // one riding a landing craft back to its ship keeps its trip
       if (t.refillHome) {
         if (t.dest && Math.hypot(t.dest.x - t.refillHome[0], t.dest.z - t.refillHome[1]) > 2) { t.refilling = false; t.refillHome = t.refillBack = null; continue; }
         if (t.supplies >= full) { const back = t.refillBack; t.refilling = false; t.refillHome = t.refillBack = null; if (back) t.order(back[0], back[1]); }
         continue;
       }
       if (!M || M.cpu.includes(t.team) || t.supplies >= RULES.sandbags.supplyCost || t.dest || Math.abs(t.speed) > 0.3) continue;
-      const b = this.teams[t.team].base; if (Math.hypot(t.pos.x - b.x, t.pos.z - b.z) < b.r) continue;
+      if (this.atRefill(t)) continue;
       if (M.fobs && M.fobs.builds.some(x => x.truck === t)) continue;
       this.startRefill(t);
     }
@@ -33,7 +35,7 @@ export class Support {
   tick(dt) {
     const all = this.units.units;
     // supply trucks refill inside their own main base
-    for (const t of all) if (t.supply && !t.dead && t.supplies < RULES.fob.truckSupplies) { const b = this.teams[t.team].base; if (Math.hypot(t.pos.x - b.x, t.pos.z - b.z) < b.r) t.supplies = Math.min(RULES.fob.truckSupplies, t.supplies + RULES.fob.resupplyRate * dt); }
+    for (const t of all) if (t.supply && !t.dead && !t.afloat && t.supplies < RULES.fob.truckSupplies) { if (this.atRefill(t)) t.supplies = Math.min(RULES.fob.truckSupplies, t.supplies + RULES.fob.resupplyRate * dt); }
     this.trips();
     // a helicopter landed in its own main base is patched up by the ground crew (full in a minute)
     for (const h of all) if (h.type === 'heli' && !h.dead && h.state === 'parked' && h.hp < h.maxHp) { const b = this.teams[h.team].base; if (Math.hypot(h.pos.x - b.x, h.pos.z - b.z) < b.r) h.hp = Math.min(h.maxHp, h.hp + h.maxHp / 60 * dt); }

@@ -1918,6 +1918,76 @@ Engine changes needed in the existing core:
       it in 230 m.
     - In 4 CPU minutes the attacker took the Village and Radar Hill, with no errors.
     - The lobby shows only Invasion on Peninsula and every mode on Narva.
+    - CPU batch, seeds 51-52 (16 matches, each preset on both sides, no errors):
+      - The defender held out in 14. The attacker won 2, both with Light: one took every place in
+        7:50, the other ran the defender out of tickets at 19:28.
+      - The defender usually survives on few tickets (22 to 230 left, about 110 on average),
+        while the attacker ends with 270 to 560.
+      - So the attacker gets close but can't take all five in 20 minutes.
+      - This is with the stand-in beach base, which is easier than coming ashore by craft, so
+        tuning waits for P2.
+      - Knobs to try then: the clock, the defender's tickets, the cost of a lost place, and the
+        Bridgehead's distance from the defender's base.
+- **Peninsula, P2: the ship and its landing craft (2026-10-28).** The ship is now the
+  attacker's main base (`base.ship`), and the stand-in base behind West Beach is gone.
+  `game/landing.js` runs it.
+  - **The well dock.** Every ground unit of the side waits there: at the start, when it
+    respawns at main, and when a vehicle respawns. It is hidden, mounted on a dock object,
+    and `afloat`. Helicopters spawn, land and repair on the flight deck, a walkable `deck`
+    at 7.6 m in `map.bridges`. Helicopters now fly their height above the water's surface,
+    not the sea bed.
+  - **Landing craft.** A new unit type, `craft` (`spec.naval`): an LCU-style hull. There are
+    three, moved by the module along fixed lanes, never ordered, never selected, and kept
+    out of the push-apart between ground units.
+    - A craft at the dock loads first come first aboard, within 16 places (soldier 1,
+      truck or APC 8, tank 16). It waits 3 s for a wave to gather, then sails.
+    - Each craft beaches at its own berth, 14 m apart. Its load goes down the ramp, then up
+      the beach to its squad or the muster point. After 6 s it sails back.
+    - It can be shot. A sunk craft drowns its load, costs 20 tickets, and is replaced
+      60 s later.
+  - **Beaches.** Lanes run to West Beach (215 m), North Cove (470 m, infantry only) and
+    the harbour quay (about 1.6 km round the north tip, about 2.5 minutes). The player picks
+    one with a "Land at ..." selector on the unit strip. Vehicles bound for the cove go to
+    the nearest beach that takes them. A CPU side scores each beach by distance to the place
+    it wants, a fifth of the run, and 90 per enemy it can see within 140 m, with a small
+    bonus for a beach whose place it holds.
+  - **Supply.** A beach whose place the side holds is a supply dump (35 m). With none held,
+    a truck waiting on the beach to refill rides a craft back to the ship and returns full.
+    The truck return and the CPU's refill runs aim for the nearest dump, or the beach in use.
+  - **Home.** `team.home` is where ground units go home: the main base, or for a side on a
+    ship the beach its craft used last. The CPU uses it for:
+    - squads with nowhere to go;
+    - APC and truck lifts;
+    - soft vehicles falling back;
+    - its own route to a place;
+    - the enemy's home as an overwatch fallback.
+
+    Helicopters keep the ship.
+  - **HUD.**
+    - Reinforcements reads "Ship: N men waiting · craft k/3 out".
+    - Cards read "On the ship" or "In LC-02".
+    - The field manual's Transport page explains it.
+  - **Tests.**
+    - All three craft cycle; the first build had them fighting over one beach point.
+    - The CPU used all three beaches over 10 minutes, and nothing ended up stranded in the
+      water.
+    - Air Assault helicopters started on the deck, flew, came back to land and repair there,
+      and landed in the field.
+    - Choosing North Cove put 28 men there and sent the APC and truck to West Beach.
+    - A Palm Valley run is unchanged and has no errors.
+    - Fog of war over water now uses the water's surface, not the bed (`vision.ground`). The
+      bed is 10 m down at sea, so craft were nearly never seen. With it, defenders holding West
+      Beach fired on the first wave as it came in: one craft went from 900 to 525 hp in a run.
+    - CPU batch, seeds 51-52 (16 matches, each preset on both sides, no errors):
+      - The defender held out in 14 of 16 (14 in P1 too), on 4 to 161 tickets (84 on average).
+      - The attacker's two wins: Mechanized took every place in 13:43, and Air ran the defender
+        out of tickets at 19:31.
+      - By preset: Air 3 of 4 (1 in P1; its helicopters now work from the deck), Mechanized 5
+        of 8, Balanced 4 of 8, Armoured 2 of 4, Light 2 of 8 (6 in P1).
+      - No craft were sunk. The CPU attacker avoids beaches where it has seen defenders, and the
+        CPU defender holds the places, not the beaches.
+      - The fog fix changed one match only slightly.
+      - Tuning is P5.
 
 ## Open questions
 

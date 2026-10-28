@@ -3,10 +3,10 @@ import { smooth } from '../../core/math.js';
 import { coastDistance } from '../../core/terrain.js';
 import { makeKit } from './kit.js';
 
-// "Peninsula" (P1 blockout, plan 2026-10-28): 1.2 km of a rocky peninsula running north into the sea, cut off from the
-// mainland by a canal across its neck with a single bridge. Invasion only: the attacker comes from the sea (an assault ship off
-// the west coast; until its landing craft exist, from a stand-in base behind West Beach), the defender from its base on the
-// mainland, over the bridge. Cliffs ring the coast except at three landings: West Beach (sand, vehicles), North Cove (a
+// "Peninsula" (plan 2026-10-28; P1 blockout, P2 the ship and its landing craft): 1.2 km of a rocky peninsula running north into
+// the sea, cut off from the mainland by a canal across its neck with a single bridge. Invasion only: the attacker comes from the
+// sea (its main base is an assault ship off the west coast: helicopters on the flight deck, everything else run ashore by landing
+// craft, game/landing.js), the defender from its base on the mainland, over the bridge. Cliffs ring the coast except at three landings: West Beach (sand, vehicles), North Cove (a
 // notch under the cliffs, infantry) and the harbour quay on the east coast. Five places: the three landings (the attacker's
 // home places, so it may land anywhere first), Radar Hill in the middle, and the Bridgehead at the peninsula end of the bridge.
 //
@@ -22,13 +22,21 @@ const PEN = [[-110, -330], [-130, -200], [-200, -100], [-290, -30], [-310, 20], 
 const MAIN = [[-700, -380], [-320, -395], [-160, -375], [-110, -372], [110, -372], [170, -378], [330, -398], [700, -385], [700, -700], [-700, -700]];
 const LAND = [W(PEN), W(MAIN)];
 const BEACH = [[-310, 20], [-325, 80], [-318, 150]], COVE = [[-180, 300], [-150, 318]], QUAY = [[310, 60], [300, 0]];
-const SHIP = { e: -470, n: 300, len: 150, beam: 28 };
+const SHIP = { e: -470, n: 300, len: 150, beam: 28, deck: 7.6 };
+// the landing craft's lanes (e, n) from off the stern gate to each beach, and where men muster up the beach
+const LANES = [
+  { name: 'West Beach', place: 'Village', vehicles: true, path: [[-470, 190], [-455, 160], [-410, 120], [-350, 95], [-331, 88]], muster: [-290, 92] },
+  { name: 'North Cove', place: 'Lighthouse', vehicles: false, path: [[-470, 190], [-440, 205], [-425, 300], [-390, 385], [-280, 405], [-205, 365], [-167, 322]], muster: [-160, 290] },
+  { name: 'Harbour quay', place: 'Harbour', vehicles: true, path: [[-470, 190], [-440, 205], [-428, 300], [-425, 420], [-300, 545], [0, 560], [220, 495], [380, 345], [420, 190], [445, 40], [365, -12], [318, 28]], muster: [282, 30] },
+];
 
 export const peninsula = {
   name: 'Peninsula', size: 1200, mode: 'invasion',
   splatRes: 1024,
   ground: { base: 'meadow', baseSize: 4, tiles: ['concrete', 'sand', 'dirt', 'meadow'], tileSize: [16, 4, 4, 4] },   // the fourth weight is the meadow itself (see paintSplat)
-  bases: [at(-230, -10, { team: 0, r: 42 }), at(0, -500, { team: 1, r: 42 })],   // the attacker's stand-in behind West Beach (the ship in P2); the defender's on the mainland
+  bases: [at(SHIP.e, SHIP.n, { team: 0, r: 80, ship: true }), at(0, -500, { team: 1, r: 42 })],   // the attacker's assault ship; the defender's base on the mainland
+  // the ship's side (game/landing.js): its well dock and the way craft leave it, three craft, the flight deck's landing spots, the lanes
+  sea: { dock: P(SHIP.e, SHIP.n - 76), out: Math.PI, craft: 3, deck: [-50, -20, 10, 40].map(k => P(SHIP.e - 7, SHIP.n + k)), lanes: LANES.map(l => ({ ...l, path: W(l.path), muster: P(...l.muster) })) },
   // the attacker's landings first, then the hill, then the bridge (list order runs from team 0's side to team 1's)
   locations: [
     at(-215, 110, { name: 'Village', r: 32, home: 0 }),
@@ -45,7 +53,6 @@ export const peninsula = {
     { points: [[0, 20], [-110, 50], [-215, 110], [-262, 150]].map(p => P(...p)), width: 8, tex: 'road' },                      // to the village and the top of the beach
     { points: [[0, 20], [130, 22], [250, 45], [288, 36]].map(p => P(...p)), width: 8, tex: 'road' },                           // to the harbour
     { points: [[0, 20], [40, 80], [60, 130], [75, 230], [60, 330], [40, 400]].map(p => P(...p)), width: 6, tex: 'road' },      // over Radar Hill to the lighthouse
-    { points: [[-230, -10], [-160, 30], [-110, 50]].map(p => P(...p)), width: 8, tex: 'road' },                                // the stand-in base to the village road
     { points: [[-160, 305], [-100, 350], [-20, 395], [30, 405]].map(p => P(...p)), width: 4, tex: 'track', kind: 'track' },    // the path up from North Cove
   ],
   terrain: {
@@ -68,9 +75,10 @@ export const peninsula = {
   gates: [{ at: CANAL_N, portals: [{ x: 0, d: 42 }] }],
   // where tank traps go: both ends of the bridge, the top of West Beach, the harbour quay
   chokes: [P(0, -394), P(0, -308), P(-292, 60), P(-292, 120), P(282, 30)],
-  bridges: [at(0, CANAL_N, { len: 66, w: 12, angle: 0, y: LIFT })],   // the canal bridge, level with the land on both sides
+  bridges: [at(0, CANAL_N, { len: 66, w: 12, angle: 0, y: LIFT }),   // the canal bridge, level with the land on both sides
+    at(SHIP.e, SHIP.n + 2, { len: SHIP.len + 10, w: SHIP.beam + 2, angle: 0, y: SHIP.deck, foot: true, deck: true })],   // the ship's flight deck: helicopters land on it
   flats: [
-    at(-230, -10, { r: 45, m: 20 }), at(0, -500, { r: 50, m: 25 }),
+    at(0, -500, { r: 50, m: 25 }),
     at(0, -388, { r: 12, m: 16, y: LIFT }), at(0, -314, { r: 12, m: 16, y: LIFT }),   // the bridge's ends
     at(265, 30, { r: 45, m: 35, y: -1.3 }),                                             // the harbour, down to quay height
     at(40, 405, { r: 22, m: 14 }), at(60, 130, { r: 18, m: 16 }), at(-215, 110, { r: 40, m: 30 }),
@@ -91,8 +99,8 @@ export const peninsula = {
     const A = (x, y0, z, w, h, d, color, rot = 0, cast = true) => props.push({ geo: 'box:1,1,1', color, scale: [w, h, d], x, y: y0 + h / 2, z, rot: [0, rot, 0], cast, absY: true });
 
     // ---- main bases: a sandbag perimeter, containers, lights and a tower
-    for (const b of this.bases) { sandbagRing(b.x, b.z, 30, Math.atan2(-b.z, -b.x)); containers(b.x - 30, b.z + 12, 3, 2); floodlight(b.x - 18, b.z - 16); floodlight(b.x + 18, b.z + 16); watchtower(b.x + 22, b.z - 22, 5, 10); take(b.x, b.z, 40); }
-    for (const b of this.bridges) K.bridge(b, 0.15);
+    for (const b of this.bases.filter(b => !b.ship)) { sandbagRing(b.x, b.z, 30, Math.atan2(-b.z, -b.x)); containers(b.x - 30, b.z + 12, 3, 2); floodlight(b.x - 18, b.z - 16); floodlight(b.x + 18, b.z + 16); watchtower(b.x + 22, b.z - 22, 5, 10); take(b.x, b.z, 40); }
+    for (const b of this.bridges.filter(b => !b.deck)) K.bridge(b, 0.15);
 
     // ---- buildings of the coast: whitewashed cottages under slate roofs stepped like voxels, a church, harbour sheds
     const WALLS = [0xebe8de, 0xdfd9cb, 0xe6e0d2, 0xcfc8b8], ROOF = [0x4f5359, 0x5a4b45, 0x464a50], DOORS = [0x3d5a6e, 0x6e3a32, 0x3f5e3f], GLASS = 0x2c3138;
@@ -150,7 +158,7 @@ export const peninsula = {
     const BW = [[335, 80], [372, 56], [392, 18]].map(p => P(...p));
     for (let i = 0; i < BW.length - 1; i++) { const [ax, az] = BW[i], [bx, bz] = BW[i + 1], L = Math.hypot(bx - ax, bz - az), rot = Math.atan2(bx - ax, bz - az); for (let k = 0; k <= L; k += 3.5) { const t = k / L, j = (rd() - 0.5) * 0.6; A(ax + (bx - ax) * t, -10, az + (bz - az) * t, 6 + j, 8.2 + rd() * 0.6, 4, [0x8d8880, 0x7e7a72, 0x96918a][Math.floor(rd() * 3)], rot + j * 0.3); } }
     { const [x, z] = BW.at(-1); A(x, -1.8, z, 2.2, 5.5, 2.2, 0xb33a32); A(x, 3.7, z, 1.4, 1.2, 1.4, 0xf2f0ea); }
-    for (const [e, n, rot, col] of [[318, 20, 0.05, 0xb33a32], [322, 44, -0.04, 0x2f5f8a], [340, 30, 0.1, 0x3f6a46], [345, 54, 0.6, 0xc9a23a]]) {   // fishing boats: hull, deck, wheelhouse, mast
+    for (const [e, n, rot, col] of [[352, 50, 0.05, 0xb33a32], [360, 34, -0.04, 0x2f5f8a], [340, 64, 0.1, 0x3f6a46], [349, 70, 0.6, 0xc9a23a]]) {   // clear of the craft's berth at the quay   // fishing boats: hull, deck, wheelhouse, mast
       const [x, z] = P(e, n), c = Math.cos(rot), s = Math.sin(rot), Bt = (lz, y0, w, h, d, m) => A(x + lz * s, y0, z + lz * c, w, h, d, m, rot);
       Bt(0, -3.8, 3.4, 1.6, 11, col); Bt(0, -2.2, 3.0, 0.2, 10.4, 0x8a6a46); Bt(-2, -2.0, 2.2, 2.0, 2.6, 0xf2f0ea); Bt(-2, 0, 2.4, 0.2, 2.8, 0x2b2d30); Bt(2.5, -2.0, 0.18, 5.5, 0.18, 0x5a3e2a);
     }
@@ -160,7 +168,7 @@ export const peninsula = {
     { const [sx, sz] = P(SHIP.e, SHIP.n), L = SHIP.len, B = SHIP.beam, x = (lx) => sx - lx;   // lx: metres east of the centre line
       A(sx, -8, sz, B - 4, 7, L - 6, 0x4d5256); A(sx, -1, sz, B, 8, L - 4, 0x8f9499);                                       // lower and upper hull
       A(sx, -1, sz + L / 2 + 2, B - 10, 8, 8, 0x8f9499); A(sx, -1, sz + L / 2 + 7, B - 18, 8, 5, 0x8f9499);                   // the bow narrowing
-      A(sx, 7, sz + 2, B + 2, 0.6, L + 10, 0x5a5e62);                                                                       // flight deck
+      A(sx, SHIP.deck - 0.6, sz + 2, B + 2, 0.6, L + 10, 0x5a5e62);                                                                       // flight deck
       for (let k = -L / 2; k < L / 2; k += 9) A(sx, 7.62, sz + k, 0.5, 0.04, 5, 0xe9e6dc, 0, false);                       // centre line
       for (const k of [-50, -20, 10, 40]) A(x(-7), 7.62, sz + k, 8, 0.04, 8, 0xd9b64a, 0, false);                            // landing spots
       A(x(11), 7.6, sz + 8, 6, 12, 34, 0x84898c); A(x(11), 19.6, sz + 12, 6.4, 1.6, 12, GLASS); A(x(11), 21.2, sz + 12, 5, 2.4, 10, 0x84898c);   // island, bridge windows
@@ -213,7 +221,7 @@ export const peninsula = {
     all((x, v) => fill(x, [[312, 70], [298, 0], [312, -30], [230, -40], [222, 92], [300, 92]], v), 0.85, 0, 0.04);    // the harbour's concrete
     all((x, v) => disc(x, 60, 130, 30, v), 0.15, 0, 0.45); all((x, v) => disc(x, 40, 410, 20, v), 0.5, 0, 0.2);     // the worn hilltop, the lighthouse yard
     all((x, v) => disc(x, -215, 110, 26, v), 0.25, 0.1, 0.35);                                                       // the village green's paths
-    for (const b of this.bases) all((x, v) => disc(x, -b.x, b.z, 36, v), 0.3, 0, 0.6);
+    for (const b of this.bases.filter(b => !b.ship)) all((x, v) => disc(x, -b.x, b.z, 36, v), 0.3, 0, 0.6);
     const [c, sd, d] = [C, S, D].map(x => x.getImageData(0, 0, px, px).data), img = g.createImageData(px, px), o = img.data;
     for (let i = 0; i < o.length; i += 4) {
       let wc = c[i] / 255, ws = sd[i] / 255, wd = d[i] / 255; const t = wc + ws + wd; if (t > 0.92) { const k = 0.92 / t; wc *= k; ws *= k; wd *= k; }

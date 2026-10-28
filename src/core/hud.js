@@ -110,7 +110,8 @@ export class Hud {
     // reinforcements for the player's team
     const me = this.app.playerTeam ?? 0, q = m.respawn.queue.filter(x => x.unit.team === me).sort((a, b) => a.t - b.t).slice(0, 6);
     const fobs = m.fobs.active(me).length, kits = m.fobs.kitsLeft(me), build = m.fobs.builds.find(b => b.team === me);
-    $('reinf').innerHTML = `<div>FOBs ${fobs} · kits ${kits}${build ? ` · building ${Math.ceil(build.t)}s` : ''}</div>` + (q.length ? q.map(x => { const r = m.rallies && m.respawn.rallyFor(x.unit, m.teams[me]); return `<div><b>${x.unit.label}</b> ${x.unit.type} ${r ? 'rally ' + Math.ceil(m.rallies.nextWaveIn(r)) : Math.max(0, Math.ceil(x.t))}s</div>`; }).join('') : '<div>all units deployed</div>');
+    const L = m.teams[me].landing, ls = L && L.status();   // a side on a ship: what waits in its well dock, how many craft are out
+    $('reinf').innerHTML = (ls ? `<div>Ship: ${ls.waiting} men${ls.vehicles ? `, ${ls.vehicles} vehicles` : ''} waiting · craft ${ls.out}/${ls.craft} out</div>` : '') + `<div>FOBs ${fobs} · kits ${kits}${build ? ` · building ${Math.ceil(build.t)}s` : ''}</div>` + (q.length ? q.map(x => { const r = m.rallies && m.respawn.rallyFor(x.unit, m.teams[me]); return `<div><b>${x.unit.label}</b> ${x.unit.type} ${r ? 'rally ' + Math.ceil(m.rallies.nextWaveIn(r)) : Math.max(0, Math.ceil(x.t))}s</div>`; }).join('') : '<div>all units deployed</div>');
     this.drawMinimap(m);
   }
 

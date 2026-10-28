@@ -73,10 +73,16 @@ the majority. North is up, as on a real map.
 `?map=peninsula` plays *Peninsula* (blockout; plan at
 https://claude.ai/artifact/6ELRURFGdPwxMJDvSNVuKN), a 1.2 km Invasion map and the
 only mode it offers. A rocky peninsula runs north into the sea, cut off from the
-mainland by a canal across its neck with one bridge. The attacker comes from the sea.
-An assault ship lies off the west coast as a prop for now, and the attacker plays from a
-stand-in base behind West Beach until its landing craft exist. The defender's base is
-on the mainland, so everything it sends crosses the bridge.
+mainland by a canal across its neck with one bridge. The attacker comes from the sea:
+its main base is an assault ship off the west coast. Its helicopters fly from the flight
+deck. Everything else waits in the well dock and goes ashore in three landing craft that
+run fixed lanes to the beach you pick on the unit strip ("Land at ..."). North Cove takes
+infantry only, so vehicles go to the nearest beach that takes them. A CPU attacker picks
+the beach nearest the place it wants, avoiding beaches where it has seen defenders. Craft
+can be shot, and a sunk one takes its load with it; it is replaced a minute later. A beach
+whose place the attacker holds refills supply trucks. With none held, a truck waiting on
+the beach rides a craft back to the ship and comes out full. The defender's base is on the
+mainland, so everything it sends crosses the bridge.
 
 Cliffs ring the coast except at three landings:
 - West Beach: sand, open to vehicles.
@@ -463,6 +469,7 @@ src/game/           milestone 1 game layer (renderer-agnostic)
   spatial.js        hash grid for targeting and separation
   combat.js         targeting, line of sight (gridded obstacle test), burst fire, rounds in flight and the damage they land
   respawn.js        ticket charges and respawns at main base
+  landing.js        landing craft for a side based on a ship (Peninsula): the well dock, lanes to the beaches, beach choice, held beaches as supply dumps
   ai/strategist.js  CPU commander: objectives, logistics (FOBs), air lifts, FOB raids
   objectives.js     capture zones, lattice order, ownership events
   modes/            game modes behind one interface: aas, invasion, destruction, territory, skirmish (objectives, tickets, win checks, HUD bar, minimap, CPU goals)

@@ -15,6 +15,7 @@ export const SPEC = {
   rally:    { speed: 0, turn: 0,   accel: 0, label: 'RP', air: false, hp: 1e9, nav: null, structure: true, untargetable: true },   // a squad's spawn: burned by enemies close by, not shot
   // a FOB emplacement (game/fob.js): a gun in a ring of bags with one gunner's slot behind it; u.gun names the weapon
   // (hmg, atgm, mortar) the soldier manning it fires; it can be shot up (three rockets) and costs tickets when lost
+  craft:    { speed: 12, turn: 0.7, accel: 3, label: 'LC', air: false, hp: 900, nav: null, naval: true },   // a landing craft: run along its lanes by game/landing.js, never ordered
   emplacement: { speed: 0, turn: 0, accel: 0, label: 'EM', air: false, hp: 250, nav: null, structure: true, hollow: true, slots: [[0, -0.55]], entry: -2.8 },
 };
 const counters = {}; let pickSeq = 0;
@@ -90,7 +91,7 @@ export class Unit {
 
   // Move order: path through the nav grid when one is available, otherwise straight line.
   order(x, z, keepPost = false) {   // any order takes a soldier out of his sandbag position, unless it is his way into it
-    if (this.dead) return;
+    if (this.dead || this.afloat) return;   // afloat: waiting on the ship or aboard a landing craft (game/landing.js)
     if (!keepPost) this.leavePost();
     const nav = this.mgr && this.mgr.nav && this.spec.nav ? this.mgr.nav[this.spec.nav] : null;
     if (nav && nav.inPocket(x, z)) { const c = nav.nearestMain(nav.cellOf(x), nav.cellOf(z)); if (c) { x = nav.world(c[0]); z = nav.world(c[1]); } }   // a goal inside a building, or in a pocket between buildings, becomes the nearest open ground
@@ -206,7 +207,7 @@ export class Unit {
     // passengers: out of a ground vehicle (or a landed helicopter) shaken and hurt, lost with a helicopter shot down in the
     // air; the match applies the damage (Match: ejected) so a death is counted and respawned like any other
     if (this.passengers.length) {
-      const lethal = this.spec.air && this.alt > 2, pts = this.exitPoints(this.passengers.length);
+      const lethal = (this.spec.air && this.alt > 2) || this.spec.naval, pts = this.exitPoints(this.passengers.length);   // a landing craft goes down with its load
       this.ejected = this.passengers.map((p, i) => { p.mounted = null; p.group.visible = true; p.pos.set(pts[i][0], p.pos.y, pts[i][1]); return { p, dmg: lethal ? 9999 : 20 }; });
       this.passengers = [];
     }
@@ -428,7 +429,7 @@ export class Unit {
     const step = this.speed * dt;
     const H = this.mgr.world.half; this.pos.x = clamp(this.pos.x + Math.sin(this.heading) * step, -H + 4, H - 4);
     this.pos.z = clamp(this.pos.z + Math.cos(this.heading) * step, -H + 4, H - 4);
-    this.pos.y = this.mgr.world.heightAt(this.pos.x, this.pos.z) + this.alt;
+    const W = this.mgr.world, T = W.terrain; this.pos.y = Math.max(W.heightAt(this.pos.x, this.pos.z), T ? T.water : -Infinity) + this.alt;   // over water, height above its surface
     this.group.rotation.y = this.heading;
     this.tilt = lerp(this.tilt, this.speed / s.speed * 0.22, 1 - Math.pow(0.02, dt));
     p.body.rotation.x = this.tilt; p.body.rotation.z = this.bank;
@@ -438,6 +439,7 @@ export class Unit {
 
   step(dt, world) {
     if (this.dead) { this.stepDead(dt); return; }
+    if (this.spec.naval) return;   // a landing craft is moved along its lane by game/landing.js
     if (this.spec.structure) {   // structures sit on the terrain; a FOB gun swings to its gunner's target, back to the front when he has none
       this.pos.y = world.heightAt(this.pos.x, this.pos.z);
       const t = this.parts && this.parts.turret, g = t && this.crew && this.crewAt(0), e = g && g.enemy;
@@ -461,7 +463,7 @@ export class Unit {
 
 export class Squad {
   constructor(members) { this.members = members; for (const m of members) m.squad = this; this.idle = rnd(0, 4); }
-  get leader() { return this.members.find(m => !m.dead) || null; }
+  get leader() { return this.members.find(m => !m.dead && !m.afloat) || this.members.find(m => !m.dead) || null; }   // one ashore, if any are
   get alive() { return this.members.some(m => !m.dead); }
   get aliveCount() { return this.members.filter(m => !m.dead).length; }
   get team() { return this.members[0].team; }
@@ -478,7 +480,7 @@ export class Squad {
   get posted() { const a = this.members.filter(m => !m.dead); return a.length > 0 && a.every(m => m.post); }
   get mounted() { const a = this.members.filter(m => !m.dead); return a.length > 0 && a.every(m => m.mounted); }
   get engineer() { return this.members.find(m => !m.dead && m.kit === 'engineer') || null; }
-  centroid() { const a = this.members.filter(m => !m.dead); const c = new Vec3(); for (const m of a) c.add(m.pos); return c.multiplyScalar(1 / (a.length || 1)); }
+  centroid() { const live = this.members.filter(m => !m.dead), a = live.some(m => !m.afloat) ? live.filter(m => !m.afloat) : live; const c = new Vec3(); for (const m of a) c.add(m.pos); return c.multiplyScalar(1 / (a.length || 1)); }   // men still on the ship don't count while any are ashore
 }
 
 const KITS = ['rifle', 'mg', 'at', 'rifle'];
@@ -522,7 +524,7 @@ export class UnitManager {
 
   update(dt) {
     const w = this.world;
-    for (const u of this.units) { u.step(dt, w); if (this.dust && dt > 0 && !u.dead) this.dust.fromUnit(u, dt); }
+    for (const u of this.units) { u.step(dt, w); if (this.dust && dt > 0 && !u.dead && !u.spec.naval) this.dust.fromUnit(u, dt); }   // no dust off a craft at sea
     for (let i = this.units.length - 1; i >= 0; i--) if (this.units[i].remove) this.removeUnit(this.units[i]);
     // separation between ground units
     const push = (a, b) => {
