@@ -476,6 +476,8 @@ src/core/           renderer-agnostic engine
   layout.js         world size, props as data (hangar, containers, palms, bushes, grass tufts), obstacles, sun/moon lighting, WorldState
   terrain.js        heightfield from ridge/hill features with noise-jagged crests and notch passes, carved rivers with fords, level pads, coasts (land polygons whose edges are cliffs, beaches, coves or quays); height, normal, slope, water and line-of-sight queries
   models.js         unit models (soldier, truck, APC, tank, Chinook) built through a per-back-end factory
+  vox.js            MagicaVoxel .vox reader and writer (models, palette, named scene graph), greedy mesher, palette texture
+  voxexport.js      voxelises a code-built unit into a .vox of named rig parts plus a .json of pivots, team colours and glows (run by tools/export-vox.mjs)
   geometry.js       box, cylinder, wedge, frustum, frond, ring, plane and grass-tuft generators with world-unit UVs
   textures.js       procedural tarmac (slabs, taxi lines, asphalt road, grass strip), camo and grass-tuft canvases
   camera.js         orthographic RTS camera (orbit, zoom-as-pixel-scale, texel snapping, follow)
@@ -505,12 +507,14 @@ src/game/           milestone 1 game layer (renderer-agnostic)
   maps/             map definitions (valley2km.js, desert1km.js, narva3km.js, peninsula.js), the shared prop kit and ground texture generators (natural ground: fine low-contrast detail, 128 px over 12.8 m, one texel to a pixel of the game's buffer; everything bigger comes from the shader)
   match.js          AAS / Skirmish match flow, 10 Hz game tick, bleed, win checks
 icons/units/        unit-strip portraits (tools/make-portraits.mjs renders them from the game's models)
+models/vox/         unit models as MagicaVoxel files with a .json each (tank, apc, truck, supplyTruck, craft); exported by tools/export-vox.mjs, editable in MagicaVoxel, loaded by src/gl/voxmodels.js
 src/three/          three.js back end: models, world, PixelRenderer (low-res target + outline), dust, markers
 src/gl/             WebGL2 back end
   scene.js          Node / Mesh scene graph with the same position/rotation/visible surface
   shaders.js        GLSL ES 3.00: lit instanced, shadow depth, pick id, composite, dust (the ground blends rock onto slopes steeper than about 31 degrees, sampled from three sides; draws natural ground's patches, highlights, hollows and streaks from world-space noise at unrelated scales and turns, so nothing repeats, with zones of dry and lush grass over tens of metres)
   renderer.js       dynamic + chunked static instance batches, chunk culling, view-fitted shadow pass, splat ground, composite, pick buffer
   strips.js         road / line strip and decal geometry
+  voxmodels.js      unit builders from models/vox/*.vox: one geometry per rig part, a 256 x 1 palette texture per team, parts by name
   models.js, world.js, markers.js, main.js
 ```
 
@@ -525,6 +529,21 @@ src/gl/             WebGL2 back end
   rather than one per size: the units on screen cost about 20 batches a pass, a map
   chunk a dozen or two. Units and lamp heads outside the view by more than the light
   frustum's reach are not instanced at all.
+- Vehicle models come from MagicaVoxel files (`models/vox/<type>.vox` with a
+  `.json` beside it; `?vox=0` falls back to the code-built ones). `src/core/vox.js`
+  reads the file, and each named shape in its scene graph (`hull`, `turret`,
+  `wheels_<i>`, `hull.glow` for the tail lights) is greedy-meshed into one geometry at
+  0.1 m a voxel: a quad's UV is the index of its colour in a 256 × 1 palette texture,
+  so a model is one texture and a part one batch, and OPFOR is the same geometry with
+  a second palette texture whose team slots are recoloured from the `.json`. The
+  `.json` also holds each part's pivot (a turret turns about its ring, not its box's
+  centre), which wheels steer, and the glow colour of emissive parts.
+  `tools/export-vox.mjs` made the first files by voxelising the code models in the
+  page (`src/core/voxexport.js`, sampling each box's camo at its UVs and splitting
+  glowing materials off into their own shape); from here the files can be edited in
+  MagicaVoxel, keeping the shape names, and re-exported from code when a code model
+  changes. Voxels boxed in on all sides are dropped before writing, which cuts a
+  solid hull to a shell (the tank is 79 KB).
 - Shadow pass renders depth from an orthographic light camera into a 4096²
   depth texture (2048² on tablets). The light frustum is sized from the camera's
   footprint in quarter-octave steps and its eye is snapped to shadow texels, so the
