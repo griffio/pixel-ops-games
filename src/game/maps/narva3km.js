@@ -8,8 +8,8 @@ import { makeKit } from './kit.js';
 // (south) and the Friendship Bridge (north) take armour; the dry falls at Kreenholm and the railway bridge (middle) only
 // infantry. Nine places, three to a row: BLUFOR's on the Narva bank, three neutral on the crossings, OPFOR's on the
 // Ivangorod bank. The city kit (panel blocks, point blocks, garages, pine and birch, track, wagons, platforms, the truss bridge,
-// Balti's banded chimneys) follows the user's voxel diorama, and so do Hermann Castle, Ivangorod Fortress and the Kreenholm mills;
-// the Town Hall, the stations and the hydro station are still plain blocks (step N3 of the plan).
+// Balti's banded chimneys) follows the user's voxel diorama; Hermann Castle, Ivangorod Fortress, the Kreenholm mills, the Town Hall
+// and both stations, and the hydro station (its dam, hall and switchyard) follow their own references.
 //
 // Laid out in real east/north metres (e, n). In this engine +x shows on screen-left when the camera faces north (+z), so
 // east is -x: P(e, n) gives world [x, z], and every position below goes through it.
@@ -99,14 +99,14 @@ export const narva3km = {
   bridges: [
     at(0, BRIDGE_N, { len: 132, w: 14, angle: Math.PI / 2, y: 1.3 }),          // Friendship Bridge
     at(0, RAIL_N, { len: 124, w: 6, angle: Math.PI / 2, y: 1.6, foot: true, truss: true }),  // railway bridge: a blue truss of two spans, walked by infantry
-    at(0, DAM_N, { len: 140, w: 12, angle: Math.PI / 2, y: 1.3 }),              // the dam's crest road
+    at(0, DAM_N, { len: 140, w: 12, angle: Math.PI / 2, y: 5.0 }),              // the dam's crest road, 8 m over the water, ramps at both ends
     at(102, FALLS_N, { len: 52, w: 6, angle: Math.PI / 2, y: 1.0, foot: true }),  // Kreenholm to the east bank (6 m: a 4 m deck's railings close every 2 m cell)
   ],
   flats: [
     at(-BASE_E, BASE_N, { r: 50, m: 25 }), at(BASE_E, BASE_N, { r: 50, m: 25 }),
     at(-560, -90, { r: 70, m: 20 }), at(560, -70, { r: 60, m: 20 }), at(-330, 580, { r: 50, m: 20 }), at(330, 540, { r: 50, m: 20 }), at(-480, -1000, { r: 90, m: 25 }), at(480, -1000, { r: 60, m: 20 }),
     at(-80, BRIDGE_N, { r: 20, m: 14, y: 1.0 }), at(80, BRIDGE_N, { r: 20, m: 14, y: 1.0 }), at(-76, RAIL_N, { r: 16, m: 12, y: 1.2 }), at(76, RAIL_N, { r: 16, m: 12, y: 1.2 }),
-    at(-82, DAM_N, { r: 18, m: 14, y: 1.0 }), at(82, DAM_N, { r: 18, m: 14, y: 1.0 }),
+    at(-82, DAM_N, { r: 18, m: 32, y: 4.7 }), at(82, DAM_N, { r: 18, m: 32, y: 4.7 }),   // the dam's ramps: 4 m over 32 m, a 1 in 8
     at(-165, 390, { r: 42, m: 16 }), at(190, 380, { r: 66, m: 16 }),   // level ground for the castle and the fortress
   ],
 
@@ -117,7 +117,7 @@ export const narva3km = {
     const onRoad = (x, z, extra = 0) => lines.some(l => near(x, z, l.P, l.clear + extra));
     const wet = (x, z, margin = 6) => { const [ce, w] = riverE(z), e = -x; return Math.abs(e - ce) < w * 0.78 + margin || Math.hypot(e - RESERVOIR.e, z - RESERVOIR.n) < RESERVOIR.r * 0.9 + margin; };
     const K = makeKit({ r, rd, onRoad: (x, z) => onRoad(x, z) });
-    const { props, obstacles, box, part, house, sandbagRing, containers, floodlight, watchtower, hermannCastle, fortress, millBuilding, millRace, panelBlock, panelTower, garages, pine, birch, boxcar, tankWagon, platform, chimney } = K;
+    const { props, obstacles, box, part, house, sandbagRing, containers, floodlight, watchtower, damWorks, hydroHall, switchyard, townHall, stationBuilding, car, fountain, hermannCastle, fortress, millBuilding, millRace, panelBlock, panelTower, garages, pine, birch, boxcar, tankWagon, platform, chimney } = K;
     const placed = [], take = (x, z, rad) => placed.push([x, z, rad]);
     // long blocks keep rectangles, not circles (a circle round a 60 m block would clear a whole street of neighbours)
     const rects = [], rectOf = (x, z, w, d) => [x - w / 2, x + w / 2, z - d / 2, z + d / 2];
@@ -141,20 +141,23 @@ export const narva3km = {
     for (const b of this.bases) { sandbagRing(b.x, b.z, 30, Math.atan2(-b.z, -b.x)); containers(b.x - 30, b.z + 12, 3, 2); floodlight(b.x - 18, b.z - 16); floodlight(b.x + 18, b.z + 16); watchtower(b.x + 22, b.z - 22, 5, 10); take(b.x, b.z, 40); }
 
     // ---- landmarks: Hermann Castle and Ivangorod Fortress either side of the Friendship Bridge and Kreenholm's mills, after the
-    // user's voxel references; the Town Hall, the stations, the plant and the hydro station still plain blocks
+    // user's voxel references, like the Town Hall, the stations and the hydro station below
     { const [cx, cz] = P(-165, 385); hermannCastle(cx, cz, 0); take(cx, cz, 54); }          // Hermann Castle: its gate faces the town, Tall Hermann the bridge
     { const [fx, fz] = P(190, 380); fortress(fx, fz, 80, 110, 0); take(fx, fz, 80); }         // Ivangorod Fortress: a riverside tower, its gate on the town side
-    { const [tx, tz] = P(-330, 625); box(30, 14, 16, 0xc8603a, tx, tz); box(6, 32, 6, 0x2e2e2e, tx, tz + 4); take(tx, tz, 18); }   // the Town Hall on the square's north side
+    { const [tx, tz] = P(-330, 640); townHall(tx, tz, 0); take(tx, tz, 32); }               // the Town Hall on the square's north side, its stair down to the square
     { const m1 = P(40, -705), m2 = P(40, -592);                                                // Kreenholm: two mills fronting the falls, a boiler house and its chimney, the race
       millBuilding(m1[0], m1[1], 64, 6, -Math.PI / 2, 20); take(m1[0], m1[1], 34); millBuilding(m2[0], m2[1], 50, 5, -Math.PI / 2, 18); take(m2[0], m2[1], 28);
       B(64, -650, 12, 9, 26, 0x93432f); const [cx, cz] = P(68, -632); props.push({ geo: 'cyl:1.7,2.4,46,12', color: 0x8a3c2a, x: cx, y: 23, z: cz, rot: [0, 0, 0], cast: true }); obstacles.push({ minX: cx - 2.4, maxX: cx + 2.4, minZ: cz - 2.4, maxZ: cz + 2.4, h: 46 });
       const [rx, rz] = P(86, -705); millRace(rx, rz, 56, -Math.PI / 2); }
-    B(-650, -30, 56, 11, 16, 0xd8cba8); B(650, -20, 36, 9, 14, 0xc9b99a);                                                 // the two station buildings, beside the ring road
+    // the two stations, their entrances facing the towns, their backs to the platforms; Narva's forecourt with a fountain and cars
+    { const [sx, sz] = P(-650, -88); stationBuilding(sx, sz, Math.PI, 22); take(sx, sz, 34); const [fx, fz] = P(-650, -58); fountain(fx, fz); take(fx, fz, 4);
+      for (const [e, n, r0] of [[-688, -62, 0], [-694, -55, 0.1], [-612, -63, Math.PI], [-605, -56, Math.PI + 0.06]]) { const [cx, cz] = P(e, n); car(cx, cz, r0); take(cx, cz, 3); } }
+    { const [sx, sz] = P(650, -40); stationBuilding(sx, sz, Math.PI, 10); take(sx, sz, 24); }
     // the yards: a platform on the station side of the main line, sidings on the other with trains of boxcars and tank wagons
     const onLine = (e, off) => { const [n, k] = railAt(e), [x, z] = P(e, n + off); return { x, z, rot: Math.atan2(-k, -1) }; };
     const siding = (e0, e1, off) => { const a = onLine(e0, off), b = onLine(e1, off); for (const u of [-0.76, 0.76]) part((a.x + b.x) / 2, (a.z + b.z) / 2, a.rot, 0, 0.25, u, Math.hypot(b.x - a.x, b.z - a.z), 0.16, 0.12, 0x55504a); strips.push({ points: [[a.x, a.z], [b.x, b.z]], width: 5, tex: 'railway', vRepeat: 5, smooth: 0, y: 0.04, cutout: true }); };
     const train = (e0, n, off) => { for (let i = 0; i < n; i++) { const w = onLine(e0 + i * 14.6, off); (rd() < 0.45 ? tankWagon : boxcar)(w.x, w.z, w.rot); } };
-    for (const [e, off] of [[-650, 6], [650, 6]]) { const p = onLine(e, off); platform(p.x, p.z, 90, p.rot + Math.PI); take(p.x, p.z, 46); }   // turned so its yellow edge faces the track
+    for (const [e, off] of [[-650, 6], [650, 6]]) { const p = onLine(e, off); platform(p.x, p.z, 90, p.rot + Math.PI, true); take(p.x, p.z, 46); }   // turned so its yellow edge faces the track
     for (const [e0, e1, off, trains] of [[-810, -610, -7, [[-800, 6], [-700, 4]]], [-520, -370, -7, [[-510, 5]]], [-800, -620, -13, [[-790, 9]]], [380, 530, -7, [[390, 5]]], [620, 780, -7, [[630, 6]]], [620, 780, -13, [[640, 7]]]]) {
       siding(e0, e1, off); for (const [s0, k] of trains) train(s0, k, off);
       const m = onLine((e0 + e1) / 2, off); take(m.x, m.z, (e1 - e0) / 2 + 6);
@@ -165,8 +168,12 @@ export const narva3km = {
       for (const u of [-40, -10, 20, 45]) part(hx, hz, 0, u, 36.4, 0, 5, 2.2, 3, 0x8a8f92);   // roof vents
       for (const [k, h] of [[0, 150], [1, 120], [2, 150], [3, 100]]) { const [x, z] = P(-560 + k * 45, -1120); chimney(x, z, h, k % 2 ? 3.6 : 4.4); take(x, z, 6); }
       B(-380, -930, 50, 12, 30, 0x7d7a74); }
-    { B(150, -1040, 50, 22, 26, 0xded2b0);                                                                                 // the HES hall at the dam's east end, its switchyard
-      for (let i = 0; i < 12; i++) { const [x, z] = P(530 + (i % 4) * 26, -1090 + Math.floor(i / 4) * 24); part(x, z, 0, 0, 0, 0, 0.8, 18, 0.8, 0x6b6e70); obstacles.push({ minX: x - 0.6, maxX: x + 0.6, minZ: z - 0.6, maxZ: z + 0.6, h: 18 }); } }
+    { const [hx, hz] = P(150, -1040); hydroHall(hx, hz, 0); take(hx, hz, 30);                 // the hydro station: its hall facing the river, the switchyard behind it,
+      const [sx, sz] = P(165, -990); switchyard(sx, sz, 0); take(sx, sz, 22);                   // rocks breaking the tailwater below the dam
+      for (const [e, n, k] of [[-34, -1082, 5], [28, -1086, 4], [-8, -1074, 3]]) for (let i = 0; i < k; i++) {
+        const [x, z] = P(e + (rd() - 0.5) * 9, n + (rd() - 0.5) * 7), w = 2 + rd() * 2.5, top = -2.4 + rd() * 1.4;
+        props.push({ geo: 'box:1,1,1', color: [0x8c857a, 0x7a7368, 0x9a9388][i % 3], scale: [w, top + 8, w * (0.7 + rd() * 0.5)], x, y: (top - 8) / 2, z, rot: [0, rd() * Math.PI, 0], cast: true, absY: true });
+      } }
 
     // ---- the towns: Soviet blocks of five storeys (15 m) and nine (27 m) on a loose grid, long sides east-west, grass between;
     // Old Town's four-storey blocks closer together; Ivangorod mostly houses, a few blocks
@@ -216,6 +223,7 @@ export const narva3km = {
       for (const s of [-0.76, 0.76]) part(mx, mz, rot, s, 0.25, 0, 0.12, 0.16, +len.toFixed(2), 0x55504a);
     }
     for (const b of this.bridges) K.bridge(b, 0.15);
+    damWorks(this.bridges.find(b => b.z === DAM_N));   // the dam's body, gates and white water under its crest road
     for (const rd of this.roads) strips.push({ points: rd.points, width: rd.width, tex: rd.tex === 'road' ? 'roadM' : 'trackM', vRepeat: rd.tex === 'road' ? 12 : 5, smooth: 2, y: rd.tex === 'road' ? 0.03 : 0.02, cutout: true });   // edges drifting into grass
     { const k = this.rail.findIndex((p, i) => i < this.rail.length - 1 && onDeck(i));   // the ground track either side of the bridge, not over its deck
       for (const pts of [this.rail.slice(0, k + 1), this.rail.slice(k + 1)]) strips.push({ points: pts, width: 5, tex: 'railway', vRepeat: 5, smooth: 0, y: 0.04, cutout: true }); }
@@ -238,8 +246,9 @@ export const narva3km = {
     disc(-330, 580, 55, mix(0.85, 0, 0)); disc(330, 540, 45, mix(0.6, 0, 0.2));                                         // Old Town's square, Ivangorod's
     rect(190, 380, 76, 106, mix(0.55, 0.12, 0.15));                                                                         // the fortress's court
     rect(-600, -118, 300, 46, mix(0.4, 0.45, 0)); rect(600, -70, 260, 40, mix(0.4, 0.45, 0));                             // station yards: grey gravel
+    rect(-650, -66, 100, 36, mix(0.85, 0, 0)); rect(650, -24, 60, 22, mix(0.8, 0, 0));                                     // the stations' forecourts
     stroke(this.rail, 8, mix(0.35, 0.45, 0));
-    rect(-480, -1040, 220, 170, mix(0.8, 0, 0)); rect(570, -1065, 140, 90, mix(0.5, 0, 0.3));                              // the plant's yard, the switchyard
+    rect(-480, -1040, 220, 170, mix(0.8, 0, 0)); rect(150, -1040, 58, 34, mix(0.75, 0, 0)); rect(165, -990, 44, 22, mix(0.45, 0.35, 0));   // the plant's yard, the hydro hall's, the switchyard's gravel
     for (const [e, n, rad] of [[-700, -1130, 80], [-820, -960, 62], [-640, -1250, 62]]) disc(e, n, rad, mix(0.6, 0.2, 0));   // grey ash
     rect(-100, FALLS_N, 40, 180, mix(0.5, 0, 0.4));                                                                         // the dry falls' rock bed
     for (const b of this.bases) disc(-b.x, b.z, 36, mix(0.3, 0, 0.6));

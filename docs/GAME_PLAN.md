@@ -1815,6 +1815,22 @@ Engine changes needed in the existing core:
     sat 5-9 m off at the deck ends. The ground track stops at the truss deck, which carries
     its own rails.
   About 58k parts on the map; routes and CPU play unchanged.
+- **Town Hall and stations (2026-10-28).** From the user's references:
+  - **Town Hall.** Crimson walls with cream pilasters on a grey plinth, a hipped roof
+    stepped to its ridge with dormers and chimneys, a cream-edged pediment with a clock, the
+    portal, a double stair, the dark spire, a yellow neighbour.
+  - **Railway station.** Brick wings, crow-stepped gables, a clock turret, a great stepped
+    arch over the canopied entrance. Narva's has a fountain and parked cars on the forecourt;
+    Ivangorod's is the same design with short wings. Platforms take a long canopy.
+  - **Shared helper.** `framedWindows` draws frame-and-glass bands cut by piers, for any
+    facade.
+  - **Hydro station.** `damWorks` puts a concrete body under the dam's crest road, with a
+    stepped downstream face, gate towers over steel gates, white water below each and a
+    control house. The engine has a single water level, so the crest was raised to 5 m with
+    1-in-8 ramps; at 1.3 m the face sat underwater and the dam read as a weir. `hydroHall` is
+    cream with tall windows, pilasters and a clock turret; `switchyard` has a lattice pylon,
+    gantries and transformers; rocks break the tailwater. Every landmark now follows a
+    reference.
 
 ## Open questions
 

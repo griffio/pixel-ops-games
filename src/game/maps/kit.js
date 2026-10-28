@@ -483,12 +483,14 @@ export function makeKit({ r, rd, onRoad = () => false }) {
     for (const u of [-3.5, 0, 3.5]) Q(u, 1.25, 0, 0.2, 1.5, 2.9, 0x2f4a36);                                                            // the straps' saddles
     footprint(12, 2.8, x, z, rot, 4.0);
   };
-  // a platform beside a track along local x: a concrete slab with a yellow edge on the -z side, lamp posts, a small shelter
-  const platform = (x, z, len, rot = 0) => {
+  // a platform beside a track along local x: a concrete slab with a yellow edge on the -z side, lamp posts, a small shelter, and
+  // with `canopy` a long slate roof on posts over most of it
+  const platform = (x, z, len, rot = 0, canopy = false) => {
     const Q = (lx, ly, lz, w, hh, d, m) => part(x, z, rot, lx, ly, lz, w, hh, d, m);
     Q(0, 0, 0, len, 0.95, 3.4, 0xa9a59c); Q(0, 0.95, -1.5, len, 0.03, 0.3, 0xd8c24a);
     for (let u = -len / 2 + 6; u <= len / 2 - 6; u += 18) { Q(u, 0.95, 1.0, 0.16, 4.2, 0.16, 0x5c5f62); Q(u, 5.1, 0.7, 0.3, 0.18, 0.8, 0x5c5f62); }
     Q(0, 0.95, 1.1, 0.14, 2.5, 0.14, 0x5c5f62); Q(4, 0.95, 1.1, 0.14, 2.5, 0.14, 0x5c5f62); Q(2, 3.45, 0.9, 5, 0.15, 1.6, 0x6a6e70); Q(2, 0.95, 1.6, 4.4, 1.6, 0.08, 0x8fa0a8);
+    if (canopy) { const cl = len * 0.6; for (let u = -cl / 2 + 2; u <= cl / 2 - 2; u += 6) Q(u, 0.95, 0.3, 0.25, 3.6, 0.25, 0x4a4c4e); for (let k = 0; k < 3; k++) Q(0, 4.55 + k * 0.3, 0.3, cl, 0.3, 4.6 - k * 1.5, [0x6e6a64, 0x625e58][k % 2]); }
     footprint(len, 3.4, x, z, rot, 0.95);
   };
   // a power-station chimney in red and white bands, tapering, a dark cap
@@ -589,5 +591,137 @@ export function makeKit({ r, rd, onRoad = () => false }) {
     for (let i = 0; i < n; i++) { const u = -len / 2 + (i + 0.5) * len / n; A(u, water - 0.2, 1.22, 3, 2.9, 0.1, 0x262a2c); A(u, water + 0.02, 2.4, 3.2, 0.1, 2.6, 0xeef4f6); A(u + 0.6, water + 0.02, 4.2, 2.2, 0.1, 1.6, 0xdde9ee); A(u - 0.5, water + 0.02, 5.6, 1.4, 0.08, 1.2, 0xeef4f6); }
     const [cx, cz] = W(0, 0); footprint(len, 2.4, cx, cz, rot, top + 0.3);
   };
-  return { props, obstacles, lamps, tufts, decals, bridge, box, hermannCastle, fortress, millBuilding, millRace, panelBlock, panelTower, garages, pine, birch, boxcar, tankWagon, platform, chimney, footprint, part, BAG, bagStack, BLOCK, blockWall, palm, bush, rock, PLASTER, house, controlTower, wallRun, MESH, hesco, shade, container, cyl, tilt, CONC, stains, watchtower, hangar, barracks, fuelTank, floodlight, radioMast, equipmentHut, FRUIT, stall, STONE, well, sandbagRing, containers, scrub, TRIM, WOOD, DOOR, DARK, STAIN, TIN, TIMBER, STEEL, DARKM };
+  // Framed windows on one face of a building (in its frame Q): floors of fh from y0, each a frame band and a dark glass band
+  // with a transom, cut into windows by wall-coloured piers every `bay` metres; the face runs along local x at z = s * half (ax
+  // 'x') or along local z at x = s * half (ax 'z'), centred at cu along it.
+  const framedWindows = (Q, ax, s, half, cu, flen, floors, fh, y0, wall, frame, bay = 3.4, winH = 2.2) => {
+    const F = (u, ly, out, w, hh, t, m) => (ax === 'x' ? Q(cu + u, ly, s * (half + out), w, hh, t, m) : Q(s * (half + out), ly, cu + u, t, hh, w, m));
+    const bays = Math.max(1, Math.round(flen / bay)), bw = flen / bays;
+    for (let f = 0; f < floors; f++) { const y = y0 + f * fh + 0.9; F(0, y, 0.02, flen - 0.6, winH, 0.05, frame); F(0, y + 0.16, 0.05, flen - 0.6, winH - 0.32, 0.05, 0x2c3036); F(0, y + winH * 0.55, 0.08, flen - 0.6, 0.12, 0.04, frame); }
+    for (let i = 0; i <= bays; i++) F(-flen / 2 + i * bw, y0, 0.1, Math.min(1.6, bw * 0.45), floors * fh, 0.1, wall);
+  };
+  // Narva Town Hall, after the user's reference: crimson walls with cream pilasters on a grey plinth, two floors of white-framed
+  // windows, a cream cornice, an orange hipped roof stepped down to its ridge with dormers and chimneys, a stepped pediment with a
+  // clock over the stone portal, a double stair from the square up to it (all on the local -z face), the dark baroque spire on
+  // the ridge, and a yellow neighbour at +x.
+  const townHall = (x, z, rot = 0) => {
+    const L = 34, D = 18, PL = 3.2, FH = 4.4, top = PL + 2 * FH, RED = 0xb5322b, CREAM = 0xe9e0c8, PLINTH = 0x5f5f5c, STEP = 0x8f8c86, DARKS = [0x3b3d3f, 0x303234], ROOFO = [0xd9673a, 0xc95a30];
+    const Q = (lx, ly, lz, w, hh, d, m) => part(x, z, rot, lx, ly, lz, w, hh, d, m), W = frameOf(x, z, rot);
+    Q(0, 0, 0, L + 0.6, PL, D + 0.6, PLINTH); Q(0, PL, 0, L, 2 * FH, D, RED); footprint(L + 0.6, D + 0.6, x, z, rot, top + 2);
+    for (const s of [-1, 1]) {
+      framedWindows(Q, 'x', s, D / 2, 0, L, 2, FH, PL, RED, CREAM, 4.25, 2.6); framedWindows(Q, 'z', s, L / 2, 0, D, 2, FH, PL, RED, CREAM, 4.5, 2.6);
+      for (let i = 0; i <= 8; i++) Q(-L / 2 + i * L / 8, PL, s * (D / 2 + 0.15), 0.9, 2 * FH, 0.15, CREAM);                                   // pilasters
+      for (let i = 0; i < 8; i++) if (s > 0 || Math.abs(i - 3.5) > 1) Q(-L / 2 + (i + 0.5) * L / 8, 0.9, s * (D / 2 + 0.32), 1.0, 1.1, 0.06, 0x2c3036);   // cellar windows
+    }
+    Q(0, top, 0, L + 0.8, 0.5, D + 0.8, CREAM);                                                                                           // cornice
+    const rh = 7, n = 7; for (let k = 0; k < n; k++) { const f = k / n; Q(0, top + 0.5 + k * rh / n, 0, +(L + 1 - (D + 1) * f).toFixed(2), +(rh / n).toFixed(2), +((D + 1) * (1 - f)).toFixed(2), ROOFO[k % 2]); }   // hipped roof
+    for (const u of [-9, 9]) { Q(u, top + 2.2, -D / 2 + 3.6, 2.2, 1.8, 2, RED); Q(u, top + 4, -D / 2 + 3.6, 2.6, 0.5, 2.4, ROOFO[1]); Q(u, top + 2.6, -D / 2 + 2.58, 0.9, 1.0, 0.06, 0x2c3036); }   // dormers
+    for (const u of [-11, 11]) Q(u, top + 3, 2.5, 1.2, 5, 1.2, 0xd6d0c4);                                                                  // chimneys
+    for (let k = 0; k < 4; k++) { Q(0, top + 0.5 + k * 1.3, -D / 2 - 0.05, 12 - k * 3.2, 1.3, 1.0, CREAM); Q(0, top + 0.5 + k * 1.3, -D / 2 - 0.15, 11 - k * 3.2, 1.3, 1.0, RED); }   // pediment, cream-edged
+    Q(0, top + 1.6, -D / 2 - 0.7, 2.2, 2.2, 0.1, 0xf4f1ea); Q(0, top + 2.6, -D / 2 - 0.78, 0.16, 0.9, 0.05, 0x1e1e1e); Q(0.35, top + 2.68, -D / 2 - 0.78, 0.7, 0.16, 0.05, 0x1e1e1e);   // the clock
+    Q(0, PL, -D / 2 - 0.12, 3.8, 4.8, 0.25, STEP); Q(0, PL, -D / 2 - 0.27, 2.0, 3.8, 0.08, 0x3a2a1e); Q(0, PL + 4.8, -D / 2 - 0.2, 4.6, 0.7, 0.4, STEP);   // the portal
+    Q(0, 0, -D / 2 - 2.05, 6, PL, 3.5, STEP); for (const s of [-1, 1]) for (let k = 0; k < 5; k++) Q(s * (3.55 + 1.1 * k), 0, -D / 2 - 2.05, 1.1, +(PL * (1 - (k + 1) / 6)).toFixed(2), 3.5, STEP);   // the double stair
+    { const [sx, sz] = W(0, -D / 2 - 2.05); footprint(17, 3.5, sx, sz, rot, PL); }
+    let y = top + 0.5 + rh - 1.2;                                                                                                          // the spire
+    for (const [w, h] of [[4.4, 3], [4.8, 0.5], [3.8, 3], [4.4, 0.5], [3.4, 1.2], [2.6, 1.6], [1.8, 1.4], [1.2, 1.6], [0.6, 3], [0.22, 2.6]]) { Q(0, y, 0, w, h, w, DARKS[w > 3.6 ? 0 : 1]); y += h; }
+    for (const [fx, fz] of [[1, 0], [-1, 0], [0, 1], [0, -1]]) Q(fx * 1.92, top + rh + 2.8, fz * 1.92, fx ? 0.06 : 1.2, 2.2, fz ? 0.06 : 1.2, 0x18191a);   // the lantern's openings
+    Q(0, y - 1.2, 0, 1.4, 0.18, 0.18, 0x2a2a2a);                                                                                          // the cross arm
+    // the yellow neighbour
+    Q(L / 2 + 7.5, 0, 2, 12, 10, 12, 0xd9b24c); for (let k = 0; k < 4; k++) Q(L / 2 + 7.5, 10 + k * 0.9, 2, 12.6 - k * 2.6, 0.9, 12.6 - k * 0.4, 0x4a4844);
+    for (const f of [0, 1]) for (const u of [-3.2, 0, 3.2]) Q(L / 2 + 7.5 + u, 1.8 + f * 4, 2 - 6.03, 1.0, 1.6, 0.06, 0x2c3036);
+    { const [nx, nz] = W(L / 2 + 7.5, 2); footprint(12, 12, nx, nz, rot, 10); }
+  };
+  // A railway station after the user's reference: red brick with cream stone trim; a taller central hall with a crow-stepped
+  // gable, a great arched window over a canopied entrance and a clock turret; two-storey wings `wing` long with stepped
+  // gable ends; slate roofs stepped like the voxel reference. Its entrance is on the local -z face.
+  const stationBuilding = (x, z, rot = 0, wing = 22) => {
+    const BR = 0xa5523a, ST = 0xdccdaa, SL = [0x6e6a64, 0x625e58], C = 16, CD = 14, CH = 13, WD = 12, WH = 9, Q = (lx, ly, lz, w, hh, d, m) => part(x, z, rot, lx, ly, lz, w, hh, d, m);
+    Q(0, 0, 0, C, CH, CD, BR); footprint(C + 2 * wing, CD, x, z, rot, CH + 6);
+    for (const s of [-1, 1]) {
+      const wx = s * (C / 2 + wing / 2);
+      Q(wx, 0, 0, wing, WH, WD, BR);
+      for (const t of [-1, 1]) framedWindows(Q, 'x', t, WD / 2, wx, wing, 2, 4.2, 0, BR, ST, 3.4, 2.4);
+      framedWindows(Q, 'z', s, C / 2 + wing, 0, WD, 2, 4.2, 0, BR, ST, 4, 2.4);
+      Q(wx, 4.1, 0, wing + 0.2, 0.35, WD + 0.2, ST);                                                                                         // string course
+      for (let k = 0; k < 5; k++) Q(wx, WH + k * 1.1, 0, wing + 0.6, 1.1, +((WD + 0.8) * (1 - k / 5)).toFixed(2), SL[k % 2]);             // gable roof, ridge along the wing
+      for (let k = 0; k < 4; k++) Q(s * (C / 2 + wing + 0.08), WH + k * 1.2, 0, 0.5, 1.2, +((WD - 0.4) * (1 - k / 4.4)).toFixed(2), ST);  // crow-stepped gable end
+      for (const sz of [-1, 1]) for (let yq = 0.4, k = 0; yq < WH - 1; yq += 1.6, k++) Q(s * (C / 2 + wing - 0.35), yq, sz * (WD / 2 - 0.35), k % 2 ? 1.0 : 0.8, 0.9, k % 2 ? 0.8 : 1.0, ST);   // quoins
+      Q(wx + s * 4, WH + 1.2, -WD / 2 + 1.6, 1.8, 1.4, 1.6, BR); Q(wx + s * 4, WH + 2.6, -WD / 2 + 1.6, 2.2, 0.4, 2.0, SL[0]);              // a dormer
+    }
+    for (let k = 0; k < 6; k++) Q(0, CH + k * 1.0, 0, +((C + 0.8) * (1 - k / 6)).toFixed(2), 1.0, CD + 0.6, SL[k % 2]);                 // hall roof, ridge front to back
+    for (let k = 0; k < 5; k++) Q(0, CH + k * 1.2, -CD / 2 - 0.1, +((C - 0.4) * (1 - k / 5.5)).toFixed(2), 1.2, 0.8, ST);               // the hall's crow-stepped gable
+    Q(0, 3.5, -CD / 2 - 0.12, 6, 8.5, 0.1, ST); Q(0, 4.1, -CD / 2 - 0.17, 5, 6.8, 0.1, 0x2c3036);                                         // the great window: its frame, its glass
+    for (const [w, y0] of [[4.2, 10.9], [3.0, 11.6], [1.6, 12.2]]) { Q(0, y0, -CD / 2 - 0.12, w + 1, 0.7, 0.1, ST); Q(0, y0, -CD / 2 - 0.14, w, 0.6, 0.1, 0x2c3036); }   // its arch, stepped
+    Q(0, 3.6, -CD / 2 - 2.2, 9, 0.35, 4.4, SL[0]); for (const s of [-1, 1]) Q(s * 4.2, 0, -CD / 2 - 4, 0.3, 3.6, 0.3, 0x3a3a3a);         // canopy and its posts
+    Q(0, 0, -CD / 2 - 0.08, 3, 3.4, 0.08, 0x4a3324);                                                                                       // the doors
+    for (const sx of [-1, 1]) for (const sz of [-1, 1]) for (let yq = 0.4, k = 0; yq < CH - 1; yq += 1.6, k++) Q(sx * (C / 2 - 0.35), yq, sz * (CD / 2 - 0.35), k % 2 ? 1.0 : 0.8, 0.9, k % 2 ? 0.8 : 1.0, ST);   // hall quoins
+    const ty = CH + 5.5; Q(0, ty - 5.5, -CD / 2 + 2.2, 3.6, 5.5 + 5, 3.6, BR);                                                            // the clock turret
+    for (const [fx, fz] of [[0, -1], [1, 0], [-1, 0]]) { Q(fx * 1.85, ty + 1.2, -CD / 2 + 2.2 + fz * 1.85, fx ? 0.06 : 2.0, 2.0, fz ? 0.06 : 2.0, 0xf4f1ea); Q(fx * 1.9, ty + 2.2, -CD / 2 + 2.2 + fz * 1.9, fx ? 0.05 : 0.14, 0.8, fz ? 0.05 : 0.14, 0x1e1e1e); }
+    stepRoof(Q, 0, ty + 5, -CD / 2 + 2.2, 4.4, 4.4, 3, 4, SL); Q(0, ty + 8, -CD / 2 + 2.2, 0.14, 1.6, 0.14, 0x3a3a3a);
+  };
+  // a parked car: body, glazed cabin, roof, wheels, along local x
+  const CARS = [0xc9a24a, 0x4d6c8a, 0x8a3c33, 0x2f2f2f, 0x9aa4a8];
+  const car = (x, z, rot = 0, col = CARS[Math.floor(rd() * CARS.length)]) => {
+    const Q = (lx, ly, lz, w, hh, d, m) => part(x, z, rot, lx, ly, lz, w, hh, d, m);
+    Q(0, 0.35, 0, 4.4, 0.75, 1.8, col); Q(-0.2, 1.1, 0, 2.5, 0.45, 1.66, 0x3a4450); Q(-0.2, 1.55, 0, 2.3, 0.2, 1.56, col);
+    for (const u of [-1.4, 1.4]) for (const v of [-0.85, 0.85]) Q(u, 0, v, 0.7, 0.7, 0.3, 0x1e1e1e);
+    footprint(4.4, 1.8, x, z, rot, 1.6);
+  };
+  // a fountain: a stone basin with water, a column and a bowl
+  const fountain = (x, z) => {
+    for (const [r1, r2, h, y, c] of [[3, 3.2, 0.7, 0.35, 0x9a968e], [2.7, 2.7, 0.08, 0.66, 0x7fb0c8], [0.4, 0.5, 2.2, 1.1, 0x9a968e], [1.3, 0.6, 0.4, 2.3, 0x9a968e]]) props.push({ geo: `cyl:${r1},${r2},${h},12`, color: c, x, y, z, rot: [0, 0, 0], cast: true });
+    obstacles.push({ minX: x - 3, maxX: x + 3, minZ: z - 3, maxZ: z + 3, h: 0.7 });
+  };
+  // ---- the hydro station, after the user's reference (2026-10-28): the dam under a bridge-style crest road, the hall, the switchyard.
+  // The dam (b as in bridge(): the deck at b.y, along local z): a concrete body from the bed up under the deck, its downstream
+  // face (local -x) stepped, gate towers standing over it with dark steel gates between, white water foaming out below each gate,
+  // and a control house on the upstream side at the -z end. Looks only: the deck's railings stay the obstacles.
+  const damWorks = (b, bed = -8, water = -3) => {
+    const c = Math.cos(b.angle), s = Math.sin(b.angle), L = b.len, W = b.w, top = b.y - 1.0, CD = 0xa29e96, CL = 0xb8b4ab;
+    const P = (lx, ly, lz, w, h, d, color) => props.push({ geo: 'box:1,1,1', color, scale: [w, h, d], x: b.x + lx * c + lz * s, y: ly + h / 2, z: b.z - lx * s + lz * c, rot: [0, b.angle, 0], cast: Math.max(w, h, d) >= 1, absY: true });
+    P(0, bed, 0, W + 6, top - bed, L - 4, CD);                                                                                         // the body
+    for (let k = 0; k < 4; k++) P(-(W / 2 + 3 + k * 1.6 + 0.8), bed, 0, 1.6, +((top - bed) * (1 - (k + 1) / 5.5)).toFixed(2), L - 4, k % 2 ? CD : CL);   // its stepped downstream face
+    const n = 5, span = (L - 30) / n;
+    for (let i = 0; i <= n; i++) { const u = -L / 2 + 15 + i * span; P(-(W / 2 + 1.8), water - 1, u, 3.6, b.y + 8 - water, 2.2, CL); P(-(W / 2 + 1.8), b.y + 7, u, 4.2, 0.6, 2.8, CD); }   // gate towers
+    for (let i = 0; i < n; i++) {
+      const u = -L / 2 + 15 + (i + 0.5) * span;
+      P(-(W / 2 + 2.6), water - 0.5, u, 0.4, 4.4, span - 2.4, 0x4a4f52); for (let k = -1; k <= 1; k++) P(-(W / 2 + 2.85), water - 0.3, u + k * (span - 2.4) / 3, 0.1, 4, 0.25, 0x33383b);   // a gate and its ribs
+      for (const [dx, dz, w, d] of [[3, 0, 3, span - 3], [6.5, 0.8, 2.4, span - 5], [10, -0.5, 2, span - 7], [13.5, 1, 1.4, 3]]) P(-(W / 2 + 3 + dx), water + 0.02, u + dz, w, 0.1, d, 0xeef4f6);   // its foam
+    }
+    P(W / 2 + 3.5, b.y - 0.3, -L / 2 + 8, 5, 3.6, 6, 0xddd2b0); P(W / 2 + 3.5, b.y + 3.3, -L / 2 + 8, 5.8, 0.4, 6.8, 0x8a8070); P(W / 2 + 0.98, b.y + 0.9, -L / 2 + 8, 0.06, 1.2, 4, 0x2c3036);   // the control house
+  };
+  // the hall: cream walls on a darker plinth, tall framed windows between pilasters, a cornice and parapet round a flat roof, a
+  // clock turret at the (+x, -z) corner, the turbine outlets as three dark arches at the foot of the +x face
+  const hydroHall = (x, z, rot = 0) => {
+    const L = 46, D = 24, H = 18, CR = 0xddd2b0, CRL = 0xe8dfc2, RF = [0x8a8070, 0x7d7465], Q = (lx, ly, lz, w, hh, d, m) => part(x, z, rot, lx, ly, lz, w, hh, d, m);
+    Q(0, 0, 0, L + 0.6, 2, D + 0.6, 0xb7ab8a); Q(0, 2, 0, L, H - 2, D, CR); footprint(L + 0.6, D + 0.6, x, z, rot, H + 7);
+    for (const s of [-1, 1]) {
+      framedWindows(Q, 'x', s, D / 2, 0, L, 1, 14, 2, CR, CRL, 4.6, 10); framedWindows(Q, 'z', s, L / 2, 0, D, 1, 14, 2, CR, CRL, 4.8, 10);
+      for (let i = 0; i <= 10; i++) Q(-L / 2 + i * L / 10, 2, s * (D / 2 + 0.16), 1.1, H - 2, 0.16, CRL);                                 // pilasters
+    }
+    Q(0, H - 0.4, 0, L + 1, 0.8, D + 1, CRL); Q(0, H + 0.4, 0, L - 1, 0.1, D - 1, RF[0]);                                               // cornice, roof
+    for (const s of [-1, 1]) { Q(0, H + 0.4, s * (D / 2 - 0.2), L + 0.4, 0.9, 0.4, CR); Q(s * (L / 2 - 0.2), H + 0.4, 0, 0.4, 0.9, D, CR); }   // parapet
+    const tx = L / 2 - 7, tz = -D / 2 + 6;                                                                                              // the clock turret
+    Q(tx, H + 0.4, tz, 5.5, 6, 5.5, CR); Q(tx, H + 6.4, tz, 6.2, 0.6, 6.2, CRL);
+    for (const [fx, fz] of [[0, -1], [1, 0]]) { Q(tx + fx * 2.8, H + 3.2, tz + fz * 2.8, fx ? 0.06 : 2.2, 2.2, fz ? 0.06 : 2.2, 0xf4f1ea); Q(tx + fx * 2.85, H + 4.2, tz + fz * 2.85, fx ? 0.05 : 0.14, 0.9, fz ? 0.05 : 0.14, 0x1e1e1e); }
+    stepRoof(Q, tx, H + 7, tz, 5.8, 5.8, 2.6, 4, RF); flag(Q, tx, H + 9.6, tz, 0x5a5a5a);
+    for (const u of [-12, 0, 12]) Q(L / 2 + 0.05, 0, u, 0.1, 5, 7, 0x262a2c);                                                         // turbine outlets
+  };
+  // the switchyard: a lattice pylon at -x, three steel gantries, two transformers with radiator fins and brown insulators, lines
+  // strung between the gantries; on gravel
+  const switchyard = (x, z, rot = 0) => {
+    const ST = 0x8f9396, Q = (lx, ly, lz, w, hh, d, m) => part(x, z, rot, lx, ly, lz, w, hh, d, m), W = frameOf(x, z, rot);
+    const px = -15;
+    for (let k = 0; k < 6; k++) { const a = 1.8 - 0.25 * k, y = k * 4.5; for (const sx of [-1, 1]) for (const sz of [-1, 1]) Q(px + sx * a, y, sz * a, 0.25, 4.6, 0.25, ST); for (const sz of [-1, 1]) Q(px, y + 4.4, sz * a, 2 * a + 0.3, 0.18, 0.18, ST); for (const sx of [-1, 1]) Q(px + sx * a, y + 4.4, 0, 0.18, 0.18, 2 * a + 0.3, ST); }   // the pylon's legs and bracing
+    Q(px, 27, 0, 0.35, 0.35, 11, ST); Q(px, 23, 0, 0.3, 0.3, 8, ST); Q(px, 27.4, 0, 0.3, 2.6, 0.3, ST);                              // crossarms, peak
+    for (const gx of [-5, 3, 11]) { for (const sz of [-1, 1]) Q(gx, 0, sz * 5, 0.5, 10, 0.5, ST); Q(gx, 10, 0, 0.5, 0.5, 10.5, ST); }   // gantries
+    for (const sz of [-3.2, 0, 3.2]) Q(3, 9.7, sz, 16.5, 0.08, 0.08, 0x2a2a2a);                                                        // lines
+    for (const gx of [-1, 7]) {
+      Q(gx, 0, 0, 3.6, 3.2, 3, 0x7d8478); for (const u of [-1.2, -0.4, 0.4, 1.2]) Q(gx + u, 0.4, 1.7, 0.18, 2.4, 0.4, 0x6c7368);         // a transformer and its fins
+      for (const u of [-1, 0, 1]) { const [ix, iz] = W(gx + u, -0.4); props.push({ geo: 'cyl:0.18,0.26,1.6,8', color: 0x7a4a30, x: ix, y: 4.0, z: iz, rot: [0, 0, 0], cast: true, ax: x, az: z }); }
+      const [ox, oz] = W(gx, 0); footprint(3.6, 3.4, ox, oz, rot, 3.2);
+    }
+    { const [ox, oz] = W(px, 0); footprint(3.8, 3.8, ox, oz, rot, 28); }
+  };
+  return { props, obstacles, lamps, tufts, decals, bridge, box, damWorks, hydroHall, switchyard, townHall, stationBuilding, car, fountain, hermannCastle, fortress, millBuilding, millRace, panelBlock, panelTower, garages, pine, birch, boxcar, tankWagon, platform, chimney, footprint, part, BAG, bagStack, BLOCK, blockWall, palm, bush, rock, PLASTER, house, controlTower, wallRun, MESH, hesco, shade, container, cyl, tilt, CONC, stains, watchtower, hangar, barracks, fuelTank, floodlight, radioMast, equipmentHut, FRUIT, stall, STONE, well, sandbagRing, containers, scrub, TRIM, WOOD, DOOR, DARK, STAIN, TIN, TIMBER, STEEL, DARKM };
 }

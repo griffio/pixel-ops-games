@@ -61,8 +61,8 @@ ones facing the enemy. `?map=desert1km` plays Desert Crossing, the first 1 km ma
 docs/GAME_PLAN.md). Its city kit and landmarks follow the user's voxel references: Soviet
 panel blocks of five and nine storeys, garage rows, pine and birch, station yards with
 wagons, a blue truss railway bridge, Balti's banded chimneys, Hermann Castle, Ivangorod
-Fortress and the Kreenholm mills; the Town Hall, the stations and the hydro station are
-still plain blocks. The Narva River runs
+Fortress, the Kreenholm mills, the Town Hall, both railway stations and the hydro station
+(dam, hall, switchyard). The Narva River runs
 south to north from the reservoir: armour crosses on the dam and the Friendship
 Bridge, infantry also at Kreenholm's dry falls and on the railway bridge. BLUFOR
 holds the Narva bank (Old Town, Narva Station, Balti Plant), OPFOR the Ivangorod
