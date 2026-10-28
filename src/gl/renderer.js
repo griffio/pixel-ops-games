@@ -377,7 +377,6 @@ export class GLRenderer {
     gl.bindFramebuffer(gl.FRAMEBUFFER, this.pickFb.fb); gl.viewport(0, 0, w, h);
     gl.clearColor(0, 0, 0, 0); gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
     const p = this.progs.pick; gl.useProgram(p.p); gl.uniformMatrix4fv(p.u.uViewProj, false, this.lastViewProj);
-    gl.uniform1f(u.uSway, 0);
     for (const b of this.batches.values()) if (b.n && !b.unlit && !b.water) this.drawBatch(b);
     const cx = Math.min(w - 1, Math.floor(nx * w)), cy = Math.min(h - 1, Math.floor((1 - ny) * h));
     const r = Math.min(24, Math.round(radiusPx * w / (this.canvas.clientWidth || w)));

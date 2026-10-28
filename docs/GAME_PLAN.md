@@ -2142,8 +2142,12 @@ Engine changes needed in the existing core:
     drifting on `map.wind`, so a chimney reads as a plume; steam; low spreading mist.
   - **Wakes.** A moving landing craft leaves foam astern (spread by its beam, fading over 3 to
     5 s) and throws spray at the bow (`DustSim.wake`).
-  - **Gulls.** `map.birds` places flocks over the harbour and West Beach, the falls and the
-    Friendship Bridge: body and two flapping wings on a circle, bobbing, culled like units.
+  - **Gulls** were built (flocks on circles over the harbour, the beach and the falls) and removed
+    the same day at the user's request.
+  - **A picking bug**, caught by the user on an iPad: the line that resets the sway uniform before
+    the unit batches had landed in `pick()` instead of `render()`, where `u` is undefined, so every
+    tap or click on the map threw before a unit could be chosen (the unit strip still worked). The
+    main pass sets the uniform per batch anyway, so the line was simply removed.
   - **Sway.** Pines, birches, palms and bushes carry `sway`; each part's material is flagged
     and its colour alpha holds the part centre's height over the ground (1 - y / 64), so the
     vertex shaders lean every vertex by the square of its height on a per-tree phase with a slow

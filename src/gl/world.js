@@ -10,7 +10,7 @@ import { stripGeometry, decalGeometry } from './strips.js';
 // baked into chunked instance buffers, lamps. Produces `lightState` for the renderer.
 export class World extends WorldState {
   constructor(scene, renderer, map = null) {
-    super(map); this.scene = scene; this.renderer = renderer; this.heads = []; this.beams = []; this.birds = []; this.focus = { x: 0, z: 0 }; this.t = 0;
+    super(map); this.scene = scene; this.renderer = renderer; this.heads = []; this.beams = []; this.focus = { x: 0, z: 0 };
     // ambient emitters (chimneys, steam, mist): their height is above the ground, or absolute with `abs`; ticked by ambient()
     this.emitters = (this.layout.emitters || []).map(e => ({ ...e, y: e.abs !== undefined ? e.abs + e.y : this.heightAt(e.x, e.z) + e.y, acc: Math.random() }));
     map ? this.buildMapGround() : this.buildLegacyGround();
@@ -115,18 +115,12 @@ export class World extends WorldState {
       if (this.terrain && this.terrain.height(t.x, t.z) < this.terrain.water) continue;   // none under the water
       const m = new Mesh('tuft:' + t.size + ',' + (t.size * 1.1).toFixed(2), MAT.tuft); m.position.set(t.x, this.heightAt(t.x, t.z), t.z); m.rotation.y = t.yaw; r.addStatic(m);
     }
-    this.buildBirds();
   }
 
   update(dt) {
-    super.update(dt); this.applyLighting(); this.t += dt;
+    super.update(dt); this.applyLighting();
     const night = this.light.night > 0.5;
     for (const b of this.beams) { b.visible = night; if (night) b.rotation.y += dt * 0.5; }
-    for (const g of this.birds) {   // gulls: each on its own circle, flapping, a little bob
-      g.a += dt * g.v / g.r; const x = g.cx + Math.cos(g.a) * g.r, z = g.cz + Math.sin(g.a) * g.r;
-      g.node.position.set(x, g.y + Math.sin(this.t * 1.3 + g.ph) * 0.8, z); g.node.rotation.y = -g.a;
-      const flap = Math.sin(this.t * 7 + g.ph) * 0.55; g.wl.rotation.z = flap; g.wr.rotation.z = -flap;
-    }
   }
   // the ambient emitters, at the sim's pace (paused with it)
   ambient(dt) {
@@ -134,17 +128,7 @@ export class World extends WorldState {
     const wind = this.map.wind || [0.8, 0.3];
     for (const e of this.emitters) { e.acc += dt * e.rate; while (e.acc >= 1) { e.acc -= 1; this.dust.ambient(e.kind, e.x, e.y, e.z, e.k, wind); } }
   }
-  // gulls over the water: a few at each spot the map names ({ x, z, r, y, n }), each a body and two wings
-  buildBirds() {
-    const GULL = { color: [0.93, 0.94, 0.95, 1], tex: null, emissive: [0, 0, 0], cast: false }, TIP = { color: [0.25, 0.26, 0.28, 1], tex: null, emissive: [0, 0, 0], cast: false };
-    for (const s of this.map.birds || []) for (let i = 0; i < s.n; i++) {
-      const node = new Node(); node.bound = 3;
-      const body = new Mesh('box:1,1,1', GULL); body.scale.set(0.7, 0.2, 0.3); node.add(body);
-      const wing = (side) => { const w = new Node(); w.position.set(0, 0.06, side * 0.1); const m = new Mesh('box:1,1,1', GULL); m.scale.set(0.4, 0.06, 1.0); m.position.z = side * 0.5; w.add(m); const t = new Mesh('box:1,1,1', TIP); t.scale.set(0.3, 0.06, 0.2); t.position.z = side * 1.05; w.add(t); node.add(w); return w; };
-      const wl = wing(1), wr = wing(-1), base = Math.max(this.heightAt(s.x, s.z), this.terrain ? this.terrain.water : 0);
-      this.scene.add(node); this.birds.push({ node, wl, wr, cx: s.x + (Math.random() - 0.5) * 12, cz: s.z + (Math.random() - 0.5) * 12, r: s.r * (0.7 + Math.random() * 0.6), y: base + s.y + (Math.random() - 0.5) * 6, a: Math.random() * Math.PI * 2, v: 7 + Math.random() * 3, ph: Math.random() * 7 });
-    }
-  }
+
   applyLighting() {
     const L = this.light;
     for (const h of this.heads) h.emissiveI = L.lampEmissive;

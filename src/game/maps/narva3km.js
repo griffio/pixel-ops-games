@@ -35,7 +35,6 @@ const inPoly = (poly, e, n) => { let c = false; for (let i = 0, j = poly.length 
 export const narva3km = {
   name: 'Narva', size: 3000,
   hour: 8.2, wind: [0.9, 0.35],   // a low morning sun with long shadows; a breeze from the south-west
-  birds: [{ ...at(40, -600), r: 45, y: 18, n: 5 }, { ...at(0, 470), r: 40, y: 16, n: 4 }],   // gulls over the falls and the Friendship Bridge
   blurb: 'The Estonia-Russia border city: a river crossed at a dam, two bridges and the Kreenholm falls, between castle and fortress.',
   nav: { foot: 2, vehicle: 3, cap: 260000 },   // a 3 km grid: 2.25 M infantry cells and 1 M vehicle cells (about 95 MB with the search arrays)
   splatRes: 1536,
