@@ -536,6 +536,14 @@ src/gl/             WebGL2 back end
   ends produce the same image from the same `lighting(time)` values.
 - Picking renders instance ids into a small colour buffer on click and reads
   one pixel; no CPU raycasting.
+- Ambient life: a map's chimneys, hearths and the dam's tailwater are particle
+  emitters (`layout.emitters`, ticked with the simulation and drifting on `map.wind`);
+  landing craft leave foam astern and spray at the bow; gulls circle where `map.birds`
+  says; the lighthouse turns a beam at night; trees and bushes sway in the vertex
+  shader (parts flagged `sway`, leaning by the square of their height over the
+  ground). A match plays at the map's own hour (`map.hour`: Narva's low morning sun,
+  Peninsula's evening, Desert Crossing's afternoon) unless the force builder's Time
+  row or `?hour=` says otherwise.
 - Water is a plane at the water level drawn after the opaque pass, lit like the
   ground and blended over the bed. Its shader reads a depth map built from the
   terrain: teal paling in the shallows, a broken foam rim at the shore and curling

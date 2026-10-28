@@ -2128,6 +2128,29 @@ Engine changes needed in the existing core:
   tiles' base, dark and light colours 20% nearer white, and the shader's variation (bleached
   patches, hollows, slow stretches, dry and lush zones) at half strength. The pattern, rock,
   dirt and roads are unchanged.
+- **Ambient effects (2026-10-28, branch `ambient-effects`).** The first of the polish ideas the
+  user chose after the performance pass.
+  - **Time of day.** Each map names its hour: Narva 8:12 (long morning shadows), Peninsula 17:36
+    (evening light off the sea), Desert Crossing 15:30, Palm Valley the old 9:30. The force
+    builder's new Time row (map's own, dawn, morning, noon, evening, night) overrides it, and
+    `?hour=` overrides both. Peninsula's lighthouse turns a 72 m beam at night, a dim emissive
+    bar on a pivot at the lantern, shown only after dusk.
+  - **Emitters.** The kit's chimneys, Peninsula's lit hearths (45% of cottages), Kreenholm's
+    boiler house and four points along the dam's tailwater are `layout.emitters`: kind, rate,
+    size, height over the ground (or absolute). `World.ambient(dt)` ticks them with the sim
+    and `DustSim.ambient` makes the particles: smoke that climbs for 8 to 12 s, swelling and
+    drifting on `map.wind`, so a chimney reads as a plume; steam; low spreading mist.
+  - **Wakes.** A moving landing craft leaves foam astern (spread by its beam, fading over 3 to
+    5 s) and throws spray at the bow (`DustSim.wake`).
+  - **Gulls.** `map.birds` places flocks over the harbour and West Beach, the falls and the
+    Friendship Bridge: body and two flapping wings on a circle, bobbing, culled like units.
+  - **Sway.** Pines, birches, palms and bushes carry `sway`; each part's material is flagged
+    and its colour alpha holds the part centre's height over the ground (1 - y / 64), so the
+    vertex shaders lean every vertex by the square of its height on a per-tree phase with a slow
+    gust. The shadow pass sways too.
+  - **Lesson.** Headless Chrome without the frame-rate flags runs the animation loop at a few
+    frames a second, and the simulation with it, so emitters barely fire in screenshots; the
+    scratchpad's shoot2.mjs steps the whole simulation explicitly before each frame.
 
 ## Open questions
 

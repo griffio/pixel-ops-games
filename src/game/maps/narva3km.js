@@ -34,6 +34,8 @@ const inPoly = (poly, e, n) => { let c = false; for (let i = 0, j = poly.length 
 
 export const narva3km = {
   name: 'Narva', size: 3000,
+  hour: 8.2, wind: [0.9, 0.35],   // a low morning sun with long shadows; a breeze from the south-west
+  birds: [{ ...at(40, -600), r: 45, y: 18, n: 5 }, { ...at(0, 470), r: 40, y: 16, n: 4 }],   // gulls over the falls and the Friendship Bridge
   blurb: 'The Estonia-Russia border city: a river crossed at a dam, two bridges and the Kreenholm falls, between castle and fortress.',
   nav: { foot: 2, vehicle: 3, cap: 260000 },   // a 3 km grid: 2.25 M infantry cells and 1 M vehicle cells (about 95 MB with the search arrays)
   splatRes: 1536,
@@ -150,6 +152,8 @@ export const narva3km = {
     { const m1 = P(40, -705), m2 = P(40, -592);                                                // Kreenholm: two mills fronting the falls, a boiler house and its chimney, the race
       millBuilding(m1[0], m1[1], 64, 6, -Math.PI / 2, 20); take(m1[0], m1[1], 34); millBuilding(m2[0], m2[1], 50, 5, -Math.PI / 2, 18); take(m2[0], m2[1], 28);
       B(64, -650, 12, 9, 26, 0x93432f); const [cx, cz] = P(68, -632); props.push({ geo: 'cyl:1.7,2.4,46,12', color: 0x8a3c2a, x: cx, y: 23, z: cz, rot: [0, 0, 0], cast: true }); obstacles.push({ minX: cx - 2.4, maxX: cx + 2.4, minZ: cz - 2.4, maxZ: cz + 2.4, h: 46 });
+      K.emitters.push({ x: cx, y: 47, z: cz, kind: 'smoke', k: 1.8, rate: 3 });   // the boiler house
+      for (const e of [-42, -14, 14, 42]) { const [mx, mz] = P(e, DAM_N + 22); K.emitters.push({ x: mx, y: 1.2, z: mz, kind: 'mist', k: 2, rate: 3, abs: -3 }); }   // spray along the dam's tailwater
       const [rx, rz] = P(86, -705); millRace(rx, rz, 56, -Math.PI / 2); }
     // the two stations, their entrances facing the towns, their backs to the platforms; Narva's forecourt with a fountain and cars
     { const [sx, sz] = P(-650, -88); stationBuilding(sx, sz, Math.PI, 22); take(sx, sz, 34); const [fx, fz] = P(-650, -58); fountain(fx, fz); take(fx, fz, 4);
@@ -229,7 +233,7 @@ export const narva3km = {
     for (const rd of this.roads) strips.push({ points: rd.points, width: rd.width, tex: rd.tex === 'road' ? 'roadM' : 'trackM', vRepeat: rd.tex === 'road' ? 12 : 5, smooth: 2, y: rd.tex === 'road' ? 0.03 : 0.02, cutout: true });   // edges drifting into grass
     { const k = this.rail.findIndex((p, i) => i < this.rail.length - 1 && onDeck(i));   // the ground track either side of the bridge, not over its deck
       for (const pts of [this.rail.slice(0, k + 1), this.rail.slice(k + 1)]) strips.push({ points: pts, width: 5, tex: 'railway', vRepeat: 5, smooth: 0, y: 0.04, cutout: true }); }
-    return { props, obstacles, lamps: K.lamps, tufts: K.tufts, decals: K.decals, strips };
+    return { props, obstacles, lamps: K.lamps, tufts: K.tufts, decals: K.decals, emitters: K.emitters, strips };
   },
 
   // The splat map: r concrete, g asphalt, b dirt, and a the meadow. The ground shader adds the four weights without

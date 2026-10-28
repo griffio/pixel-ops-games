@@ -62,7 +62,8 @@ export function populate(app) {
       app.match = new Match(app, { cpu, mode, side, difficulty, loadouts: [playerLoadout, preset(cpuKey)] });
       if (app.audio) app.audio.ui('start');
       // the sun stands still during a match (a moving sun crawls every shadow edge at close zoom); ?hour= picks the time
-      app.world.timeSpeed = 0; if (!q.has('hour')) { app.world.time = 9.5; app.world.update(0); }
+      // the sun stands still during a match; the hour is the link's ?hour=, else the lobby's choice, else the map's own (9:30 without one)
+      app.world.timeSpeed = 0; if (!q.has('hour')) { app.world.time = modeOpts.hour ? +modeOpts.hour : (app.world.map && app.world.map.hour !== undefined ? app.world.map.hour : 9.5); app.world.update(0); }
       document.getElementById('c-tspeed').value = 0; document.getElementById('v-tspeed').textContent = '0×';
       document.getElementById('c-auto').checked = false;
       if (!q.has('x')) rts.target.set(app.match.teams[0].base.x + 10, 0, app.match.teams[0].base.z + 10);
@@ -98,7 +99,7 @@ export function runLoop(app) {
     app.world.update(simDt);
     app.units.update(simDt);
     if (app.match) app.match.update(simDt);
-    app.dust.update(simDt);
+    app.dust.update(simDt); if (app.world.ambient) app.world.ambient(simDt);
     app.markers.update(simDt);
     if (app.audio) app.audio.update(dt);
     if (app.input) app.input.update(dt);

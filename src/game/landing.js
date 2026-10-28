@@ -114,6 +114,7 @@ export class Landing {
           c.pos.x += Math.sin(c.heading) * c.speed * dt; c.pos.z += Math.cos(c.heading) * c.speed * dt;
         }
       }
+      if (c.speed > 1.5 && this.m.app && this.m.app.dust) this.m.app.dust.wake(c.pos.x, water + 0.05, c.pos.z, c.heading, c.speed, 7.2, 22, dt);   // foam astern, spray at the bow
       c.pos.y = water - 0.15 + Math.sin(this.clock * 1.4 + c.slotI * 2) * 0.12;
       c.group.rotation.y = c.heading; c.group.rotation.z = Math.sin(this.clock * 1.1 + c.slotI) * 0.02;
     }

@@ -3,7 +3,7 @@
 // its own random generators (r for layout, rd for decoration, so decoration never shifts the layout) and its road test,
 // places things with it, and returns the kit's props, obstacles, lamps, tufts and decals with its own strips.
 export function makeKit({ r, rd, onRoad = () => false }) {
-  const props = [], obstacles = [], lamps = [], tufts = [], decals = [];
+  const props = [], obstacles = [], lamps = [], tufts = [], decals = [], emitters = [];   // emitters: { x, y, z, kind, k, rate }, y above the ground (gl/world.js ambient)
   const box = (w, h, d, color, x, z, { y = 0, rot = 0, obstacle = true, cast = true, tex } = {}) => {
     props.push({ geo: `box:${w},${h},${d}`, color, tex, x, y: y + h / 2, z, rot: [0, rot, 0], cast });
     if (obstacle) footprint(w, d, x, z, rot, y + h);
@@ -67,16 +67,16 @@ export function makeKit({ r, rd, onRoad = () => false }) {
     footprint(t, len, x, z, rot, h);
   };
   const palm = (x, z, tilt = (r() - 0.5) * 0.12) => {
-    props.push({ geo: 'cyl:0.2,0.32,9,6', tex: 'trunk', x, y: 4.5, z, rot: [tilt, 0, tilt * 0.6], cast: true });
+    props.push({ geo: 'cyl:0.2,0.32,9,6', tex: 'trunk', x, y: 4.5, z, rot: [tilt, 0, tilt * 0.6], cast: true, sway: true });   // sway: the wind moves it (gl/world.js, shaders)
     const tx = x + Math.sin(tilt * 0.6) * 4.5, tz = z + Math.sin(tilt) * 4.5;
-    props.push({ geo: 'cyl:0.55,0.4,0.7,6', tex: 'trunk', x: tx, y: 9.1, z: tz, rot: [0, 0, 0], cast: true });
-    for (let k = 0; k < 8; k++) props.push({ geo: 'frond:0.6,0.08,3.6,' + (0.35 + (k % 3) * 0.15).toFixed(2), tex: 'frond', x: tx, y: 9.3, z: tz, rot: [0, k * Math.PI / 4 + (k % 2) * 0.2, 0], cast: true });
+    props.push({ geo: 'cyl:0.55,0.4,0.7,6', tex: 'trunk', x: tx, y: 9.1, z: tz, rot: [0, 0, 0], cast: true, sway: true });
+    for (let k = 0; k < 8; k++) props.push({ geo: 'frond:0.6,0.08,3.6,' + (0.35 + (k % 3) * 0.15).toFixed(2), tex: 'frond', x: tx, y: 9.3, z: tz, rot: [0, k * Math.PI / 4 + (k % 2) * 0.2, 0], cast: true, sway: true });
     obstacles.push({ minX: x - 0.5, maxX: x + 0.5, minZ: z - 0.5, maxZ: z + 0.5, h: 9 });
   };
   const bush = (x, z, s = 0.8 + r() * 0.5) => {
     if (onRoad(x, z)) return;                                                                                          // after drawing s, so the rest of the map keeps its layout
     for (const [ox, oz, rr, h] of [[0, 0, 1.3, 1.6], [0.9, 0.5, 0.9, 1.2], [-0.8, 0.6, 1.0, 1.1]])
-      props.push({ geo: 'cyl:' + (rr * s).toFixed(2) + ',' + (rr * s * 1.15).toFixed(2) + ',' + (h * s).toFixed(2) + ',7', tex: 'bush', x: x + ox * s, y: h * s / 2, z: z + oz * s, rot: [0, 0, 0], cast: true });
+      props.push({ geo: 'cyl:' + (rr * s).toFixed(2) + ',' + (rr * s * 1.15).toFixed(2) + ',' + (h * s).toFixed(2) + ',7', tex: 'bush', x: x + ox * s, y: h * s / 2, z: z + oz * s, rot: [0, 0, 0], cast: true, sway: true });
     obstacles.push({ minX: x - 1.5 * s, maxX: x + 1.5 * s, minZ: z - 1.5 * s, maxZ: z + 1.5 * s, h: 1.6 * s });
   };
   const rock = (x, z) => { const s = 0.8 + r() * 2.2, col = [0x8c857a, 0x7a7368, 0x9a9388][Math.floor(r() * 3)], rot = r() * Math.PI; if (!onRoad(x, z)) box(s, s * 0.6, s * 0.8, col, x, z, { rot }); };
@@ -450,18 +450,20 @@ export function makeKit({ r, rd, onRoad = () => false }) {
   // a few bright-green blocks. Each blocks sight at its trunk like any tall box. h is the height.
   const PINE = [0x2c5a35, 0x356a3c, 0x2a4f31], BIRCHL = [0x8cbf4e, 0x7db043, 0x9acb5b];
   const pine = (x, z, h = 11) => {
-    const yaw = rd() * Math.PI / 2, s = h / 11, t = h * 0.22, Q = (ly, w, hh, m) => part(x, z, yaw, 0, ly, 0, w, hh, w, m);
+    const yaw = rd() * Math.PI / 2, s = h / 11, t = h * 0.22, i0 = props.length, Q = (ly, w, hh, m) => part(x, z, yaw, 0, ly, 0, w, hh, w, m);
     Q(0, 0.5, t + 0.5, 0x5a3e2a);
     let y = t; [[3.6, 0.3], [2.8, 0.3], [2.0, 0.25], [1.2, 0.2]].forEach(([w, k], i) => { const th = (h - t) * k; Q(y, w * s, th + 0.4, PINE[i % 3]); y += th; });
     Q(y, 0.5 * s, 0.8 * s, PINE[1]);
+    for (let i = i0; i < props.length; i++) props[i].sway = true;
     obstacles.push({ minX: x - 0.6, maxX: x + 0.6, minZ: z - 0.6, maxZ: z + 0.6, h });
   };
   const birch = (x, z, h = 9) => {
-    const yaw = rd() * Math.PI / 2, s = h / 9, t = h * 0.5, Q = (lx, ly, lz, w, hh, d, m) => part(x, z, yaw, lx, ly, lz, w, hh, d, m);
+    const yaw = rd() * Math.PI / 2, s = h / 9, t = h * 0.5, i0 = props.length, Q = (lx, ly, lz, w, hh, d, m) => part(x, z, yaw, lx, ly, lz, w, hh, d, m);
     Q(0, 0, 0, 0.42, t + 1, 0.42, 0xe6e2d6);
     for (let k = 0; k < 3; k++) Q(0, 0.8 + k * t / 3, 0.2, 0.44, 0.18, 0.06, 0x2b2a28);
     Q(0, t, 0, 3 * s, 2.6 * s, 3 * s, BIRCHL[0]); Q(0.9 * s, t + 1.6 * s, -0.5 * s, 2.2 * s, 2.2 * s, 2.2 * s, BIRCHL[1]);
     Q(-0.8 * s, t + 1.2 * s, 0.7 * s, 2 * s, 2 * s, 2 * s, BIRCHL[2]); Q(0, t + 3 * s, 0, 1.4 * s, 1.4 * s, 1.4 * s, BIRCHL[0]);
+    for (let i = i0; i < props.length; i++) props[i].sway = true;
     obstacles.push({ minX: x - 0.6, maxX: x + 0.6, minZ: z - 0.6, maxZ: z + 0.6, h });
   };
   // Rolling stock along its local x (rot turns it onto the track): a rust-brown boxcar with ribbed sides and sliding doors, a
@@ -499,6 +501,7 @@ export function makeKit({ r, rd, onRoad = () => false }) {
     for (let i = 0; i < n; i++) { const rb = r0 * (1 - 0.25 * i / n), rt = r0 * (1 - 0.25 * (i + 1) / n); props.push({ geo: `cyl:${rt.toFixed(2)},${rb.toFixed(2)},${bh.toFixed(2)},12`, color: i % 2 ? 0xe8e4dc : 0xb5432f, x, y: (i + 0.5) * bh, z, rot: [0, 0, 0], cast: true, ax: x, az: z }); }
     props.push({ geo: `cyl:${(r0 * 0.8).toFixed(2)},${(r0 * 0.8).toFixed(2)},1.2,12`, color: 0x3a3a3a, x, y: h + 0.6, z, rot: [0, 0, 0], cast: true, ax: x, az: z });
     obstacles.push({ minX: x - r0, maxX: x + r0, minZ: z - r0, maxZ: z + r0, h });
+    emitters.push({ x, y: h + 1.5, z, kind: 'smoke', k: r0 * 1.1, rate: 4 });   // coal smoke off the top
   };
   // ---- Narva's landmarks, after the user's voxel references (2026-10-28): Hermann Castle, Ivangorod Fortress, a Kreenholm mill.
   // Roofs are stepped like the voxel references (stacked boxes or cylinders), so nothing but the mill's gable needs a tilt.
@@ -723,5 +726,5 @@ export function makeKit({ r, rd, onRoad = () => false }) {
     }
     { const [ox, oz] = W(px, 0); footprint(3.8, 3.8, ox, oz, rot, 28); }
   };
-  return { props, obstacles, lamps, tufts, decals, bridge, box, damWorks, hydroHall, switchyard, townHall, stationBuilding, car, fountain, hermannCastle, fortress, millBuilding, millRace, panelBlock, panelTower, garages, pine, birch, boxcar, tankWagon, platform, chimney, footprint, part, BAG, bagStack, BLOCK, blockWall, palm, bush, rock, PLASTER, house, controlTower, wallRun, MESH, hesco, shade, container, cyl, tilt, CONC, stains, watchtower, hangar, barracks, fuelTank, floodlight, radioMast, equipmentHut, FRUIT, stall, STONE, well, sandbagRing, containers, scrub, TRIM, WOOD, DOOR, DARK, STAIN, TIN, TIMBER, STEEL, DARKM };
+  return { props, obstacles, lamps, tufts, decals, emitters, bridge, box, damWorks, hydroHall, switchyard, townHall, stationBuilding, car, fountain, hermannCastle, fortress, millBuilding, millRace, panelBlock, panelTower, garages, pine, birch, boxcar, tankWagon, platform, chimney, footprint, part, BAG, bagStack, BLOCK, blockWall, palm, bush, rock, PLASTER, house, controlTower, wallRun, MESH, hesco, shade, container, cyl, tilt, CONC, stains, watchtower, hangar, barracks, fuelTank, floodlight, radioMast, equipmentHut, FRUIT, stall, STONE, well, sandbagRing, containers, scrub, TRIM, WOOD, DOOR, DARK, STAIN, TIN, TIMBER, STEEL, DARKM };
 }

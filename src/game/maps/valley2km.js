@@ -197,7 +197,7 @@ export const valley2km = {
 
     // ---- roads and tracks
     for (const rd of this.roads) strips.push({ points: rd.points, width: rd.width, tex: rd.tex, vRepeat: rd.tex === 'road' ? 12 : 5, smooth: 2, y: rd.tex === 'road' ? 0.03 : 0.02, cutout: true });   // cutouts: sand-drifted ragged edges
-    return { props, obstacles, lamps, tufts, decals: K.decals, strips };
+    return { props, obstacles, lamps, tufts, decals: K.decals, emitters: K.emitters, strips };
   },
 
   // paints the splat map: r concrete, g asphalt, b grass, a dirt (sand elsewhere); every shape twice, mirrored

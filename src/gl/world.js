@@ -1,7 +1,7 @@
 import { WorldState } from '../core/layout.js';
 import { groundCanvas } from '../core/textures.js';
 import { hexToLinear, smooth } from '../core/math.js';
-import { Mesh } from './scene.js';
+import { Node, Mesh } from './scene.js';
 import { MAT } from './models.js';
 import { GROUND_TEXTURES } from '../game/maps/groundTextures.js';
 import { stripGeometry, decalGeometry } from './strips.js';
@@ -10,7 +10,9 @@ import { stripGeometry, decalGeometry } from './strips.js';
 // baked into chunked instance buffers, lamps. Produces `lightState` for the renderer.
 export class World extends WorldState {
   constructor(scene, renderer, map = null) {
-    super(map); this.scene = scene; this.renderer = renderer; this.heads = []; this.focus = { x: 0, z: 0 };
+    super(map); this.scene = scene; this.renderer = renderer; this.heads = []; this.beams = []; this.birds = []; this.focus = { x: 0, z: 0 }; this.t = 0;
+    // ambient emitters (chimneys, steam, mist): their height is above the ground, or absolute with `abs`; ticked by ambient()
+    this.emitters = (this.layout.emitters || []).map(e => ({ ...e, y: e.abs !== undefined ? e.abs + e.y : this.heightAt(e.x, e.z) + e.y, acc: Math.random() }));
     map ? this.buildMapGround() : this.buildLegacyGround();
     this.buildProps();
     renderer.finalizeStatic();
@@ -91,6 +93,9 @@ export class World extends WorldState {
       if (p.tex) mat = MAT[p.tex];
       else if (p.emissive !== undefined) { mat = { color: [...hexToLinear(p.color), 1], tex: null, emissive: hexToLinear(p.emissive), emissiveI: 0, cast: p.cast }; this.heads.push(mat); }
       else { const k = p.color + ':' + p.cast; if (!mats.has(k)) mats.set(k, { color: [...hexToLinear(p.color), 1], tex: null, emissive: [0, 0, 0], cast: p.cast }); mat = mats.get(k); }
+      // a swaying part (trees, bushes): its own material, flagged for the wind in the shaders, with the height of its centre
+      // over the ground in the colour's alpha (1 - y / 64) so the shader knows how far up the tree each vertex is
+      if (p.sway && !p.absY) mat = { ...mat, sway: true, color: [mat.color[0], mat.color[1], mat.color[2], 1 - Math.min(63, p.y) / 64] };
       // multi-part props share their anchor's ground height. A box or straight cylinder of any size is a scaled unit one (the
       // vertex shader scales its UVs back to world units; axis-aligned normals survive the scale), so a chunk's props of one
       // material draw as one batch instead of one per size
@@ -102,15 +107,44 @@ export class World extends WorldState {
       }
       const m = new Mesh(geo, mat); m.position.set(p.x, p.absY ? p.y : p.y + this.heightAt(p.ax ?? p.x, p.az ?? p.z), p.z); m.rotation.set(p.rot[0], p.rot[1], p.rot[2]);
       if (scale) m.scale.set(scale[0], scale[1], scale[2]);
-      if (p.lampHead) { m.bound = 3; this.scene.add(m); } else r.addStatic(m);   // lamp heads change emissive at night, so they stay dynamic
+      if (p.beam) {   // a lighthouse beam: a long bar on a pivot at the lantern, turning, shown only at night
+        const pivot = new Node(); pivot.position.copy(m.position); pivot.bound = 50; m.position.set((scale ? scale[0] : 1) / 2, 0, 0); pivot.add(m); this.scene.add(pivot); this.beams.push(pivot);
+      } else if (p.lampHead) { m.bound = 3; this.scene.add(m); } else r.addStatic(m);   // lamp heads change emissive at night, so they stay dynamic
     }
     for (const t of this.layout.tufts) {
       if (this.terrain && this.terrain.height(t.x, t.z) < this.terrain.water) continue;   // none under the water
       const m = new Mesh('tuft:' + t.size + ',' + (t.size * 1.1).toFixed(2), MAT.tuft); m.position.set(t.x, this.heightAt(t.x, t.z), t.z); m.rotation.y = t.yaw; r.addStatic(m);
     }
+    this.buildBirds();
   }
 
-  update(dt) { super.update(dt); this.applyLighting(); }
+  update(dt) {
+    super.update(dt); this.applyLighting(); this.t += dt;
+    const night = this.light.night > 0.5;
+    for (const b of this.beams) { b.visible = night; if (night) b.rotation.y += dt * 0.5; }
+    for (const g of this.birds) {   // gulls: each on its own circle, flapping, a little bob
+      g.a += dt * g.v / g.r; const x = g.cx + Math.cos(g.a) * g.r, z = g.cz + Math.sin(g.a) * g.r;
+      g.node.position.set(x, g.y + Math.sin(this.t * 1.3 + g.ph) * 0.8, z); g.node.rotation.y = -g.a;
+      const flap = Math.sin(this.t * 7 + g.ph) * 0.55; g.wl.rotation.z = flap; g.wr.rotation.z = -flap;
+    }
+  }
+  // the ambient emitters, at the sim's pace (paused with it)
+  ambient(dt) {
+    if (!this.dust || dt <= 0) return;
+    const wind = this.map.wind || [0.8, 0.3];
+    for (const e of this.emitters) { e.acc += dt * e.rate; while (e.acc >= 1) { e.acc -= 1; this.dust.ambient(e.kind, e.x, e.y, e.z, e.k, wind); } }
+  }
+  // gulls over the water: a few at each spot the map names ({ x, z, r, y, n }), each a body and two wings
+  buildBirds() {
+    const GULL = { color: [0.93, 0.94, 0.95, 1], tex: null, emissive: [0, 0, 0], cast: false }, TIP = { color: [0.25, 0.26, 0.28, 1], tex: null, emissive: [0, 0, 0], cast: false };
+    for (const s of this.map.birds || []) for (let i = 0; i < s.n; i++) {
+      const node = new Node(); node.bound = 3;
+      const body = new Mesh('box:1,1,1', GULL); body.scale.set(0.7, 0.2, 0.3); node.add(body);
+      const wing = (side) => { const w = new Node(); w.position.set(0, 0.06, side * 0.1); const m = new Mesh('box:1,1,1', GULL); m.scale.set(0.4, 0.06, 1.0); m.position.z = side * 0.5; w.add(m); const t = new Mesh('box:1,1,1', TIP); t.scale.set(0.3, 0.06, 0.2); t.position.z = side * 1.05; w.add(t); node.add(w); return w; };
+      const wl = wing(1), wr = wing(-1), base = Math.max(this.heightAt(s.x, s.z), this.terrain ? this.terrain.water : 0);
+      this.scene.add(node); this.birds.push({ node, wl, wr, cx: s.x + (Math.random() - 0.5) * 12, cz: s.z + (Math.random() - 0.5) * 12, r: s.r * (0.7 + Math.random() * 0.6), y: base + s.y + (Math.random() - 0.5) * 6, a: Math.random() * Math.PI * 2, v: 7 + Math.random() * 3, ph: Math.random() * 7 });
+    }
+  }
   applyLighting() {
     const L = this.light;
     for (const h of this.heads) h.emissiveI = L.lampEmissive;

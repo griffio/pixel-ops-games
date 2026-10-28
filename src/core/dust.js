@@ -11,6 +11,7 @@ export const PCOL = {
   flame: hexToLinear(0xffc240), ember: hexToLinear(0xffb060), debris: hexToLinear(0x3a3530), soot: hexToLinear(0x151515),
   flashCore: hexToLinear(0xfff8dc), flashHalo: hexToLinear(0xffa23a), brass: hexToLinear(0xd9ab4e), spark: hexToLinear(0xffd36a),
 };
+const FOAM = [0.93, 0.96, 0.97], STEAM = [0.9, 0.92, 0.93], SOOT = [0.42, 0.42, 0.44], HEARTH = [0.6, 0.6, 0.63];   // ambient: wakes, steam, coal smoke, a cottage's hearth
 const ADD = 2;
 // muzzle flash recipes per weapon class: halo/core sprite sizes (m), flash life (s), light power and reach, extras
 export const MUZZLE = {
@@ -92,6 +93,25 @@ export class DustSim {
     for (let i = 0; i < 6 * k; i++) this.emit(x + (r() - 0.5) * 1.6 * k, y + 0.4, z + (r() - 0.5) * 1.6 * k, (r() - 0.5) * 2, 2.5 + r() * 3, (r() - 0.5) * 2, (1.0 + r() * 1.0) * k, 0.35 + r() * 0.35, r() < 0.5 ? PCOL.flame : PCOL.fire, -1, ADD + 0.85, 0.95);
     for (let i = 0; i < 12 * k; i++) { const a = r() * Math.PI * 2, s = 5 + r() * 9; this.emit(x, y + 0.5, z, Math.cos(a) * s, 6 + r() * 8, Math.sin(a) * s, 0.22, 0.9 + r() * 0.7, PCOL.debris, 0, 1, 0.985, 16); }
     for (let i = 0; i < 10 * k; i++) { const a = r() * Math.PI * 2, s = 5 + r() * 5; this.emit(x, y + 0.15, z, Math.cos(a) * s, 0.6, Math.sin(a) * s, (0.7 + r() * 0.5) * k, 1 + r() * 0.7, PCOL.dust, 1, 0.5, 0.9); }
+  }
+
+  // ---- ambient: emitters a map places (chimneys, steam, mist) and the wake of a craft. wind: [vx, vz] in metres a second
+  ambient(kind, x, y, z, k = 1, wind = [0.8, 0.3]) {
+    const r = Math.random, wx = wind[0], wz = wind[1];
+    // smoke climbs for 8 to 12 s, swelling and drifting on the wind, as a plume; steam is quicker and shorter; mist spreads low
+    // along the water (3k across, 0.8k along) and drifts
+    if (kind === 'smoke') this.emit(x + (r() - 0.5) * k, y, z + (r() - 0.5) * k, wx * 1.3 + (r() - 0.5) * 0.6, 2.2 + r() * 1.8, wz * 1.3 + (r() - 0.5) * 0.6, 1.2 * k, 8 + r() * 4, r() < 0.4 ? SOOT : HEARTH, 2.2, 0.38, 0.997);
+    else if (kind === 'steam') this.emit(x + (r() - 0.5) * k, y, z + (r() - 0.5) * k, wx * 0.8 + (r() - 0.5) * 0.8, 2.2 + r() * 1.4, wz * 0.8 + (r() - 0.5) * 0.8, 0.9 * k, 3 + r() * 2, STEAM, 2.0, 0.38, 0.99);
+    else if (kind === 'mist') this.emit(x + (r() - 0.5) * 3 * k, y, z + (r() - 0.5) * 0.8 * k, wx * 0.5 + (r() - 0.5) * 1.5, 0.4 + r() * 0.5, wz * 0.5 + (r() - 0.5) * 1.0, 1.4 * k, 2.5 + r() * 1.5, STEAM, 1.8, 0.25, 0.97);
+  }
+  // foam off the stern and spray at the bow of a boat len long and beam wide, heading h at speed v (metres a second)
+  wake(x, y, z, h, v, beam, len, dt) {
+    const r = Math.random, sx = Math.sin(h), cz = Math.cos(h), rx = cz, rz = -sx, n = v * dt * 1.6;
+    for (let i = 0; i < n + (r() < n - Math.floor(n) ? 1 : 0); i++) {
+      const side = (r() - 0.5) * beam, back = len / 2 + r() * 2;
+      this.emit(x - sx * back + rx * side, y, z - cz * back + rz * side, -sx * 0.5 + rx * side * 0.25 + (r() - 0.5) * 0.4, 0.03, -cz * 0.5 + rz * side * 0.25 + (r() - 0.5) * 0.4, 1.2 + r() * 1.4, 3 + r() * 2.5, FOAM, 2.0, 0.45, 0.94);
+    }
+    if (r() < v * dt * 0.9) { const s = r() < 0.5 ? -1 : 1; this.emit(x + sx * (len / 2 - 1) + rx * s * beam * 0.45, y + 0.3, z + cz * (len / 2 - 1) + rz * s * beam * 0.45, rx * s * 1.8 + sx * 1.5, 1.6 + r(), rz * s * 1.8 + cz * 1.5, 0.5, 0.45 + r() * 0.3, FOAM, 0.6, 0.7, 0.9, 6); }
   }
 
   fromUnit(u, dt) {
