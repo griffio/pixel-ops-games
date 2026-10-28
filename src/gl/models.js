@@ -20,7 +20,13 @@ MAT.navGreen = lam(0x002000, { emissive: hexToLinear(0x20ff40) });
 
 export const F = {
   group: () => new Node(),
-  mesh(geo, mat, x = 0, y = 0, z = 0, parent = null) { const m = new Mesh(geo, MAT[mat]); m.position.set(x, y, z); if (parent) parent.add(m); return m; },
+  // a box or straight cylinder of any size is a scaled unit one (the vertex shader scales its UVs back to world units), so a
+  // model's parts of one material draw as one batch instead of one per size
+  mesh(geo, mat, x = 0, y = 0, z = 0, parent = null) {
+    let scale = null;
+    if (geo.startsWith('box:') || geo.startsWith('cyl:')) { const a = geo.slice(4).split(',').map(Number); if (geo[0] === 'b') { scale = a; geo = 'box:1,1,1'; } else if (a[0] === a[1] && a[0] > 0) { scale = [a[0], a[2], a[0]]; geo = `cyl:1,1,1,${a[3]}`; } }
+    const m = new Mesh(geo, MAT[mat]); m.position.set(x, y, z); if (scale) m.scale.set(scale[0], scale[1], scale[2]); if (parent) parent.add(m); return m;
+  },
   box(w, h, d, mat, x = 0, y = 0, z = 0, parent = null) { return F.mesh(`box:${w},${h},${d}`, mat, x, y, z, parent); },
   wheel(r, w, x, y, z, parent, rimMat = 'rim') {
     const g = new Node(); g.position.set(x, y, z);

@@ -502,7 +502,7 @@ export class UnitManager {
     return [cx, cz];
   }
 
-  add(unit) { unit.mgr = this; this.units.push(unit); this.scene.add(unit.group); return unit; }
+  add(unit) { unit.mgr = this; this.units.push(unit); unit.group.bound = 14; this.scene.add(unit.group); return unit; }   // bound: how far its parts reach, for the renderer's culling (a helicopter's rotors)
   spawn(type, x, z, heading, team = 0, opts = {}) {
     if (x === undefined) [x, z] = this.freePoint(SPEC[type].air ? 6 : 3);
     const u = this.add(new Unit(type, (opts.supply && this.builders.supplyTruck) || (opts.gun && this.builders['emp_' + opts.gun]) || this.builders[type], x, z, heading, team));   // the supply truck shows its load; an emplacement its gun

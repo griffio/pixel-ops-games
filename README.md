@@ -490,7 +490,7 @@ src/game/           milestone 1 game layer (renderer-agnostic)
   rules.js          tickets, costs, respawn timers, fixed M1 force
   weapons.js        weapon tables: range, bursts, accuracy, round speed, arcing shells
   teams.js          team state and base spawn points
-  nav.js            1-unit A* grid with foot / vehicle layers and string pulling
+  nav.js            A* grid (1 to 2 m cells by map) with foot / vehicle layers, a 1.15-weighted heuristic and string pulling; connected regions labelled up front and after each build
   spatial.js        hash grid for targeting and separation
   combat.js         targeting, line of sight (gridded obstacle test), burst fire, rounds in flight and the damage they land
   respawn.js        ticket charges and respawns at main base
@@ -519,8 +519,12 @@ src/gl/             WebGL2 back end
 - Every mesh is an instance of a shared geometry. Each frame the scene graph is
   walked once, world matrices are computed, and instance records (matrix, colour,
   emissive, pick id) are appended to a batch keyed by geometry + texture + flags.
-  One `drawElementsInstanced` per batch: ~60 units cost about 125 draw calls
-  including the shadow pass, versus roughly 1000 for the three.js back end.
+  One `drawElementsInstanced` per batch. Every box and every straight cylinder, in
+  unit models and map props alike, is a scaled unit one whose UVs the vertex shader
+  scales back to world units from the instance's size, so a material is one batch
+  rather than one per size: the units on screen cost about 20 batches a pass, a map
+  chunk a dozen or two. Units and lamp heads outside the view by more than the light
+  frustum's reach are not instanced at all.
 - Shadow pass renders depth from an orthographic light camera into a 4096²
   depth texture (2048² on tablets). The light frustum is sized from the camera's
   footprint in quarter-octave steps and its eye is snapped to shadow texels, so the

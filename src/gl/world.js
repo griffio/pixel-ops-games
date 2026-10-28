@@ -91,10 +91,18 @@ export class World extends WorldState {
       if (p.tex) mat = MAT[p.tex];
       else if (p.emissive !== undefined) { mat = { color: [...hexToLinear(p.color), 1], tex: null, emissive: hexToLinear(p.emissive), emissiveI: 0, cast: p.cast }; this.heads.push(mat); }
       else { const k = p.color + ':' + p.cast; if (!mats.has(k)) mats.set(k, { color: [...hexToLinear(p.color), 1], tex: null, emissive: [0, 0, 0], cast: p.cast }); mat = mats.get(k); }
-      // multi-part props share their anchor's ground height; a scaled unit box stands in for a plain-coloured part
-      const m = new Mesh(p.geo, mat); m.position.set(p.x, p.absY ? p.y : p.y + this.heightAt(p.ax ?? p.x, p.az ?? p.z), p.z); m.rotation.set(p.rot[0], p.rot[1], p.rot[2]);
-      if (p.scale) m.scale.set(p.scale[0], p.scale[1], p.scale[2]);
-      p.lampHead ? this.scene.add(m) : r.addStatic(m);   // lamp heads change emissive at night, so they stay dynamic
+      // multi-part props share their anchor's ground height. A box or straight cylinder of any size is a scaled unit one (the
+      // vertex shader scales its UVs back to world units; axis-aligned normals survive the scale), so a chunk's props of one
+      // material draw as one batch instead of one per size
+      let geo = p.geo, scale = p.scale;
+      if (!scale && (geo.startsWith('box:') || geo.startsWith('cyl:'))) {
+        const a = geo.slice(4).split(',').map(Number);
+        if (geo[0] === 'b') { geo = 'box:1,1,1'; scale = a; }
+        else if (a[0] === a[1] && a[0] > 0) { geo = `cyl:1,1,1,${a[3]}`; scale = [a[0], a[2], a[0]]; }
+      }
+      const m = new Mesh(geo, mat); m.position.set(p.x, p.absY ? p.y : p.y + this.heightAt(p.ax ?? p.x, p.az ?? p.z), p.z); m.rotation.set(p.rot[0], p.rot[1], p.rot[2]);
+      if (scale) m.scale.set(scale[0], scale[1], scale[2]);
+      if (p.lampHead) { m.bound = 3; this.scene.add(m); } else r.addStatic(m);   // lamp heads change emissive at night, so they stay dynamic
     }
     for (const t of this.layout.tufts) {
       if (this.terrain && this.terrain.height(t.x, t.z) < this.terrain.water) continue;   // none under the water

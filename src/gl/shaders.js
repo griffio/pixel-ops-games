@@ -15,7 +15,11 @@ void main() {
   mat4 M = mat4(iM0, iM1, iM2, iM3);
   vec4 w = M * vec4(aPos, 1.0);
   vec3 n = normalize(mat3(M) * aNormal);
-  vWorld = w.xyz; vN = n; vUv = aUv; vColor = iColor; vEmis = iEmis.rgb;
+  // a box or straight cylinder of any size is drawn as a scaled unit one (one batch per material, not per size); its UVs are
+  // in world units like the sized geometry's once scaled by the instance's size along the face's two axes
+  vec3 sc = vec3(length(iM0.xyz), length(iM1.xyz), length(iM2.xyz));
+  vec2 us = abs(aNormal.x) > 0.5 ? sc.zy : (abs(aNormal.y) > 0.5 ? sc.xz : sc.xy);
+  vWorld = w.xyz; vN = n; vUv = aUv * us; vColor = iColor; vEmis = iEmis.rgb;
   vShadow = uLightVP * vec4(w.xyz + n * uNormalBias, 1.0);
   gl_Position = uViewProj * w;
 }`;
@@ -33,13 +37,9 @@ uniform int uMode; uniform sampler2D uSplat; uniform sampler2D uBase; uniform sa
 uniform vec4 uTileInv; uniform float uBaseInv; uniform float uMapInv;
 // rock on steep ground, whatever the splat says: sampled from three sides by the normal, so a cliff face shows strata, not a smear
 uniform sampler2D uRock; uniform float uRockOn; uniform float uRockInv;
-// the ground's slow variation: a soft noise at two scales (about 170 m and 50 m) darkening and greening some stretches, lifting
-// and drying others, so fields are not one flat colour and the tiles do not show their repeat; never on concrete
+// the ground's variation in world space: patches, streaks and slow stretches from one tileable noise sampled at unrelated
+// scales and turns (main, below); never on concrete
 uniform sampler2D uMacro; uniform float uMacroOn;
-// a natural ground tile sampled twice, the second a fraction of a tile over, and switched between in patches on a slow noise
-// (k): neither copy repeats where the other shows, so a field no longer shows its 12.8 m period; texel size and the blades'
-// lean stay the same
-vec3 tile2(sampler2D t, vec2 uv, float k) { vec3 a = texture(t, uv).rgb; return k <= 0.001 ? a : mix(a, texture(t, uv + vec2(0.37, 0.61)).rgb, k); }
 // fog of war: one value per cell over the map (1 seen), uFogMap = (1 / grid extent, half the map / grid extent)
 uniform sampler2D uFog; uniform float uFogOn; uniform vec2 uFogMap;
 // water (mode 2) and wet banks: the map's water depth (r: (metres below the surface + 0.5) / 4.5, so the bank up to 0.5 m
@@ -55,9 +55,8 @@ void main() {
     vec2 w = vWorld.xz;
     vec4 s = texture(uSplat, w * uMapInv + 0.5);
     float rest = max(0.0, 1.0 - (s.r + s.g + s.b + s.a));
-    float k = uMacroOn > 0.5 ? smoothstep(0.42, 0.58, texture(uMacro, w * 0.023 + 0.5).r) : 0.0;
-    vec3 c = tile2(uBase, w * uBaseInv, k) * rest + texture(uT0, w * uTileInv.x).rgb * s.r + tile2(uT1, w * uTileInv.y, k) * s.g
-           + tile2(uT2, w * uTileInv.z, k) * s.b + tile2(uT3, w * uTileInv.w, k) * s.a;   // concrete (T0) keeps its slabs aligned
+    vec3 c = texture(uBase, w * uBaseInv).rgb * rest + texture(uT0, w * uTileInv.x).rgb * s.r + texture(uT1, w * uTileInv.y).rgb * s.g
+           + texture(uT2, w * uTileInv.z).rgb * s.b + texture(uT3, w * uTileInv.w).rgb * s.a;
     if (uMacroOn > 0.5) {
       // everything a metre and up comes from soft noise in world space, sampled at unrelated scales and turns so it never lines
       // up or repeats (the tiles only carry fine grain): patches about 3 and 6 m across and streaks drawn out one way, about 2 by
@@ -70,7 +69,7 @@ void main() {
       float hi = smoothstep(0.52, 0.66, p), lo = smoothstep(0.47, 0.33, p);
       c = mix(c, c * mix(vec3(1.15, 1.13, 0.98), vec3(1.28, 1.22, 0.84), green), hi * nat);
       c = mix(c, c * mix(vec3(0.87, 0.86, 0.84), vec3(0.7, 0.84, 0.68), green), lo * nat);
-      float m = texture(uMacro, w * 0.0059).r * 0.5 + texture(uMacro, w * 0.019 + 0.37).r * 0.3 + texture(uMacro, w * 0.047 + 0.71).r * 0.2;
+      float m = texture(uMacro, w * 0.0059).r * 0.6 + texture(uMacro, w * 0.019 + 0.37).r * 0.4;   // about 170 and 50 m (the patches above cover the finer scale)
       float zone = texture(uMacro, w * 0.011 + vec2(0.23, 0.58)).r;
       c *= mix(1.0, 0.86 + 0.28 * m, nat);
       c = mix(c, c * vec3(1.12, 1.05, 0.78), smoothstep(0.58, 0.8, zone) * green * nat);
@@ -141,7 +140,7 @@ void main() {
 export const SHADOW_VS = `#version 300 es
 ${INSTANCE_IN}
 uniform mat4 uLightVP; out vec2 vUv;
-void main() { vUv = aUv; gl_Position = uLightVP * (mat4(iM0, iM1, iM2, iM3) * vec4(aPos, 1.0)); }`;
+void main() { vec3 sc = vec3(length(iM0.xyz), length(iM1.xyz), length(iM2.xyz)); vUv = aUv * (abs(aNormal.x) > 0.5 ? sc.zy : (abs(aNormal.y) > 0.5 ? sc.xz : sc.xy)); gl_Position = uLightVP * (mat4(iM0, iM1, iM2, iM3) * vec4(aPos, 1.0)); }`;
 
 export const SHADOW_FS = `#version 300 es
 precision mediump float;

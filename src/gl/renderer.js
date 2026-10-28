@@ -212,10 +212,14 @@ export class GLRenderer {
     this.fog = { inv: 1 / (n * cell), off: half / (n * cell) };
   }   // { splat, base, tiles:[4 names], tileSize:[4], baseSize, mapSize }
 
-  collect(scene) {
+  // the dynamic meshes, instanced afresh each frame. A top-level node with a bound (a unit's group, a lamp head) outside the
+  // view by more than the light frustum's reach is skipped: it is off screen and casts no shadow into it. On a 3 km map that
+  // is most of the units most of the time.
+  collect(scene, box = null, reach = 0) {
     for (const b of this.batches.values()) b.n = 0;
     const visit = (node, parentWorld, pid) => {
       if (!node.visible || node.hidden) return;   // hidden: an enemy the player's side cannot see (fog of war)
+      if (box && !parentWorld && node.bound !== undefined) { const p = node.position, r = node.bound + reach; if (p.x + r < box.minX || p.x - r > box.maxX || p.z + r < box.minZ || p.z - r > box.maxZ) return; }
       Mat4.fromTRS(node.local, node.position, node.rotation, node.scale);
       parentWorld ? Mat4.multiply(node.world, parentWorld, node.local) : node.world.set(node.local);
       const id = node.pickId !== undefined ? node.pickId : pid;
@@ -257,7 +261,6 @@ export class GLRenderer {
   // ---- frame -----------------------------------------------------------------
   render(scene, cam, L, dust, W, H) {
     const gl = this.gl, P = this.progs; this.stats.calls = 0;
-    this.collect(scene);
     const box = this.viewBox(cam);
     // Light frustum: centred on the visible ground, sized from the camera's own footprint (view size and
     // pitch, not the terrain hits, which change continuously while panning over hills) and quantised to
@@ -268,6 +271,7 @@ export class GLRenderer {
     const R = 8 * Math.pow(2, Math.ceil(Math.log2((footprint / 2 + 70) / 8) * 4) / 4);   // 70 m: hills shift the footprint, long shadows reach in
     const mainChunks = this.visibleChunks(box, 40), shadowChunks = this.visibleChunks(box, R);   // every chunk the light frustum can see
     this.stats.chunks = mainChunks.length; this.stats.shadowR = R;
+    this.collect(scene, box, R * 1.8);   // the light frustum's ground footprint stretches past R along the sun's azimuth
     const target = new Vec3(cx, 0, cz), eye = new Vec3(cx + L.sunDir[0] * 400, L.sunDir[1] * 400, cz + L.sunDir[2] * 400);
     Mat4.cameraWorld(this.lightWorld, eye, target, LIGHT_UP);
     const right = Mat4.column(this.lightWorld, 0), up = Mat4.column(this.lightWorld, 1), texel = 2 * R / this.shadowSize;

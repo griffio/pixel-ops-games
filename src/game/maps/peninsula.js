@@ -32,6 +32,7 @@ const LANES = [
 
 export const peninsula = {
   name: 'Peninsula', size: 1200, mode: 'invasion',
+  nav: { foot: 1.5, vehicle: 2.5, cap: 120000 },   // as Palm Valley: 640k infantry cells, not 1.44 M at 1 m (a search ran 60 ms there)
   blurb: 'An assault from the sea: landing craft to three beaches against a defender with one bridge over a canal.',
   splatRes: 1024,
   ground: { base: 'meadow', baseSize: 12.8, tiles: ['concrete', 'sand', 'dirt', 'meadow'], tileSize: [16, 12.8, 12.8, 12.8] },   // the fourth weight is the meadow itself (see paintSplat)

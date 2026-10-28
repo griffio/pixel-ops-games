@@ -10,6 +10,9 @@ export class NavGrid {
     this.stamp = new Int32Array(N); this.closed = new Int32Array(N); this.gen = 0;
     this.heap = new Int32Array(N); this.heapN = 0;
     this.cap = 80000;   // cells a search may expand; a map with a bigger grid sets more (map.nav.cap)
+    // the heuristic's weight: a little over 1 makes A* greedy enough to expand a fraction of the cells on open ground, for
+    // routes a percent or two longer at most (a match's first plan used to stall a frame for 400 ms pathing every squad at 1.0)
+    this.hw = 1.15;
   }
   build(obstacles, terrain = null, maxSlope = 1, passable = null) {
     this.src = { obstacles, terrain, maxSlope, passable };   // kept for refresh()
@@ -35,7 +38,7 @@ export class NavGrid {
   // connected regions of passable cells (8-neighbour without corner cutting is the same as 4-neighbour), labelled lazily
   region(ix, iz) { if (!this.passable(ix, iz)) return 0; if (!this.labels) this.labelRegions(); return this.labels[iz * this.n + ix]; }
   labelRegions() {
-    const n = this.n, L = this.L, lab = this.labels = new Int32Array(n * n), stack = new Int32Array(n * n); let next = 0; const sizes = this.sizes = [0];
+    const n = this.n, L = this.L, lab = this.labels = (this.labelBuf || (this.labelBuf = new Int32Array(n * n))).fill(0), stack = this.stackBuf || (this.stackBuf = new Int32Array(n * n)); let next = 0; const sizes = this.sizes = [0];   // buffers kept: a relabel (after every build) no longer allocates 18 MB
     for (let i = 0; i < n * n; i++) {
       if (L[i] || lab[i]) continue;
       lab[i] = ++next; sizes[next] = 0; let sp = 0; stack[sp++] = i;
@@ -47,7 +50,7 @@ export class NavGrid {
         if (c < n * n - n && !L[c + n] && !lab[c + n]) { lab[c + n] = next; stack[sp++] = c + n; }
       }
     }
-    this.main = sizes.indexOf(Math.max(...sizes));   // the open map; everything else is a pocket between obstacles
+    let big = 0; for (let i = 1; i < sizes.length; i++) if (sizes[i] > sizes[big]) big = i; this.main = big;   // the open map; everything else is a pocket between obstacles
   }
   // is (x, z) in a pocket cut off from the open map (or blocked)? orders never end there
   inPocket(x, z) { const r = this.region(this.cellOf(x), this.cellOf(z)); return !r || r !== this.main; }
@@ -154,7 +157,7 @@ export class NavGrid {
     const goal = t[1] * n + t[0], start = s[1] * n + s[0];
     if (this.lineClear(sx, sz, this.world(t[0]), this.world(t[1]))) return [[tx, tz]];
     const gen = ++this.gen, g = this.g, f = this.f, st = this.stamp, closed = this.closed, par = this.parent;
-    const H = (i) => { const dx = Math.abs((i % n) - t[0]), dz = Math.abs(Math.floor(i / n) - t[1]); return Math.max(dx, dz) + 0.414 * Math.min(dx, dz); };
+    const hw = this.hw, H = (i) => { const dx = Math.abs((i % n) - t[0]), dz = Math.abs(Math.floor(i / n) - t[1]); return hw * (Math.max(dx, dz) + 0.414 * Math.min(dx, dz)); };
     this.heapN = 0; st[start] = gen; g[start] = 0; f[start] = H(start); par[start] = -1; this.push(start);
     let expanded = 0, found = false;
     while (this.heapN > 0) {

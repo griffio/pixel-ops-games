@@ -2060,6 +2060,69 @@ Engine changes needed in the existing core:
       - streaks about 2 by 9 m, turned 74 degrees;
       - together they make sun-bleached highlights and lush hollows (deep green, not brown);
       - then brightness over tens of metres, and the 90 m dry/lush zones.
+- **Performance review (2026-10-28).** With the new maps and the ground work in, a pass over
+  rendering and simulation cost, measured in headless Chrome on the Mac mini's own Intel UHD
+  630 through Metal (1280 x 800, match paused), against 3529fde as the baseline.
+  - **What was found.**
+    - At play zoom there was no render regression (about 8 ms a frame on every map). Zoomed
+      out, where the pixel buffer is full size, the ground shader's rock, macro variation
+      and double tile sampling cost 3 to 4 ms a frame (25%).
+    - Draw calls were dominated by the unit models: about 220 batches a frame, one per part
+      size and material, drawn in both passes, whether or not the unit was on screen; map
+      props likewise, 250 to 600 static batches in view.
+    - Peninsula had no `nav` setting, so it pathed on a 1 m foot grid (1.44 M cells) when the
+      other big maps use 1.5 to 2 m; a search ran 60 ms.
+    - A match's first CPU plan stalled a frame for 250 to 400 ms: the lazy region labelling
+      of both grids inside the first order (86 ms and 40 ms on Narva) plus a burst of long
+      searches. The same relabel recurs after every build, since `block()` drops the labels.
+  - **What changed.**
+    - The ground shader lost the second tile sample (the tiles are detail-only since the
+      third pass, so nothing repeats to hide) and one of the three slow-variation samples.
+    - Every box and straight cylinder, in unit models and map props, is a scaled unit shape;
+      the vertex shaders scale its UVs by the instance's size along the face's axes, so
+      textures keep their world grain and the picture is pixel-identical (checked on three
+      views). Batches collapse to one per material: unit batches from about 220 to about 20.
+    - Units and lamp heads outside the view by more than the light frustum's reach are
+      skipped when the scene is collected, so off-screen units cost no matrices, no instance
+      uploads and no draw calls, while still casting shadows into view.
+    - A* uses a 1.15-weighted heuristic. On Narva's 34 base-to-place routes the search time
+      fell from 482 to 200 ms; routes grew 0 to 2%, the worst short one 4.9%, before string
+      pulling. Over 300 s of CPU play Narva's path time fell from 3.7 s to 0.9 s and its
+      longest search from 55 to 13 ms.
+    - Both grids are labelled at match setup, and the labelling reuses its buffers (a relabel
+      no longer allocates 18 MB on Narva).
+    - Peninsula paths on 1.5 m and 2.5 m cells with a 120 k cap (as Palm Valley): its worst
+      sim step fell from 280 to 48 ms, and landings and the cove's infantry-only climb still
+      work.
+  - **Still open.** The relabel after a completed build (sandbags, a gun, traps) stalls the
+    next order's frame for about 100 ms on Narva; a region update that only touches the
+    blocked cells would need care with traps that really do cut a bridge.
+  - **Numbers.** Frame time, best of four interleaved reps (the Mac mini's terminal and
+    indexing add noise), draw calls in brackets. Play zoom is 3; 0.5 is zoomed right out, with
+    a full-size pixel buffer.
+
+    | view | 3529fde | shader trim | + batching, culling |
+    |---|---|---|---|
+    | Palm Valley, zoom 3 | 9.6 ms (589) | 9.0 | 7.5 (181) |
+    | Palm Valley, zoom 0.5 | 15.1 (1497) | 17.3 | 15.8 (1034) |
+    | Narva, zoom 3 | 9.6 (533) | 8.9 | 8.2 (123) |
+    | Narva, zoom 0.5 | 17.5 (1208) | 19.7 | 19.2 (646) |
+    | Desert Crossing, zoom 3 | 10.2 (784) | 9.6 | 7.9 (265) |
+    | Desert Crossing, zoom 0.5 | 17.6 (1615) | 20.9 | 17.1 (1061) |
+    | Peninsula, zoom 3 | - | 10.8 (587) | 8.7 (187) |
+    | Peninsula, zoom 0.5 | - | 17.8 (1105) | 19.3 (711) |
+
+    At play zoom the game is 15 to 25% faster than before the Narva and Peninsula work, with
+    main-thread time down by about a third. Zoomed right out the GPU is the limit on this
+    Intel UHD 630, and the ground's variation and rock still cost 1 to 2 ms there.
+
+    Simulation, 300 s of CPU play on a quiet machine: Narva's worst step 224 ms (the first
+    plan) to 120 ms (a relabel after a build, mid-match), its 99th-percentile step 8.7 to
+    4.0 ms, path time 1.5 s to 0.5 s, longest search 56 to 7 ms; Peninsula's worst step 30 ms.
+  - **Lessons.** Benchmark on the real GPU through headless Chrome with Metal, vsync and the
+    frame limit off, each view on every build back to back, best of several reps. A bench
+    killed with `pkill` leaves its Chrome rendering flat out; one such orphan spoiled an hour
+    of numbers. And the hints store's `seen` must be an array, or the guide throws each frame.
 
 ## Open questions
 
