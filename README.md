@@ -14,19 +14,23 @@ pixels chunkier while the camera rotates freely. No build step.
 
 <table>
 <tr>
-<td width="50%"><img src="docs/screenshots/peninsula-landing.webp" alt="Three grey landing craft beached side by side on West Beach in evening light; soldiers come down a ramp while an APC and a supply truck drive up the sand"><br><sub><b>Peninsula.</b> The first wave beaches at West Beach at dusk; the APC and supply truck are already heading up the sand.</sub></td>
-<td width="50%"><img src="docs/screenshots/peninsula-fight.webp" alt="Squads trading fire in dusky fields beside a road and a cottage, rocket trails, tracers and a burst between them"><br><sub><b>Peninsula.</b> Squads clash in the fields behind the village at dusk.</sub></td>
+<td width="50%"><img src="docs/screenshots/peninsula-landing.webp" alt="Two landing craft at West Beach at dusk, one beached and one coming in on its wake, soldiers on the sand and an APC heading up the beach"><br><sub><b>Peninsula.</b> The first wave at West Beach at dusk: one craft beached, the next coming in, the APC already up the sand.</sub></td>
+<td width="50%"><img src="docs/screenshots/peninsula-fight.webp" alt="A firefight beside a stone cottage at dusk: tracers crossing, a burst by the house, the rubble of two cottages brought down earlier, an APC on the road behind"><br><sub><b>Peninsula.</b> The fight for the village at dusk, two cottages already down to rubble.</sub></td>
 </tr>
 <tr>
-<td><img src="docs/screenshots/palm-valley-bridge.webp" alt="A desert road crossing a river bridge, a row of tank traps across it and squads fighting on either side, an explosion near a container"><br><sub><b>Palm Valley.</b> The fight for the Bridge, behind a row of tank traps.</sub></td>
-<td><img src="docs/screenshots/narva-friendship-bridge.webp" alt="A firefight where a road bridge meets the river bank in green meadow, a fire burning beside the road"><br><sub><b>Narva.</b> A fight for the end of the Friendship Bridge.</sub></td>
+<td><img src="docs/screenshots/palm-valley-armour.webp" alt="Tanks and an APC fighting through a desert village of flat-roofed houses beside a road, a burst by one of the houses"><br><sub><b>Palm Valley.</b> Armour fights through the village.</sub></td>
+<td><img src="docs/screenshots/narva-friendship-bridge.webp" alt="A burning wreck and vehicles on the Friendship Bridge over the river, a burst on the deck, foam along the banks"><br><sub><b>Narva.</b> A fight on the Friendship Bridge.</sub></td>
 </tr>
 <tr>
-<td><img src="docs/screenshots/desert-village.webp" alt="Two APC wrecks burning and smoking on a road through a desert village of flat-roofed houses, squads fighting between the houses"><br><sub><b>Desert Crossing.</b> APC wrecks burn on the road through the village.</sub></td>
-<td><img src="docs/screenshots/air-assault.webp" alt="Two tandem-rotor transport helicopters lifting off inside a sandbagged main base with containers, floodlights and a watchtower"><br><sub><b>Air Assault.</b> Chinooks lift off from the main base.</sub></td>
+<td><img src="docs/screenshots/desert-crossing-road.webp" alt="A road through desert scrub and palms, a truck hit and burning on it, an APC and another truck on the road"><br><sub><b>Desert Crossing.</b> A column on the road takes a hit.</sub></td>
+<td><img src="docs/screenshots/air-assault.webp" alt="A tandem-rotor transport helicopter over a sandbagged main base with containers, floodlights and a watchtower, its shadow on the road"><br><sub><b>Air Assault.</b> A Chinook lifts off from the main base.</sub></td>
 </tr>
 <tr>
-<td colspan="2"><img src="docs/screenshots/hud.webp" alt="The match screen on Narva: an APC and squads on the blue truss railway bridge, the places bar and tickets along the top, reinforcements at the right, the unit strip and the minimap along the bottom"><br><sub><b>The match HUD</b> (Narva's railway bridge, fog of war on): the places and tickets along the top, reinforcements at the right, the unit strip and the minimap below.</sub></td>
+<td><img src="docs/screenshots/peninsula-rubble.webp" alt="A cottage by the church reduced to a heap of rubble in a grassy village at dusk, tracers crossing, a squad firing beside it"><br><sub><b>Peninsula.</b> Stray fire has brought two cottages down by the church.</sub></td>
+<td><img src="docs/screenshots/peninsula-wave.webp" alt="Two landing craft under way at dusk, each trailing a line of foam, the stern of the assault ship behind them"><br><sub><b>Peninsula.</b> A wave runs for the beach, each craft on its own line.</sub></td>
+</tr>
+<tr>
+<td colspan="2"><img src="docs/screenshots/hud.webp" alt="The match screen on Narva: squads by a block of flats beside the railway, the places bar and tickets along the top, reinforcements and settings at the right, the unit strip and the minimap along the bottom"><br><sub><b>The match HUD</b> (Narva, fog of war on): the places and tickets along the top, reinforcements at the right, the unit strip and the minimap below.</sub></td>
 </tr>
 </table>
 
