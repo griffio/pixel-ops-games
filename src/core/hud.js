@@ -61,6 +61,7 @@ export class Hud {
     $('c-auto').addEventListener('change', e => a.units.auto = e.target.checked);
     $('b-pause').addEventListener('click', () => this.togglePause());
     $('b-manual').addEventListener('click', () => { if (a.guide) a.guide.toggle(); });
+    $('b-dev').addEventListener('click', () => this.toggleDev());
     if (a.guide) { $('c-hints').checked = a.guide.store.hints; $('c-hints').addEventListener('change', e => a.guide.setHints(e.target.checked)); }
     // the touch toolbar (top left): box select, pause, the camera to base, the manual, sound, the engine panels
     const TB = { box: ['box', 'Box'], pause: ['pause', ''], base: ['base', ''], help: ['help', ''], sound: ['sound', ''], dev: ['gear', ''] };
@@ -250,8 +251,14 @@ export class Hud {
     else if (k === 'pause') this.togglePause();
     else if (k === 'help') { if (this.app.guide) this.app.guide.toggle(); }
     else if (k === 'base') { const b = a.match && a.match.teams[a.playerTeam ?? 0].base; if (b) { a.rts.target.set(b.x, 0, b.z); a.rts.follow = null; } else a.rts.reset(); }
-    else if (k === 'dev') document.body.classList.toggle('dev');
+    else if (k === 'dev') this.toggleDev();
     else if (k === 'sound') this.toggleSound();
+  }
+  // the engine panels (stats, spawning, render and world settings): hidden in a match until wanted (Engine, F3, the gear on touch)
+  toggleDev() {
+    const on = document.body.classList.toggle('dev');
+    if (this.app.lobby) this.app.lobby.renderOpponent();   // the lobby offers the Claude commanders only with them on
+    this.toast(on ? 'Engine panels shown (F3 hides them)' : 'Engine panels hidden (F3 shows them)');
   }
   toggleSound() { const au = this.app.audio; if (!au) return; au.resume(); au.setEnabled(!au.enabled); this.syncSound(); this.toast(au.enabled ? 'Sound on' : 'Sound off'); }
   syncSound() {

@@ -28,6 +28,7 @@ const riverW = (x) => { for (let i = 0; i < RIVER_X.length - 1; i++) if (x <= RI
 
 export const valley2km = {
   name: 'Palm Valley', size: 2000,
+  blurb: 'A river valley, the same from both sides: three lanes through bluff passes to a bridge, a ford and a footbridge.',
   nav: { foot: 1.5, vehicle: 2.5, cap: 200000 },   // a 2 km grid at 1 m would be 4 M cells (130 MB); long searches round the big hills need a bigger cap
   splatRes: 1024,
   ground: { base: 'sand', baseSize: 4, tiles: ['concrete', 'asphalt', 'grass', 'dirt'], tileSize: [16, 4, 4, 4] },

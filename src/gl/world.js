@@ -28,7 +28,7 @@ export class World extends WorldState {
     const res = m.splatRes || 512, splat = document.createElement('canvas'); splat.width = splat.height = res;   // a 2 km map asks for 1024 (2 m a texel)
     m.paintSplat(splat.getContext('2d'), res, this.half);
     r.dataTexture('splat', splat);
-    r.setGround({ splat: 'splat', base: tile(g.base), tiles: g.tiles.map(tile), tileSize: g.tileSize, baseSize: g.baseSize, mapSize: this.size });
+    r.setGround({ splat: 'splat', base: tile(g.base), tiles: g.tiles.map(tile), tileSize: g.tileSize, baseSize: g.baseSize, mapSize: this.size, rock: this.terrain ? tile('rock') : null, rockSize: 6 });   // rock on steep slopes
     if (this.terrain) {
       this.buildTerrainChunks();
       if (this.terrain.water > -Infinity) {   // water surface: a plane at the water level, seen only where the ground is carved below it

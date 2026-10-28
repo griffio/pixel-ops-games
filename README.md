@@ -18,7 +18,11 @@ open http://localhost:8787               # WebGL2, the game renderer
 open http://localhost:8787/?r=three      # legacy three.js back end (160 m airfield sandbox only)
 ```
 
-By default the **force builder** opens over the 2 km *Palm Valley* map: spend
+By default the **force builder** opens over the 2 km *Palm Valley* map. Its map cards
+switch to Desert Crossing, Narva or Peninsula: the page reloads on the chosen map,
+keeps your loadout and remembers the map. Its Opponent row has the built-in CPU or a
+Llama commander. The Claude commanders are listed only while the engine panels are on,
+because they spend the API key the gateway holds. Then spend
 1,200 points on squads (rifle, support, anti-tank, medic, marksman, engineer),
 vehicles (trucks, supply trucks, 8x8 APCs, M1 Abrams tanks, Chinook helicopters) and one doctrine
 (Mechanized, Air Assault, Light Infantry, Entrenched), or pick a preset. Your
@@ -261,7 +265,7 @@ on the radio. A bonus for the current choice that decays over a minute stops it
 dithering, and difficulty adds noise to the scores. `?persona=aggressive` or
 `patient` changes its weights; `?ai=utility,rules` sets each side separately
 for CPU-versus-CPU tests. It works in Advance and Secure and Invasion; other
-modes keep the built-in planner. With `?commander=1` a fresh LLM plan takes
+modes keep the built-in planner. With `?commander=1` (or the force builder's Opponent row) a fresh LLM plan takes
 precedence and the utility AI fills the gaps.
 
 **Game modes** (picked in the force builder, or `?mode=` with `?side=attack|defend`):
@@ -295,7 +299,8 @@ off. On a touch screen both name the buttons instead of the keys
 | Right click | Move order (selected squads and vehicles move in formation); on a friendly carrier, board it; on a friendly sandbag position, man it |
 | `L` | Load: the selected soldiers board the vehicle clicked next (or the one selected with them); `L` again or `Esc` cancels |
 | `U` | Unload a selected carrier, or take selected soldiers out of their sandbag position |
-| `H` | Open or close the field manual (pauses the game) |
+| `H` | Open or close the field manual (pauses the game); its Objective page explains the mode being played and your side |
+| `F3` | Show or hide the engine panels (stats, spawning, render and world settings), hidden on a map until asked for; the Engine button does the same |
 | `X` | With an engineer selected: lay a row of tank traps (beside a supply truck), or clear the row he stands at |
 | `G` / `J` / `K` | With an engineer selected near one of your FOBs: build a heavy machine gun / anti-tank launcher / mortar emplacement (beside a supply truck) |
 | Right drag, `Q` / `E` | Rotate camera (yaw + pitch) |
@@ -483,7 +488,7 @@ icons/units/        unit-strip portraits (tools/make-portraits.mjs renders them 
 src/three/          three.js back end: models, world, PixelRenderer (low-res target + outline), dust, markers
 src/gl/             WebGL2 back end
   scene.js          Node / Mesh scene graph with the same position/rotation/visible surface
-  shaders.js        GLSL ES 3.00: lit instanced, shadow depth, pick id, composite, dust
+  shaders.js        GLSL ES 3.00: lit instanced, shadow depth, pick id, composite, dust (the ground blends rock onto slopes steeper than about 31 degrees, sampled from three sides)
   renderer.js       dynamic + chunked static instance batches, chunk culling, view-fitted shadow pass, splat ground, composite, pick buffer
   strips.js         road / line strip and decal geometry
   models.js, world.js, markers.js, main.js

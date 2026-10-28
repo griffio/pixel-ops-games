@@ -40,6 +40,22 @@ export function meadowTile() {   // Narva's summer grass: greener than the oasis
   return c;
 }
 export function dirtTile() { const [c, g] = canvas(64, 64); noisy(g, 64, 64, '#a38e66', 0.14, prng(51)); return c; }
+// 6 m of rock for steep ground (cliffs, cut banks, bluffs; the ground shader lays it by slope): grey-brown strata broken into
+// blocks with dark joints, each band and each row of blocks wrapping exactly so the tile repeats, then grit and pale flecks
+export function rockTile() {
+  const [c, g] = canvas(64, 64), r = prng(71), SH = ['#8a8277', '#7b746a', '#958d80', '#726b61', '#857c70'];
+  for (let y = 0; y < 64;) {
+    const h = Math.min(64 - y, 5 + Math.floor(r() * 7)), start = Math.floor(r() * 64);
+    for (let x = 0; x < 64;) { const w = Math.min(64 - x, 9 + Math.floor(r() * 20)); g.fillStyle = SH[Math.floor(r() * SH.length)]; for (const o of [0, -64]) g.fillRect(((start + x) % 64) + o, y, w, h); x += w; }
+    g.fillStyle = '#56504a'; g.fillRect(0, y + h - 1, 64, 1); y += h;   // the bed joint under each band
+  }
+  for (let i = 0; i < 26; i++) { const x = Math.floor(r() * 64), y = Math.floor(r() * 64), l = 2 + Math.floor(r() * 5); g.fillStyle = '#4a453f'; g.fillRect(x, y, 1, l); }   // cracks
+  const img = g.getImageData(0, 0, 64, 64), d = img.data;
+  for (let i = 0; i < d.length; i += 4) { const n = (r() - 0.5) * 22; for (let k = 0; k < 3; k++) d[i + k] = Math.max(0, Math.min(255, d[i + k] + n)); }
+  g.putImageData(img, 0, 0);
+  for (let i = 0; i < 30; i++) { g.fillStyle = r() < 0.6 ? '#a59d90' : '#5e5850'; g.fillRect(Math.floor(r() * 64), Math.floor(r() * 64), 1 + Math.floor(r() * 2), 1); }
+  return c;
+}
 
 // sand drifted over a strip's edges: each row of the texture gets its own ragged edge from both sides, sand-coloured
 // pixels over the edge and nothing at all past it (alpha 0: the strip is drawn as a cutout, so the ground shows through)
@@ -107,6 +123,6 @@ export function bayDecal() {   // 7 x 12 m parking bay outline
 }
 const MEADOW = [108, 138, 68];   // the meadow tile's average: green maps' road edges drift into grass, not sand
 export const GROUND_TEXTURES = {
-  sand: sandTile, concrete: concreteTile, asphalt: asphaltTile, grass: grassTile, meadow: meadowTile, dirt: dirtTile,
+  sand: sandTile, concrete: concreteTile, asphalt: asphaltTile, grass: grassTile, meadow: meadowTile, dirt: dirtTile, rock: rockTile,
   road: () => roadStrip(), track: () => trackStrip(), roadM: () => roadStrip(MEADOW), trackM: () => trackStrip(MEADOW), railway: railwayStrip, line: lineStrip, dash: dashStrip, helipad: helipadDecal, bay: bayDecal,
 };

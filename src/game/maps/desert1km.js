@@ -6,6 +6,7 @@ import { makeKit } from './kit.js';
 // Advance-and-Secure order between them; an asphalt road joins the chain.
 export const desert1km = {
   name: 'Desert Crossing', size: 1000,
+  blurb: 'Open desert between corner bases: five places in a chain along one road.',   // the lobby's map card
   ground: { base: 'sand', baseSize: 4, tiles: ['concrete', 'asphalt', 'grass', 'dirt'], tileSize: [16, 4, 4, 4] },
   bases: [{ team: 0, x: -400, z: -400, r: 42 }, { team: 1, x: 430, z: 430, r: 42 }],
   locations: [

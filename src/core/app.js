@@ -1,6 +1,7 @@
 import { seedRng } from './math.js';
 import { Match } from '../game/match.js';
 import { Lobby } from '../game/ui/lobby.js';
+import { MAPS } from '../game/maps/index.js';
 import { preset, counterPick } from '../game/loadout.js';
 import { AudioEngine } from './audio.js';
 
@@ -43,6 +44,7 @@ export function populate(app) {
   // ?sandbox=1 keeps the free-roam airfield; otherwise a match: the force builder opens unless the
   // CPU plays both sides or ?loadout=<preset> skips it (cpu=both|none|1, mode=aas|skirmish)
   if (q.get('sandbox') !== '1' && !app.sandboxOnly) {
+    document.body.classList.add('game');   // a map, not the engine sandbox: the engine panels wait for F3
     const cpu = q.get('cpu') === 'both' ? [0, 1] : q.get('cpu') === 'none' ? [] : [1];
     app.fogOff = q.get('fog') === '0';   // ?fog=0: no fog of war for anyone, the CPU included
     app.commanderUrl = q.get('commander') === '1' ? '/commander' : (q.get('commander') || null);   // remote commander endpoint for the CPU sides
@@ -52,6 +54,7 @@ export function populate(app) {
       const cpuKey = q.get('cpuloadout') || counterPick(playerLoadout);
       const fixed = app.world.map && app.world.map.mode;   // a map made for one mode (Peninsula: Invasion, attacked from its first base)
       const mode = fixed || q.get('mode') || modeOpts.mode || 'aas', difficulty = q.get('difficulty') || modeOpts.difficulty || 'normal';
+      if (!q.has('commander') && modeOpts.commander !== undefined) { app.commanderUrl = modeOpts.commander ? '/commander' : null; app.commanderModel = modeOpts.commander || null; }   // the lobby's Opponent (a link's ?commander= wins)
       let side = q.get('side') || modeOpts.side || 'attack', swap = q.get('swap') === '1';
       if (fixed) { if (side === 'defend') swap = !swap; side = swap ? 'defend' : 'attack'; }   // its first base always attacks: defending, or ?swap=1, plays from the other base
       // ?swap=1 plays the sides the other way round (BLUFOR from the NE base, lattice reversed): a balance check for CPU-vs-CPU runs
@@ -66,7 +69,7 @@ export function populate(app) {
       app.hud.toast(`${app.match.teams[0].loadoutName} vs ${app.match.teams[1].loadoutName}`);
     };
     if (cpu.includes(0) || q.has('loadout')) app.startMatch(preset(q.get('loadout') || 'balanced'));
-    else { const b = app.world.map && app.world.map.bases ? app.world.map.bases[0] : { x: -400, z: -400 }; new Lobby(app.startMatch, app.world.map && app.world.map.name, app.world.map && app.world.map.mode); rts.target.set(b.x + 10, 0, b.z + 10); }   // the camera behind the force builder looks at our base
+    else { const b = app.world.map && app.world.map.bases ? app.world.map.bases[0] : { x: -400, z: -400 }; app.lobby = new Lobby(app.startMatch, app.world.map && app.world.map.name, app.world.map && app.world.map.mode, { maps: Object.entries(MAPS).map(([key, m]) => ({ key, name: m.name, size: m.size, blurb: m.blurb, mode: m.mode })), current: Object.keys(MAPS).find(k => MAPS[k] === app.world.map), commanderLocked: q.has('commander') }); rts.target.set(b.x + 10, 0, b.z + 10); }   // the camera behind the force builder looks at our base
     return;
   }
   for (let i = 0; i < 10; i++) units.spawnSquad();

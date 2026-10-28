@@ -31,6 +31,8 @@ uniform float uShadowOn; uniform float uShadowBias; uniform float uShadowPcf; un
 // ground mode: albedo blended from tileable textures by a splat map in world space
 uniform int uMode; uniform sampler2D uSplat; uniform sampler2D uBase; uniform sampler2D uT0; uniform sampler2D uT1; uniform sampler2D uT2; uniform sampler2D uT3;
 uniform vec4 uTileInv; uniform float uBaseInv; uniform float uMapInv;
+// rock on steep ground, whatever the splat says: sampled from three sides by the normal, so a cliff face shows strata, not a smear
+uniform sampler2D uRock; uniform float uRockOn; uniform float uRockInv;
 // fog of war: one value per cell over the map (1 seen), uFogMap = (1 / grid extent, half the map / grid extent)
 uniform sampler2D uFog; uniform float uFogOn; uniform vec2 uFogMap;
 // water (mode 2) and wet banks: the map's water depth (r: (metres below the surface + 0.5) / 4.5, so the bank up to 0.5 m
@@ -48,6 +50,14 @@ void main() {
     float rest = max(0.0, 1.0 - (s.r + s.g + s.b + s.a));
     vec3 c = texture(uBase, w * uBaseInv).rgb * rest + texture(uT0, w * uTileInv.x).rgb * s.r + texture(uT1, w * uTileInv.y).rgb * s.g
            + texture(uT2, w * uTileInv.z).rgb * s.b + texture(uT3, w * uTileInv.w).rgb * s.a;
+    if (uRockOn > 0.5) {
+      vec3 n = normalize(vN), a = abs(n);
+      float steep = 1.0 - smoothstep(0.72, 0.86, n.y);   // from about 31 degrees (where vehicles have long given up) to 44
+      if (steep > 0.0) {
+        vec3 rock = (texture(uRock, vWorld.zy * uRockInv).rgb * a.x + texture(uRock, vWorld.xy * uRockInv).rgb * a.z + texture(uRock, w * uRockInv).rgb * a.y) / (a.x + a.y + a.z);
+        c = mix(c, rock, steep);
+      }
+    }
     if (uWaterOn > 0.5) { float above = -depthAt(w); c = mix(c, c * vec3(0.62, 0.66, 0.64), 1.0 - smoothstep(0.0, 0.45, above)); }   // wet sand at the water's edge, and the bed under it
     albedo = vec4(c * vColor.rgb, 1.0);
   } else if (uMode == 2) {

@@ -1988,6 +1988,32 @@ Engine changes needed in the existing core:
         CPU defender holds the places, not the beaches.
       - The fog fix changed one match only slightly.
       - Tuning is P5.
+- **Polish: engine panels, mode-aware manual, map picker, rock (2026-10-28).** The user picked
+  four of twelve polish ideas.
+  - **Engine panels.** On a map (`body.game`, in the lobby and the match) the stats box and
+    the Spawn, Render and World controls are hidden until F3, the new Engine button, or the
+    touch gear shows them (`body.dev`). The controls panel keeps Reinforcements (now at the
+    top in a match), Settings (hints, sound, volume), Pause, Reset view and the manual. The
+    engine sandbox (`?sandbox=1`) shows everything as before.
+  - **Field manual.** The Objective page follows the match (`objective(ctx)` in guide.js):
+    the mode, its tickets and clock, which side you are on, place rules only for place modes,
+    and Peninsula's ship and landing craft. Invasion explains holding every place against the
+    clock, 650 tickets against 400, 30 per place the defender loses, and no bleed. F3 is
+    listed under the keys.
+  - **Lobby map picker.** A row of map cards: a minimap thumbnail (`icons/maps/<key>.png`,
+    rendered by `tools/make-map-thumbs.mjs` with places and bases drawn on), size, the mode a
+    map is fixed to, and a one-line `blurb` per map. Picking one reloads the page on that map
+    (the world is built at load), keeps the loadout and settings, and remembers the map in
+    `pixelops.map` for the next visit. A `?map=` in the link wins.
+  - **Opponent row.** The built-in CPU or a Llama commander. Claude Haiku, Sonnet and Opus are
+    listed only while the engine panels are on, because they spend the Anthropic key the
+    gateway holds, and a saved Claude choice is dropped otherwise. This hides them from casual
+    visitors; it is not access control. A `?commander=` link locks the row.
+  - **Rock on slopes.** A `rock` ground tile (grey-brown strata in blocks with joints and
+    cracks, 6 m). The ground shader blends it in from about 31 to 44 degrees whatever the
+    splat says, sampled from three sides by the normal so cliff faces show strata. It shows on
+    Peninsula's cliffs and canal walls, the cove, and Palm Valley's bluffs. Narva's banks are
+    gentler than that.
 
 ## Open questions
 

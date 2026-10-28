@@ -34,6 +34,7 @@ const inPoly = (poly, e, n) => { let c = false; for (let i = 0, j = poly.length 
 
 export const narva3km = {
   name: 'Narva', size: 3000,
+  blurb: 'The Estonia-Russia border city: a river crossed at a dam, two bridges and the Kreenholm falls, between castle and fortress.',
   nav: { foot: 2, vehicle: 3, cap: 260000 },   // a 3 km grid: 2.25 M infantry cells and 1 M vehicle cells (about 95 MB with the search arrays)
   splatRes: 1536,
   ground: { base: 'meadow', baseSize: 4, tiles: ['concrete', 'asphalt', 'dirt', 'meadow'], tileSize: [16, 4, 4, 4] },   // the fourth weight is the meadow itself (see paintSplat)

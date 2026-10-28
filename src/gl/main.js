@@ -22,7 +22,8 @@ const pixel = renderer.pixel;
 registerTextures(renderer);
 
 const scene = new Scene();
-const world = new World(scene, renderer, sandbox ? null : mapFor(q.get('map')));   // ?map=<key> (game/maps/index.js), or the legacy airfield in sandbox mode
+const savedMap = (() => { try { return localStorage.getItem('pixelops.map'); } catch { return null; } })();   // the map last picked in the lobby
+const world = new World(scene, renderer, sandbox ? null : mapFor(q.get('map') || savedMap));   // ?map=<key> (game/maps/index.js), or the legacy airfield in sandbox mode
 const rts = new RtsCamera(pixel, world.half - 10);
 const units = new UnitManager(scene, world, builders, F.recolor);
 const dust = new DustSim(); units.dust = dust; world.dust = dust;   // the world reads muzzle-flash lights from the particle pool

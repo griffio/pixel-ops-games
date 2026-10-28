@@ -10,15 +10,31 @@ import { WEAPONS as W } from '../game/weapons.js';
 const STORE = 'pixelops.guide';
 const T = RULES.ticketCost, F = RULES.fob, E = RULES.emplacement, RA = RULES.rally, SB = RULES.sandbags, TT = RULES.traps, V = RULES.vision.sight, RS = RULES.respawnTime;
 
-// the manual's pages; t: touch screen. k(key, tap) shows a key, or what to tap instead
+// the objective page follows the match: its mode and numbers, and which side the player is on (before a match, Advance & Secure)
+const objective = (ctx = {}) => {
+  const m = ctx.m, M = m && m.mode, C = M ? M.constructor : null, key = C ? C.key : 'aas', me = ctx.me ?? 0;
+  const mins = Math.round((M ? M.length : RULES.matchLength) / 60), att = M && C.sides ? M.attacker : null, tk = (team) => M ? M.tickets(team) : RULES.startTickets.aas;
+  const side = att === null ? '' : ` You are <b>${att === me ? 'attacking' : 'defending'}</b>.`;
+  const places = `<p><b>Places</b> (the bar at the top): stand inside a place's circle with no enemies in it and it turns yours. You can take a place that touches your base or borders one you hold.</p>`;
+  const sea = m && m.landing ? `<p>The attacker's main base is a ship. Its men and vehicles come ashore in landing craft at the beach it picks, and its three landing places can be taken first, in any order; everything the defender sends crosses the canal bridge. The Transport page has the rest.</p>` : '';
+  const lost = key === 'invasion' ? `and a place lost by the defenders (30)` : `and a place is lost (${T.location})`;
+  const costs = `<p><b>Tickets go</b> when a soldier comes back (${T.soldier}), a vehicle is destroyed (truck ${T.truck}, supply truck ${T.supply}, APC ${T.apc}, tank ${T.tank}, helicopter ${T.heli}${m && m.landing ? `, landing craft ${T.craft}` : ''}), a FOB is destroyed (${T.fob}), a FOB gun is destroyed (${T.emplacement}) ${lost}. A side whose tickets run out loses.</p>`;
+  if (key === 'invasion') return `
+    <p><b>Invasion.</b>${side} The attackers must hold <b>every place</b> before the ${mins}-minute clock runs out; the defenders start with all of them and win by holding out. Attackers have <b>${tk(att)}</b> tickets, defenders <b>${tk(1 - att)}</b>. Holding more places bleeds no one here: only the clock and the places count.</p>
+    ${places}${sea}${costs}`;
+  if (key === 'aas') return `
+    <p><b>Advance &amp; Secure.</b> Each side has <b>${tk(0)} tickets</b>. You lose when yours run out, or when the ${mins}-minute clock runs out and you have fewer.</p>
+    ${places.replace('</p>', ` Hold more than half and the enemy loses a ticket every ${RULES.bleedEvery} s; take every place and you win outright.</p>`)}${costs}
+    <p>Infantry are cheap and come back; vehicles, FOBs and places are what cost you. Other modes (chosen in the lobby) change the goal.</p>`;
+  return `
+    <p><b>${C.name}.</b>${side} ${C.desc} ${att === null ? `Each side has <b>${tk(0)}</b> tickets` : `Attackers have <b>${tk(att)}</b> tickets, defenders <b>${tk(1 - att)}</b>`}; the clock runs ${mins} minutes.</p>${costs}`;
+};
+
+// the manual's pages; t: touch screen. k(key, tap) shows a key, or what to tap instead; ctx: the match and the player's team
 // the unit strip, the same on both control pages
 const STRIP = (t) => `<p><b>The unit strip</b> along the bottom has a card for every squad, vehicle and build, saying what it is doing; a red edge means under fire, a grey card a squad waiting to respawn, with the time left. ${t ? 'Tap' : 'Click'} a card to select it, ${t ? 'tap' : 'click'} it again to go there, hold it to follow. <b>Under fire</b> and <b>Idle</b> step through those units, and pointers on the screen edge show where units out of view are. ${t ? '<b>+</b> makes a group of the selection; tap its number to select it again, hold the number to remove it.' : '<b>Ctrl</b> or <b>Shift</b> + <b>1</b>–<b>9</b> (or <b>+</b>) makes a group of the selection, <b>1</b>–<b>9</b> selects it, twice goes there.'}</p>`;
 const PAGES = [
-  { title: 'Objective', body: (t, k) => `
-    <p>Each side has <b>${RULES.startTickets.aas} tickets</b>. You lose when yours run out, or when the ${RULES.matchLength / 60}-minute clock runs out and you have fewer.</p>
-    <p><b>Places</b> (the bar at the top): stand inside a place's circle with no enemies in it and it turns yours. You can take a place that touches your base or borders one you hold. Hold more than half and the enemy loses a ticket every ${RULES.bleedEvery} s; take every place and you win outright.</p>
-    <p><b>Tickets go</b> when a soldier comes back (${T.soldier}), a vehicle is destroyed (truck ${T.truck}, supply truck ${T.supply}, APC ${T.apc}, tank ${T.tank}, helicopter ${T.heli}), a FOB is destroyed (${T.fob}), a FOB gun is destroyed (${T.emplacement}) and a place is lost (${T.location}).</p>
-    <p>Infantry are cheap and come back; vehicles, FOBs and places are what cost you. Other modes (chosen in the lobby) change the goal.</p>
+  { title: 'Objective', body: (t, k, ctx) => `${objective(ctx)}
     <p class="tip">${k('H', 'the ? button')} opens this manual at any time; the game pauses while it is open.</p>` },
   { title: 'Controls', body: (t, k) => t ? `
     <p><b>Tap</b> a unit to select it, <b>tap the ground</b> to move there, <b>tap an enemy</b> to attack-move onto it. <b>Hold</b>, then drag, for a selection box.</p>
@@ -26,7 +42,7 @@ const PAGES = [
     <p>To board, select soldiers, press <b>Load</b>, then tap one of <b>your vehicles</b> (or hold on the vehicle). Tapping a vehicle otherwise just selects it. Tap your <b>sandbags</b> or a <b>FOB gun</b> with soldiers selected to man it. The command bar over the unit strip holds the rest: <b>Orders</b> (Follow, Rally, Load, Unload, Deselect) and, with engineers, <b>Build</b>, each with its supply cost. A greyed tile says why in a word; tap it for the whole reason.</p>
     <p>Top left: Box (drag a selection box), Pause, Base (the camera to your base), ? for this manual, sound, and the engine panels.</p>${STRIP(t)}` : `
     <p><b>Left click</b> select, drag for a box. <b>Right click</b> the ground to move, an enemy to attack-move onto it, one of <b>your vehicles</b> to board it, your <b>sandbags</b> or a <b>FOB gun</b> to man it.</p>
-    <p><b>WASD</b> or the screen edge pans, <b>wheel</b> zooms, <b>Q E</b> or right-drag rotates, middle-drag pans. <b>F</b> follows the selection, <b>R</b> resets the view, <b>Space</b> pauses, <b>Esc</b> clears the selection, <b>M</b> sound.</p>
+    <p><b>WASD</b> or the screen edge pans, <b>wheel</b> zooms, <b>Q E</b> or right-drag rotates, middle-drag pans. <b>F</b> follows the selection, <b>R</b> resets the view, <b>Space</b> pauses, <b>Esc</b> clears the selection, <b>M</b> sound, <b>F3</b> the engine panels (stats, spawning, render and world settings).</p>
     <p><b>L</b> load the selected soldiers into the vehicle you click next, <b>B</b> build a FOB, <b>N</b> dig a sandbag position, <b>X</b> lay or clear tank traps, <b>G J K</b> set up a heavy machine gun, anti-tank launcher or mortar at a FOB, <b>T</b> drop a rally point, <b>U</b> unload a vehicle or leave a position, <b>C</b> cancel a build, <b>V</b> send the selected supply trucks home to refill and back, <b>H</b> this manual. The command bar over the unit strip does the same, grouped into Orders and Build.</p>${STRIP(t)}` },
   { title: 'Squads', body: (t, k) => `
     <p>Squads of four, each man with a kit: <b>rifle</b>; <b>machine gun</b>, which pins a squad down; <b>anti-tank</b>, rockets that kill vehicles from 90 m; <b>medic</b>, who revives a fallen squadmate within ${REVIVE_WINDOW} s; <b>engineer</b>, who repairs vehicles and builds FOBs and sandbags; <b>marksman</b>, who picks off infantry at 110 m.</p>
@@ -90,7 +106,7 @@ export class Guide {
   // ---- the manual
   show(i) {
     this.page = i; const p = PAGES[i];
-    this.art.innerHTML = `<h3>${p.title}</h3>${p.body(this.app.touch, (k, tap) => this.key(k, tap))}`;
+    this.art.innerHTML = `<h3>${p.title}</h3>${p.body(this.app.touch, (k, tap) => this.key(k, tap), { m: this.app.match, me: this.app.playerTeam ?? 0 })}`;
     [...this.nav.children].forEach((b, j) => b.classList.toggle('on', j === i));
   }
   open(i = this.page) {

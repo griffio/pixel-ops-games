@@ -3,15 +3,19 @@ import { MODES } from '../modes/index.js';
 import { DIFFICULTY } from '../difficulty.js';
 
 const $ = (id) => document.getElementById(id);
+const PAID = ['haiku', 'sonnet', 'opus'];   // commanders on the Claude key
 
 // Pre-match force builder. Calls onDeploy(loadout) when the player commits.
 export class Lobby {
-  constructor(onDeploy, mapName = 'Palm Valley', fixedMode = null) {   // fixedMode: a map made for one mode offers only that one
-    this.onDeploy = onDeploy; this.mapName = mapName; this.fixedMode = fixedMode;
+  // fixedMode: a map made for one mode offers only that one. opts.maps: the map cards ({ key, name, size, blurb, mode }) with
+  // opts.current the one loaded; opts.commanderLocked: the link already names the CPU's commander
+  constructor(onDeploy, mapName = 'Palm Valley', fixedMode = null, opts = {}) {
+    this.onDeploy = onDeploy; this.mapName = mapName; this.fixedMode = fixedMode; this.maps = opts.maps || []; this.mapKey = opts.current || null; this.cmdLocked = !!opts.commanderLocked;
     this.loadout = loadSaved() || preset('balanced');
     try { this.modeOpts = JSON.parse(localStorage.getItem('pixelops.mode')) || { mode: 'aas', side: 'attack' }; } catch { this.modeOpts = { mode: 'aas', side: 'attack' }; }
     if (!MODES[this.modeOpts.mode]) this.modeOpts.mode = 'aas';
     this.savedMode = this.modeOpts.mode; if (fixedMode) this.modeOpts.mode = fixedMode;   // kept for the other maps
+    if (PAID.includes(this.modeOpts.commander) && !document.body.classList.contains('dev')) this.modeOpts.commander = '';   // a Claude commander only by choice, with the engine panels on
     if (!DIFFICULTY[this.modeOpts.difficulty]) this.modeOpts.difficulty = 'normal';
     this.root = $('lobby'); this.root.style.display = 'block';
     this.build();
@@ -24,12 +28,15 @@ export class Lobby {
     $('lb-vehicles').innerHTML = Object.keys(ITEMS).filter(k => ITEMS[k].kind !== 'squad').map(row).join('');
     $('lb-doctrines').innerHTML = Object.entries(DOCTRINES).map(([k, d]) => `<label class="lb-doc"><input type="radio" name="doctrine" value="${k}"><div><b>${d.name}</b><small>${d.desc}</small></div></label>`).join('');
     $('lb-presets').innerHTML = Object.entries(PRESETS).map(([k, p]) => `<button data-preset="${k}">${p.name}</button>`).join('');
-    $('lb-modes').innerHTML = Object.values(MODES).filter(M => !this.fixedMode || M.key === this.fixedMode).map(M => `<label class="lb-doc"><input type="radio" name="mode" value="${M.key}"><div><b>${M.name}</b><small>${M.desc}</small></div></label>`).join('') + `<div id="lb-side" class="row"><span class="lb-lbl">Your side</span><label><input type="radio" name="side" value="attack"> attack</label><label><input type="radio" name="side" value="defend"> defend</label></div>` + `<div id="lb-diff" class="row"><span class="lb-lbl">CPU</span>${Object.entries(DIFFICULTY).map(([k, d]) => `<label title="${d.desc}"><input type="radio" name="difficulty" value="${k}"> ${d.name.toLowerCase()}</label>`).join('')}</div>`;
+    $('lb-maps').innerHTML = this.maps.map(m => `<button class="lb-map${m.key === this.mapKey ? ' on' : ''}" data-map="${m.key}" title="${m.blurb || ''}"><img src="icons/maps/${m.key}.png" alt=""><b>${m.name}</b><small>${+(m.size / 1000).toFixed(1)} km${m.mode ? ` · ${MODES[m.mode].name} only` : ''}</small><span>${m.blurb || ''}</span></button>`).join('');
+    $('lb-modes').innerHTML = Object.values(MODES).filter(M => !this.fixedMode || M.key === this.fixedMode).map(M => `<label class="lb-doc"><input type="radio" name="mode" value="${M.key}"><div><b>${M.name}</b><small>${M.desc}</small></div></label>`).join('') + `<div id="lb-side" class="row"><span class="lb-lbl">Your side</span><label><input type="radio" name="side" value="attack"> attack</label><label><input type="radio" name="side" value="defend"> defend</label></div>` + `<div id="lb-diff" class="row"><span class="lb-lbl">CPU</span>${Object.entries(DIFFICULTY).map(([k, d]) => `<label title="${d.desc}"><input type="radio" name="difficulty" value="${k}"> ${d.name.toLowerCase()}</label>`).join('')}</div>` + `<div id="lb-cmd" class="row"><span class="lb-lbl">Opponent</span><select id="lb-cmd-s" title="Who commands the CPU side: the built-in planner, or a language model through the game's server"></select></div>`;
+    this.renderOpponent();
     this.root.addEventListener('click', (e) => {
       const t = e.target.closest('button'); if (!t) return;
       if (t.dataset.inc) this.set(t.dataset.inc, this.n(t.dataset.inc) + 1);
       else if (t.dataset.dec) this.set(t.dataset.dec, this.n(t.dataset.dec) - 1);
       else if (t.dataset.preset) { this.loadout = preset(t.dataset.preset); this.render(); }
+      else if (t.dataset.map) this.pickMap(t.dataset.map);
       else if (t.id === 'lb-save') { saveLoadout(this.loadout); $('lb-msg').textContent = 'saved'; setTimeout(() => $('lb-msg').textContent = '', 1200); }
       else if (t.id === 'lb-deploy') this.deploy();
     });
@@ -38,8 +45,28 @@ export class Lobby {
       if (e.target.name === 'mode') { this.modeOpts.mode = e.target.value; this.render(); }
       if (e.target.name === 'side') { this.modeOpts.side = e.target.value; this.render(); }
       if (e.target.name === 'difficulty') { this.modeOpts.difficulty = e.target.value; this.render(); }
+      if (e.target.id === 'lb-cmd-s') this.modeOpts.commander = e.target.value;
     });
   }
+
+  // the CPU's commander: the built-in planner or Llama (the Worker's free daily quota); the Claude models spend the API key the
+  // gateway holds, so they are offered only while the engine panels are on (F3)
+  renderOpponent() {
+    const s = $('lb-cmd-s'); if (!s) return;
+    if (this.cmdLocked) { s.innerHTML = '<option>set by the link</option>'; s.disabled = true; return; }
+    const paid = document.body.classList.contains('dev');
+    s.innerHTML = [['', 'Built-in CPU'], ['llama', 'Llama commander'], ...(paid ? [['haiku', 'Claude Haiku commander'], ['sonnet', 'Claude Sonnet commander'], ['opus', 'Claude Opus commander']] : [])].map(([v, n]) => `<option value="${v}">${n}</option>`).join('');
+    if (!paid && PAID.includes(this.modeOpts.commander)) this.modeOpts.commander = '';
+    s.value = this.modeOpts.commander || '';
+  }
+  // another map: the page reloads on it (the world is built once, at load), keeping the loadout and the settings
+  pickMap(key) {
+    if (key === this.mapKey) return;
+    saveLoadout(this.loadout); this.saveMode();
+    try { localStorage.setItem('pixelops.map', key); } catch {}
+    const q = new URLSearchParams(location.search); q.set('map', key); location.search = q.toString();
+  }
+  saveMode() { try { localStorage.setItem('pixelops.mode', JSON.stringify({ ...this.modeOpts, mode: this.fixedMode ? this.savedMode : this.modeOpts.mode })); } catch {} }
 
   n(k) { return this.loadout.items[k] || 0; }
   set(k, v) { this.loadout.items[k] = Math.max(0, Math.min(9, v)); if (!this.loadout.items[k]) delete this.loadout.items[k]; this.render(); }
@@ -62,7 +89,7 @@ export class Lobby {
 
   deploy() {
     if (!summarize(this.loadout).ok) return;
-    saveLoadout(this.loadout); try { localStorage.setItem('pixelops.mode', JSON.stringify({ ...this.modeOpts, mode: this.fixedMode ? this.savedMode : this.modeOpts.mode })); } catch {}
+    saveLoadout(this.loadout); this.saveMode();
     this.root.style.display = 'none';
     this.onDeploy(clone(this.loadout), { ...this.modeOpts });
   }
