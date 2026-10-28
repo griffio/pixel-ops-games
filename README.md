@@ -502,13 +502,13 @@ src/game/           milestone 1 game layer (renderer-agnostic)
   support.js        medic revives, engineer repairs, supply truck refills
   fob.js            forward operating bases: build rules, construction, spawn points
   ui/lobby.js       the pre-match force builder screen
-  maps/             map definitions (valley2km.js, desert1km.js, narva3km.js, peninsula.js), the shared prop kit and ground texture generators (natural ground: tileable layered noise, 128 px over 12.8 m, one texel to a pixel of the game's buffer)
+  maps/             map definitions (valley2km.js, desert1km.js, narva3km.js, peninsula.js), the shared prop kit and ground texture generators (natural ground: fine low-contrast detail, 128 px over 12.8 m, one texel to a pixel of the game's buffer; everything bigger comes from the shader)
   match.js          AAS / Skirmish match flow, 10 Hz game tick, bleed, win checks
 icons/units/        unit-strip portraits (tools/make-portraits.mjs renders them from the game's models)
 src/three/          three.js back end: models, world, PixelRenderer (low-res target + outline), dust, markers
 src/gl/             WebGL2 back end
   scene.js          Node / Mesh scene graph with the same position/rotation/visible surface
-  shaders.js        GLSL ES 3.00: lit instanced, shadow depth, pick id, composite, dust (the ground blends rock onto slopes steeper than about 31 degrees, sampled from three sides; varies natural ground over tens of metres with a slow noise, and samples each natural tile twice, a fraction of a tile apart, switching between them in patches so fields do not show their repeat)
+  shaders.js        GLSL ES 3.00: lit instanced, shadow depth, pick id, composite, dust (the ground blends rock onto slopes steeper than about 31 degrees, sampled from three sides; draws natural ground's patches, highlights, hollows and streaks from world-space noise at unrelated scales and turns, so nothing repeats, with zones of dry and lush grass over tens of metres)
   renderer.js       dynamic + chunked static instance batches, chunk culling, view-fitted shadow pass, splat ground, composite, pick buffer
   strips.js         road / line strip and decal geometry
   models.js, world.js, markers.js, main.js

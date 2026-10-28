@@ -35,36 +35,18 @@ function sampler(n, cx, cy, r) {
 }
 // a field standardised to mean 0, spread 1 (so a layer's contrast is what its weight says, however many octaves fed it)
 function standard(F) { let m = 0; for (const v of F) m += v; m /= F.length; let q = 0; for (const v of F) q += (v - m) ** 2; const sd = Math.sqrt(q / F.length) || 1; return F.map(v => (v - m) / sd); }
-const smooth01 = (a, b, x) => { const t = Math.max(0, Math.min(1, (x - a) / (b - a))); return t * t * (3 - 2 * t); };
-// Natural ground in layers, every one wrapping so the tile repeats without a seam (12.8 m at 128 px). The pattern is organic,
-// not an even scatter of round blobs: octaves from a few metres down to a hand's breadth, pushed about by a warp field, mixed
-// with streaks drawn out along the diagonal (sampled in sheared coordinates, u = x + y, which still tile). Where the pattern
-// runs high the ground takes the light colour in distinct streaks and patches; where it runs low, dark hollows; a lush-to-dry
-// tint wanders across all of it. Then dabs two pixels wide leaning along the streaks, and specks. Colours are [r, g, b].
-function naturalTile({ seed, base, dark, light, dry, patch, clump, tint, streak = 0.45, warp = 14, swell = 0.05, strokes, len, slant = 2.356, spread = 0.5, alpha = [0.12, 0.3], lit = 0.6, specks = [] }) {
+// Natural ground's fine detail (12.8 m at 128 px, wrapping without a seam): the colour with a low-contrast grain of clumps
+// under a metre and a half, dabs two pixels wide leaning one way (blades, ripples) and specks. Nothing in it is big or bold
+// enough to show the tile repeating: the patches, highlights, hollows and streaks a metre and up come from the ground shader,
+// out of noise in world space that never repeats. Colours are [r, g, b].
+function detailTile({ seed, base, dark, light, grain = 0.06, strokes, len, slant = 2.356, spread = 0.5, alpha = [0.1, 0.26], lit = 0.6, specks = [] }) {
   const n = 128, [c, g] = canvas(n, n), r = prng(seed), img = g.createImageData(n, n), d = img.data;
-  const O = [[2, 1], [4, 0.7], [8, 0.45], [16, 0.28], [32, 0.15]].map(([k, w]) => [sampler(n, k, k, r), w]), WX = sampler(n, 4, 4, r), WY = sampler(n, 4, 4, r);
-  const S = [[12, 3, 1], [24, 6, 0.5]].map(([a, b, w]) => [sampler(n, a, b, r), w]), Tn = [[3, 1], [6, 0.45]].map(([k, w]) => [sampler(n, k, k, r), w]);
-  const P = new Float32Array(n * n), T = new Float32Array(n * n);
-  for (let y = 0; y < n; y++) for (let x = 0; x < n; x++) {
-    const wx = (WX(x, y) - 0.5) * 2 * warp, wy = (WY(x, y) - 0.5) * 2 * warp;
-    let iso = 0; for (const [f, w] of O) iso += f(x + wx, y + wy) * w;
-    let st = 0; for (const [f, w] of S) st += f(x + y + wx * 0.5, y) * w;
-    let t = 0; for (const [f, w] of Tn) t += f(x, y) * w;
-    P[y * n + x] = iso / 2.58 * (1 - streak) + st / 1.5 * streak; T[y * n + x] = t;
-  }
-  const Z = standard(P), TZ = standard(T);
-  for (let i = 0; i < n * n; i++) {
-    const z = Z[i], hi = smooth01(0.45, 1.6, z), lo = smooth01(-0.35, -1.7, z), t = Math.max(0, Math.min(1, 0.5 + TZ[i] * 0.32 * tint * 2));
-    for (let ch = 0; ch < 3; ch++) {
-      let v = (base[ch] + (dry[ch] - base[ch]) * t) * (1 + z * swell);   // the gentle swell under everything
-      v += (light[ch] - v) * hi * patch * 2.4; v *= 1 - lo * clump * 3.2;   // light streaks and patches; dark hollows
-      d[i * 4 + ch] = clamp255(v);
-    }
-    d[i * 4 + 3] = 255;
-  }
+  const O = [[8, 1], [16, 0.8], [32, 0.6]].map(([k, w]) => [sampler(n, k, k, r), w]), G = new Float32Array(n * n);
+  for (let y = 0; y < n; y++) for (let x = 0; x < n; x++) { let v = 0; for (const [f, w] of O) v += f(x, y) * w; G[y * n + x] = v; }
+  const Z = standard(G);
+  for (let i = 0; i < n * n; i++) { for (let ch = 0; ch < 3; ch++) d[i * 4 + ch] = clamp255(base[ch] * (1 + Z[i] * grain)); d[i * 4 + 3] = 255; }
   const put = (x, y, col, a) => { const i = ((((y % n) + n) % n) * n + (((x % n) + n) % n)) * 4; for (let ch = 0; ch < 3; ch++) d[i + ch] = clamp255(d[i + ch] * (1 - a) + col[ch] * a); };
-  for (let i = 0; i < strokes; i++) {   // soft dabs two pixels wide, mostly light, leaning along the streaks
+  for (let i = 0; i < strokes; i++) {   // soft dabs two pixels wide, mostly light, leaning one way
     const x = r() * n, y = r() * n, L = len[0] + r() * (len[1] - len[0]), ang = slant + (r() - 0.5) * spread, col = r() < lit ? light : dark, a = alpha[0] + r() * (alpha[1] - alpha[0]);
     for (let s2 = 0; s2 < L; s2++) { const px = Math.floor(x + Math.cos(ang) * s2), py = Math.floor(y + Math.sin(ang) * s2); put(px, py, col, a); put(px + 1, py, col, a * 0.6); }
   }
@@ -73,9 +55,9 @@ function naturalTile({ seed, base, dark, light, dry, patch, clump, tint, streak 
   return c;
 }
 
-export function sandTile() {   // 12.8 m: dunes of lighter and darker sand, wind ripples across, grit and shell flecks
-  return naturalTile({ seed: 101, base: [194, 174, 134], dark: [168, 148, 108], light: [224, 208, 170], dry: [208, 182, 132], patch: 0.05, clump: 0.012, tint: 0.35, streak: 0.25, warp: 10, swell: 0.025,
-    strokes: 240, len: [3, 7], slant: 0.12, spread: 0.18, alpha: [0.08, 0.2], specks: [[[150, 130, 98], 260, 0.5], [[232, 222, 196], 140, 0.5]] });
+export function sandTile() {   // 12.8 m: fine grit, wind ripples, shell flecks (dunes and drifts come from the shader)
+  return detailTile({ seed: 101, base: [196, 176, 136], dark: [168, 148, 108], light: [224, 208, 170], grain: 0.035, strokes: 240, len: [3, 7], slant: 0.12, spread: 0.18, alpha: [0.08, 0.2],
+    specks: [[[150, 130, 98], 260, 0.5], [[232, 222, 196], 140, 0.5]] });
 }
 export function concreteTile() {   // 16 m: 2x2 slabs with seams
   const [c, g] = canvas(256, 256), r = prng(7);
@@ -88,17 +70,17 @@ export function concreteTile() {   // 16 m: 2x2 slabs with seams
   return c;
 }
 export function asphaltTile() { const [c, g] = canvas(64, 64); noisy(g, 64, 64, '#5b5b5d', 0.14, prng(31)); return c; }
-export function grassTile() {   // 12.8 m of the oasis's olive grass: tussocks, sun-bleached streaks and dark hollows, blades leaning along the streaks
-  return naturalTile({ seed: 41, base: [128, 130, 80], dark: [74, 82, 42], light: [200, 194, 130], dry: [164, 154, 96], patch: 0.16, clump: 0.1, tint: 0.6, streak: 0.5,
-    strokes: 650, len: [3, 6], lit: 0.65, specks: [[[60, 66, 34], 200, 0.45], [[210, 200, 144], 110, 0.5]] });
+export function grassTile() {   // 12.8 m of the oasis's olive grass: tufts and blades leaning one way (patches and hollows from the shader)
+  return detailTile({ seed: 41, base: [134, 136, 86], dark: [78, 86, 44], light: [196, 192, 128], grain: 0.06, strokes: 900, len: [2, 5], lit: 0.6,
+    specks: [[[64, 70, 36], 200, 0.45], [[208, 198, 142], 110, 0.5]] });
 }
-export function meadowTile() {   // 12.8 m of Narva's summer grass: greener, sun-bleached streaks over lusher hollows, blades leaning along them, clover and daisies
-  return naturalTile({ seed: 43, base: [98, 128, 60], dark: [48, 76, 30], light: [180, 194, 114], dry: [148, 150, 80], patch: 0.16, clump: 0.11, tint: 0.65, streak: 0.5,
-    strokes: 700, len: [3, 6], lit: 0.65, specks: [[[42, 68, 28], 240, 0.5], [[214, 214, 186], 40, 0.6], [[202, 186, 92], 40, 0.55]] });
+export function meadowTile() {   // 12.8 m of Narva's summer grass: tufts and blades leaning one way, clover and daisies (patches from the shader)
+  return detailTile({ seed: 43, base: [104, 134, 64], dark: [52, 80, 32], light: [172, 190, 108], grain: 0.06, strokes: 1000, len: [2, 5], lit: 0.6,
+    specks: [[[46, 72, 30], 240, 0.5], [[214, 214, 186], 40, 0.6], [[202, 186, 92], 40, 0.55]] });
 }
-export function dirtTile() {   // 12.8 m of packed earth: damp and dry patches, wheel-scuffs, pebbles
-  return naturalTile({ seed: 51, base: [163, 142, 102], dark: [126, 108, 76], light: [194, 176, 138], dry: [176, 156, 114], patch: 0.07, clump: 0.035, tint: 0.4, streak: 0.2, warp: 10,
-    strokes: 240, len: [2, 5], slant: 0.3, spread: 0.9, alpha: [0.08, 0.22], specks: [[[110, 96, 74], 320, 0.55], [[206, 192, 160], 160, 0.5]] });
+export function dirtTile() {   // 12.8 m of packed earth: grit, scuffs and pebbles (damp and dry patches from the shader)
+  return detailTile({ seed: 51, base: [163, 142, 102], dark: [126, 108, 76], light: [194, 176, 138], grain: 0.05, strokes: 240, len: [2, 5], slant: 0.3, spread: 0.9, alpha: [0.08, 0.22],
+    specks: [[[110, 96, 74], 320, 0.55], [[206, 192, 160], 160, 0.5]] });
 }
 // the ground's slow variation over tens of metres (the shader samples it at two scales across the map): grey, 0..1
 export function macroTile() {

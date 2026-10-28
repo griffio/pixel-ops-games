@@ -59,14 +59,22 @@ void main() {
     vec3 c = tile2(uBase, w * uBaseInv, k) * rest + texture(uT0, w * uTileInv.x).rgb * s.r + tile2(uT1, w * uTileInv.y, k) * s.g
            + tile2(uT2, w * uTileInv.z, k) * s.b + tile2(uT3, w * uTileInv.w, k) * s.a;   // concrete (T0) keeps its slabs aligned
     if (uMacroOn > 0.5) {
-      // lighter and darker stretches at three scales (about 170, 50 and 21 m), then zones about 90 m across where grass dries
-      // to straw or runs lush and dark; the tints follow how green the ground is, so sand and dirt only lighten and darken
+      // everything a metre and up comes from soft noise in world space, sampled at unrelated scales and turns so it never lines
+      // up or repeats (the tiles only carry fine grain): patches about 3 and 6 m across and streaks drawn out one way, about 2 by
+      // 9 m, give sun-bleached highlights and lush hollows; then lighter and darker stretches over tens of metres, and zones
+      // about 90 m across where grass dries to straw or runs lush. The tints follow how green the ground is, so sand and dirt
+      // only lighten and darken.
+      float nat = 1.0 - s.r, green = clamp((c.g - c.r) * 8.0 + (c.g - c.b) * 3.0 - 0.15, 0.0, 1.0);
+      vec2 q2 = mat2(0.8, -0.6, 0.6, 0.8) * w, q3 = mat2(0.28, -0.96, 0.96, 0.28) * w;
+      float p = texture(uMacro, w * 0.071).r * 0.36 + texture(uMacro, q2 * 0.037 + 0.31).r * 0.3 + texture(uMacro, vec2(q3.x * 0.11, q3.y * 0.028) + 0.63).r * 0.34;
+      float hi = smoothstep(0.52, 0.66, p), lo = smoothstep(0.47, 0.33, p);
+      c = mix(c, c * mix(vec3(1.15, 1.13, 0.98), vec3(1.28, 1.22, 0.84), green), hi * nat);
+      c = mix(c, c * mix(vec3(0.87, 0.86, 0.84), vec3(0.7, 0.84, 0.68), green), lo * nat);
       float m = texture(uMacro, w * 0.0059).r * 0.5 + texture(uMacro, w * 0.019 + 0.37).r * 0.3 + texture(uMacro, w * 0.047 + 0.71).r * 0.2;
-      float zone = texture(uMacro, w * 0.011 + vec2(0.23, 0.58)).r, nat = 1.0 - s.r;
-      float green = clamp((c.g - c.r) * 8.0 + (c.g - c.b) * 3.0 - 0.15, 0.0, 1.0);
-      c *= mix(1.0, 0.82 + 0.36 * m, nat);
-      c = mix(c, c * vec3(1.14, 1.06, 0.76), smoothstep(0.58, 0.8, zone) * green * nat);
-      c = mix(c, c * vec3(0.76, 0.9, 0.78), smoothstep(0.42, 0.2, zone) * green * nat);
+      float zone = texture(uMacro, w * 0.011 + vec2(0.23, 0.58)).r;
+      c *= mix(1.0, 0.86 + 0.28 * m, nat);
+      c = mix(c, c * vec3(1.12, 1.05, 0.78), smoothstep(0.58, 0.8, zone) * green * nat);
+      c = mix(c, c * vec3(0.78, 0.9, 0.8), smoothstep(0.42, 0.2, zone) * green * nat);
     }
     if (uRockOn > 0.5) {
       vec3 n = normalize(vN), a = abs(n);

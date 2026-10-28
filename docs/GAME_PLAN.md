@@ -2049,6 +2049,17 @@ Engine changes needed in the existing core:
       about 90 m across where grass dries to straw or runs lush and dark. The tints scale with
       how green the ground is, so sand and dirt only lighten and darken.
     - Sand is kept calmer (wind drift), dirt blotchy.
+  - **Third pass.** The user saw the second pass's dark brown hollows repeating in a grid every
+    12.8 m. Big, bold features in a repeating tile show its period: the shifted second copy is
+    periodic too, and wherever one copy shows, so does the grid.
+    - The tiles now carry only fine, low-contrast detail (`detailTile`): grain from clumps under
+      1.6 m, dabs, specks.
+    - Everything a metre and up comes from the shader, out of world-space noise sampled at
+      unrelated scales and turns, so it never lines up or repeats:
+      - patches about 3 m and 6 m across, the second turned 37 degrees;
+      - streaks about 2 by 9 m, turned 74 degrees;
+      - together they make sun-bleached highlights and lush hollows (deep green, not brown);
+      - then brightness over tens of metres, and the 90 m dry/lush zones.
 
 ## Open questions
 
