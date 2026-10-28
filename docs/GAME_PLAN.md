@@ -2244,6 +2244,23 @@ Engine changes needed in the existing core:
     Assault CPU match with no errors. heli.vox is 91 KB, 16 colours.
   - **Not yet:** the soldier (nine animated parts and three weapons shown by visibility),
     which stays code-built until its rig gets vox names.
+- **Landing craft spaced out (2026-10-28).** The user saw the craft bunch when embarking and
+  debarking. They had waited 10 m apart off the stern gate, run the same lane line (only the
+  last point was spread, 14 m along the beach) and cast off together, so a wave sailed as one
+  clump. Now (`RULES.landing.spacing` 18, `stagger` 5):
+  - each craft runs its own copy of the lane, shifted sideways by its slot (each point moved
+    along the normal of the chord through its neighbours), from the gate to a berth on the
+    beach, so a wave runs abreast 18 m apart and beaches side by side; the first leg is square
+    to the gate and runs 25 m clear of the slots before the line turns, because North Cove's
+    lane doubles back along the ship's side and took a craft across its neighbours' slots;
+  - the slots off the gate are 18 m apart;
+  - one craft casts off at a time, five seconds apart (`Landing.clear`), from the dock and
+    from the beach, so a wave runs in echelon.
+  - Measured over four minutes of CPU matches on two seeds (scratchpad vox/craft-space.js,
+    the closest any two craft came, by state): under way 10 m before, 14 and 18 m after (the
+    inside craft cuts the corner at the first turn); on the beach 14 m before, 18 m after; at
+    the dock 9 m before, 18 m after; a craft casting off past a docked one 9 m before, 16 m
+    after.
 
 ## Open questions
 

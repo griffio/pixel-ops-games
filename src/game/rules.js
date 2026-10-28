@@ -27,7 +27,8 @@ export const RULES = {
   rally: { wave: 30, cutoff: 10, cooldown: 60, placeRange: 8, blockRadius: 30, burnRadius: 18, armourRadius: 100, enemyBaseDistance: 120 },
   heli: { capacity: 8, boardRange: 5 },
   // landing craft for a side based on a ship (game/landing.js): cruising speed, room aboard (a soldier takes one place, a
-  // vehicle more), seconds on the beach, seconds to replace a sunk craft, the radius of a held beach's supply dump
-  landing: { speed: 12, room: 16, places: { soldier: 1, truck: 8, apc: 8, tank: 16 }, beach: 6, rebuild: 60, dump: 35 },
+  // vehicle more), seconds on the beach, seconds to replace a sunk craft, the radius of a held beach's supply dump, metres
+  // between craft abreast (at the dock, along the lane and on the beach), seconds between one craft casting off and the next
+  landing: { speed: 12, room: 16, places: { soldier: 1, truck: 8, apc: 8, tank: 16 }, beach: 6, rebuild: 60, dump: 35, spacing: 18, stagger: 5 },
   force: { squads: 8, truck: 3, apc: 3, heli: 2 },
 };

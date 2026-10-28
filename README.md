@@ -100,7 +100,8 @@ only mode it offers. A rocky peninsula runs north into the sea, cut off from the
 mainland by a canal across its neck with one bridge. The attacker comes from the sea:
 its main base is an assault ship off the west coast. Its helicopters fly from the flight
 deck. Everything else waits in the well dock and goes ashore in three landing craft that
-run fixed lanes to the beach you pick on the unit strip ("Land at ..."). North Cove takes
+run fixed lanes to the beach you pick on the unit strip ("Land at ..."); they cast off one
+at a time, run abreast 18 m apart and beach side by side. North Cove takes
 infantry only, so vehicles go to the nearest beach that takes them. A CPU attacker picks
 the beach nearest the place it wants, avoiding beaches where it has seen defenders. Craft
 can be shot, and a sunk one takes its load with it; it is replaced a minute later. A beach

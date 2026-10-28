@@ -15,14 +15,14 @@ export class Landing {
     this.lanes = sea.lanes.map(l => ({ ...l, len: l.path.reduce((s, p, i) => i ? s + Math.hypot(p[0] - l.path[i - 1][0], p[1] - l.path[i - 1][1]) : 0, 0), at: { x: l.muster[0], z: l.muster[1], r: 30 } }));
     const [dx, dz] = sea.dock;
     this.dock = { pos: new Vec3(dx, match.world.terrain.water, dz), passengers: [], spec: { air: false }, type: 'dock', team: this.team, dead: false, heading: 0 };
-    this.craft = []; this.rebuilds = []; this.last = this.lanes[0]; this.choice = this.lanes[0].name; this.clock = 0;
+    this.craft = []; this.rebuilds = []; this.last = this.lanes[0]; this.choice = this.lanes[0].name; this.clock = 0; this.cast = -Infinity;
     for (let i = 0; i < sea.craft; i++) this.launch(i);
   }
 
   // ---- the ship, the dock and the beaches
   get base() { return this.m.teams[this.team].base; }
   atShip(x, z) { return Math.hypot(x - this.base.x, z - this.base.z) < this.base.r; }
-  slot(i) { const [x, z] = this.sea.dock, h = this.sea.out; return [x + Math.cos(h) * (i - 1) * 10 + Math.sin(h) * 16, z - Math.sin(h) * (i - 1) * 10 + Math.cos(h) * 16]; }   // craft wait side by side off the stern gate
+  slot(i) { const [x, z] = this.sea.dock, h = this.sea.out, o = (i - 1) * RULES.landing.spacing; return [x + Math.cos(h) * o + Math.sin(h) * 16, z - Math.sin(h) * o + Math.cos(h) * 16]; }   // craft wait abreast off the stern gate
   deckSpot() { const S = this.sea.deck, U = this.units.units, free = S.find(([x, z]) => !U.some(u => u.type === 'heli' && !u.dead && Math.hypot(u.pos.x - x, u.pos.z - z) < 8)); return free || S[Math.floor(Math.random() * S.length)]; }
   home() { return this.last.at; }   // where the side's ground units go home to: the beach its craft used last
   held(l) { const o = this.m.objectives, p = o && o.list.find(q => q.name === l.place); return !!p && p.owner === this.team; }
@@ -81,17 +81,26 @@ export class Landing {
       if (c.dead) continue;
       if (c.state === 'dock') {
         if (this.load(c)) c.wait = c.wait || 3;   // gather for a few seconds once loading starts, so a wave goes out together
-        if (c.passengers.length && ((c.wait -= dt) <= 0 || this.full(c))) this.sail(c, this.berth(c), 'out');
-      } else if (c.state === 'beach' && (c.wait -= dt) <= 0) {
+        if (c.passengers.length && ((c.wait -= dt) <= 0 || this.full(c)) && this.clear()) this.sail(c, this.berth(c), 'out');
+      } else if (c.state === 'beach' && (c.wait -= dt) <= 0 && this.clear()) {
         this.pickUp(c);
         this.sail(c, this.berth(c).reverse().concat([this.slot(c.slotI)]), 'back');
       }
     }
   }
+  // one craft casts off at a time, a few seconds apart, so a wave runs in echelon rather than in a clump
+  clear() { if (this.clock - this.cast < RULES.landing.stagger) return false; this.cast = this.clock; return true; }
   full(c) { const P = RULES.landing.places; return RULES.landing.room - c.passengers.reduce((s, u) => s + (P[u.type] || 1), 0) < 1; }
   sail(c, route, state) { c.route = route; c.k = 0; c.state = state; c.wait = 0; c.slow = 0; }
-  // the lane with its last point moved along the beach by the craft's slot, 14 m apart, so craft beach side by side
-  berth(c) { const P = c.lane.path, [ax, az] = P[P.length - 2], [bx, bz] = P[P.length - 1], d = Math.hypot(bx - ax, bz - az) || 1, o = (c.slotI - 1) * 14; return [...P.slice(0, -1), [bx + (bz - az) / d * o, bz - (bx - ax) / d * o]]; }
+  // the lane shifted sideways by the craft's slot (each point along the normal of the chord through its neighbours), so the
+  // craft run abreast, `spacing` apart, from the stern gate to berths side by side on the beach, instead of down one line.
+  // The first leg is square to the stern gate like the slots and runs 25 m clear of them before the line turns, since a lane
+  // that doubles back along the ship's side would otherwise take a craft across its neighbours' slots
+  berth(c) {
+    const P = c.lane.path, o = (c.slotI - 1) * RULES.landing.spacing, h = this.sea.out, sq = (p) => [p[0] + Math.cos(h) * o, p[1] - Math.sin(h) * o];
+    const clear = sq([P[0][0] + Math.sin(h) * 25, P[0][1] + Math.cos(h) * 25]);
+    return [sq(P[0]), clear].concat(P.slice(1).map((p, j) => { const i = j + 1, a = P[i - 1], b = P[Math.min(P.length - 1, i + 1)], dx = b[0] - a[0], dz = b[1] - a[1], d = Math.hypot(dx, dz) || 1; return [p[0] + dz / d * o, p[1] - dx / d * o]; }));
+  }
 
   // ---- the motion, every frame: steer for the next point of the lane, slow to a stop at its end; a sunk craft settles
   move(dt) {
