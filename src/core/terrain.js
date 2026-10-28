@@ -3,7 +3,8 @@
 // and level pads blended in. Sampled bilinearly from a 4 m grid. A river may give a
 // width per path point (ws); a ford may run across its river as a capsule (x1, z1 to
 // x2, z2) with a level bed out to r and a margin m. mirrorZ builds the south half
-// (z <= 0) and copies it north, so a mirror-symmetric map is exactly symmetric.
+// (z <= 0) and copies it north, so a mirror-symmetric map is exactly symmetric. A coast makes land of polygons and sea of the
+// rest: the land stands `lift` higher, and its edge is a cliff unless a shore along it says beach, cove or quay.
 function hash(ix, iz) { let n = (ix * 374761393 + iz * 668265263) | 0; n = Math.imul(n ^ (n >>> 13), 1274126177); return ((n ^ (n >>> 16)) >>> 0) / 4294967296; }
 function vnoise(x, z) {
   const ix = Math.floor(x), iz = Math.floor(z), fx = x - ix, fz = z - iz, sx = fx * fx * (3 - 2 * fx), sz = fz * fz * (3 - 2 * fz);
@@ -13,6 +14,24 @@ function vnoise(x, z) {
 export function fbm(x, z, oct = 4) { let s = 0, amp = 0.5, f = 1, norm = 0; for (let i = 0; i < oct; i++) { s += amp * vnoise(x * f, z * f); norm += amp; amp *= 0.5; f *= 2.1; } return s / norm; }
 
 function segDist(x, z, x1, z1, x2, z2) { return segNear(x, z, x1, z1, x2, z2)[0]; }
+// signed distance to the coastline of a set of land polygons ([[x, z], ...] each), + on land, with the nearest coast point
+export function coastDistance(polys, x, z) {
+  let d = Infinity, cx = x, cz = z, inside = false;
+  for (const P of polys) {
+    let odd = false;
+    for (let i = 0, j = P.length - 1; i < P.length; j = i++) {
+      const [xi, zi] = P[i], [xj, zj] = P[j], [di, t] = segNear(x, z, xj, zj, xi, zi);
+      if (di < d) { d = di; cx = xj + (xi - xj) * t; cz = zj + (zi - zj) * t; }
+      if ((zi > z) !== (zj > z) && x < (xj - xi) * (z - zi) / (zj - zi) + xi) odd = !odd;
+    }
+    inside = inside || odd;
+  }
+  return [inside ? d : -d, cx, cz];
+}
+// a coast's edge profiles: the height at the waterline, how far inland it takes to reach the land's height, how far out to
+// reach the sea bed. A cliff drops straight into deep water; a beach runs up gently from shallows; a cove is a beach steep
+// enough that only infantry climb it; a quay is a low wall with deep water at its foot.
+const SHORE = { cliff: [-4.5, 6, 5], beach: [-2.7, 70, 45], cove: [-2.7, 24, 20], quay: [-4.5, 2.5, 2.5] };
 function segNear(x, z, x1, z1, x2, z2) {   // [distance, t along the segment]
   const dx = x2 - x1, dz = z2 - z1, l2 = dx * dx + dz * dz || 1, t = Math.max(0, Math.min(1, ((x - x1) * dx + (z - z1) * dz) / l2));
   return [Math.hypot(x - (x1 + dx * t), z - (z1 + dz * t)), t];
@@ -23,7 +42,7 @@ export class Terrain {
     this.size = size; this.cell = cell; this.half = size / 2; this.n = Math.round(size / cell) + 1;
     this.water = def.water === undefined ? -Infinity : def.water;
     this.wade = def.wade === undefined ? -0.3 : def.wade;   // how deep units can wade: ground deeper than this under the water is impassable (-0.3: none, it must stand 0.3 m clear)
-    const features = def.features || [], flats = def.flats || [], rivers = def.rivers || (def.river ? [def.river] : []), fords = def.fords || [];
+    const features = def.features || [], flats = def.flats || [], rivers = def.rivers || (def.river ? [def.river] : []), fords = def.fords || [], coast = def.coast || null;
     const n = this.n, h = this.h = new Float32Array(n * n);
     const feature = (x, z, k) => {
       let t;
@@ -46,7 +65,20 @@ export class Terrain {
       let y = 1.2 * Math.sin(x * 0.021 + 1.3) * Math.cos(z * 0.017 - 0.4) + 2.6 * (fbm(x * 0.02, z * 0.02) - 0.5) + 0.8 * (fbm(x * 0.09, z * 0.09, 3) - 0.5);
       y = Math.max(y, -2);
       for (const k of features) y += feature(x, z, k);
-      return y;
+      return coast ? y + (coast.lift || 0) : y;   // a coast's land stands higher than the sea round it
+    };
+    // the edge of the land: the height a point takes from its signed distance to the coast and the shore at its nearest
+    // coast point (shores blend in over m metres along the coast past their ends)
+    const shore = (x, z, land) => {
+      const [d, cx, cz] = coastDistance(coast.land, x, z);
+      let [sy, wl, ws] = SHORE.cliff;
+      for (const s of coast.shores || []) {
+        const dd = segDist(cx, cz, s.x1, s.z1, s.x2, s.z2); if (dd >= (s.r || 0) + s.m) continue;
+        let u = dd <= (s.r || 0) ? 1 : 1 - (dd - (s.r || 0)) / s.m; u = u * u * (3 - 2 * u);
+        const p = SHORE[s.kind]; sy += (p[0] - sy) * u; wl += (p[1] - wl) * u; ws += (p[2] - ws) * u;
+      }
+      const t = Math.min(1, Math.abs(d) / (d >= 0 ? wl : ws)), k = t * t * (3 - 2 * t);
+      return d >= 0 ? sy + (land - sy) * k : sy + ((coast.seabed ?? -10) - sy) * k;
     };
     const rows = def.mirrorZ ? Math.ceil(n / 2) : n;   // mirrorZ: rows from z = -half up to the middle, then copied north
     for (let iz = 0; iz < rows; iz++) for (let ix = 0; ix < n; ix++) {
@@ -58,6 +90,7 @@ export class Terrain {
         const w = d <= f.r ? 1 : 1 - (d - f.r) / f.m;
         y = y + (target - y) * (w * w * (3 - 2 * w));
       }
+      if (coast) y = shore(x, z, y);                      // flats level the land; the coast then shapes its edge and the sea
       for (const river of rivers) {                       // carve each channel, then raise fords into shallows
         let d = Infinity, w = river.w; const P = river.path;
         for (let i = 0; i < P.length - 1; i++) { const [di, t] = segNear(x, z, ...P[i], ...P[i + 1]); if (di < d) { d = di; if (river.ws) w = river.ws[i] + (river.ws[i + 1] - river.ws[i]) * t; } }

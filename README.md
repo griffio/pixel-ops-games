@@ -70,6 +70,24 @@ bank (Ivangorod Fortress, Ivangorod Station, Narva HES), and the three river pla
 (Friendship Bridge, Rail Bridge, Kreenholm) sit on the crossings; five of nine for
 the majority. North is up, as on a real map.
 
+`?map=peninsula` plays *Peninsula* (blockout; plan at
+https://claude.ai/artifact/6ELRURFGdPwxMJDvSNVuKN), a 1.2 km Invasion map and the
+only mode it offers. A rocky peninsula runs north into the sea, cut off from the
+mainland by a canal across its neck with one bridge. The attacker comes from the sea.
+An assault ship lies off the west coast as a prop for now, and the attacker plays from a
+stand-in base behind West Beach until its landing craft exist. The defender's base is
+on the mainland, so everything it sends crosses the bridge.
+
+Cliffs ring the coast except at three landings:
+- West Beach: sand, open to vehicles.
+- North Cove: under the cliffs, infantry only.
+- The harbour quay on the east coast.
+
+The three landing places (Village, Lighthouse, Harbour) are the attacker's home places,
+so it can take any of them first. Radar Hill is in the middle, and the Bridgehead
+guards the bridge. Whichever side you pick, the beach side attacks: defending, or a
+balance run's `?swap=1`, plays the map from the mainland.
+
 **Fog of war.** Your side sees what its units see: soldiers 120 m, APCs 160 m,
 tanks 210 m, trucks 100 m, a landed helicopter 120 m and one in the air 250 m
 (over buildings), FOBs and sandbag positions 100 m. Hills and buildings block
@@ -425,7 +443,7 @@ index.html          page, HUD markup, picks the back end from ?r=
 src/core/           renderer-agnostic engine
   math.js           Vec3, column-major Mat4, colour-space helpers, seedable rng
   layout.js         world size, props as data (hangar, containers, palms, bushes, grass tufts), obstacles, sun/moon lighting, WorldState
-  terrain.js        heightfield from ridge/hill features with noise-jagged crests and notch passes, carved rivers with fords, level pads; height, normal, slope, water and line-of-sight queries
+  terrain.js        heightfield from ridge/hill features with noise-jagged crests and notch passes, carved rivers with fords, level pads, coasts (land polygons whose edges are cliffs, beaches, coves or quays); height, normal, slope, water and line-of-sight queries
   models.js         unit models (soldier, truck, APC, tank, Chinook) built through a per-back-end factory
   geometry.js       box, cylinder, wedge, frustum, frond, ring, plane and grass-tuft generators with world-unit UVs
   textures.js       procedural tarmac (slabs, taxi lines, asphalt road, grass strip), camo and grass-tuft canvases
@@ -452,7 +470,7 @@ src/game/           milestone 1 game layer (renderer-agnostic)
   support.js        medic revives, engineer repairs, supply truck refills
   fob.js            forward operating bases: build rules, construction, spawn points
   ui/lobby.js       the pre-match force builder screen
-  maps/             map definitions (valley2km.js, desert1km.js, narva3km.js), the shared prop kit and ground texture generators
+  maps/             map definitions (valley2km.js, desert1km.js, narva3km.js, peninsula.js), the shared prop kit and ground texture generators
   match.js          AAS / Skirmish match flow, 10 Hz game tick, bleed, win checks
 icons/units/        unit-strip portraits (tools/make-portraits.mjs renders them from the game's models)
 src/three/          three.js back end: models, world, PixelRenderer (low-res target + outline), dust, markers

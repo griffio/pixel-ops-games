@@ -1880,6 +1880,44 @@ Engine changes needed in the existing core:
     - Armoured won its first match, 1 of 8 (none before);
     - Air won none of 8 (unchanged).
     - Infantry presets still lead: Balanced 13 of 16, Light 12 of 16.
+- **Peninsula, P1 blockout (2026-10-28).** The user proposed a small map where the attacker
+  comes from the sea, from an assault ship base with amphibious resupply, across one bridge.
+  They accepted the whole plan (https://claude.ai/artifact/6ELRURFGdPwxMJDvSNVuKN), which has
+  five steps: P1 blockout, P2 ship and landing craft, P3 amphibious vehicles, P4 models,
+  P5 balance. P1 is `maps/peninsula.js` (`?map=peninsula`).
+  - **Coasts in the terrain.** `terrain.coast` makes land of polygons and sea of the rest.
+    - The land stands `lift` metres higher than the base height.
+    - Each point takes its height from its signed distance to the coastline. The profile comes
+      from the shore at the nearest coast point:
+      - cliff: the default, deep water at its foot;
+      - beach: 70 m up from shallows;
+      - cove: steep enough that vehicles cannot climb it;
+      - quay: a low wall over deep water.
+    - Flats level the land first, then the coast shapes its edge, so a flat never fills the sea.
+    - A map can ask for a finer height grid (`terrain.cell`, 2 m here, so cliffs stay sheer).
+    - Maps without a coast are unchanged: Narva's 14 test routes are the same length to the metre.
+  - **The map.**
+    - 1.2 km, north up, laid out in real (e, n) like Narva.
+    - The canal cut has a single bridge level with the land: the only nav gate portal.
+    - The attacker plays from a stand-in base behind West Beach until P2 makes the ship its base.
+    - The ship (hull, flight deck, island, the well dock's stern gate) is a prop for now.
+    - Landmarks: a lighthouse with keepers' cottages, a village of whitewashed cottages with a
+      church, harbour sheds, a quay with bollards, a breakwater with a light, fishing boats, a
+      radar dome with a hut and mast, sea stacks, woods.
+  - **A map can fix its mode.** `map.mode = 'invasion'`: the lobby offers only that mode, and
+    `?mode=` is ignored. The map's first base always attacks: playing the defender, or a balance
+    run's `?swap=1`, swaps the map (bases, place order, homes) and sets the side.
+  - **Splat lesson.** A canvas keeps colour premultiplied. A pixel whose weights sum to 1 has
+    alpha 0 and loses its colour, and a weight painted over an opaque pixel only tints it.
+    Peninsula paints concrete, sand and dirt as separate grey masks and packs them per pixel
+    with the sum held to 0.92.
+  - **Tests.**
+    - Every place is reachable from both bases on foot and by vehicle, and every route crosses
+      the canal at the bridge.
+    - North Cove is a 143-cell pocket on the vehicle grid; infantry reach the lighthouse from
+      it in 230 m.
+    - In 4 CPU minutes the attacker took the Village and Radar Hill, with no errors.
+    - The lobby shows only Invasion on Peninsula and every mode on Narva.
 
 ## Open questions
 

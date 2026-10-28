@@ -112,7 +112,7 @@ export class WorldState {
   constructor(map = null) {
     this.map = map; this.size = map ? map.size : WORLD_SIZE; this.half = this.size / 2;
     this.layout = map ? map.build() : buildLayout(); this.obstacles = this.layout.obstacles;
-    this.terrain = map && map.terrain ? new Terrain(this.size, 4, { ...map.terrain, flats: map.flats || [] }) : null;
+    this.terrain = map && map.terrain ? new Terrain(this.size, map.terrain.cell || 4, { ...map.terrain, flats: map.flats || [] }) : null;   // a 4 m height grid unless the map asks for finer (cliffs)
     this.bridges = (map && map.bridges) || []; this.vehicleObstacles = [];
     // height including bridge decks (local-frame rectangle test)
     this.heightAt = (x, z) => {

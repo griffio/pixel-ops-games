@@ -6,11 +6,12 @@ const $ = (id) => document.getElementById(id);
 
 // Pre-match force builder. Calls onDeploy(loadout) when the player commits.
 export class Lobby {
-  constructor(onDeploy, mapName = 'Palm Valley') {
-    this.onDeploy = onDeploy; this.mapName = mapName;
+  constructor(onDeploy, mapName = 'Palm Valley', fixedMode = null) {   // fixedMode: a map made for one mode offers only that one
+    this.onDeploy = onDeploy; this.mapName = mapName; this.fixedMode = fixedMode;
     this.loadout = loadSaved() || preset('balanced');
     try { this.modeOpts = JSON.parse(localStorage.getItem('pixelops.mode')) || { mode: 'aas', side: 'attack' }; } catch { this.modeOpts = { mode: 'aas', side: 'attack' }; }
     if (!MODES[this.modeOpts.mode]) this.modeOpts.mode = 'aas';
+    this.savedMode = this.modeOpts.mode; if (fixedMode) this.modeOpts.mode = fixedMode;   // kept for the other maps
     if (!DIFFICULTY[this.modeOpts.difficulty]) this.modeOpts.difficulty = 'normal';
     this.root = $('lobby'); this.root.style.display = 'block';
     this.build();
@@ -23,7 +24,7 @@ export class Lobby {
     $('lb-vehicles').innerHTML = Object.keys(ITEMS).filter(k => ITEMS[k].kind !== 'squad').map(row).join('');
     $('lb-doctrines').innerHTML = Object.entries(DOCTRINES).map(([k, d]) => `<label class="lb-doc"><input type="radio" name="doctrine" value="${k}"><div><b>${d.name}</b><small>${d.desc}</small></div></label>`).join('');
     $('lb-presets').innerHTML = Object.entries(PRESETS).map(([k, p]) => `<button data-preset="${k}">${p.name}</button>`).join('');
-    $('lb-modes').innerHTML = Object.values(MODES).filter(M => M.key !== 'skirmish' || true).map(M => `<label class="lb-doc"><input type="radio" name="mode" value="${M.key}"><div><b>${M.name}</b><small>${M.desc}</small></div></label>`).join('') + `<div id="lb-side" class="row"><span class="lb-lbl">Your side</span><label><input type="radio" name="side" value="attack"> attack</label><label><input type="radio" name="side" value="defend"> defend</label></div>` + `<div id="lb-diff" class="row"><span class="lb-lbl">CPU</span>${Object.entries(DIFFICULTY).map(([k, d]) => `<label title="${d.desc}"><input type="radio" name="difficulty" value="${k}"> ${d.name.toLowerCase()}</label>`).join('')}</div>`;
+    $('lb-modes').innerHTML = Object.values(MODES).filter(M => !this.fixedMode || M.key === this.fixedMode).map(M => `<label class="lb-doc"><input type="radio" name="mode" value="${M.key}"><div><b>${M.name}</b><small>${M.desc}</small></div></label>`).join('') + `<div id="lb-side" class="row"><span class="lb-lbl">Your side</span><label><input type="radio" name="side" value="attack"> attack</label><label><input type="radio" name="side" value="defend"> defend</label></div>` + `<div id="lb-diff" class="row"><span class="lb-lbl">CPU</span>${Object.entries(DIFFICULTY).map(([k, d]) => `<label title="${d.desc}"><input type="radio" name="difficulty" value="${k}"> ${d.name.toLowerCase()}</label>`).join('')}</div>`;
     this.root.addEventListener('click', (e) => {
       const t = e.target.closest('button'); if (!t) return;
       if (t.dataset.inc) this.set(t.dataset.inc, this.n(t.dataset.inc) + 1);
@@ -61,7 +62,7 @@ export class Lobby {
 
   deploy() {
     if (!summarize(this.loadout).ok) return;
-    saveLoadout(this.loadout); try { localStorage.setItem('pixelops.mode', JSON.stringify(this.modeOpts)); } catch {}
+    saveLoadout(this.loadout); try { localStorage.setItem('pixelops.mode', JSON.stringify({ ...this.modeOpts, mode: this.fixedMode ? this.savedMode : this.modeOpts.mode })); } catch {}
     this.root.style.display = 'none';
     this.onDeploy(clone(this.loadout), { ...this.modeOpts });
   }

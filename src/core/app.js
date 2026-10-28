@@ -50,9 +50,12 @@ export function populate(app) {
     app.aiModes = (q.get('ai') || '').split(','); app.personas = (q.get('persona') || '').split(',');   // ?ai=rules for the older planner (default utility; per team: utility,rules), ?persona=balanced|aggressive|patient   // ?model=<key> picks a model from the Worker's allow-list (llama, gpt-oss-120b, qwen3-30b, mistral-small)
     app.startMatch = (playerLoadout, modeOpts = {}) => {
       const cpuKey = q.get('cpuloadout') || counterPick(playerLoadout);
-      const mode = q.get('mode') || modeOpts.mode || 'aas', side = q.get('side') || modeOpts.side || 'attack', difficulty = q.get('difficulty') || modeOpts.difficulty || 'normal';
+      const fixed = app.world.map && app.world.map.mode;   // a map made for one mode (Peninsula: Invasion, attacked from its first base)
+      const mode = fixed || q.get('mode') || modeOpts.mode || 'aas', difficulty = q.get('difficulty') || modeOpts.difficulty || 'normal';
+      let side = q.get('side') || modeOpts.side || 'attack', swap = q.get('swap') === '1';
+      if (fixed) { if (side === 'defend') swap = !swap; side = swap ? 'defend' : 'attack'; }   // its first base always attacks: defending, or ?swap=1, plays from the other base
       // ?swap=1 plays the sides the other way round (BLUFOR from the NE base, lattice reversed): a balance check for CPU-vs-CPU runs
-      if (q.get('swap') === '1' && app.world.map && !app.world.map.swapped) { const mp = app.world.map; mp.bases = [...mp.bases].reverse(); mp.locations = [...mp.locations].reverse().map(l => l.home === undefined ? l : { ...l, home: [].concat(l.home).map(h => 1 - h) }); mp.swapped = true; }   // a place touching a base now touches the other team's
+      if (swap && app.world.map && !app.world.map.swapped) { const mp = app.world.map; mp.bases = [...mp.bases].reverse(); mp.locations = [...mp.locations].reverse().map(l => l.home === undefined ? l : { ...l, home: [].concat(l.home).map(h => 1 - h) }); mp.swapped = true; }   // a place touching a base now touches the other team's
       app.match = new Match(app, { cpu, mode, side, difficulty, loadouts: [playerLoadout, preset(cpuKey)] });
       if (app.audio) app.audio.ui('start');
       // the sun stands still during a match (a moving sun crawls every shadow edge at close zoom); ?hour= picks the time
@@ -63,7 +66,7 @@ export function populate(app) {
       app.hud.toast(`${app.match.teams[0].loadoutName} vs ${app.match.teams[1].loadoutName}`);
     };
     if (cpu.includes(0) || q.has('loadout')) app.startMatch(preset(q.get('loadout') || 'balanced'));
-    else { const b = app.world.map && app.world.map.bases ? app.world.map.bases[0] : { x: -400, z: -400 }; new Lobby(app.startMatch, app.world.map && app.world.map.name); rts.target.set(b.x + 10, 0, b.z + 10); }   // the camera behind the force builder looks at our base
+    else { const b = app.world.map && app.world.map.bases ? app.world.map.bases[0] : { x: -400, z: -400 }; new Lobby(app.startMatch, app.world.map && app.world.map.name, app.world.map && app.world.map.mode); rts.target.set(b.x + 10, 0, b.z + 10); }   // the camera behind the force builder looks at our base
     return;
   }
   for (let i = 0; i < 10; i++) units.spawnSquad();
