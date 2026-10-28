@@ -313,6 +313,8 @@ export class GLRenderer {
       gl.uniform1f(u.uBaseInv, 1 / g.baseSize); gl.uniform1f(u.uMapInv, 1 / g.mapSize);
       if (g.rock) { gl.activeTexture(gl.TEXTURE10); gl.bindTexture(gl.TEXTURE_2D, this.textures.get(g.rock)); gl.uniform1i(u.uRock, 10); gl.uniform1f(u.uRockInv, 1 / g.rockSize); }
       gl.uniform1f(u.uRockOn, g.rock ? 1 : 0);   // rock on steep ground
+      if (g.macro) { gl.activeTexture(gl.TEXTURE11); gl.bindTexture(gl.TEXTURE_2D, this.textures.get(g.macro)); gl.uniform1i(u.uMacro, 11); }
+      gl.uniform1f(u.uMacroOn, g.macro ? 1 : 0);   // the ground's slow variation
     }
     gl.uniform1i(u.uWater, 9); gl.uniform1f(u.uWaterOn, this.waterTex ? 1 : 0); gl.uniform1f(u.uTime, (performance.now() / 1000) % 3600);
     if (this.waterTex) { gl.activeTexture(gl.TEXTURE9); gl.bindTexture(gl.TEXTURE_2D, this.waterTex); gl.uniform2f(u.uWaterMap, this.waterMap[0], this.waterMap[1]); }

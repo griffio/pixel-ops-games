@@ -2022,6 +2022,22 @@ Engine changes needed in the existing core:
     road corner on or beside the deck, and smoothing curved the asphalt over it. The road's line
     is now worked out from each bridge (`deckLine`): straight along the deck with a 30 m lead-in
     at each end.
+- **Ground texture variety (2026-10-28).** The user compared the grass with a mottled reference:
+  ours was one flat green with 1 px speckle, which averaged away at the game's pixel size.
+  - **New textures.** Meadow, grass, sand and dirt are now built in layers of tileable value
+    noise (`naturalTile` in groundTextures.js):
+    - soft light and dark patches a metre or three across;
+    - clumps under a metre;
+    - a tint wandering between lush and dry;
+    - short dabs two pixels wide, mostly light and leaning one way (blades, sand ripples);
+    - specks.
+
+    Each is 128 px over 12.8 m: 10 px a metre, one texel to a pixel of the buffer at normal
+    zoom, so the grain stays crisp. The maps' `tileSize` and `baseSize` follow.
+  - **Shader variation.** A slow 256 px noise (`macroTile`), sampled at about 170 m and 50 m,
+    darkens and greens some stretches and lifts and dries others; never on concrete. Each natural
+    tile is also sampled twice, the second a fraction of a tile over, and switched between in
+    patches on that noise (`tile2`), so a field no longer shows its 12.8 m period.
 
 ## Open questions
 

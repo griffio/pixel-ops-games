@@ -12,7 +12,7 @@ const deckLine = (b, lead = 30) => [-b.len / 2 - lead, -b.len / 2, b.len / 2, b.
 export const desert1km = {
   name: 'Desert Crossing', size: 1000,
   blurb: 'Open desert between corner bases: five places in a chain along one road.',   // the lobby's map card
-  ground: { base: 'sand', baseSize: 4, tiles: ['concrete', 'asphalt', 'grass', 'dirt'], tileSize: [16, 4, 4, 4] },
+  ground: { base: 'sand', baseSize: 12.8, tiles: ['concrete', 'asphalt', 'grass', 'dirt'], tileSize: [16, 4, 12.8, 12.8] },   // natural ground 12.8 m to a 128 px tile (groundTextures.js)
   bases: [{ team: 0, x: -400, z: -400, r: 42 }, { team: 1, x: 430, z: 430, r: 42 }],
   locations: [
     { name: 'Outpost', x: -300, z: -290, r: 22 },

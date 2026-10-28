@@ -37,7 +37,7 @@ export const narva3km = {
   blurb: 'The Estonia-Russia border city: a river crossed at a dam, two bridges and the Kreenholm falls, between castle and fortress.',
   nav: { foot: 2, vehicle: 3, cap: 260000 },   // a 3 km grid: 2.25 M infantry cells and 1 M vehicle cells (about 95 MB with the search arrays)
   splatRes: 1536,
-  ground: { base: 'meadow', baseSize: 4, tiles: ['concrete', 'asphalt', 'dirt', 'meadow'], tileSize: [16, 4, 4, 4] },   // the fourth weight is the meadow itself (see paintSplat)
+  ground: { base: 'meadow', baseSize: 12.8, tiles: ['concrete', 'asphalt', 'dirt', 'meadow'], tileSize: [16, 4, 12.8, 12.8] },   // the fourth weight is the meadow itself (see paintSplat)
   bases: [at(-BASE_E, BASE_N, { team: 0, r: 42 }), at(BASE_E, BASE_N, { team: 1, r: 42 })],
   // BLUFOR's row south to north, the river row south to north, OPFOR's row north to south (so ?swap=1 pairs each with its
   // counterpart)

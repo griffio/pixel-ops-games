@@ -34,7 +34,7 @@ export const peninsula = {
   name: 'Peninsula', size: 1200, mode: 'invasion',
   blurb: 'An assault from the sea: landing craft to three beaches against a defender with one bridge over a canal.',
   splatRes: 1024,
-  ground: { base: 'meadow', baseSize: 4, tiles: ['concrete', 'sand', 'dirt', 'meadow'], tileSize: [16, 4, 4, 4] },   // the fourth weight is the meadow itself (see paintSplat)
+  ground: { base: 'meadow', baseSize: 12.8, tiles: ['concrete', 'sand', 'dirt', 'meadow'], tileSize: [16, 12.8, 12.8, 12.8] },   // the fourth weight is the meadow itself (see paintSplat)
   bases: [at(SHIP.e, SHIP.n, { team: 0, r: 80, ship: true }), at(0, -500, { team: 1, r: 42 })],   // the attacker's assault ship; the defender's base on the mainland
   // the ship's side (game/landing.js): its well dock and the way craft leave it, three craft, the flight deck's landing spots, the lanes
   sea: { dock: P(SHIP.e, SHIP.n - 76), out: Math.PI, craft: 3, deck: [-50, -20, 10, 40].map(k => P(SHIP.e - 7, SHIP.n + k)), lanes: LANES.map(l => ({ ...l, path: W(l.path), muster: P(...l.muster) })) },

@@ -33,6 +33,13 @@ uniform int uMode; uniform sampler2D uSplat; uniform sampler2D uBase; uniform sa
 uniform vec4 uTileInv; uniform float uBaseInv; uniform float uMapInv;
 // rock on steep ground, whatever the splat says: sampled from three sides by the normal, so a cliff face shows strata, not a smear
 uniform sampler2D uRock; uniform float uRockOn; uniform float uRockInv;
+// the ground's slow variation: a soft noise at two scales (about 170 m and 50 m) darkening and greening some stretches, lifting
+// and drying others, so fields are not one flat colour and the tiles do not show their repeat; never on concrete
+uniform sampler2D uMacro; uniform float uMacroOn;
+// a natural ground tile sampled twice, the second a fraction of a tile over, and switched between in patches on a slow noise
+// (k): neither copy repeats where the other shows, so a field no longer shows its 12.8 m period; texel size and the blades'
+// lean stay the same
+vec3 tile2(sampler2D t, vec2 uv, float k) { vec3 a = texture(t, uv).rgb; return k <= 0.001 ? a : mix(a, texture(t, uv + vec2(0.37, 0.61)).rgb, k); }
 // fog of war: one value per cell over the map (1 seen), uFogMap = (1 / grid extent, half the map / grid extent)
 uniform sampler2D uFog; uniform float uFogOn; uniform vec2 uFogMap;
 // water (mode 2) and wet banks: the map's water depth (r: (metres below the surface + 0.5) / 4.5, so the bank up to 0.5 m
@@ -48,8 +55,13 @@ void main() {
     vec2 w = vWorld.xz;
     vec4 s = texture(uSplat, w * uMapInv + 0.5);
     float rest = max(0.0, 1.0 - (s.r + s.g + s.b + s.a));
-    vec3 c = texture(uBase, w * uBaseInv).rgb * rest + texture(uT0, w * uTileInv.x).rgb * s.r + texture(uT1, w * uTileInv.y).rgb * s.g
-           + texture(uT2, w * uTileInv.z).rgb * s.b + texture(uT3, w * uTileInv.w).rgb * s.a;
+    float k = uMacroOn > 0.5 ? smoothstep(0.42, 0.58, texture(uMacro, w * 0.023 + 0.5).r) : 0.0;
+    vec3 c = tile2(uBase, w * uBaseInv, k) * rest + texture(uT0, w * uTileInv.x).rgb * s.r + tile2(uT1, w * uTileInv.y, k) * s.g
+           + tile2(uT2, w * uTileInv.z, k) * s.b + tile2(uT3, w * uTileInv.w, k) * s.a;   // concrete (T0) keeps its slabs aligned
+    if (uMacroOn > 0.5) {
+      float m = texture(uMacro, w * 0.0059).r * 0.62 + texture(uMacro, w * 0.019 + 0.37).r * 0.38;
+      c *= mix(vec3(1.0), mix(vec3(0.86, 0.91, 0.85), vec3(1.09, 1.06, 0.93), m), 1.0 - s.r);
+    }
     if (uRockOn > 0.5) {
       vec3 n = normalize(vN), a = abs(n);
       float steep = 1.0 - smoothstep(0.72, 0.86, n.y);   // from about 31 degrees (where vehicles have long given up) to 44

@@ -31,7 +31,7 @@ export const valley2km = {
   blurb: 'A river valley, the same from both sides: three lanes through bluff passes to a bridge, a ford and a footbridge.',
   nav: { foot: 1.5, vehicle: 2.5, cap: 200000 },   // a 2 km grid at 1 m would be 4 M cells (130 MB); long searches round the big hills need a bigger cap
   splatRes: 1024,
-  ground: { base: 'sand', baseSize: 4, tiles: ['concrete', 'asphalt', 'grass', 'dirt'], tileSize: [16, 4, 4, 4] },
+  ground: { base: 'sand', baseSize: 12.8, tiles: ['concrete', 'asphalt', 'grass', 'dirt'], tileSize: [16, 4, 12.8, 12.8] },
   bases: [{ team: 0, x: 0, z: -BASE, r: 42 }, { team: 1, x: 0, z: BASE, r: 42 }],
   // list order runs from BLUFOR's side to OPFOR's, each row from the west, so each side's first pick is its town
   locations: [

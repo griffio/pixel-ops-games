@@ -1,5 +1,6 @@
-// Tileable ground textures and decals, generated on canvases. World-space UVs tile
-// them at a fixed density (16 px per metre) so the grain matches the unit camo.
+// Tileable ground textures and decals, generated on canvases. World-space UVs tile them at a fixed density: the natural
+// ground (grass, meadow, sand, dirt) at 10 px a metre, one texel to a pixel of the game's buffer at normal zoom, so its
+// grain stays crisp instead of averaging away; the made surfaces at 16 px a metre (4 for the big concrete slabs).
 function canvas(w, h) { const c = document.createElement('canvas'); c.width = w; c.height = h; return [c, c.getContext('2d')]; }
 function prng(seed) { let s = seed >>> 0; return () => (s = (s * 1664525 + 1013904223) >>> 0) / 4294967296; }
 function noisy(g, w, h, base, amount, r, count = w * h / 2) {
@@ -10,11 +11,43 @@ function noisy(g, w, h, base, amount, r, count = w * h / 2) {
   }
 }
 
-export function sandTile() {   // 4 m
-  const [c, g] = canvas(64, 64), r = prng(101);
-  noisy(g, 64, 64, '#c4b088', 0.12, r);
-  for (let i = 0; i < 40; i++) { g.fillStyle = r() < 0.5 ? '#b09c74' : '#d2c09a'; g.fillRect(Math.floor(r() * 64), Math.floor(r() * 64), 2 + Math.floor(r() * 3), 1 + Math.floor(r() * 2)); }
+// tileable value noise: a lattice of cells x cells random values that wraps, smoothly interpolated over n x n pixels; and
+// octaves of it summed (each [cells, weight]) into 0..1
+function lattice(n, cells, r) {
+  const v = Float32Array.from({ length: cells * cells }, r), out = new Float32Array(n * n), sm = (t) => t * t * (3 - 2 * t);
+  for (let y = 0; y < n; y++) for (let x = 0; x < n; x++) {
+    const fx = x / n * cells, fy = y / n * cells, ix = Math.floor(fx), iy = Math.floor(fy), tx = sm(fx - ix), ty = sm(fy - iy), x1 = (ix + 1) % cells, y1 = (iy + 1) % cells;
+    const a = v[iy * cells + ix], b = v[iy * cells + x1], c = v[y1 * cells + ix], d = v[y1 * cells + x1];
+    out[y * n + x] = (a + (b - a) * tx) * (1 - ty) + (c + (d - c) * tx) * ty;
+  }
+  return out;
+}
+function octaves(n, list, r) { const out = new Float32Array(n * n); let w = 0; for (const [cells, k] of list) { const l = lattice(n, cells, r); for (let i = 0; i < out.length; i++) out[i] += l[i] * k; w += k; } for (let i = 0; i < out.length; i++) out[i] /= w; return out; }
+const clamp255 = (v) => Math.max(0, Math.min(255, Math.round(v)));
+// Natural ground in layers, every one wrapping so the tile repeats without a seam (12.8 m at 128 px): soft light and dark
+// patches a metre or three across, clumps under a metre, a tint wandering between lush and dry, then short strokes at a
+// slant (blades of grass, ripples in sand) and specks. Colours are [r, g, b].
+function naturalTile({ seed, base, dark, light, dry, patch, clump, tint, strokes, len, slant, spread = 0.5, alpha = [0.12, 0.3], lit = 0.6, specks = [] }) {
+  const n = 128, [c, g] = canvas(n, n), r = prng(seed), img = g.createImageData(n, n), d = img.data;
+  const P = octaves(n, [[4, 1], [8, 0.55]], r), C = octaves(n, [[16, 1], [32, 0.6]], r), T = octaves(n, [[3, 1], [6, 0.45]], r);
+  for (let i = 0; i < n * n; i++) {
+    const k = 1 + (P[i] - 0.5) * 2 * patch + (C[i] - 0.5) * 2 * clump, t = Math.max(0, Math.min(1, 0.5 + (T[i] - 0.5) * 2 * tint));
+    for (let ch = 0; ch < 3; ch++) d[i * 4 + ch] = clamp255((base[ch] + (dry[ch] - base[ch]) * t) * k);
+    d[i * 4 + 3] = 255;
+  }
+  const put = (x, y, col, a) => { const i = ((((y % n) + n) % n) * n + (((x % n) + n) % n)) * 4; for (let ch = 0; ch < 3; ch++) d[i + ch] = clamp255(d[i + ch] * (1 - a) + col[ch] * a); };
+  for (let i = 0; i < strokes; i++) {   // soft dabs two pixels wide, mostly light, leaning one way: dappled, not hatched
+    const x = r() * n, y = r() * n, L = len[0] + r() * (len[1] - len[0]), ang = slant + (r() - 0.5) * spread, col = r() < lit ? light : dark, a = alpha[0] + r() * (alpha[1] - alpha[0]);
+    for (let s2 = 0; s2 < L; s2++) { const px = Math.floor(x + Math.cos(ang) * s2), py = Math.floor(y + Math.sin(ang) * s2); put(px, py, col, a); put(px + 1, py, col, a * 0.6); }
+  }
+  for (const [col, count, a] of specks) for (let i = 0; i < count; i++) { const x = Math.floor(r() * n), y = Math.floor(r() * n); put(x, y, col, a); if (r() < 0.4) put(x + 1, y, col, a * 0.7); }
+  g.putImageData(img, 0, 0);
   return c;
+}
+
+export function sandTile() {   // 12.8 m: dunes of lighter and darker sand, wind ripples across, grit and shell flecks
+  return naturalTile({ seed: 101, base: [196, 176, 136], dark: [168, 148, 108], light: [222, 206, 168], dry: [208, 182, 132], patch: 0.07, clump: 0.04, tint: 0.45,
+    strokes: 240, len: [3, 7], slant: 0.12, spread: 0.18, alpha: [0.08, 0.2], specks: [[[150, 130, 98], 260, 0.5], [[232, 222, 196], 140, 0.5]] });
 }
 export function concreteTile() {   // 16 m: 2x2 slabs with seams
   const [c, g] = canvas(256, 256), r = prng(7);
@@ -27,19 +60,25 @@ export function concreteTile() {   // 16 m: 2x2 slabs with seams
   return c;
 }
 export function asphaltTile() { const [c, g] = canvas(64, 64); noisy(g, 64, 64, '#5b5b5d', 0.14, prng(31)); return c; }
-export function grassTile() {
-  const [c, g] = canvas(64, 64), r = prng(41);
-  noisy(g, 64, 64, '#8a8a58', 0.16, r);
-  for (let i = 0; i < 60; i++) { g.fillStyle = r() < 0.5 ? 'rgba(60,70,30,0.35)' : 'rgba(190,185,120,0.35)'; g.fillRect(Math.floor(r() * 64), Math.floor(r() * 64), 1 + Math.floor(r() * 3), 1 + Math.floor(r() * 2)); }
+export function grassTile() {   // 12.8 m of the oasis's olive grass: tussocks and bare-ish patches, blades leaning one way
+  return naturalTile({ seed: 41, base: [138, 138, 88], dark: [78, 86, 44], light: [192, 188, 122], dry: [166, 156, 98], patch: 0.16, clump: 0.1, tint: 0.6,
+    strokes: 1000, len: [2, 4], slant: -0.85, specks: [[[60, 66, 34], 220, 0.45], [[206, 196, 140], 120, 0.5]] });
+}
+export function meadowTile() {   // 12.8 m of Narva's summer grass: greener, lusher hollows and sun-bleached rises, blades at a slant, clover and daisies
+  return naturalTile({ seed: 43, base: [108, 138, 68], dark: [50, 78, 32], light: [164, 184, 104], dry: [150, 152, 82], patch: 0.16, clump: 0.1, tint: 0.65,
+    strokes: 1100, len: [2, 4], slant: -0.85, specks: [[[44, 70, 30], 260, 0.5], [[214, 214, 186], 40, 0.6], [[202, 186, 92], 40, 0.55]] });
+}
+export function dirtTile() {   // 12.8 m of packed earth: damp and dry patches, wheel-scuffs, pebbles
+  return naturalTile({ seed: 51, base: [163, 142, 102], dark: [126, 108, 76], light: [192, 174, 136], dry: [176, 156, 114], patch: 0.1, clump: 0.08, tint: 0.4,
+    strokes: 240, len: [2, 5], slant: 0.3, spread: 0.9, alpha: [0.08, 0.22], specks: [[[110, 96, 74], 320, 0.55], [[206, 192, 160], 160, 0.5]] });
+}
+// the ground's slow variation over tens of metres (the shader samples it at two scales across the map): grey, 0..1
+export function macroTile() {
+  const n = 256, [c, g] = canvas(n, n), r = prng(87), N = octaves(n, [[4, 1], [8, 0.55], [16, 0.3]], r), img = g.createImageData(n, n), d = img.data;
+  for (let i = 0; i < n * n; i++) { const v = clamp255(255 * Math.max(0, Math.min(1, (N[i] - 0.5) * 1.8 + 0.5))); d[i * 4] = d[i * 4 + 1] = d[i * 4 + 2] = v; d[i * 4 + 3] = 255; }
+  g.putImageData(img, 0, 0);
   return c;
 }
-export function meadowTile() {   // Narva's summer grass: greener than the oasis grass, with clover-dark and sun-bleached flecks
-  const [c, g] = canvas(64, 64), r = prng(43);
-  noisy(g, 64, 64, '#6c8a44', 0.15, r);
-  for (let i = 0; i < 70; i++) { g.fillStyle = r() < 0.55 ? 'rgba(40,62,26,0.35)' : 'rgba(170,186,110,0.35)'; g.fillRect(Math.floor(r() * 64), Math.floor(r() * 64), 1 + Math.floor(r() * 3), 1 + Math.floor(r() * 2)); }
-  return c;
-}
-export function dirtTile() { const [c, g] = canvas(64, 64); noisy(g, 64, 64, '#a38e66', 0.14, prng(51)); return c; }
 // 6 m of rock for steep ground (cliffs, cut banks, bluffs; the ground shader lays it by slope): grey-brown strata broken into
 // blocks with dark joints, each band and each row of blocks wrapping exactly so the tile repeats, then grit and pale flecks
 export function rockTile() {
@@ -123,6 +162,6 @@ export function bayDecal() {   // 7 x 12 m parking bay outline
 }
 const MEADOW = [108, 138, 68];   // the meadow tile's average: green maps' road edges drift into grass, not sand
 export const GROUND_TEXTURES = {
-  sand: sandTile, concrete: concreteTile, asphalt: asphaltTile, grass: grassTile, meadow: meadowTile, dirt: dirtTile, rock: rockTile,
+  sand: sandTile, concrete: concreteTile, asphalt: asphaltTile, grass: grassTile, meadow: meadowTile, dirt: dirtTile, rock: rockTile, macro: macroTile,
   road: () => roadStrip(), track: () => trackStrip(), roadM: () => roadStrip(MEADOW), trackM: () => trackStrip(MEADOW), railway: railwayStrip, line: lineStrip, dash: dashStrip, helipad: helipadDecal, bay: bayDecal,
 };
