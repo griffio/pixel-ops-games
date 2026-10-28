@@ -308,6 +308,8 @@ export class Hud {
     if (car) orders.push({ act: 'unload', glyph: 'unload', name: `${flying(car) ? 'Land' : 'Unload'} ${car.passengers.length}`, key: 'U', title: flying(car) ? 'Land and let them out' : 'Let them out' });   // a helicopter in the air lands first
     else if (list.some(flying)) orders.push({ act: 'unload', glyph: 'unload', name: 'Land', key: 'U', title: 'Land here' });
     else if (list.some(u => u.post && !u.dead)) orders.push({ act: 'unload', glyph: 'unload', name: 'Leave', key: 'U', title: 'Leave the position' });
+    const trucks = list.filter(u => u.supply && !u.dead && u.team === me);   // supply trucks: home to refill, then back
+    if (trucks.length) { const going = trucks.some(t => t.refillHome); orders.push({ act: 'refill', glyph: 'sup', name: going ? 'Refilling' : 'Refill', key: 'V', on: going, why: !going && trucks.every(t => t.supplies >= RULES.fob.truckSupplies) ? 'Full' : null, title: 'Drive home to refill, then come back here' }); }
     orders.push({ act: 'clear', glyph: 'clear', name: 'Deselect', key: 'Esc', title: 'Clear the selection' });
     let html = `<div class="grp"><h6>Orders</h6><div class="tiles">${orders.map(t => this.tile(t)).join('')}</div></div>`;
     const eng = list.find(u => u.kit === 'engineer' && !u.dead);
@@ -369,6 +371,12 @@ export class Hud {
     if (kind === 'load') { this.app.input.startLoad(); return; }
     if (kind === 'follow' || kind === 'clear') { this.touchAction(kind); return; }
     if (kind === 'cancel') { this.cancelBuild(sel.find(u => u.kit === 'engineer' && !u.dead && u.building)); return; }
+    if (kind === 'refill') {   // selected supply trucks drive home, fill up and come back
+      const me = this.app.playerTeam ?? 0, ts = sel.filter(u => u.supply && !u.dead && u.team === me && !u.refillHome && u.supplies < RULES.fob.truckSupplies);
+      if (!ts.length) { this.toast(sel.some(u => u.supply) ? 'Already full, or on its way' : 'Select a supply truck'); if (this.app.audio) this.app.audio.ui('deny'); return; }
+      for (const t of ts) m.support.startRefill(t);
+      this.toast(`${ts.map(t => t.label).join(', ')} heading home to refill, then back`); if (this.app.audio) this.app.audio.ui('order'); this.showSelection(sel); return;
+    }
     const busy = BUILD_ACTS.includes(kind) && sel.find(u => u.kit === 'engineer' && !u.dead && u.building);
     if (busy) { this.busyToast(busy); return; }   // one build at a time: say what he is on, and offer Cancel
     if (kind.startsWith('emp_')) {   // an emplacement where the engineer stands

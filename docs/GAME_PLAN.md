@@ -1856,7 +1856,30 @@ Engine changes needed in the existing core:
     bridge with it in sight, and 137 and 181 m from Kreenholm, whose mills hide the court
     between them. Palm Valley used it 14 times in 10 minutes (standoff points in its river),
     with no errors.
-  - A balance batch on seeds 31-34 was running when this shipped.
+  - Balance on seeds 31-34 (32 matches): the west base won 20, the east 12 (16-16 before, so
+    likely noise); Mechanized 4 of 16, Light against Mechanized 5-3, Armoured and Air 0 of 8.
+- **Railway bridge opened to armour; supply trucks come back (2026-10-28).** The user asked
+  what happens to an empty supply truck, and why an APC could not drive over Narva's railway
+  bridge.
+  - **The rail bridge.** It was a 6 m infantry deck by design (the plan's "railway bridge for
+    infantry only"). It is now 10 m wide, so a vehicle fits between the railings on the 3 m
+    vehicle grid. Its gate portal is open to vehicles, and both ends are chokes for tank traps.
+    Only Kreenholm's falls are still infantry-only, so armour has three lanes. Vehicle routes
+    from either base to the far station now cross there. In a headless drive, a tank crossed
+    in 42 s and an APC in 37 s, on the deck's centre line.
+  - **Truck return.** The CPU already sent its empty trucks home (strategist), but a player's
+    sat where it ran dry. `Support.trips` now does it for any non-CPU side. A truck with
+    less than the cheapest job (sandbags, 12) drives home, fills up and returns to where it
+    stood, if it is idle outside base and feeding no build. **V** or the new Refill tile
+    sends selected trucks at any time, and any move order on the way calls the trip off. The
+    roster card reads Refilling. In a headless test an empty truck 160 m out was back in 44 s
+    (it fills at 10 a second).
+  - **Balance** on seeds 31-34 (32 matches, no errors), against the batch before:
+    - by base: west 15 / east 17 (20-12 before);
+    - Mechanized won 6 of 16 (4 before), and is now level with Light at 4-4 (3-5 before);
+    - Armoured won its first match, 1 of 8 (none before);
+    - Air won none of 8 (unchanged).
+    - Infantry presets still lead: Balanced 13 of 16, Light 12 of 16.
 
 ## Open questions
 

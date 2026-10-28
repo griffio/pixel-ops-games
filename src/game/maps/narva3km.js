@@ -5,7 +5,7 @@ import { makeKit } from './kit.js';
 // "Narva" (blockout): 3 km of the Estonia-Russia border at Narva, compressed to about 0.6 of the real distances. The Narva
 // River runs south to north just east of the middle, from the reservoir over the dam, round Kreenholm island and its falls,
 // under the railway bridge and the Friendship Bridge. Narva fills the west bank, Ivangorod the east. Three lanes: the dam
-// (south) and the Friendship Bridge (north) take armour; the dry falls at Kreenholm and the railway bridge (middle) only
+// (south), the railway bridge (middle) and the Friendship Bridge (north) take armour; the dry falls at Kreenholm only
 // infantry. Nine places, three to a row: BLUFOR's on the Narva bank, three neutral on the crossings, OPFOR's on the
 // Ivangorod bank. The city kit (panel blocks, point blocks, garages, pine and birch, track, wagons, platforms, the truss bridge,
 // Balti's banded chimneys) follows the user's voxel diorama; Hermann Castle, Ivangorod Fortress, the Kreenholm mills, the Town Hall
@@ -63,7 +63,7 @@ export const narva3km = {
     { points: [[BASE_E, BASE_N], [700, -190], [590, -150], [560, -70]].map(p => P(...p)), width: 9, tex: 'road' },
     { points: [[-BASE_E, BASE_N], [-1100, 120], [-1200, 240]].map(p => P(...p)), width: 9, tex: 'road' },
     { points: [[BASE_E, BASE_N], [1100, 120], [1200, 240]].map(p => P(...p)), width: 9, tex: 'road' },
-    { points: [[-560, -90], [-300, -60], [-120, RAIL_N]].map(p => P(...p)), width: 5, tex: 'track', kind: 'track' },   // the foot lane to the railway bridge
+    { points: [[-560, -90], [-300, -60], [-120, RAIL_N]].map(p => P(...p)), width: 5, tex: 'track', kind: 'track' },   // the lane to the railway bridge
     { points: [[-480, -1000], [-300, -760], [-150, FALLS_N]].map(p => P(...p)), width: 5, tex: 'track', kind: 'track' },   // and to the falls
     { points: [[110, RAIL_N], [300, -30], [560, -25]].map(p => P(...p)), width: 5, tex: 'track', kind: 'track' },
     { points: [[128, FALLS_N], [175, FALLS_N], [320, -800], [480, -1000]].map(p => P(...p)), width: 5, tex: 'track', kind: 'track' },   // off the Kreenholm footbridge's end
@@ -91,14 +91,14 @@ export const narva3km = {
     ],
   },
   // the river is crossed only at its portals (nav.js gates, running north-south here): the dam, the falls (infantry, through
-  // Joala, the shallows and Kreenholm), the railway bridge (infantry) and the Friendship Bridge
+  // Joala, the shallows and Kreenholm), the railway bridge and the Friendship Bridge
   gateAxis: 'x',
-  gates: [{ at: 0, portals: [{ x: DAM_N, d: 85 }, { x: FALLS_N, d: 40, foot: true }, { x: RAIL_N, d: 72, foot: true }, { x: BRIDGE_N, d: 78 }] }],
-  // where tank traps close a crossing: both ends of the Friendship Bridge and of the dam
-  chokes: [P(-78, BRIDGE_N), P(78, BRIDGE_N), P(-82, DAM_N), P(82, DAM_N)],
+  gates: [{ at: 0, portals: [{ x: DAM_N, d: 85 }, { x: FALLS_N, d: 40, foot: true }, { x: RAIL_N, d: 72 }, { x: BRIDGE_N, d: 78 }] }],
+  // where tank traps close a crossing: both ends of the Friendship Bridge, the railway bridge and the dam
+  chokes: [P(-78, BRIDGE_N), P(78, BRIDGE_N), P(-76, RAIL_N), P(76, RAIL_N), P(-82, DAM_N), P(82, DAM_N)],
   bridges: [
     at(0, BRIDGE_N, { len: 132, w: 14, angle: Math.PI / 2, y: 1.3 }),          // Friendship Bridge
-    at(0, RAIL_N, { len: 124, w: 6, angle: Math.PI / 2, y: 1.6, foot: true, truss: true }),  // railway bridge: a blue truss of two spans, walked by infantry
+    at(0, RAIL_N, { len: 124, w: 10, angle: Math.PI / 2, y: 1.6, truss: true }),  // railway bridge: a blue truss of two spans; 10 m so a vehicle fits between its railings
     at(0, DAM_N, { len: 140, w: 12, angle: Math.PI / 2, y: 5.0 }),              // the dam's crest road, 8 m over the water, ramps at both ends
     at(102, FALLS_N, { len: 52, w: 6, angle: Math.PI / 2, y: 1.0, foot: true }),  // Kreenholm to the east bank (6 m: a 4 m deck's railings close every 2 m cell)
   ],

@@ -63,8 +63,8 @@ panel blocks of five and nine storeys, garage rows, pine and birch, station yard
 wagons, a blue truss railway bridge, Balti's banded chimneys, Hermann Castle, Ivangorod
 Fortress, the Kreenholm mills, the Town Hall, both railway stations and the hydro station
 (dam, hall, switchyard). The Narva River runs
-south to north from the reservoir: armour crosses on the dam and the Friendship
-Bridge, infantry also at Kreenholm's dry falls and on the railway bridge. BLUFOR
+south to north from the reservoir: armour crosses on the dam, the railway bridge
+and the Friendship Bridge, infantry also at Kreenholm's dry falls. BLUFOR
 holds the Narva bank (Hermann Castle, Narva Station, Balti Plant), OPFOR the Ivangorod
 bank (Ivangorod Fortress, Ivangorod Station, Narva HES), and the three river places
 (Friendship Bridge, Rail Bridge, Kreenholm) sit on the crossings; five of nine for
@@ -92,8 +92,11 @@ from jsDelivr via an import map; the WebGL2 back end loads nothing external.
 The stats panel has a link that switches renderer while keeping the view.
 
 **Logistics and air.** Supply trucks carry 100 supplies and refill inside your
-main base (the CPU sends one home when it has too little for any job, and uses it
-again once full); they drive with the canvas sides rolled up over the load, where a
+main base. One with too little for any job (under 12), standing idle outside base and
+feeding no build, drives home on its own, fills up and comes back to where it stood;
+**V** (or the Refill tile) sends the selected trucks on that trip at any time, and a move
+order on the way calls it off. The CPU sends its own home the same way and uses them
+again once full; they drive with the canvas sides rolled up over the load, where a
 plain truck keeps them down. Select an engineer squad standing within 20 m of a supply truck and
 press **B** (or the Build FOB button) to raise a forward operating base in 20 s
 (10 s under Entrenched); each FOB kit in your loadout allows one FOB. A FOB is a
@@ -197,7 +200,7 @@ objectives. It is cautious: squads close to about 35 m of a defended objective
 and shoot from there, fall back when an enemy gets inside 22 m unless they hold
 the zone or clearly outnumber it, and its APCs keep a 70 m standoff (tanks 90 m),
 reversing away when something gets inside 50 m. Armour sent at a place it cannot drive to (an
-island, a footbridge, a railway bridge's deck), or whose standoff point falls in a
+island or a footbridge), or whose standoff point falls in a
 river, supports from a spot it can reach on its own bank within its gun's reach,
 in sight of the place where there is one; an APC's drop-off point gets the same
 check. Squads an enemy APC or tank can
@@ -279,6 +282,7 @@ off. On a touch screen both name the buttons instead of the keys
 | `R` / Reset view | Default camera |
 | `M` | Mute / unmute |
 | `C` | Cancel the selected engineer's build (nothing is spent until a build finishes) |
+| `V` | Refill: the selected supply trucks drive home, fill up and come back |
 | `1`–`9` | Select a group (press twice to take the camera there) |
 | `Ctrl` or `Shift` + `1`–`9` | Make a group of the selection |
 

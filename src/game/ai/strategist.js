@@ -233,7 +233,7 @@ export class Strategist {
         // that the turret does the work from where it stands, and caution() backs it off when something gets close
         if (c) { const dx = c.x - v.pos.x, dz = c.z - v.pos.z, d = Math.hypot(dx, dz) || 1; if (d < standoff + 15) continue; const k = (d - standoff) / d; x = v.pos.x + dx * k; z = v.pos.z + dz * k; }
         else [x, z] = this.inZone(goal.x, goal.z, goal, 0.8);
-        // a place armour cannot get to (an island, a footbridge, a railway bridge's deck), or a standoff point in the river: it
+        // a place armour cannot get to (an island or a footbridge), or a standoff point in the river: it
         // supports from a spot it can reach on our bank, within its gun's reach of the place instead of stalling at the water
         if (!this.vehicleReaches(v, x, z)) { const p = this.supportSpot(v, goal, v.type === 'tank' ? 180 : 140); if (!p) continue; [x, z] = p; }
         if (v.dest && v.goal && Math.hypot(v.goal[0] - x, v.goal[1] - z) < 12) continue;

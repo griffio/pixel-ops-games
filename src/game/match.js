@@ -46,7 +46,7 @@ export class Match {
     this.combat = new Combat(this.units, this.spatial, this.world, app.dust); this.combat.teams = this.teams; this.combat.audio = app.audio || null;
     this.vision = new Vision(this.units, this.world, this.combat, !app.fogOff); this.combat.vision = this.vision;   // fog of war: what each side sees (?fog=0: everything)
     this.respawn = new Respawn(this.units, this.teams, this.world);
-    this.support = new Support(this.units, this.respawn, this.teams);
+    this.support = new Support(this.units, this.respawn, this.teams); this.support.match = this;   // the match: which sides are CPU, the builds under way
     this.fobs = new Fobs(this.units, this.teams, this.world);
     this.rallies = new Rallies(this.units, this.teams, this); this.respawn.rallies = this.rallies;
     this.voices = null; if (app.audio) this.attachAudio(app.audio);
