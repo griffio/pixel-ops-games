@@ -67,13 +67,13 @@ void main() {
       vec2 q2 = mat2(0.8, -0.6, 0.6, 0.8) * w, q3 = mat2(0.28, -0.96, 0.96, 0.28) * w;
       float p = texture(uMacro, w * 0.071).r * 0.36 + texture(uMacro, q2 * 0.037 + 0.31).r * 0.3 + texture(uMacro, vec2(q3.x * 0.11, q3.y * 0.028) + 0.63).r * 0.34;
       float hi = smoothstep(0.52, 0.66, p), lo = smoothstep(0.47, 0.33, p);
-      c = mix(c, c * mix(vec3(1.15, 1.13, 0.98), vec3(1.28, 1.22, 0.84), green), hi * nat);
-      c = mix(c, c * mix(vec3(0.87, 0.86, 0.84), vec3(0.7, 0.84, 0.68), green), lo * nat);
+      c = mix(c, c * mix(vec3(1.075, 1.065, 0.990), vec3(1.140, 1.110, 0.920), green), hi * nat);
+      c = mix(c, c * mix(vec3(0.935, 0.930, 0.920), vec3(0.850, 0.920, 0.840), green), lo * nat);
       float m = texture(uMacro, w * 0.0059).r * 0.6 + texture(uMacro, w * 0.019 + 0.37).r * 0.4;   // about 170 and 50 m (the patches above cover the finer scale)
       float zone = texture(uMacro, w * 0.011 + vec2(0.23, 0.58)).r;
-      c *= mix(1.0, 0.86 + 0.28 * m, nat);
-      c = mix(c, c * vec3(1.12, 1.05, 0.78), smoothstep(0.58, 0.8, zone) * green * nat);
-      c = mix(c, c * vec3(0.78, 0.9, 0.8), smoothstep(0.42, 0.2, zone) * green * nat);
+      c *= mix(1.0, 0.930 + 0.140 * m, nat);
+      c = mix(c, c * vec3(1.060, 1.025, 0.890), smoothstep(0.58, 0.8, zone) * green * nat);
+      c = mix(c, c * vec3(0.890, 0.950, 0.900), smoothstep(0.42, 0.2, zone) * green * nat);
     }
     if (uRockOn > 0.5) {
       vec3 n = normalize(vN), a = abs(n);

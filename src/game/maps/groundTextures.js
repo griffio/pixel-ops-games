@@ -56,7 +56,7 @@ function detailTile({ seed, base, dark, light, grain = 0.06, strokes, len, slant
 }
 
 export function sandTile() {   // 12.8 m: fine grit, wind ripples, shell flecks (dunes and drifts come from the shader)
-  return detailTile({ seed: 101, base: [196, 176, 136], dark: [168, 148, 108], light: [224, 208, 170], grain: 0.035, strokes: 240, len: [3, 7], slant: 0.12, spread: 0.18, alpha: [0.08, 0.2],
+  return detailTile({ seed: 101, base: [208, 192, 160], dark: [185, 169, 137], light: [230, 217, 187], grain: 0.035, strokes: 240, len: [3, 7], slant: 0.12, spread: 0.18, alpha: [0.08, 0.2],
     specks: [[[150, 130, 98], 260, 0.5], [[232, 222, 196], 140, 0.5]] });
 }
 export function concreteTile() {   // 16 m: 2x2 slabs with seams
@@ -71,11 +71,11 @@ export function concreteTile() {   // 16 m: 2x2 slabs with seams
 }
 export function asphaltTile() { const [c, g] = canvas(64, 64); noisy(g, 64, 64, '#5b5b5d', 0.14, prng(31)); return c; }
 export function grassTile() {   // 12.8 m of the oasis's olive grass: tufts and blades leaning one way (patches and hollows from the shader)
-  return detailTile({ seed: 41, base: [134, 136, 86], dark: [78, 86, 44], light: [196, 192, 128], grain: 0.06, strokes: 900, len: [2, 5], lit: 0.6,
+  return detailTile({ seed: 41, base: [158, 160, 120], dark: [113, 120, 86], light: [208, 205, 153], grain: 0.06, strokes: 900, len: [2, 5], lit: 0.6,
     specks: [[[64, 70, 36], 200, 0.45], [[208, 198, 142], 110, 0.5]] });
 }
 export function meadowTile() {   // 12.8 m of Narva's summer grass: tufts and blades leaning one way, clover and daisies (patches from the shader)
-  return detailTile({ seed: 43, base: [104, 134, 64], dark: [52, 80, 32], light: [172, 190, 108], grain: 0.06, strokes: 1000, len: [2, 5], lit: 0.6,
+  return detailTile({ seed: 43, base: [134, 158, 102], dark: [93, 115, 77], light: [189, 203, 137], grain: 0.06, strokes: 1000, len: [2, 5], lit: 0.6,
     specks: [[[46, 72, 30], 240, 0.5], [[214, 214, 186], 40, 0.6], [[202, 186, 92], 40, 0.55]] });
 }
 export function dirtTile() {   // 12.8 m of packed earth: grit, scuffs and pebbles (damp and dry patches from the shader)

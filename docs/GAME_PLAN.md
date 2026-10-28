@@ -2123,6 +2123,11 @@ Engine changes needed in the existing core:
     frame limit off, each view on every build back to back, best of several reps. A bench
     killed with `pkill` leaves its Chrome rendering flat out; one such orphan spoiled an hour
     of numbers. And the hints store's `seen` must be an array, or the guide throws each frame.
+- **Lighter ground (2026-10-28).** The user found the grass and sand overwhelming and chose the
+  lightest of three samples (https://claude.ai/artifact/UZo1Fs3JtVsxSJJDZ7YBdd): the natural
+  tiles' base, dark and light colours 20% nearer white, and the shader's variation (bleached
+  patches, hollows, slow stretches, dry and lush zones) at half strength. The pattern, rock,
+  dirt and roads are unchanged.
 
 ## Open questions
 
