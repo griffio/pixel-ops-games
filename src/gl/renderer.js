@@ -141,10 +141,10 @@ export class GLRenderer {
   geometry(key) { return this.geos.get(key) || this.uploadGeometry(key, buildGeometry(key)); }
   registerGeometry(key, src) { if (!this.geos.has(key)) this.uploadGeometry(key, src); return key; }
 
-  batchKey(geo, m) { return `${geo}|${m.tex || ''}|${m.unlit ? 1 : 0}|${m.cast ? 1 : 0}|${m.cutout ? 1 : 0}|${m.ground ? 1 : 0}|${m.water ? 1 : 0}`; }
+  batchKey(geo, m) { return `${geo}|${m.tex || ''}|${m.unlit ? 1 : 0}|${m.cast ? 1 : 0}|${m.cutout ? 1 : 0}|${m.ground ? 1 : 0}|${m.water ? 1 : 0}|${m.sway ? 1 : 0}`; }
   makeBatch(geoKey, m, cap) {
     const gl = this.gl, geo = this.geometry(geoKey);
-    const b = { geo, tex: m.tex, unlit: !!m.unlit, cast: !!m.cast, cutout: !!m.cutout, ground: !!m.ground, water: !!m.water, vao: gl.createVertexArray(), ibo: gl.createBuffer(), cap, n: 0, data: new Float32Array(cap * STRIDE) };
+    const b = { geo, tex: m.tex, unlit: !!m.unlit, cast: !!m.cast, cutout: !!m.cutout, ground: !!m.ground, water: !!m.water, sway: !!m.sway, vao: gl.createVertexArray(), ibo: gl.createBuffer(), cap, n: 0, data: new Float32Array(cap * STRIDE) };
     gl.bindVertexArray(b.vao);
     gl.bindBuffer(gl.ARRAY_BUFFER, geo.vbo);
     [[0, 3, 0], [1, 3, 12], [2, 2, 24]].forEach(([loc, n, off]) => { gl.enableVertexAttribArray(loc); gl.vertexAttribPointer(loc, n, gl.FLOAT, false, 32, off); });
@@ -286,9 +286,9 @@ export class GLRenderer {
     if (this.shadows) {
       gl.bindFramebuffer(gl.FRAMEBUFFER, this.shadowFb); gl.viewport(0, 0, this.shadowSize, this.shadowSize);
       gl.clear(gl.DEPTH_BUFFER_BIT);
-      gl.useProgram(P.shadow.p); gl.uniformMatrix4fv(P.shadow.u.uLightVP, false, this.lightVP); gl.uniform1i(P.shadow.u.uTex, 0); gl.activeTexture(gl.TEXTURE0);
+      gl.useProgram(P.shadow.p); gl.uniformMatrix4fv(P.shadow.u.uLightVP, false, this.lightVP); gl.uniform1i(P.shadow.u.uTex, 0); gl.uniform1f(P.shadow.u.uTime, (performance.now() / 1000) % 3600); gl.activeTexture(gl.TEXTURE0);
       for (const b of this.eachBatch(shadowChunks)) if (b.cast) {
-        gl.uniform1f(P.shadow.u.uCutout, b.cutout ? 1 : 0); if (b.cutout) gl.bindTexture(gl.TEXTURE_2D, this.textures.get(b.tex));
+        gl.uniform1f(P.shadow.u.uCutout, b.cutout ? 1 : 0); gl.uniform1f(P.shadow.u.uSway, b.sway ? 1 : 0); if (b.cutout) gl.bindTexture(gl.TEXTURE_2D, this.textures.get(b.tex));
         this.drawBatch(b);
       }
     }
@@ -327,7 +327,7 @@ export class GLRenderer {
     gl.activeTexture(gl.TEXTURE0);
     gl.uniform1f(u.uUnlit, 0); gl.depthMask(true); gl.disable(gl.BLEND);
     for (const b of this.eachBatch(mainChunks)) if (!b.unlit && !b.water) {
-      gl.uniform1i(u.uMode, b.ground ? 1 : 0); gl.uniform1f(u.uCutout, b.cutout ? 1 : 0);
+      gl.uniform1i(u.uMode, b.ground ? 1 : 0); gl.uniform1f(u.uCutout, b.cutout ? 1 : 0); gl.uniform1f(u.uSway, b.sway ? 1 : 0);
       gl.bindTexture(gl.TEXTURE_2D, b.tex ? this.textures.get(b.tex) : this.white); this.drawBatch(b);
     }
     // water: lit like the ground (shadows, the night, fog of war) but blended over the bed, without writing depth

@@ -243,7 +243,8 @@ export class Unit {
     } else if (this.wreck) {
       this.wreckT += dt;
       const roof = this.pos.y + (this.type === 'apc' ? 2.7 : this.type === 'tank' ? 2.6 : 3.3), k = this.type === 'apc' || this.type === 'tank' ? 1.4 : 1, dust = this.mgr && this.mgr.dust;
-      if (dust && this.wreckT < 75 && rng() < dt * (this.wreckT < 45 ? 6 : 4) * (this.type === 'apc' ? 1.5 : 1)) dust.smoke(this.pos.x, roof + 0.8, this.pos.z, k);   // from above the roof, so the plume clears the hull
+      if (dust && this.wreckT < 75 && rng() < dt * (this.wreckT < 45 ? 6 : 4) * (this.type === 'apc' ? 1.5 : 1)) dust.smoke(this.pos.x, roof + 0.8, this.pos.z, k);
+      if (dust && this.wreckT < 10 && (this.type === 'tank' || this.type === 'apc') && rng() < dt * 0.7) dust.pop(this.pos.x, roof - 0.5, this.pos.z);   // ammunition cooking off   // from above the roof, so the plume clears the hull
       if (dust && this.wreckT < 45) for (let n = dt * (this.type === 'apc' ? 18 : 12) * (1 - this.wreckT / 50); n > 0; n -= 1) if (rng() < n) dust.fire(this.pos.x, roof - 0.4, this.pos.z, k);   // flames die down over the first 45 s
       if (this.wreckT > 90) this.remove = true;
     }

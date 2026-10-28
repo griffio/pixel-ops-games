@@ -1,7 +1,7 @@
 import { WorldState } from '../core/layout.js';
 import { groundCanvas } from '../core/textures.js';
 import { hexToLinear, smooth } from '../core/math.js';
-import { Mesh } from './scene.js';
+import { Node, Mesh } from './scene.js';
 import { MAT } from './models.js';
 import { GROUND_TEXTURES } from '../game/maps/groundTextures.js';
 import { stripGeometry, decalGeometry } from './strips.js';
@@ -10,7 +10,9 @@ import { stripGeometry, decalGeometry } from './strips.js';
 // baked into chunked instance buffers, lamps. Produces `lightState` for the renderer.
 export class World extends WorldState {
   constructor(scene, renderer, map = null) {
-    super(map); this.scene = scene; this.renderer = renderer; this.heads = []; this.focus = { x: 0, z: 0 };
+    super(map); this.scene = scene; this.renderer = renderer; this.heads = []; this.beams = []; this.marks = []; this.onShake = null; this.focus = { x: 0, z: 0 };
+    // ambient emitters (chimneys, steam, mist): their height is above the ground, or absolute with `abs`; ticked by ambient()
+    this.emitters = (this.layout.emitters || []).map(e => ({ ...e, y: e.abs !== undefined ? e.abs + e.y : this.heightAt(e.x, e.z) + e.y, acc: Math.random() }));
     map ? this.buildMapGround() : this.buildLegacyGround();
     this.buildProps();
     renderer.finalizeStatic();
@@ -91,6 +93,9 @@ export class World extends WorldState {
       if (p.tex) mat = MAT[p.tex];
       else if (p.emissive !== undefined) { mat = { color: [...hexToLinear(p.color), 1], tex: null, emissive: hexToLinear(p.emissive), emissiveI: 0, cast: p.cast }; this.heads.push(mat); }
       else { const k = p.color + ':' + p.cast; if (!mats.has(k)) mats.set(k, { color: [...hexToLinear(p.color), 1], tex: null, emissive: [0, 0, 0], cast: p.cast }); mat = mats.get(k); }
+      // a swaying part (trees, bushes): its own material, flagged for the wind in the shaders, with the height of its centre
+      // over the ground in the colour's alpha (1 - y / 64) so the shader knows how far up the tree each vertex is
+      if (p.sway && !p.absY) mat = { ...mat, sway: true, color: [mat.color[0], mat.color[1], mat.color[2], 1 - Math.min(63, p.y) / 64] };
       // multi-part props share their anchor's ground height. A box or straight cylinder of any size is a scaled unit one (the
       // vertex shader scales its UVs back to world units; axis-aligned normals survive the scale), so a chunk's props of one
       // material draw as one batch instead of one per size
@@ -102,7 +107,9 @@ export class World extends WorldState {
       }
       const m = new Mesh(geo, mat); m.position.set(p.x, p.absY ? p.y : p.y + this.heightAt(p.ax ?? p.x, p.az ?? p.z), p.z); m.rotation.set(p.rot[0], p.rot[1], p.rot[2]);
       if (scale) m.scale.set(scale[0], scale[1], scale[2]);
-      if (p.lampHead) { m.bound = 3; this.scene.add(m); } else r.addStatic(m);   // lamp heads change emissive at night, so they stay dynamic
+      if (p.beam) {   // a lighthouse beam: a long bar on a pivot at the lantern, turning, shown only at night
+        const pivot = new Node(); pivot.position.copy(m.position); pivot.bound = 50; m.position.set((scale ? scale[0] : 1) / 2, 0, 0); pivot.add(m); this.scene.add(pivot); this.beams.push(pivot);
+      } else if (p.lampHead) { m.bound = 3; this.scene.add(m); } else r.addStatic(m);   // lamp heads change emissive at night, so they stay dynamic
     }
     for (const t of this.layout.tufts) {
       if (this.terrain && this.terrain.height(t.x, t.z) < this.terrain.water) continue;   // none under the water
@@ -110,7 +117,33 @@ export class World extends WorldState {
     }
   }
 
-  update(dt) { super.update(dt); this.applyLighting(); }
+  update(dt) {
+    super.update(dt); this.applyLighting();
+    const night = this.light.night > 0.5;
+    for (const b of this.beams) { b.visible = night; if (night) b.rotation.y += dt * 0.5; }
+  }
+  // the ambient emitters, at the sim's pace (paused with it); and what the explosions left: marks to lay, shakes for the camera
+  ambient(dt) {
+    if (!this.dust) return;
+    for (const m of this.dust.marks.splice(0)) this.addMark(m);
+    for (const s of this.dust.shakes.splice(0)) if (this.onShake) this.onShake(s);
+    if (dt <= 0) return;
+    for (let i = this.marks.length - 1; i >= 0; i--) { const m = this.marks[i]; if ((m.t += dt) > m.life) { this.scene.remove(m.mesh); this.marks.splice(i, 1); } }
+    const wind = this.map.wind || [0.8, 0.3];
+    for (const e of this.emitters) { e.acc += dt * e.rate; while (e.acc >= 1) { e.acc -= 1; this.dust.ambient(e.kind, e.x, e.y, e.z, e.k, wind); } }
+  }
+  // a mark of battle on the ground: a scorch or crater decal, one of a few sizes, turned at random, gone after two minutes;
+  // at most 150, the oldest making way
+  addMark({ x, z, r, kind }) {
+    if (this.terrain && this.terrain.height(x, z) < this.terrain.water) return;   // not on the water
+    const sizes = kind === 'scorch' ? [4, 6, 9] : [2.5, 3.5], s = sizes.reduce((p, q) => Math.abs(q - r * 2) < Math.abs(p - r * 2) ? q : p);
+    const rd = this.renderer, key = rd.registerGeometry(`decal:${s},${s}`, decalGeometry(s, s));
+    this.markMats = this.markMats || {}; const mat = this.markMats[kind] || (this.markMats[kind] = { color: [1, 1, 1, 1], tex: this.tex(kind, { nearest: true, repeat: false, mips: false }), emissive: [0, 0, 0], cast: false, cutout: true });
+    const m = new Mesh(key, mat); m.position.set(x, this.heightAt(x, z) + 0.07, z); m.rotation.y = Math.random() * Math.PI * 2; m.bound = s;
+    this.scene.add(m); this.marks.push({ mesh: m, t: 0, life: 120 });
+    if (this.marks.length > 150) { const old = this.marks.shift(); this.scene.remove(old.mesh); }
+  }
+
   applyLighting() {
     const L = this.light;
     for (const h of this.heads) h.emissiveI = L.lampEmissive;

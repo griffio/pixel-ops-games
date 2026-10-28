@@ -9,17 +9,25 @@ layout(location=7) in vec4 iColor; layout(location=8) in vec4 iEmis;`;
 
 export const MAIN_VS = `#version 300 es
 ${INSTANCE_IN}
-uniform mat4 uViewProj; uniform mat4 uLightVP; uniform float uNormalBias;
+uniform mat4 uViewProj; uniform mat4 uLightVP; uniform float uNormalBias; uniform float uSway; uniform float uTime;
 out vec3 vN; out vec2 vUv; out vec4 vColor; out vec3 vEmis; out vec3 vWorld; out vec4 vShadow;
 void main() {
   mat4 M = mat4(iM0, iM1, iM2, iM3);
   vec4 w = M * vec4(aPos, 1.0);
   vec3 n = normalize(mat3(M) * aNormal);
+  // the wind: a swaying part (trees, bushes; uSway) leans by the square of its height over the ground, which the instance's
+  // colour alpha carries as the part centre's height (1 - y / 64), the whole tree moving as one on its own phase
+  if (uSway > 0.5) {
+    float ground = iM3.y - (1.0 - iColor.a) * 64.0, hgt = max(w.y - ground, 0.0), ph = uTime * 1.1 + iM3.x * 0.15 + iM3.z * 0.11;
+    float gust = 0.55 + 0.45 * sin(uTime * 0.37 + iM3.x * 0.02 + iM3.z * 0.03);
+    w.xz += vec2(sin(ph), cos(ph * 0.7 + 1.3)) * gust * 0.0045 * hgt * hgt;
+  }
+
   // a box or straight cylinder of any size is drawn as a scaled unit one (one batch per material, not per size); its UVs are
   // in world units like the sized geometry's once scaled by the instance's size along the face's two axes
   vec3 sc = vec3(length(iM0.xyz), length(iM1.xyz), length(iM2.xyz));
   vec2 us = abs(aNormal.x) > 0.5 ? sc.zy : (abs(aNormal.y) > 0.5 ? sc.xz : sc.xy);
-  vWorld = w.xyz; vN = n; vUv = aUv * us; vColor = iColor; vEmis = iEmis.rgb;
+  vWorld = w.xyz; vN = n; vUv = aUv * us; vColor = vec4(iColor.rgb, uSway > 0.5 ? 1.0 : iColor.a); vEmis = iEmis.rgb;
   vShadow = uLightVP * vec4(w.xyz + n * uNormalBias, 1.0);
   gl_Position = uViewProj * w;
 }`;
@@ -139,8 +147,19 @@ void main() {
 
 export const SHADOW_VS = `#version 300 es
 ${INSTANCE_IN}
-uniform mat4 uLightVP; out vec2 vUv;
-void main() { vec3 sc = vec3(length(iM0.xyz), length(iM1.xyz), length(iM2.xyz)); vUv = aUv * (abs(aNormal.x) > 0.5 ? sc.zy : (abs(aNormal.y) > 0.5 ? sc.xz : sc.xy)); gl_Position = uLightVP * (mat4(iM0, iM1, iM2, iM3) * vec4(aPos, 1.0)); }`;
+uniform mat4 uLightVP; uniform float uSway; uniform float uTime; out vec2 vUv;
+void main() {
+  vec3 sc = vec3(length(iM0.xyz), length(iM1.xyz), length(iM2.xyz)); vUv = aUv * (abs(aNormal.x) > 0.5 ? sc.zy : (abs(aNormal.y) > 0.5 ? sc.xz : sc.xy));
+  vec4 w = mat4(iM0, iM1, iM2, iM3) * vec4(aPos, 1.0);
+  // the wind: a swaying part (trees, bushes; uSway) leans by the square of its height over the ground, which the instance's
+  // colour alpha carries as the part centre's height (1 - y / 64), the whole tree moving as one on its own phase
+  if (uSway > 0.5) {
+    float ground = iM3.y - (1.0 - iColor.a) * 64.0, hgt = max(w.y - ground, 0.0), ph = uTime * 1.1 + iM3.x * 0.15 + iM3.z * 0.11;
+    float gust = 0.55 + 0.45 * sin(uTime * 0.37 + iM3.x * 0.02 + iM3.z * 0.03);
+    w.xz += vec2(sin(ph), cos(ph * 0.7 + 1.3)) * gust * 0.0045 * hgt * hgt;
+  }
+  gl_Position = uLightVP * w;
+}`;
 
 export const SHADOW_FS = `#version 300 es
 precision mediump float;

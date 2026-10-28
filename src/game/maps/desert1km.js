@@ -11,6 +11,7 @@ const deckLine = (b, lead = 30) => [-b.len / 2 - lead, -b.len / 2, b.len / 2, b.
 // Advance-and-Secure order between them; an asphalt road joins the chain.
 export const desert1km = {
   name: 'Desert Crossing', size: 1000,
+  hour: 15.5,   // afternoon
   blurb: 'Open desert between corner bases: five places in a chain along one road.',   // the lobby's map card
   ground: { base: 'sand', baseSize: 12.8, tiles: ['concrete', 'asphalt', 'grass', 'dirt'], tileSize: [16, 4, 12.8, 12.8] },   // natural ground 12.8 m to a 128 px tile (groundTextures.js)
   bases: [{ team: 0, x: -400, z: -400, r: 42 }, { team: 1, x: 430, z: 430, r: 42 }],
@@ -69,7 +70,7 @@ export const desert1km = {
       const [ux, uz] = d > 0.01 ? [(x - fx) / d, (z - fz) / d] : [side[0] / Math.hypot(...side), side[1] / Math.hypot(...side)];
       return [fx + ux * clear, fz + uz * clear];
     };
-    const { props, obstacles, lamps, tufts, decals, bridge, box, footprint, part, BAG, bagStack, BLOCK, blockWall, palm, bush, rock, PLASTER, house, controlTower, wallRun, MESH, hesco, shade, container, cyl, tilt, CONC, stains, watchtower, hangar, barracks, fuelTank, floodlight, radioMast, equipmentHut, FRUIT, stall, STONE, well, sandbagRing, containers, scrub, TRIM, WOOD, DOOR, DARK, STAIN, TIN, TIMBER, STEEL, DARKM } = makeKit({ r, rd: rand(4242), onRoad });
+    const { props, obstacles, lamps, tufts, decals, emitters, bridge, box, footprint, part, BAG, bagStack, BLOCK, blockWall, palm, bush, rock, PLASTER, house, controlTower, wallRun, MESH, hesco, shade, container, cyl, tilt, CONC, stains, watchtower, hangar, barracks, fuelTank, floodlight, radioMast, equipmentHut, FRUIT, stall, STONE, well, sandbagRing, containers, scrub, TRIM, WOOD, DOOR, DARK, STAIN, TIN, TIMBER, STEEL, DARKM } = makeKit({ r, rd: rand(4242), onRoad });
 
     // ---- main bases: sandbag perimeter, containers, floodlights, a tower
     for (const b of this.bases) {
@@ -167,7 +168,7 @@ export const desert1km = {
     // keep obstacles off the road itself
     const roadFree = (o) => !onRoad((o.minX + o.maxX) / 2, (o.minZ + o.maxZ) / 2);
     const keep = new Set(obstacles.filter(roadFree));
-    return { props, obstacles: [...keep], lamps, tufts: tufts.filter(t => !clear(t.x, t.z) && !onRoad(t.x, t.z, 6.5)), decals, strips, oasis };
+    return { props, obstacles: [...keep], lamps, emitters, tufts: tufts.filter(t => !clear(t.x, t.z) && !onRoad(t.x, t.z, 6.5)), decals, strips, oasis };
   },
 
   // paints the splat map: r concrete, g asphalt, b grass, a dirt (sand elsewhere)

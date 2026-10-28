@@ -160,6 +160,26 @@ export function railwayStrip() {
 }
 export function lineStrip() { const [c, g] = canvas(8, 8); g.fillStyle = '#d4ad3a'; g.fillRect(0, 0, 8, 8); return c; }
 export function dashStrip() { const [c, g] = canvas(8, 32); g.clearRect(0, 0, 8, 32); g.fillStyle = '#e8e2d2'; g.fillRect(0, 0, 8, 16); return c; }
+// marks of battle, laid on the ground as cutout decals: a scorch, soot black fading out through a ragged edge; a crater, a
+// dark bowl inside a ragged lighter rim of thrown earth (alpha is binary at the edge, since the decal is a cutout)
+export function scorchDecal() {
+  const n = 64, [c, g] = canvas(n, n), r = prng(131), img = g.createImageData(n, n), d = img.data;
+  for (let y = 0; y < n; y++) for (let x = 0; x < n; x++) {
+    const dx = (x + 0.5) / n - 0.5, dy = (y + 0.5) / n - 0.5, dist = Math.hypot(dx, dy) * 2, edge = 0.75 + (r() - 0.5) * 0.3, i = (y * n + x) * 4;
+    const t = Math.max(0, Math.min(1, 1 - dist / edge)), v = Math.round(30 + 48 * (1 - t) + r() * 18);
+    d[i] = v; d[i + 1] = v - 2; d[i + 2] = v - 5; d[i + 3] = t > 0.12 + r() * 0.5 ? 255 : 0;   // ragged, with the ground showing through
+  }
+  g.putImageData(img, 0, 0); return c;
+}
+export function craterDecal() {
+  const n = 64, [c, g] = canvas(n, n), r = prng(137), img = g.createImageData(n, n), d = img.data;
+  for (let y = 0; y < n; y++) for (let x = 0; x < n; x++) {
+    const dx = (x + 0.5) / n - 0.5, dy = (y + 0.5) / n - 0.5, dist = Math.hypot(dx, dy) * 2, i = (y * n + x) * 4, rim = dist > 0.55 && dist < 0.9;
+    const v = rim ? 150 + r() * 40 : 46 + dist * 50 + r() * 16;
+    d[i] = Math.round(v * (rim ? 0.86 : 0.9)); d[i + 1] = Math.round(v * (rim ? 0.78 : 0.82)); d[i + 2] = Math.round(v * (rim ? 0.6 : 0.7)); d[i + 3] = dist < 0.82 + r() * 0.14 ? 255 : 0;
+  }
+  g.putImageData(img, 0, 0); return c;
+}
 export function helipadDecal() {   // 14 m
   const [c, g] = canvas(224, 224); g.clearRect(0, 0, 224, 224);
   g.strokeStyle = '#e8e2d2'; g.lineWidth = 11; g.beginPath(); g.arc(112, 112, 106, 0, Math.PI * 2); g.stroke();
@@ -173,5 +193,5 @@ export function bayDecal() {   // 7 x 12 m parking bay outline
 const MEADOW = [108, 138, 68];   // the meadow tile's average: green maps' road edges drift into grass, not sand
 export const GROUND_TEXTURES = {
   sand: sandTile, concrete: concreteTile, asphalt: asphaltTile, grass: grassTile, meadow: meadowTile, dirt: dirtTile, rock: rockTile, macro: macroTile,
-  road: () => roadStrip(), track: () => trackStrip(), roadM: () => roadStrip(MEADOW), trackM: () => trackStrip(MEADOW), railway: railwayStrip, line: lineStrip, dash: dashStrip, helipad: helipadDecal, bay: bayDecal,
+  road: () => roadStrip(), track: () => trackStrip(), roadM: () => roadStrip(MEADOW), trackM: () => trackStrip(MEADOW), railway: railwayStrip, line: lineStrip, dash: dashStrip, helipad: helipadDecal, bay: bayDecal, scorch: scorchDecal, crater: craterDecal,
 };

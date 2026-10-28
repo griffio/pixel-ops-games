@@ -2128,6 +2128,58 @@ Engine changes needed in the existing core:
   tiles' base, dark and light colours 20% nearer white, and the shader's variation (bleached
   patches, hollows, slow stretches, dry and lush zones) at half strength. The pattern, rock,
   dirt and roads are unchanged.
+- **Ambient effects (2026-10-28, branch `ambient-effects`).** The first of the polish ideas the
+  user chose after the performance pass.
+  - **Time of day.** Each map names its hour: Narva 8:12 (long morning shadows), Peninsula 17:36
+    (evening light off the sea), Desert Crossing 15:30, Palm Valley the old 9:30. The force
+    builder's new Time row (map's own, dawn, morning, noon, evening, night) overrides it, and
+    `?hour=` overrides both. Peninsula's lighthouse turns a 72 m beam at night, a dim emissive
+    bar on a pivot at the lantern, shown only after dusk.
+  - **Emitters.** The kit's chimneys, Peninsula's lit hearths (45% of cottages), Kreenholm's
+    boiler house and four points along the dam's tailwater are `layout.emitters`: kind, rate,
+    size, height over the ground (or absolute). `World.ambient(dt)` ticks them with the sim
+    and `DustSim.ambient` makes the particles: smoke that climbs for 8 to 12 s, swelling and
+    drifting on `map.wind`, so a chimney reads as a plume; steam; low spreading mist.
+  - **Wakes.** A moving landing craft leaves foam astern (spread by its beam, fading over 3 to
+    5 s) and throws spray at the bow (`DustSim.wake`).
+  - **Gulls** were built (flocks on circles over the harbour, the beach and the falls) and removed
+    the same day at the user's request.
+  - **A picking bug**, caught by the user on an iPad: the line that resets the sway uniform before
+    the unit batches had landed in `pick()` instead of `render()`, where `u` is undefined, so every
+    tap or click on the map threw before a unit could be chosen (the unit strip still worked). The
+    main pass sets the uniform per batch anyway, so the line was simply removed.
+  - **Sway.** Pines, birches, palms and bushes carry `sway`; each part's material is flagged
+    and its colour alpha holds the part centre's height over the ground (1 - y / 64), so the
+    vertex shaders lean every vertex by the square of its height on a per-tree phase with a slow
+    gust. The shadow pass sways too.
+  - **Lesson.** Headless Chrome without the frame-rate flags runs the animation loop at a few
+    frames a second, and the simulation with it, so emitters barely fire in screenshots; the
+    scratchpad's shoot2.mjs steps the whole simulation explicitly before each frame.
+  - **The rest, and the combat made kinetic (2026-10-28).** The user asked for the remaining
+    effects and for tracer fire and explosions with more punch.
+    - **Explosions** (`DustSim.explosion`): a bigger first-frame flash with a bright short light
+      and a dimmer half-second glow behind it; a fireball of tongues that climb and shrink; a
+      shock ring of 24 fast dust particles racing out along the ground; debris and glowing
+      embers on ballistic arcs; a column of smoke that hangs for seconds. Each explosion queues a
+      mark and a shake, which `World.ambient` drains.
+    - **Marks.** Scorch (ragged soot, 4 to 9 m) and crater (a dark bowl in a rim of thrown earth,
+      2.5 to 3.5 m) decals from shells, rockets and dying vehicles, not autocannon misses, which
+      would carpet the ground: cutout decals on the ground, turned at random, 150 at most, gone
+      after two minutes, culled like units, never on water.
+    - **Shake.** `RtsCamera.shake(k, dist)`: a jitter of a few texels in the camera's own axes,
+      quantised to the pixel grid, decaying in about three seconds, scaled by the blast and
+      damped by its distance from the camera's target.
+    - **Misses and hits.** A round into the ground spurts dirt with a wink of light and, one time
+      in four, a ricochet streaking off at an angle; a hit on armour throws seven sparks and a
+      wisp of smoke. Wrecked tanks and APCs cook off for ten seconds: pops of light and sparks.
+    - **Tracers.** Trails by weapon: tank 14 m and white-hot, machine guns 8 m, rifles 4.5 m at
+      three-quarter brightness, autocannon and mortar shells 7 m.
+    - **The opening.** `RtsCamera.flyTo`: 3.5 s from high over the map (a quarter of the way to
+      the base from the centre, pitch 1.2, zoomed out by map size) down to the base; any pan,
+      zoom, rotation or follow ends it, and `?x=` skips it. The scratchpad tools cancel it.
+    - Tested headless (marks and shakes flow, the shake decays, a wreck pops, a five-minute CPU
+      match runs clean) and in staged frames on the GPU: a blast at 0.15 s, 1 s and 4 s, a
+      burning wreck, a firefight's tracers.
 
 ## Open questions
 

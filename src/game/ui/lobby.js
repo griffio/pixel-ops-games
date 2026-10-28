@@ -29,7 +29,7 @@ export class Lobby {
     $('lb-doctrines').innerHTML = Object.entries(DOCTRINES).map(([k, d]) => `<label class="lb-doc"><input type="radio" name="doctrine" value="${k}"><div><b>${d.name}</b><small>${d.desc}</small></div></label>`).join('');
     $('lb-presets').innerHTML = Object.entries(PRESETS).map(([k, p]) => `<button data-preset="${k}">${p.name}</button>`).join('');
     $('lb-maps').innerHTML = this.maps.map(m => `<button class="lb-map${m.key === this.mapKey ? ' on' : ''}" data-map="${m.key}" title="${m.blurb || ''}"><img src="icons/maps/${m.key}.png" alt=""><b>${m.name}</b><small>${+(m.size / 1000).toFixed(1)} km${m.mode ? ` · ${MODES[m.mode].name} only` : ''}</small><span>${m.blurb || ''}</span></button>`).join('');
-    $('lb-modes').innerHTML = Object.values(MODES).filter(M => !this.fixedMode || M.key === this.fixedMode).map(M => `<label class="lb-doc"><input type="radio" name="mode" value="${M.key}"><div><b>${M.name}</b><small>${M.desc}</small></div></label>`).join('') + `<div id="lb-side" class="row"><span class="lb-lbl">Your side</span><label><input type="radio" name="side" value="attack"> attack</label><label><input type="radio" name="side" value="defend"> defend</label></div>` + `<div id="lb-diff" class="row"><span class="lb-lbl">CPU</span>${Object.entries(DIFFICULTY).map(([k, d]) => `<label title="${d.desc}"><input type="radio" name="difficulty" value="${k}"> ${d.name.toLowerCase()}</label>`).join('')}</div>` + `<div id="lb-cmd" class="row"><span class="lb-lbl">Opponent</span><select id="lb-cmd-s" title="Who commands the CPU side: the built-in planner, or a language model through the game's server"></select></div>`;
+    $('lb-modes').innerHTML = Object.values(MODES).filter(M => !this.fixedMode || M.key === this.fixedMode).map(M => `<label class="lb-doc"><input type="radio" name="mode" value="${M.key}"><div><b>${M.name}</b><small>${M.desc}</small></div></label>`).join('') + `<div id="lb-side" class="row"><span class="lb-lbl">Your side</span><label><input type="radio" name="side" value="attack"> attack</label><label><input type="radio" name="side" value="defend"> defend</label></div>` + `<div id="lb-diff" class="row"><span class="lb-lbl">CPU</span>${Object.entries(DIFFICULTY).map(([k, d]) => `<label title="${d.desc}"><input type="radio" name="difficulty" value="${k}"> ${d.name.toLowerCase()}</label>`).join('')}</div>` + `<div id="lb-hour" class="row"><span class="lb-lbl">Time</span>${[['', 'map'], ['6.3', 'dawn'], ['9.5', 'morning'], ['13', 'noon'], ['17.6', 'evening'], ['21.5', 'night']].map(([v, n]) => `<label><input type="radio" name="hour" value="${v}"> ${n}</label>`).join('')}</div>` + `<div id="lb-cmd" class="row"><span class="lb-lbl">Opponent</span><select id="lb-cmd-s" title="Who commands the CPU side: the built-in planner, or a language model through the game's server"></select></div>`;
     this.renderOpponent();
     this.root.addEventListener('click', (e) => {
       const t = e.target.closest('button'); if (!t) return;
@@ -45,6 +45,7 @@ export class Lobby {
       if (e.target.name === 'mode') { this.modeOpts.mode = e.target.value; this.render(); }
       if (e.target.name === 'side') { this.modeOpts.side = e.target.value; this.render(); }
       if (e.target.name === 'difficulty') { this.modeOpts.difficulty = e.target.value; this.render(); }
+      if (e.target.name === 'hour') { this.modeOpts.hour = e.target.value; this.render(); }   // '' is the map's own hour
       if (e.target.id === 'lb-cmd-s') this.modeOpts.commander = e.target.value;
     });
   }
@@ -78,6 +79,7 @@ export class Lobby {
     for (const r of this.root.querySelectorAll('input[name=mode]')) r.checked = r.value === this.modeOpts.mode;
     for (const r of this.root.querySelectorAll('input[name=side]')) r.checked = r.value === this.modeOpts.side;
     for (const r of this.root.querySelectorAll('input[name=difficulty]')) r.checked = r.value === this.modeOpts.difficulty;
+    for (const r of this.root.querySelectorAll('input[name=hour]')) r.checked = r.value === (this.modeOpts.hour || '');
     $('lb-side').style.display = MODES[this.modeOpts.mode].sides ? 'flex' : 'none';
     $('lb-sub').textContent = `${this.mapName} · ${MODES[this.modeOpts.mode].name} · ${Math.round(new MODES[this.modeOpts.mode]({ teams: [], units: null, world: {} }).length / 60)}:00 · you command BLUFOR, a ${DIFFICULTY[this.modeOpts.difficulty].name.toLowerCase()} CPU answers your loadout`;
     const pct = Math.min(100, s.cost / BUDGET * 100);

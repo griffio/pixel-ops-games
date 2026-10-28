@@ -207,7 +207,7 @@ export class Combat {
     if (this.onShot) this.onShot(u, w, e, hit);
     if (this.vision) { this.vision.reveal(u, e.team); this.vision.reveal(e, u.team); }   // the flash and the noise give the shooter away; whoever is aimed at is seen
     this.dust.shots.fire({ x: mx, y: gy, z: mz, tx, ty, tz, speed: w.speed, arc: !!w.arc, high: !!w.indirect, elev: w.elev || 0, kind: w.arc || kit === 'tankgun' ? 'shell' : w.rocket ? 'rocket' : 'bullet',
-      trail: w.arc ? 6 : kit === 'tankgun' ? 9 : w.rocket ? 2 : (kit === 'mg' || kit === 'doorgun' || kit === 'coax') ? 6 : 3.5, onArrive: (p) => this.arrive(p, u, w, e, hit, kit) });
+      trail: w.arc ? 7 : kit === 'tankgun' ? 14 : w.rocket ? 2.5 : (kit === 'mg' || kit === 'doorgun' || kit === 'coax' || kit === 'hmg') ? 8 : 4.5, onArrive: (p) => this.arrive(p, u, w, e, hit, kit) });
   }
 
   arrive(p, u, w, e, hit, kit = u.kit) {

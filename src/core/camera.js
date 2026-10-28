@@ -24,19 +24,33 @@ export class RtsCamera {
   }
 
   reset() { this.target.set(28, 0, 22); this.yawT = Math.PI * 0.25; this.pitchT = 0.95; this.zoomT = 3; this.follow = null; }
-  zoomBy(f) { this.zoomT = clamp(this.zoomT * f, this.minZoom, this.maxZoom); }
-  rotateBy(dyaw, dpitch) { this.yawT += dyaw; this.pitchT = clamp(this.pitchT + dpitch, 0.55, 1.35); }
+  zoomBy(f) { this.zoomT = clamp(this.zoomT * f, this.minZoom, this.maxZoom); this.fly = null; }
+  rotateBy(dyaw, dpitch) { this.yawT += dyaw; this.pitchT = clamp(this.pitchT + dpitch, 0.55, 1.35); this.fly = null; }
 
   groundAxes() {
     return { right: new Vec3(Math.cos(this.yaw), 0, -Math.sin(this.yaw)), fwd: new Vec3(-Math.sin(this.yaw), 0, -Math.cos(this.yaw)) };
   }
   panBy(dx, dz) {
     const { right, fwd } = this.groundAxes();
-    this.target.addScaledVector(right, dx).addScaledVector(fwd, dz); this.follow = null;
+    this.target.addScaledVector(right, dx).addScaledVector(fwd, dz); this.follow = null; this.fly = null;
+  }
+  // a shake from an explosion of size k, dist metres from the camera's target: a jitter of a few texels that dies in a moment
+  shake(k, dist) { this.shakeAmp = Math.min(1.6, (this.shakeAmp || 0) + 1.1 * k / (1 + dist / 45)); }
+  // a flight from one view to another over `duration` seconds (the match's opening); any input ends it
+  flyTo(from, to, duration = 3.5) {
+    this.fly = { from, to, t: 0, duration }; this.follow = null;
+    this.target.set(from.x, 0, from.z); this.zoom = this.zoomT = from.zoom; this.yaw = this.yawT = from.yaw; this.pitch = this.pitchT = from.pitch ?? this.pitchT;
   }
 
   update(dt, screenW, screenH) {
     const k = 1 - Math.pow(0.001, dt);
+    if (this.fly) {
+      const f = this.fly, u = Math.min(1, (f.t += dt) / f.duration), s = u * u * (3 - 2 * u);
+      this.target.x = f.from.x + (f.to.x - f.from.x) * s; this.target.z = f.from.z + (f.to.z - f.from.z) * s;
+      this.zoom = this.zoomT = f.from.zoom + (f.to.zoom - f.from.zoom) * s; this.yaw = this.yawT = f.from.yaw + (f.to.yaw - f.from.yaw) * s;
+      if (f.to.pitch !== undefined) this.pitch = this.pitchT = (f.from.pitch ?? this.pitch) + (f.to.pitch - (f.from.pitch ?? this.pitch)) * s;
+      if (u >= 1 || this.follow) this.fly = null;
+    }
     this.yaw = lerp(this.yaw, this.yawT, k);
     this.pitch = lerp(this.pitch, this.pitchT, k);
     this.zoom = clamp(lerp(this.zoom, this.zoomT, k), this.minZoom, this.maxZoom);
@@ -57,8 +71,8 @@ export class RtsCamera {
       if (this.mouse.y < m) pz += 1; if (this.mouse.y > 1 - m) pz -= 1;
     }
     if (px || pz) this.panBy(px * speed * dt, pz * speed * dt);
-    if (this.keys.has('KeyQ')) this.yawT += 1.6 * dt;
-    if (this.keys.has('KeyE')) this.yawT -= 1.6 * dt;
+    if (this.keys.has('KeyQ')) { this.yawT += 1.6 * dt; this.fly = null; }
+    if (this.keys.has('KeyE')) { this.yawT -= 1.6 * dt; this.fly = null; }
     if (this.follow) { const p = this.follow.pos; this.target.x = lerp(this.target.x, p.x, k); this.target.z = lerp(this.target.z, p.z, k); }
     const b = this.bounds;
     this.target.x = clamp(this.target.x, -b, b); this.target.z = clamp(this.target.z, -b, b);
@@ -69,6 +83,12 @@ export class RtsCamera {
     const dir = new Vec3(Math.sin(this.yaw) * Math.cos(this.pitch), Math.sin(this.pitch), Math.cos(this.yaw) * Math.cos(this.pitch));
     this.eye.copy(this.target).addScaledVector(dir, dist);
     Mat4.cameraWorld(this.world, this.eye, this.target, UP);
+    if (this.shakeAmp > 0.01) {   // the shake: a jitter in the camera's own right and up, a few texels at most, decaying fast
+      const amp = this.shakeAmp * 3 / this.pixel.texelsPerUnit, right = Mat4.column(this.world, 0), up = Mat4.column(this.world, 1);
+      this.eye.addScaledVector(right, (Math.random() - 0.5) * 2 * amp).addScaledVector(up, (Math.random() - 0.5) * 2 * amp);
+      this.world[12] = this.eye.x; this.world[13] = this.eye.y; this.world[14] = this.eye.z;
+      this.shakeAmp *= Math.pow(0.03, dt);
+    }
 
     // snap the camera to the texel grid in its own right/up axes so static geometry doesn't shimmer while panning
     if (this.pixel.enabled) {

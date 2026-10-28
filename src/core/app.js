@@ -62,10 +62,15 @@ export function populate(app) {
       app.match = new Match(app, { cpu, mode, side, difficulty, loadouts: [playerLoadout, preset(cpuKey)] });
       if (app.audio) app.audio.ui('start');
       // the sun stands still during a match (a moving sun crawls every shadow edge at close zoom); ?hour= picks the time
-      app.world.timeSpeed = 0; if (!q.has('hour')) { app.world.time = 9.5; app.world.update(0); }
+      // the sun stands still during a match; the hour is the link's ?hour=, else the lobby's choice, else the map's own (9:30 without one)
+      app.world.timeSpeed = 0; if (!q.has('hour')) { app.world.time = modeOpts.hour ? +modeOpts.hour : (app.world.map && app.world.map.hour !== undefined ? app.world.map.hour : 9.5); app.world.update(0); }
       document.getElementById('c-tspeed').value = 0; document.getElementById('v-tspeed').textContent = '0×';
       document.getElementById('c-auto').checked = false;
-      if (!q.has('x')) rts.target.set(app.match.teams[0].base.x + 10, 0, app.match.teams[0].base.z + 10);
+      app.world.onShake = (s) => rts.shake(s.k, Math.hypot(s.x - rts.target.x, s.z - rts.target.z));   // explosions shake the camera, less the further off
+      if (!q.has('x')) {   // the opening: a flight from high over the middle of the map down to your base, unless the link fixes the view
+        const b = app.match.teams[app.playerTeam ?? 0].base, size = app.world.size || 1000;
+        rts.flyTo({ x: b.x * 0.25, z: b.z * 0.25, zoom: Math.max(rts.minZoom, 0.45 * 1000 / size), yaw: rts.yawT + 0.9, pitch: 1.2 }, { x: b.x + 10, z: b.z + 10, zoom: 3, yaw: rts.yawT, pitch: rts.pitchT }, 3.5);
+      }
       app.hud.toast(`${app.match.teams[0].loadoutName} vs ${app.match.teams[1].loadoutName}`);
     };
     if (cpu.includes(0) || q.has('loadout')) app.startMatch(preset(q.get('loadout') || 'balanced'));
@@ -98,7 +103,7 @@ export function runLoop(app) {
     app.world.update(simDt);
     app.units.update(simDt);
     if (app.match) app.match.update(simDt);
-    app.dust.update(simDt);
+    app.dust.update(simDt); if (app.world.ambient) app.world.ambient(simDt);
     app.markers.update(simDt);
     if (app.audio) app.audio.update(dt);
     if (app.input) app.input.update(dt);

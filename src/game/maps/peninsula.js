@@ -32,6 +32,7 @@ const LANES = [
 
 export const peninsula = {
   name: 'Peninsula', size: 1200, mode: 'invasion',
+  hour: 17.6, wind: [0.7, 0.6],   // evening light off the sea; the wind onshore
   nav: { foot: 1.5, vehicle: 2.5, cap: 120000 },   // as Palm Valley: 640k infantry cells, not 1.44 M at 1 m (a search ran 60 ms there)
   blurb: 'An assault from the sea: landing craft to three beaches against a defender with one bridge over a canal.',
   splatRes: 1024,
@@ -112,6 +113,7 @@ export const peninsula = {
       Q(0, 0, 0, w, h, d, wall); footprint(w, d, x, z, rot, h + 2.4);
       for (let k = 0; k < 4; k++) Q(0, h + k * 0.62, 0, w + 0.5, 0.62, +((d + 0.7) * (1 - k / 4.3)).toFixed(2), roof);
       Q(w / 2 - 0.8, h, 0, 0.9, 3.4, 0.9, wall); Q(w / 2 - 0.8, h + 3.4, 0, 1.0, 0.2, 1.0, 0x6b6660);
+      if (rd() < 0.45) { const c = Math.cos(rot), s = Math.sin(rot), lx = w / 2 - 0.8; K.emitters.push({ x: x + lx * c, y: h + 3.8, z: z - lx * s, kind: 'smoke', k: 0.8, rate: 1.4 }); }   // a hearth lit
       Q(du, 0, -d / 2 - 0.04, 1.0, 2.1, 0.08, DOORS[Math.floor(rd() * DOORS.length)]);
       for (const s of [-1, 1]) for (let fl = 0; fl < floors; fl++) for (const u of [-w / 3, 0, w / 3]) if (!(s < 0 && fl === 0 && Math.abs(u - du) < 1.4)) Q(u, fl * 3.1 + 1.1, s * (d / 2 + 0.03), 0.9, 1.0, 0.06, GLASS);
     };
@@ -144,6 +146,7 @@ export const peninsula = {
       cyl(x, z, 0, 15.2, 0, 3.0, 3.0, 0.4, 12, 0x2b2d30);                                               // gallery
       props.push({ geo: 'cyl:1.6,1.6,2.2,10', color: 0x333333, emissive: 0xfff2c0, x, y: 16.5, z, rot: [0, 0, 0], cast: true, lampHead: true, ax: x, az: z });
       cyl(x, z, 0, 18.3, 0, 0.3, 2.0, 1.4, 10, 0xb33a32); K.lamps.push({ x, y: 16.5, z, color: 0xfff2c0, distance: 70 });
+      props.push({ geo: 'box:72,0.4,1.0', color: 0x1a1a1a, emissive: 0xc9b87e, x, y: 16.5, z, rot: [0, 0, 0], cast: false, lampHead: true, beam: true });   // its beam, turning at night (gl/world.js)
       footprint(8, 8, x, z, 0, 19); take(x, z, 6);
       for (const [e, n] of [[72, 398], [72, 386]]) { const [cx, cz] = P(e, n); cottage(cx, cz, 12, 6, 0, 1); take(cx, cz, 7); } }
 
@@ -196,7 +199,7 @@ export const peninsula = {
     }
 
     for (const rd0 of this.roads) strips.push({ points: rd0.points, width: rd0.width, tex: rd0.tex === 'road' ? 'roadM' : 'trackM', vRepeat: rd0.tex === 'road' ? 12 : 5, smooth: 2, y: rd0.tex === 'road' ? 0.03 : 0.02, cutout: true });
-    return { props, obstacles, lamps: K.lamps, tufts: K.tufts, decals: K.decals, strips };
+    return { props, obstacles, lamps: K.lamps, tufts: K.tufts, decals: K.decals, emitters: K.emitters, strips };
   },
 
   // the splat: concrete, sand and dirt weights in r, g, b and the meadow in alpha (1 - the rest), as Narva weighs them. Each tile
