@@ -1,5 +1,6 @@
-// Buildings that stray rounds can knock down. A building is a group of tall obstacles (3 m or more, touching: a turned house is
-// rows of them, a block has wings) with the props standing on them. A shell, rocket or mortar bomb into a wall or roof damages it
+// Buildings that stray rounds can knock down. A building is a group of touching obstacles the map kit tagged `bld` (houses,
+// cottages, sheds, huts, garages, blocks of flats, barracks and hangars: a turned house is rows of them, a block has wings)
+// with the props standing on them; landmarks, bridges, walls and the dam carry no tag and stand whatever hits them. A shell, rocket or mortar bomb into a wall or roof damages it
 // (a bullet only chips it); enough of them bring it down: its props go, a heap of rubble stands in the footprint as low cover,
 // the ground is scorched, and the nav grids and the line-of-sight grid learn the change. match.js makes one per match and
 // combat.js reports the hits (a round in flight stops at the first tall box it meets, core/projectiles.js).
@@ -8,7 +9,7 @@ export class Buildings {
   constructor(match) {
     this.m = match; this.world = match.world; this.list = []; this.cells = new Map(); this.down = 0;
     const O = this.world.obstacles, area = (o) => (o.maxX - o.minX) * (o.maxZ - o.minZ), hOf = (o) => (o.h === undefined ? 2 : o.h);
-    const tall = O.filter(o => hOf(o) >= 3 && hOf(o) <= 40 && area(o) >= 12 && area(o) <= 1500);   // a trunk or a mast is too small, a ship or a chimney too big
+    const tall = O.filter(o => o.bld);
     // touching tall boxes make one building, found through a coarse grid so a city's thousands of rows stay cheap
     const grid = new Map(), key = (x, z) => Math.floor(x / 8) + ',' + Math.floor(z / 8), parent = tall.map((_, i) => i);
     const find = (i) => parent[i] === i ? i : (parent[i] = find(parent[i]));

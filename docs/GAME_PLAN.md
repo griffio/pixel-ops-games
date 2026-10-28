@@ -2271,11 +2271,15 @@ Engine changes needed in the existing core:
   four factory stacks and the dam's mist; the other maps had none.
 - **Buildings that stray rounds knock down (2026-10-28).** The user's second ask: a shot into a
   house should damage or destroy it. `src/game/buildings.js`:
-  - **What a building is.** Tall obstacles (3 to 40 m, 12 to 1500 m²: not a trunk, a mast, a
-    chimney or the ship) that touch make one building (a turned house is rows of them), found
-    through an 8 m grid so Narva's 549 cost nothing at setup; the props standing on it are
-    the parts sharing its anchor and the plain boxes inside its footprint. Hits to bring it
-    down: volume / 450 m³, three at least, eight at most.
+  - **What a building is.** Obstacles the map kit tags `bld` (the house, cottage, shed, hut,
+    garages, panel block and tower, barracks and hangar builders; landmarks, the church, the
+    lighthouse, bridges, walls and the dam carry no tag, since blowing the bridge is parked
+    and a stray shell should not fell the castle) that touch make one building (a turned
+    house is rows of them), found through an 8 m grid so a city's cost nothing at setup; the
+    props standing on it are the parts sharing its anchor and the plain boxes inside its
+    footprint. Hits to bring it down: volume / 450 m³, three at least, eight at most. The
+    first cut took any tall obstacle of building size, which on the live site let a hut in a
+    base's sandbag ring go and would have let the dam.
   - **Strays meet walls.** `ProjectileSim` asks `Combat.wallHit` for each step of a round
     that missed: the first tall box the step enters below its top (a wall), or comes down
     into (a roof); a step starting inside a box passes, so a muzzle against a wall still

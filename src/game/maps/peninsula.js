@@ -110,7 +110,7 @@ export const peninsula = {
     const cottage = (x, z, w, d, rot, floors = 1) => {   // ridge along local x, door and windows on the long faces, a chimney on one gable
       const Q = (lx, ly, lz, bw, bh, bd, m) => part(x, z, rot, lx, ly, lz, bw, bh, bd, m), h = 3.1 * floors;
       const wall = WALLS[Math.floor(rd() * WALLS.length)], roof = ROOF[Math.floor(rd() * ROOF.length)], du = (rd() < 0.5 ? -1 : 1) * w / 4;
-      Q(0, 0, 0, w, h, d, wall); footprint(w, d, x, z, rot, h + 2.4);
+      Q(0, 0, 0, w, h, d, wall); footprint(w, d, x, z, rot, h + 2.4, true);
       for (let k = 0; k < 4; k++) Q(0, h + k * 0.62, 0, w + 0.5, 0.62, +((d + 0.7) * (1 - k / 4.3)).toFixed(2), roof);
       Q(w / 2 - 0.8, h, 0, 0.9, 3.4, 0.9, wall); Q(w / 2 - 0.8, h + 3.4, 0, 1.0, 0.2, 1.0, 0x6b6660);
       rd();   // (the hearth smoke that used to be rolled here is gone; the roll stays so the rest of the village keeps its layout)
@@ -128,7 +128,7 @@ export const peninsula = {
       const Q = (lx, ly, lz, bw, bh, bd, m) => part(x, z, rot, lx, ly, lz, bw, bh, bd, m);
       Q(0, 0, 0, w, 7, d, col); for (let k = 0; k < 3; k++) Q(0, 7 + k * 0.6, 0, +((w + 0.6) * (1 - k / 3.4)).toFixed(2), 0.6, d + 0.4, 0x6a6e70);
       for (const u of [-d / 4, d / 4]) Q(-w / 2 - 0.05, 0, u, 0.1, 5, 5, 0x3b3f42);
-      footprint(w, d, x, z, rot, 8.8);
+      footprint(w, d, x, z, rot, 8.8, true);
     };
 
     // ---- the village behind West Beach: cottages along its road and round the green, the church on the north side

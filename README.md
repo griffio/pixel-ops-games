@@ -582,8 +582,10 @@ src/gl/             WebGL2 back end
   roof it meets (a hit is settled at the trigger and lands as before), and a direct-fire
   miss flies on past its target, so stray fire lands on whatever stands behind: bullets
   chip a building, shells, rockets and mortar bombs
-  damage it (`src/game/buildings.js`: a building is the group of tall obstacles under a
-  house or block, three hits for a cottage, eight for a block of flats), and enough of
+  damage it (`src/game/buildings.js`: a building is a house, cottage, shed, hut, garage
+  row, block of flats, barracks or hangar, tagged by the map kit, so landmarks, bridges,
+  walls and the dam stand whatever hits them; three hits for a cottage, eight for a block
+  of flats), and enough of
   them bring it down into a heap of rubble in its own colours, low cover that infantry
   pick through and vehicles go round, with the ground scorched and the line-of-sight and
   nav grids updated.

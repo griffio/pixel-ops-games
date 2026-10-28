@@ -168,7 +168,8 @@ export class GLRenderer {
     const p = mesh.position, cs = this.chunkSize;
     const cx = Math.floor(p.x / cs), cz = Math.floor(p.z / cs), key = cx + ',' + cz;
     let c = this.chunks.get(key);
-    if (!c) { c = { minX: cx * cs, maxX: (cx + 1) * cs, minZ: cz * cs, maxZ: (cz + 1) * cs, batches: new Map(), r: cs }; this.chunks.set(key, c); }
+    if (!c) { c = { minX: cx * cs, maxX: (cx + 1) * cs, minZ: cz * cs, maxZ: (cz + 1) * cs, batches: new Map(), meshes: [], r: cs }; this.chunks.set(key, c); }
+    c.meshes.push(mesh);   // kept so the chunk can be rebuilt without them when a building comes down
     const bk = this.batchKey(mesh.geo, mesh.mat);
     let b = c.batches.get(bk); if (!b) { b = this.makeBatch(mesh.geo, mesh.mat, 16); c.batches.set(bk, b); }
     Mat4.fromTRS(mesh.world, mesh.position, mesh.rotation, mesh.scale);
@@ -184,9 +185,14 @@ export class GLRenderer {
     for (const c of this.chunks.values()) for (const b of c.batches.values()) { gl.deleteVertexArray(b.vao); gl.deleteBuffer(b.ibo); }
     this.chunks.clear();
   }
-  // one chunk rebuilt (a building came down): drop it, add its meshes again, upload it
-  dropChunk(key) { const gl = this.gl, c = this.chunks.get(key); if (!c) return; for (const b of c.batches.values()) { gl.deleteVertexArray(b.vao); gl.deleteBuffer(b.ibo); } this.chunks.delete(key); }
-  uploadChunk(key) { const gl = this.gl, c = this.chunks.get(key); if (!c) return; for (const b of c.batches.values()) { gl.bindBuffer(gl.ARRAY_BUFFER, b.ibo); gl.bufferData(gl.ARRAY_BUFFER, b.data.subarray(0, b.n * STRIDE), gl.STATIC_DRAW); } }
+  // one chunk rebuilt (a building came down): everything it held, less the meshes gone and plus the ones added, baked and
+  // uploaded again; the ground tiles, roads and tufts in it stay as they were
+  rebuildChunk(key, gone, added = []) {
+    const gl = this.gl, c = this.chunks.get(key), keep = c ? c.meshes.filter(m => !gone.has(m)) : [];
+    if (c) { for (const b of c.batches.values()) { gl.deleteVertexArray(b.vao); gl.deleteBuffer(b.ibo); } this.chunks.delete(key); }
+    for (const m of keep) this.addStatic(m); for (const m of added) this.addStatic(m);
+    const n = this.chunks.get(key); if (n) for (const b of n.batches.values()) { gl.bindBuffer(gl.ARRAY_BUFFER, b.ibo); gl.bufferData(gl.ARRAY_BUFFER, b.data.subarray(0, b.n * STRIDE), gl.STATIC_DRAW); }
+  }
   chunkKey(x, z) { const cs = this.chunkSize; return Math.floor(x / cs) + ',' + Math.floor(z / cs); }
   setGround(g) { this.ground = g; }
   // water: the depth map (one byte per terrain vertex, n x n from -half, cell apart: (depth + 0.5) / 4.5), for the water's

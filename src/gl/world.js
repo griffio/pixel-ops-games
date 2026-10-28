@@ -13,7 +13,6 @@ export class World extends WorldState {
     super(map); this.scene = scene; this.renderer = renderer; this.heads = []; this.beams = []; this.marks = []; this.onShake = null; this.focus = { x: 0, z: 0 };
     // ambient emitters (chimneys, steam, mist): their height is above the ground, or absolute with `abs`; ticked by ambient()
     this.emitters = (this.layout.emitters || []).map(e => ({ ...e, y: e.abs !== undefined ? e.abs + e.y : this.heightAt(e.x, e.z) + e.y, acc: Math.random() }));
-    this.statics = new Map();   // chunk key -> the static meshes baked into it, kept so a chunk can be rebuilt when a building comes down
     map ? this.buildMapGround() : this.buildLegacyGround();
     this.buildProps();
     renderer.finalizeStatic();
@@ -110,19 +109,18 @@ export class World extends WorldState {
       if (scale) m.scale.set(scale[0], scale[1], scale[2]);
       if (p.beam) {   // a lighthouse beam: a long bar on a pivot at the lantern, turning, shown only at night
         const pivot = new Node(); pivot.position.copy(m.position); pivot.bound = 50; m.position.set((scale ? scale[0] : 1) / 2, 0, 0); pivot.add(m); this.scene.add(pivot); this.beams.push(pivot);
-      } else if (p.lampHead) { m.bound = 3; this.scene.add(m); } else { p.mesh = m; this.addStatic(m); }   // lamp heads change emissive at night, so they stay dynamic
+      } else if (p.lampHead) { m.bound = 3; this.scene.add(m); } else { p.mesh = m; r.addStatic(m); }   // lamp heads change emissive at night, so they stay dynamic; p.mesh: so a building's props can be taken out
     }
     for (const t of this.layout.tufts) {
       if (this.terrain && this.terrain.height(t.x, t.z) < this.terrain.water) continue;   // none under the water
-      const m = new Mesh('tuft:' + t.size + ',' + (t.size * 1.1).toFixed(2), MAT.tuft); m.position.set(t.x, this.heightAt(t.x, t.z), t.z); m.rotation.y = t.yaw; this.addStatic(m);
+      const m = new Mesh('tuft:' + t.size + ',' + (t.size * 1.1).toFixed(2), MAT.tuft); m.position.set(t.x, this.heightAt(t.x, t.z), t.z); m.rotation.y = t.yaw; r.addStatic(m);
     }
   }
-  addStatic(m) { const k = this.renderer.chunkKey(m.position.x, m.position.z); let a = this.statics.get(k); if (!a) this.statics.set(k, a = []); a.push(m); this.renderer.addStatic(m); }
   // a building comes down (game/buildings.js): its props leave their chunks and a heap of rubble in its own colours stands in
   // the footprint, low enough to shoot over and climb; returns the heaps as obstacles
   collapse(b) {
-    const r = this.renderer, keys = new Set(), gone = new Set(b.props.map(p => p.mesh).filter(Boolean));
-    for (const m of gone) keys.add(r.chunkKey(m.position.x, m.position.z));
+    const r = this.renderer, added = new Map(), gone = new Set(b.props.map(p => p.mesh).filter(Boolean));
+    for (const m of gone) { const k = r.chunkKey(m.position.x, m.position.z); if (!added.has(k)) added.set(k, []); }
     const main = b.props.find(p => p.tex) || b.props[0], tex = main && main.tex, col = main && main.color !== undefined && main.color !== null ? main.color : 0x8b8378;
     const dark = (c, k) => ((Math.round((c >> 16) * k) << 16) | (Math.round(((c >> 8) & 255) * k) << 8) | Math.round((c & 255) * k));
     const plain = (c) => ({ color: [...hexToLinear(c), 1], tex: null, emissive: [0, 0, 0], cast: true });
@@ -132,11 +130,11 @@ export class World extends WorldState {
       const o = b.boxes[Math.floor(Math.random() * b.boxes.length)], x = o.minX + Math.random() * (o.maxX - o.minX), z = o.minZ + Math.random() * (o.maxZ - o.minZ);
       const w = 0.8 + Math.random() * 2.4, h = 0.3 + Math.random() * 1.1, d = 0.8 + Math.random() * 2.4, yaw = Math.random() * Math.PI, mat = mats[Math.floor(Math.random() * mats.length)];
       const m = new Mesh(mat.tex ? `box:${w.toFixed(2)},${h.toFixed(2)},${d.toFixed(2)}` : 'box:1,1,1', mat); m.position.set(x, this.heightAt(x, z) + h / 2 - 0.1, z); m.rotation.y = yaw; if (!mat.tex) m.scale.set(w, h, d);
-      keys.add(r.chunkKey(x, z)); this.addStatic(m);
+      const k = r.chunkKey(x, z); if (!added.has(k)) added.set(k, []); added.get(k).push(m);
       const hw = (Math.abs(Math.cos(yaw)) * w + Math.abs(Math.sin(yaw)) * d) / 2, hd = (Math.abs(Math.sin(yaw)) * w + Math.abs(Math.cos(yaw)) * d) / 2;
       heaps.push({ minX: x - hw, maxX: x + hw, minZ: z - hd, maxZ: z + hd, h: h - 0.1 });
     }
-    for (const k of keys) { const a = (this.statics.get(k) || []).filter(m => !gone.has(m)); this.statics.set(k, a); r.dropChunk(k); for (const m of a) r.addStatic(m); r.uploadChunk(k); }
+    for (const [k, ms] of added) r.rebuildChunk(k, gone, ms);
     return heaps;
   }
 

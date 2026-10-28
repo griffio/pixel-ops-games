@@ -4,23 +4,25 @@
 // places things with it, and returns the kit's props, obstacles, lamps, tufts and decals with its own strips.
 export function makeKit({ r, rd, onRoad = () => false }) {
   const props = [], obstacles = [], lamps = [], tufts = [], decals = [], emitters = [];   // emitters: { x, y, z, kind, k, rate }, y above the ground (gl/world.js ambient)
-  const box = (w, h, d, color, x, z, { y = 0, rot = 0, obstacle = true, cast = true, tex } = {}) => {
+  const box = (w, h, d, color, x, z, { y = 0, rot = 0, obstacle = true, cast = true, tex, bld = false } = {}) => {
     props.push({ geo: `box:${w},${h},${d}`, color, tex, x, y: y + h / 2, z, rot: [0, rot, 0], cast });
-    if (obstacle) footprint(w, d, x, z, rot, y + h);
+    if (obstacle) footprint(w, d, x, z, rot, y + h, bld);
   };
   // A box blocks its own footprint. Axis-aligned (or nearly) it is one obstacle; rotated, it is cut into rows 0.5-1 m deep, each
   // spanning only the part of the box inside that row, so a diagonal wall or a turned house no longer blocks its whole
   // bounding box (rotated props used to block 4.7x their real area, invisible solid ground beside them).
-  const footprint = (w, d, x, z, rot, top) => {
-    const c = Math.cos(rot), s = Math.sin(rot);
-    if (Math.abs(Math.sin(2 * rot)) < 0.1) { const hw = (w * Math.abs(c) + d * Math.abs(s)) / 2, hd = (w * Math.abs(s) + d * Math.abs(c)) / 2; obstacles.push({ minX: x - hw, maxX: x + hw, minZ: z - hd, maxZ: z + hd, h: top }); return; }
+  // bld: a building that stray fire can bring down (game/buildings.js): houses, sheds, huts, blocks of flats and hangars, not
+  // landmarks, bridges, walls or the dam
+  const footprint = (w, d, x, z, rot, top, bld = false) => {
+    const c = Math.cos(rot), s = Math.sin(rot), tag = bld ? { bld: true } : null;
+    if (Math.abs(Math.sin(2 * rot)) < 0.1) { const hw = (w * Math.abs(c) + d * Math.abs(s)) / 2, hd = (w * Math.abs(s) + d * Math.abs(c)) / 2; obstacles.push({ minX: x - hw, maxX: x + hw, minZ: z - hd, maxZ: z + hd, h: top, ...tag }); return; }
     const rowH = Math.min(1, Math.max(0.5, Math.min(w, d))), su = Math.min(0.25, w / 2), sv = Math.min(0.25, d / 2), rows = new Map();
     for (let u = -w / 2; u <= w / 2 + 1e-6; u += su) for (let v = -d / 2; v <= d / 2 + 1e-6; v += sv) {
       const px = x + u * c + v * s, pz = z - u * s + v * c, k = Math.floor(pz / rowH);   // the props' rotation about y
       let r = rows.get(k); if (!r) rows.set(k, r = { minX: Infinity, maxX: -Infinity, minZ: Infinity, maxZ: -Infinity });
       r.minX = Math.min(r.minX, px); r.maxX = Math.max(r.maxX, px); r.minZ = Math.min(r.minZ, pz); r.maxZ = Math.max(r.maxZ, pz);
     }
-    for (const r of rows.values()) obstacles.push({ minX: r.minX - 0.15, maxX: r.maxX + 0.15, minZ: r.minZ - 0.15, maxZ: r.maxZ + 0.15, h: top });
+    for (const r of rows.values()) obstacles.push({ minX: r.minX - 0.15, maxX: r.maxX + 0.15, minZ: r.minZ - 0.15, maxZ: r.maxZ + 0.15, h: top, ...tag });
   };
   // Detailed props are built from many boxes placed in the object's own frame (lx across, ly up from the ground, lz
   // forward) and turned by rot about (ox, oz); every part takes the ground height at the object's anchor, so a house
@@ -87,7 +89,7 @@ export function makeKit({ r, rd, onRoad = () => false }) {
   const house = (x, z, w = 7, d = 7, floors = 1, rot = 0, toward = null) => {
     const k = Math.floor(r() * 3), tex = PLASTER[k], trim = TRIM[k], fh = 3.6, h = fh * floors;   // its one r() call, as before
     const P = (lx, ly, lz, bw, bh, bd, m) => part(x, z, rot, lx, ly, lz, bw, bh, bd, m);
-    box(w, h, d, null, x, z, { rot, tex });
+    box(w, h, d, null, x, z, { rot, tex, bld: true });
     P(0, h - 0.1, 0, w + 0.3, 0.28, d + 0.3, trim);                                          // cornice
     for (const s of [-1, 1]) { P(0, h + 0.18, s * d / 2, w + 0.3, 0.45, 0.3, tex); P(s * w / 2, h + 0.18, 0, 0.3, 0.45, d - 0.3, tex); }   // parapet
     if (floors > 1) P(0, fh - 0.12, 0, w + 0.2, 0.24, d + 0.2, trim);                        // band between the floors
@@ -221,7 +223,7 @@ export function makeKit({ r, rd, onRoad = () => false }) {
       for (let y = 1; y < 8; y += 1.6) P(s * (9.3 - k * 1.3), y, D / 2 + 0.17 + k * 0.1, 3.4, 0.08, 0.03, BLUED);
     }
     P(0, 8, D / 2 + 0.3, 24, 0.35, 0.3, DARKM);                                                                        // door track
-    footprint(W, D, x, z, 0, 11);
+    footprint(W, D, x, z, 0, 11, true);
   };
   // Reference look: prefab barracks hut: sage-green walls on a plinth, white-framed windows, two doors with steps, a
   // stepped gable roof of rusty tin (ridge along x). 18 x 8, 5 high.
@@ -235,7 +237,7 @@ export function makeKit({ r, rd, onRoad = () => false }) {
     for (const u of [-6.5, -2.2, 2.2, 6.5]) win(u, -1);
     for (const u of [-2.0, 2.4]) { P(u, 0.3, D / 2 + 0.03, 1.1, 2.2, 0.05, FRAME); P(u, 0.35, D / 2 + 0.06, 0.9, 2.05, 0.05, 0x6f7d6d); P(u, 0, D / 2 + 0.45, 1.4, 0.3, 0.8, CONC[0]); }   // doors, steps
     for (const s of [-1, 1]) { P(s * (L / 2 + 0.02), 1.3, 0, 0.04, 1.0, 1.1, FRAME); P(s * (L / 2 + 0.05), 1.38, 0, 0.04, 0.84, 0.9, 0x2a3036); }   // end windows
-    footprint(L, D, x, z, 0, 5);
+    footprint(L, D, x, z, 0, 5, true);
   };
   // Reference look: horizontal fuel tank on concrete saddles, banded, a ladder up one end to a railed walkway along the
   // top. The tank and its obstacle are as before: 9 m along x, radius 2.2, centre 2.4 up.
@@ -293,7 +295,7 @@ export function makeKit({ r, rd, onRoad = () => false }) {
     P(-toMast * 3.03, 2.0, -1.0, 0.06, 0.5, 0.8, 0x5e6266);                                                            // vent
     P(0.8, 0.6, 2.75, 1.0, 0.8, 0.5, 0xc9cbc6); cyl(x, z, 0.8, 1.0, 3.01, 0.3, 0.3, 0.04, 10, 0x55595c, [Math.PI / 2, 0, 0]);   // air conditioner
     P(toMast * 4.3, 2.5, -0.3, 2.6, 0.12, 0.3, DARKM);                                                                 // cable tray to the mast
-    footprint(6, 5, x, z, 0, 3.2);
+    footprint(6, 5, x, z, 0, 3.2, true);
   };
   // Reference look: market stall: a checked cloth awning with a valance on four timber poles, crates of fruit underneath.
   // No obstacle, as before.
@@ -416,7 +418,7 @@ export function makeKit({ r, rd, onRoad = () => false }) {
   // face with a stair hut above each on the roof.
   const panelBlock = (x, z, len, floors = 5, rot = 0, depth = 12) => {
     const col = PANEL[Math.floor(rd() * 3)], h = +(floors * 2.8 + 0.5).toFixed(2), Q = (lx, ly, lz, w, hh, d, m) => part(x, z, rot, lx, ly, lz, w, hh, d, m);
-    Q(0, 0, 0, len, h, depth, col); footprint(len, depth, x, z, rot, h);
+    Q(0, 0, 0, len, h, depth, col); footprint(len, depth, x, z, rot, h, true);
     let bw = 0; for (const s of [-1, 1]) { bw = facade(Q, 'x', s, depth / 2, len, floors, h, col); facade(Q, 'z', s, len / 2, depth, floors, h, col); }
     roofOf(Q, len, depth, h, col);
     const n = Math.max(2, Math.round(len / 18));
@@ -429,7 +431,7 @@ export function makeKit({ r, rd, onRoad = () => false }) {
   // windows, the entrance on -z, a machine room on the roof.
   const panelTower = (x, z, rot = 0, floors = 9, w = 18, d = 15) => {
     const col = PANEL[Math.floor(rd() * 3)], h = +(floors * 2.8 + 0.5).toFixed(2), Q = (lx, ly, lz, bw, hh, bd, m) => part(x, z, rot, lx, ly, lz, bw, hh, bd, m);
-    Q(0, 0, 0, w, h, d, col); footprint(w, d + 3, x, z, rot, h);
+    Q(0, 0, 0, w, h, d, col); footprint(w, d + 3, x, z, rot, h, true);
     for (const s of [-1, 1]) { facade(Q, 'x', s, d / 2, w, floors, h, col); facade(Q, 'z', s, w / 2, d, floors, h, col); }
     Q(0, 0, d / 2 + 1.5, 4, h + 2.4, 3, col);
     for (let f = 0; f < floors; f++) Q(0, f * 2.8 + 1.1, d / 2 + 3.03, 0.8, 1.2, 0.06, GLASS);
@@ -441,7 +443,7 @@ export function makeKit({ r, rd, onRoad = () => false }) {
   const BRICK = [0x9b4a33, 0x8f432e, 0xa5533a], GROOF = 0x4d4845, GDOOR = 0x6b3a2a;
   const garages = (x, z, n, rot = 0) => {
     const col = BRICK[Math.floor(rd() * 3)], W = n * 3.4, Q = (lx, ly, lz, w, hh, d, m) => part(x, z, rot, lx, ly, lz, w, hh, d, m);
-    Q(0, 0, 0, W, 2.6, 6.5, col); footprint(W, 6.5, x, z, rot, 2.6);
+    Q(0, 0, 0, W, 2.6, 6.5, col); footprint(W, 6.5, x, z, rot, 2.6, true);
     Q(0, 2.6, -0.2, W + 0.3, 0.25, 7.1, GROOF);
     for (let i = 0; i < n; i++) { const u = -W / 2 + (i + 0.5) * 3.4; Q(u, 0.05, -3.29, 2.6, 2.15, 0.08, GDOOR); Q(u, 2.2, -3.31, 2.9, 0.22, 0.1, shade(col, 0.8)); }
     for (let i = 0; i <= n; i++) Q(-W / 2 + i * 3.4, 0, -3.3, 0.4, 2.6, 0.14, col);
