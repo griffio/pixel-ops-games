@@ -538,7 +538,8 @@ src/gl/             WebGL2 back end
   one pixel; no CPU raycasting.
 - Ambient life: a map's chimneys, hearths and the dam's tailwater are particle
   emitters (`layout.emitters`, ticked with the simulation and drifting on `map.wind`);
-  landing craft leave foam astern and spray at the bow; the lighthouse turns a beam at night; trees and bushes sway in the vertex
+  landing craft leave a little foam astern and spray at the bow; a tank (an APC more lightly)
+  belches exhaust as it pulls away from a stop; the lighthouse turns a beam at night; trees and bushes sway in the vertex
   shader (parts flagged `sway`, leaning by the square of their height over the
   ground). A match plays at the map's own hour (`map.hour`: Narva's low morning sun,
   Peninsula's evening, Desert Crossing's afternoon) unless the force builder's Time

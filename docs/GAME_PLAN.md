@@ -2180,6 +2180,10 @@ Engine changes needed in the existing core:
     - Tested headless (marks and shakes flow, the shake decays, a wreck pops, a five-minute CPU
       match runs clean) and in staged frames on the GPU: a blast at 0.15 s, 1 s and 4 s, a
       burning wreck, a firefight's tracers.
+  - **After the merge** the user asked for the craft's wake at half strength (done: half the foam,
+    fainter, half the spray) and for tanks to belch exhaust when they pull away from a stop:
+    `DustSim.exhaust`, eight dark puffs off the rear deck (four for an APC), fired by `fromUnit`
+    when a vehicle's speed crosses 0.5 m/s after being under 0.2.
 
 ## Open questions
 
