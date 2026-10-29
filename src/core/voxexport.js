@@ -40,8 +40,8 @@ function sample(matName, lx, ly, lz, hw, hh, hd, sc) {
 }
 
 // -> { vox: ArrayBuffer, meta: { height, radius, pivots: { part: [x, y, z] }, team: { paletteIndex: [r, g, b] } } }
-export function exportVox(type) {
-  const built = makeBuilders(F)[type](0), g = built.group, p = built.parts, V = VOXEL_FOR[type] || VOXEL;
+export function exportVox(type, builder = null) {   // builder: a (team) => { group, parts, height, radius } in place of the code model of that type
+  const built = (builder || makeBuilders(F)[type])(0), g = built.group, p = built.parts, V = VOXEL_FOR[type] || VOXEL;
   const partOf = new Map();   // rig node -> part name
   const steer = (p.steer || []).map(w => (p.wheels || []).indexOf(w)).filter(i => i >= 0), rotors = [];
   for (const [k, v] of Object.entries(p)) {
