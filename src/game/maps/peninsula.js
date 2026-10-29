@@ -32,6 +32,7 @@ const LANES = [
 
 export const peninsula = {
   name: 'Peninsula', size: 1200, mode: 'invasion',
+  clock: 24,   // minutes: in 126 CPU matches on 20 the defender held out 75% of the time on a median 86 tickets; 24 reads as even (GAME_PLAN, Peninsula P5)
   hour: 17.6, wind: [0.7, 0.6],   // evening light off the sea; the wind onshore
   nav: { foot: 1.5, vehicle: 2.5, cap: 120000 },   // as Palm Valley: 640k infantry cells, not 1.44 M at 1 m (a search ran 60 ms there)
   blurb: 'An assault from the sea: landing craft to three beaches against a defender with one bridge over a canal.',

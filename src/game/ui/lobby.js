@@ -81,7 +81,7 @@ export class Lobby {
     for (const r of this.root.querySelectorAll('input[name=difficulty]')) r.checked = r.value === this.modeOpts.difficulty;
     for (const r of this.root.querySelectorAll('input[name=hour]')) r.checked = r.value === (this.modeOpts.hour || '');
     $('lb-side').style.display = MODES[this.modeOpts.mode].sides ? 'flex' : 'none';
-    $('lb-sub').textContent = `${this.mapName} · ${MODES[this.modeOpts.mode].name} · ${Math.round(new MODES[this.modeOpts.mode]({ teams: [], units: null, world: {} }).length / 60)}:00 · you command BLUFOR, a ${DIFFICULTY[this.modeOpts.difficulty].name.toLowerCase()} CPU answers your loadout`;
+    $('lb-sub').textContent = `${this.mapName} · ${MODES[this.modeOpts.mode].name} · ${Math.round(new MODES[this.modeOpts.mode]({ teams: [], units: null, world: { map: this.maps.find(m => m.key === this.mapKey) || {} } }).length / 60)}:00 · you command BLUFOR, a ${DIFFICULTY[this.modeOpts.difficulty].name.toLowerCase()} CPU answers your loadout`;
     const pct = Math.min(100, s.cost / BUDGET * 100);
     $('lb-summary').innerHTML = `<div class="bar"><i style="width:${pct}%" class="${s.cost > BUDGET ? 'over' : ''}"></i></div>
       <div class="kv"><span>points</span><b>${s.cost} / ${BUDGET}</b></div><div class="kv"><span>squads</span><b>${s.squads} / ${s.slots}</b></div><div class="kv"><span>vehicles</span><b>${s.vehicles} / 9</b></div>

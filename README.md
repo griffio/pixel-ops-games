@@ -301,12 +301,12 @@ precedence and the utility AI fills the gaps.
 
 **Game modes** (picked in the force builder, or `?mode=` with `?side=attack|defend`):
 - *Advance & Secure*: capture the five locations in order; majority bleed; take all to win.
-- *Invasion*: defenders start with every location and 300 tickets against the attackers'
-  500; attackers must take them all before the 20-minute clock, each capture costs the
-  defenders 15 tickets.
+- *Invasion*: defenders start with every location and 400 tickets against the attackers'
+  650; attackers must take them all before the clock (20 minutes; Peninsula sets 24 with
+  `clock` on the map), each capture costs the defenders 30 tickets.
 - *Destruction*: three weapon caches hidden near the defenders' locations, one active at a
   time and revealed when attackers come close or after 90 s; destroying all three before the
-  20-minute clock wins, each costs the defenders 40 tickets.
+  20-minute clock wins, each costs the defenders 80 tickets.
 - *Territory Control*: a hex grid over the map; capture only hexes touching your own; more
   hexes bleeds the enemy; 80% of the land wins outright.
 - *Skirmish*: tickets only.

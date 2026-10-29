@@ -2,9 +2,10 @@
 // condition, and tells the HUD and the CPU commander what matters.
 export class Mode {
   static key = 'base'; static name = 'Mode'; static desc = ''; static sides = false;
+  static minutes = 25;   // the clock, unless the map sets its own `clock` (Peninsula asks for 24)
   constructor(match, opts = {}) { this.match = match; this.opts = opts; this.teams = match.teams; this.units = match.units; }
   tickets(team) { return 500; }
-  get length() { return 25 * 60; }
+  get length() { const map = this.match.world && this.match.world.map; return ((map && map.clock) || this.constructor.minutes) * 60; }
   setup() {}
   tick(dt) {}
   // { winner: team | null (draw), reason } when the mode decides the match, else null

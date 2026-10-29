@@ -68,7 +68,7 @@ anti-tank if the player goes Mechanized). Loadouts save to localStorage.
 1. **Advance and Secure (AAS)** — a lattice of locations captured in order. Holding the
    majority bleeds the enemy. Win: enemy at 0 tickets or capturing their last location.
 2. **Invasion** — attackers (fewer locations, more tickets) must take every location
-   before the 20-minute timer; defenders win on time or attacker tickets at 0.
+   before the 20-minute timer (24 on Peninsula); defenders win on time or attacker tickets at 0.
 3. **Destruction** — attackers find and destroy three weapon caches; each destroyed
    cache reveals the next and costs defenders 40 tickets. Defenders win on time.
 4. **Territory Control** — a hex grid; holding more hexes bleeds the enemy; capturing
@@ -2416,6 +2416,24 @@ Engine changes needed in the existing core:
     No match on the 1.5 to 3 km maps ended by tickets inside 25 minutes.
   - Raw results and the analysis script (per side, per preset, per pairing with lopsided
     flags, held-out margins) live in the session scratchpad `bal/`, which is wiped daily.
+
+- **Peninsula's clock is 24 minutes (2026-10-29, "Go 24-minute clock").** A map may now set
+  `clock` in minutes: `Mode.length` reads it, else the mode's own `static minutes` (Invasion
+  and Destruction 20, everything else 25). Peninsula sets 24. The lobby's map cards carry the
+  clock so its subtitle reads 24:00 there and 25:00 elsewhere; the Invasion blurb no longer
+  names 20 minutes; the README's mode list, which still gave Invasion 300 v 500 tickets and 15
+  a capture and Destruction 40 a cache, now matches the code (400 v 650, 30 a place, 80 a
+  cache). Checked headless: the match starts at 1440 s on Peninsula, 1200 on Narva under
+  Invasion, 1500 on Palm Valley; no page errors.
+  - **The same 126 matches again at 24 minutes.** The attacker won 61 (48%, from 31 at 20
+    minutes; the counterfactual said 50%): 56 by exhausting the defender's tickets and 5 by
+    taking every place. Mirrors 14 of 36 to the attacker (from 8). When the defender held out
+    (65) it had a median 78 tickets left. As attacker: Light 15 of 21, Defensive 13,
+    Mechanized 11, Armoured 9, Balanced 8, Air 5. As defender: Balanced 17 of 21, Armoured 15,
+    Defensive 12, Mechanized and Air 10, Light 1. Still no craft sunk.
+  - Light is the map's best attacker and loses 20 of 21 as the defender (6 of 21 held at 20
+    minutes), so that is a preset fault, not a clock one: its men come back fast but it holds
+    nothing. Air stays the weakest attacker (5 of 21). Both are left for the preset pass.
 
 ## Open questions
 

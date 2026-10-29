@@ -2,13 +2,13 @@ import { Mode } from './base.js';
 
 // Destruction: the defenders hide three weapon caches, one active at a time, in the
 // locations on their side. Attackers find and destroy them before the clock; each
-// cache lost costs the defenders 40 tickets.
+// cache lost costs the defenders 80 tickets.
 export class Destruction extends Mode {
   static key = 'destruction'; static name = 'Destruction'; static desc = 'Attackers hunt three weapon caches hidden near the defenders’ locations, one at a time, before the 20-minute clock. Each cache lost costs the defenders 80 tickets.'; static sides = true;
+  static minutes = 20;
   get attacker() { return this.opts.side === 'defend' ? 1 : 0; }
   get defender() { return 1 - this.attacker; }
   tickets(team) { return team === this.attacker ? 600 : 450; }
-  get length() { return 20 * 60; }
   setup() {
     const map = this.match.world.map, locs = this.defender === 1 ? [...map.locations].reverse() : map.locations;
     // caches in the three locations nearest the defenders' base, revealed nearest-first
