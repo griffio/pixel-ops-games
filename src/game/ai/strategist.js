@@ -764,6 +764,16 @@ export class Strategist {
       if (!v.dest) v.order(lift.drop[0], lift.drop[1]);   // stopped short (backed off from a threat, say): carry on
       return true;
     }
+    const L = this.teams[this.team].landing;
+    if (v.amphib && L) {   // an amphibian alongside the ship takes a squad straight from the well dock and swims it to a quiet spot short of the goal
+      if (!this.lift || !goal || v.passengers.length || !L.atPen(v.pos.x, v.pos.z) || !L.waitingSquads()) return false;
+      let drop = this.quietSpot(L.home(), goal, 100, 80); if (!drop) return false;
+      if (!this.vehicleReaches(v, drop[0], drop[1])) { drop = this.supportSpot(v, goal, 140); if (!drop) return false; }
+      if (!L.loadAmphib(v)) return false;
+      const sq = v.passengers[0].squad; if (!sq) return true;   // loose men aboard: it drives its own orders and sets them down where it stops
+      sq.tag = 'lift'; this.lifts.set(v, { sq, drop, stage: 'board', t: 0 }); this.lifts.set(sq, v);
+      return true;
+    }
     if (!this.lift || !goal || v.passengers.length || Math.hypot(v.pos.x - base.x, v.pos.z - base.z) > 60 || Math.hypot(goal.x - v.pos.x, goal.z - v.pos.z) < 250) return false;
     // a squad around base (just respawned there, or not yet sent far) that would otherwise walk 250 m or more
     const sq = squads.filter(s => { const c = s.centroid(); return !s.mounted && !this.lifts.has(s) && s.aliveCount <= v.seats && Math.hypot(c.x - base.x, c.z - base.z) < 150 && Math.hypot(c.x - goal.x, c.z - goal.z) > 250; })

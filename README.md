@@ -106,6 +106,9 @@ its main base is an assault ship off the west coast. Its helicopters fly from th
 deck. Its APCs and supply trucks are amphibious: they lie at moorings off the stern and
 swim ashore under your orders (3.6 m/s afloat, slower still for the carrier), landing
 wherever the shore is gentle enough to drive up, and the carrier swims home to fill up.
+A squad waiting in the well dock, or aboard a craft that hasn't cast off, can be put
+into an APC lying alongside: select it, press Load and click the APC (the CPU does the
+same, so its first AV swims in with a squad).
 Infantry and tanks wait in the well dock and go ashore in three landing craft that run
 fixed lanes to the beach you pick on the unit strip ("Land at ..."); they cast off one
 at a time, run abreast 18 m apart and beach side by side. North Cove takes

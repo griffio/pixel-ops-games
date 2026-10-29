@@ -28,7 +28,7 @@ export class Landing {
   held(l) { const o = this.m.objectives, p = o && o.list.find(q => q.name === l.place); return !!p && p.owner === this.team; }
   dumpAt(x, z) { return this.lanes.some(l => this.held(l) && Math.hypot(x - l.at.x, z - l.at.z) < RULES.landing.dump); }
   refillPoint(x, z, amphib = false) { const d = this.lanes.filter(l => this.held(l)).sort((a, b) => Math.hypot(a.at.x - x, a.at.z - z) - Math.hypot(b.at.x - x, b.at.z - z))[0]; return d ? d.at : amphib ? this.pen() : this.home(); }
-  pen() { const [dx, dz] = this.sea.dock, h = this.sea.out; return { x: dx + Math.sin(h) * 30, z: dz + Math.cos(h) * 30, r: 40 }; }   // the water off the stern, where an amphibious carrier comes home to fill up
+  pen() { const [dx, dz] = this.sea.dock, h = this.sea.out; return { x: dx + Math.sin(h) * 36, z: dz + Math.cos(h) * 36, r: 60 }; }   // the water off the stern, where an amphibious carrier comes home to fill up
   atPen(x, z) { const p = this.pen(); return Math.hypot(x - p.x, z - p.z) < p.r || this.atShip(x, z); }
 
   // where an amphibious vehicle lies when it is home: moorings off the stern quarters, the first with no vehicle on it
@@ -38,6 +38,20 @@ export class Landing {
     return spots.find(([x, z]) => !U.some(u => !u.dead && !u.afloat && !u.spec.naval && Math.hypot(u.pos.x - x, u.pos.z - z) < 6)) || spots[0];
   }
   moor(u) { const [x, z] = this.mooring(); u.afloat = false; u.mounted = null; u.group.visible = true; u.pos.set(x, this.m.world.terrain.water, z); u.heading = this.sea.out; u.group.rotation.y = u.heading; u.speed = 0; u.target = null; u.dest = null; u.path = null; }
+  // a squad waiting in the well dock, or aboard a craft still in it, straight into an amphibious vehicle lying alongside:
+  // the first squad with room for all its men, or the loose soldiers, as many as there are seats; returns how many went
+  // aboard. The craft fill the moment men arrive, so a vehicle alongside takes its squad back off one before it casts off
+  waitingSquads() { return [this.dock, ...this.craft.filter(c => !c.dead && c.state === 'dock')].flatMap(h => h.passengers).filter(u => u.type === 'soldier' && u.squad).length; }   // men a vehicle alongside could take
+  loadAmphib(v, only = null) {
+    if (!v.amphib || v.dead || !this.atPen(v.pos.x, v.pos.z)) return 0;
+    const holds = [this.dock, ...this.craft.filter(c => !c.dead && c.state === 'dock')], within = (u) => holds.some(h => h.passengers.includes(u));
+    const men = holds.flatMap(h => h.passengers).filter(u => u.type === 'soldier' && (!only || only.includes(u))), room = (v.spec.seats || 0) - v.passengers.length;
+    if (room <= 0 || !men.length) return 0;
+    const sq = men.map(u => u.squad).find(s => s && s.members.filter(m => !m.dead && within(m)).length <= room);
+    const take = (sq ? men.filter(u => u.squad === sq) : men).slice(0, room);
+    for (const u of take) { const h = holds.find(x => x.passengers.includes(u)); h.passengers.splice(h.passengers.indexOf(u), 1); u.afloat = false; u.mount(v); }
+    return take.length;
+  }
   // a unit into the well dock: hidden, aboard nothing yet, waiting for the next craft out (an amphibian to a mooring instead)
   embark(u) {
     if (u.amphib) { this.moor(u); return; }

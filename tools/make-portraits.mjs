@@ -10,7 +10,7 @@ const only = process.argv.slice(2), port = '9351', OUT = 'icons/units';
 const SUBJECTS = {
   rifle: ['rifle', 'rifle', 'mg', 'rifle'], support: ['mg', 'mg', 'rifle', 'rifle'], at: ['at', 'at', 'rifle', 'rifle'], medic: ['rifle', 'medic', 'rifle', 'rifle'],
   engineer: ['rifle', 'engineer', 'rifle', 'rifle'], marksman: ['marksman', 'rifle', 'rifle', 'rifle'],
-  apc: 'apc', truck: 'truck', supply: 'supply', tank: 'tank', heli: 'heli', fob: 'fob', sandbags: 'sandbags', traps: 'traps', hmg: 'emp_hmg', atgm: 'emp_atgm', mortar: 'emp_mortar',
+  apc: 'apc', truck: 'truck', supply: 'supply', tank: 'tank', heli: 'heli', amphib: 'amphib', amphibSupply: 'amphibSupply', fob: 'fob', sandbags: 'sandbags', traps: 'traps', hmg: 'emp_hmg', atgm: 'emp_atgm', mortar: 'emp_mortar',
 };
 const W = 240, H = 136;
 const sleep = (ms) => new Promise(r => setTimeout(r, ms));
@@ -28,7 +28,7 @@ try {
   await send('Page.navigate', { url: 'http://localhost:8787/?cpu=both&loadout=balanced&seed=1&fog=0&mobile=0' });
   for (let i = 0; i < 120; i++) { if (await ev('!!(window.app && window.app.match && window.app.match.units)')) break; await sleep(500); }
   // a still world with nothing drawn over it
-  await ev(`(() => { const a = window.app; a.hud.setPaused(true, true); if (a.guide) { a.guide.setHints(false); if (a.guide.isOpen) a.guide.close(); }
+  await ev(`(() => { const a = window.app; a.hud.setPaused(true, true); a.rts.fly = null; a.rts.follow = null; if (a.guide) { a.guide.setHints(false); if (a.guide.isOpen) a.guide.close(); }   // fly: the opening flight would carry the camera off the subject
     const s = document.createElement('style'); s.textContent = '#labels, #edges, .panel, #touchbar, #minimap, #objs, #feed, #dock, #help { visibility: hidden !important; }'; document.head.appendChild(s);
     return 1; })()`);
   mkdirSync(OUT, { recursive: true });
@@ -38,7 +38,7 @@ try {
     await ev(`(() => { const a = window.app, r = a.rts, X = 140, Z = -560, y = r.yaw, rx = Math.cos(y), rz = -Math.sin(y), v = ${JSON.stringify(v)}, made = [];
       if (Array.isArray(v)) v.forEach((kit, i) => { const o = (i - 1.5) * 1.05, u = a.units.spawn('soldier', X + rx * o, Z + rz * o, y + 0.55, 0); u.kit = kit; made.push(u); });
       else if (v.startsWith('emp_')) made.push(a.units.spawn('emplacement', X, Z, y + 0.6, 0, { gun: v.slice(4) }));
-      else made.push(a.units.spawn(v === 'supply' ? 'truck' : v, X, Z, y + (v === 'heli' ? 0.9 : 0.75), 0, v === 'supply' ? { supply: true } : {}));
+      else made.push(a.units.spawn(v === 'supply' || v === 'amphibSupply' ? 'truck' : v === 'amphib' ? 'apc' : v, X, Z, y + (v === 'heli' ? 0.9 : 0.75), 0, v === 'supply' ? { supply: true } : v === 'amphib' ? { amphib: true } : v === 'amphibSupply' ? { supply: true, amphib: true } : {}));   // the amphibians asked for by name, on any map
       a.units.update(0); window.__made = made; r.follow = null; r.target.set(X, 0, Z); r.zoom = r.zoomT = 2.5; r.pitch = r.pitchT = 0.62; return 1; })()`);
     const measure = () => ev(`(() => { const r = window.app.rts; let x0 = 1e9, y0 = 1e9, x1 = -1e9, y1 = -1e9;
       for (const u of window.__made) for (const [dx, dy, dz] of [[-1, 0, -1], [1, 0, 1], [-1, 0, 1], [1, 0, -1], [0, 1, 0]]) { const R = u.radius || 1, [sx, sy] = r.worldToScreen(u.pos.x + dx * R, u.pos.y + dy * (u.height || 2), u.pos.z + dz * R, innerWidth, innerHeight); x0 = Math.min(x0, sx); x1 = Math.max(x1, sx); y0 = Math.min(y0, sy); y1 = Math.max(y1, sy); }

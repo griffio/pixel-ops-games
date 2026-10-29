@@ -105,7 +105,7 @@ export class Roster {
     return d;
   }
   vehicle(u) {
-    const m = this.app.match, [sub, ord] = VEH[u.type], d = { key: 'v:' + u.label, label: u.label, sub: u.supply ? 'SUPPLY' : sub, pic: u.supply ? 'supply' : u.type, kind: 'veh', ord, units: [u], anchor: u.pos };
+    const m = this.app.match, [sub, ord] = VEH[u.type], d = { key: 'v:' + u.label, label: u.label, sub: u.supply ? 'SUPPLY' : u.amphib ? 'AAV' : sub, pic: u.amphib ? (u.supply ? 'amphibSupply' : 'amphib') : u.supply ? 'supply' : u.type, kind: 'veh', ord, units: [u], anchor: u.pos };
     d.hp = u.hp / u.maxHp; if (u.supply) d.sup = u.supplies / RULES.fob.truckSupplies; if (u.seats) d.seat = `${u.passengers.length}/${u.seats}`;
     d.alert = this.hit(d.key, [u], u.hp);
     const feeding = m.fobs.builds.find(b => b.truck === u), go = u.dest || u.target, air = u.spec.air;
@@ -122,7 +122,7 @@ export class Roster {
   }
   lost(e, T) {   // a destroyed vehicle waiting at main
     const u = e.unit, [sub, ord] = VEH[u.type], q = this.eta(e, T);
-    return { key: 'v:' + u.label, label: u.label, sub: u.supply ? 'SUPPLY' : sub, pic: u.supply ? 'supply' : u.type, kind: 'veh', ord, units: [], anchor: T.base, down: true, glyph: 'clock', text: `Destroyed · back in ${mmss(q.t)}`, ring: { f: 1 - q.t / Math.max(q.t, q.total), t: q.t, glyph: 'clock', color: 'var(--muted)' } };
+    return { key: 'v:' + u.label, label: u.label, sub: u.supply ? 'SUPPLY' : u.amphib ? 'AAV' : sub, pic: u.amphib ? (u.supply ? 'amphibSupply' : 'amphib') : u.supply ? 'supply' : u.type, kind: 'veh', ord, units: [], anchor: T.base, down: true, glyph: 'clock', text: `Destroyed · back in ${mmss(q.t)}`, ring: { f: 1 - q.t / Math.max(q.t, q.total), t: q.t, glyph: 'clock', color: 'var(--muted)' } };
   }
   site(b) {   // a build going up: its own card until it is done
     if (!this.ids.has(b)) this.ids.set(b, this.nextId++);

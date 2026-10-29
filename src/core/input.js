@@ -173,6 +173,11 @@ export class Input {
   // the pick after Load: a vehicle of ours with a free seat takes the soldiers and becomes the selection, ready to drive; anything else cancels
   loadInto(u) {
     this.loading = false;
+    const L = this.app.match && this.app.match.landing, me = this.app.playerTeam ?? 0;
+    if (L && u && u.amphib && u.team === me && !u.dead) {   // men waiting in the well dock go straight aboard an amphibian lying alongside
+      const dock = this.selected.filter(s => s.type === 'soldier' && s.afloat && (s.mounted === L.dock || (s.mounted && s.mounted.type === 'craft' && s.mounted.state === 'dock')));   // in the dock, or aboard a craft still in it
+      if (dock.length) { const n = L.loadAmphib(u, dock); this.hud.toast(n ? `${n} aboard ${u.label}` : u.passengers.length >= u.seats ? `${u.label} has no free seat` : `${u.label} must be alongside the ship`); this.select([u]); return; }
+    }
     if (!this.canBoard(u)) { this.hud.toast(u && u.seats && u.team === (this.app.playerTeam ?? 0) && !u.dead ? `${u.label} has no free seat` : 'Loading cancelled'); this.hud.showSelection(this.selected); return; }
     this.board(u); this.select([u]);
   }

@@ -2361,7 +2361,18 @@ Engine changes needed in the existing core:
     and arrived in 62 s; the carrier, sent to fill with 5 supplies, swam to the pen and came
     back to 93; in six minutes of a CPU match the commander's AV swam ashore inside the first
     minute and fought inland until it was lost, and its carrier landed and went to a FOB
-    site; no errors. The unit strip shows them with the APC and supply-truck portraits.
+    site; no errors.
+  - **Follow-ups (2026-10-29, "Go 3").** Their own portraits on the unit strip (`roster.js`
+    picks `amphib`/`amphibSupply`, the vehicle tag reads AAV), and squads into the AV at the
+    ship: `Landing.loadAmphib(v, only)` takes a squad from the well dock, or back off a craft
+    that has not cast off (the craft fill the moment men arrive, so the first attempt found
+    the dock empty), straight aboard a vehicle lying at the pen; the player's Load does it
+    for a selected waiting squad, and the commander's `ride` does it for its AV before giving
+    it armour orders. Checked: the CPU's AV took a squad at the first second and set it down
+    ashore at 67 s; the player's path loaded four off a docked craft and landed them.
+  - The portrait tool had been rendering blank frames since the opening flight came in: the
+    camera flew while it measured. It now cancels the flight, and every portrait was
+    re-rendered from the vox models.
 
 ## Open questions
 
