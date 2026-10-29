@@ -1,0 +1,14 @@
+{
+ "type": "lighthouse",
+ "voxel": 0.2,
+ "height": 21,
+ "radius": 4,
+ "pivots": {
+  "hull": [0,0,0]
+ },
+ "parent": {},
+ "steer": [],
+ "team": {},
+ "emissive": {},
+ "colours": 5
+}

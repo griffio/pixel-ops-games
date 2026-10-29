@@ -102,7 +102,8 @@ the majority. North is up, as on a real map.
 https://claude.ai/artifact/6ELRURFGdPwxMJDvSNVuKN), a 1.2 km Invasion map and the
 only mode it offers. A rocky peninsula runs north into the sea, cut off from the
 mainland by a canal across its neck with one bridge. The attacker comes from the sea:
-its main base is an assault ship off the west coast. Its helicopters fly from the flight
+its main base is an assault ship off the west coast, an LHD with its island to starboard
+and its well dock open at the stern. Its helicopters fly from the flight
 deck. Its APCs and supply trucks are amphibious: they lie at moorings off the stern and
 swim ashore under your orders (3.6 m/s afloat, slower still for the carrier), landing
 wherever the shore is gentle enough to drive up, and the carrier swims home to fill up.
@@ -491,7 +492,8 @@ src/core/           renderer-agnostic engine
   terrain.js        heightfield from ridge/hill features with noise-jagged crests and notch passes, carved rivers with fords, level pads, coasts (land polygons whose edges are cliffs, beaches, coves or quays); height, normal, slope, water and line-of-sight queries
   models.js         unit models (soldier, truck, APC, tank, Chinook) built through a per-back-end factory
   vox.js            MagicaVoxel .vox reader and writer (models, palette, named scene graph), greedy mesher, palette texture
-  voxexport.js      voxelises a code-built unit into a .vox of named rig parts plus a .json of pivots, team colours and glows (run by tools/export-vox.mjs)
+  landmarks.js      Peninsula's landmarks (lighthouse, radar station, harbour shed, fishing boat, assault ship) in the units' DSL, for export to .vox
+  voxexport.js      voxelises a code-built unit or landmark into a .vox of named parts plus a .json of pivots, team colours, variants and glows (run by tools/export-vox.mjs)
   geometry.js       box, cylinder, wedge, frustum, frond, ring, plane and grass-tuft generators with world-unit UVs
   textures.js       procedural tarmac (slabs, taxi lines, asphalt road, grass strip), camo and grass-tuft canvases
   camera.js         orthographic RTS camera (orbit, zoom-as-pixel-scale, texel snapping, follow)
@@ -521,14 +523,14 @@ src/game/           milestone 1 game layer (renderer-agnostic)
   maps/             map definitions (valley2km.js, desert1km.js, narva3km.js, peninsula.js), the shared prop kit and ground texture generators (natural ground: fine low-contrast detail, 128 px over 12.8 m, one texel to a pixel of the game's buffer; everything bigger comes from the shader)
   match.js          AAS / Skirmish match flow, 10 Hz game tick, bleed, win checks
 icons/units/        unit-strip portraits (tools/make-portraits.mjs renders them from the game's models)
-models/vox/         unit models as MagicaVoxel files with a .json each (soldier, tank, apc, truck, supplyTruck, craft, heli, amphib, amphibSupply); exported by tools/export-vox.mjs, editable in MagicaVoxel, loaded by src/gl/voxmodels.js
+models/vox/         unit models and Peninsula's landmarks as MagicaVoxel files with a .json each (soldier, tank, apc, truck, supplyTruck, craft, heli, amphib, amphibSupply; lighthouse, radar, shed, boat, ship); exported by tools/export-vox.mjs, editable in MagicaVoxel, loaded by src/gl/voxmodels.js
 src/three/          three.js back end: models, world, PixelRenderer (low-res target + outline), dust, markers
 src/gl/             WebGL2 back end
   scene.js          Node / Mesh scene graph with the same position/rotation/visible surface
   shaders.js        GLSL ES 3.00: lit instanced, shadow depth, pick id, composite, dust (the ground blends rock onto slopes steeper than about 31 degrees, sampled from three sides; draws natural ground's patches, highlights, hollows and streaks from world-space noise at unrelated scales and turns, so nothing repeats, with zones of dry and lush grass over tens of metres)
   renderer.js       dynamic + chunked static instance batches, chunk culling, view-fitted shadow pass, splat ground, composite, pick buffer
   strips.js         road / line strip and decal geometry
-  voxmodels.js      unit builders from models/vox/*.vox: one geometry per rig part, a 256 x 1 palette texture per team, parts by name
+  voxmodels.js      unit builders from models/vox/*.vox: one geometry per rig part, a 256 x 1 palette texture per team, parts by name; landmark files as static props (voxProp)
   models.js, world.js, markers.js, main.js
 ```
 
@@ -564,6 +566,17 @@ src/gl/             WebGL2 back end
   MagicaVoxel, keeping the shape names, and re-exported from code when a code model
   changes. Voxels boxed in on all sides are dropped before writing, which cuts a
   solid hull to a shell (the tank is 69 KB, the soldier 14 KB).
+- Peninsula's landmarks go the same way (`src/core/landmarks.js`, built from
+  generated references like the units): the lighthouse, the radar station, the
+  harbour sheds, the fishing boats and the assault ship are `.vox` files that the
+  map stands as static props (`vox` props in `src/gl/world.js`, placed by
+  `voxProp`), each with the map's old boxes as its fallback for `?vox=0`. A big
+  model is split into named parts so none is over the format's 255 voxels a side
+  (the ship's bow, midships, stern and island at 0.25 m; the shed at 0.15 m, the
+  lighthouse at 0.2 m), and a palette variant recolours the sheds and boats. A
+  lesson from the lighthouse: a tall tapered round tower sparkles under a high sun,
+  because every ring of its taper is a ledge facing up; a straight octagon steps at
+  45 degrees and reads as a clean staircase.
 - Shadow pass renders depth from an orthographic light camera into a 4096²
   depth texture (2048² on tablets). The light frustum is sized from the camera's
   footprint in quarter-octave steps and its eye is snapped to shadow texels, so the

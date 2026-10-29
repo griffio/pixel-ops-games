@@ -1,5 +1,6 @@
-// Exports code-built unit models as MagicaVoxel files: models/vox/<type>.vox and <type>.json (core/voxexport.js runs in the
-// page, since the models and their camo canvases live there). Needs the game served on :8787 (npm start).
+// Exports code-built unit models, and Peninsula's landmarks (core/landmarks.js: lighthouse, radar, shed, boat, ship), as
+// MagicaVoxel files: models/vox/<type>.vox and <type>.json (core/voxexport.js runs in the page, since the models and their
+// camo canvases live there). Needs the game served on :8787 (npm start).
 // usage: node tools/export-vox.mjs <type> [type ...]
 import { spawn } from 'node:child_process';
 import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs';

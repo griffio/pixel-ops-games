@@ -2,7 +2,7 @@ import { GLRenderer } from './renderer.js';
 import { Scene } from './scene.js';
 import { World } from './world.js';
 import { builders, registerTextures, F } from './models.js';
-import { loadVoxModels } from './voxmodels.js';
+import { loadVoxModels, loadVoxProps } from './voxmodels.js';
 import { Markers } from './markers.js';
 import { FogView } from './fog.js';
 import { Guide } from '../core/guide.js';
@@ -21,7 +21,7 @@ const touch = detectTouch();
 const renderer = new GLRenderer(canvas, touch ? { shadowSize: 2048, dprCap: 1 } : {});   // tablets: smaller shadow map, no retina composite
 const pixel = renderer.pixel;
 registerTextures(renderer);
-if (q.get('vox') !== '0') Object.assign(builders, await loadVoxModels(renderer, ['tank', 'apc', 'truck', 'supplyTruck', 'craft', 'heli', 'soldier', 'amphib', 'amphibSupply']));   // unit models from models/vox/*.vox replace the code-built ones of the same type; ?vox=0 keeps the code ones
+if (q.get('vox') !== '0') { Object.assign(builders, await loadVoxModels(renderer, ['tank', 'apc', 'truck', 'supplyTruck', 'craft', 'heli', 'soldier', 'amphib', 'amphibSupply'])); await loadVoxProps(renderer, ['lighthouse', 'radar', 'shed', 'boat', 'ship']); }   // unit models from models/vox/*.vox replace the code-built ones of the same type, and the landmarks stand as vox props; ?vox=0 keeps the code ones
 
 const scene = new Scene();
 const savedMap = (() => { try { return localStorage.getItem('pixelops.map'); } catch { return null; } })();   // the map last picked in the lobby

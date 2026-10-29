@@ -9,6 +9,7 @@
 // the glow colour in meta.emissive, since a palette holds no emissive. Runs in the page: tools/export-vox.mjs calls exportVox()
 // and saves what it returns.
 import { makeBuilders } from './models.js';
+import { makeLandmarks } from './landmarks.js';
 import { F, MAT } from '../gl/models.js';
 import { camoCanvas, CAMO } from './textures.js';
 import { Mat4, Vec3 } from './math.js';
@@ -16,7 +17,7 @@ import { writeVox, VOXEL } from './vox.js';
 import { UV_SCALE } from './geometry.js';
 
 const UNIT = new Vec3(1, 1, 1);
-const VOXEL_FOR = { soldier: 0.05 };   // finer than the vehicles' 0.1 m: a rifle barrel or a pair of glasses is one voxel either way, but limbs keep their shape
+const VOXEL_FOR = { soldier: 0.05, lighthouse: 0.2, shed: 0.15, ship: 0.25 };   // finer than the vehicles' 0.1 m for the soldier (a rifle barrel or a pair of glasses is one voxel either way, but limbs keep their shape); coarser for the big landmarks, whose parts must stay under 255 voxels a side
 const TEAMED = ['uniform', 'vest', 'desert', 'camo', 'sand', 'tarp', 'rim', 'boots'];   // the recoloured-per-team materials of core/models.js
 const NAME = new Map(Object.entries(MAT).map(([k, v]) => [v, k]));
 const canvases = new Map(), canvasFor = (n) => { if (!canvases.has(n)) canvases.set(n, CAMO[n] ? (() => { const c = camoCanvas(CAMO[n]); return { w: c.width, h: c.height, d: c.getContext('2d').getImageData(0, 0, c.width, c.height).data }; })() : null); return canvases.get(n); };
@@ -41,7 +42,7 @@ function sample(matName, lx, ly, lz, hw, hh, hd, sc) {
 
 // -> { vox: ArrayBuffer, meta: { height, radius, pivots: { part: [x, y, z] }, team: { paletteIndex: [r, g, b] } } }
 export function exportVox(type, builder = null) {   // builder: a (team) => { group, parts, height, radius } in place of the code model of that type
-  const built = (builder || makeBuilders(F)[type])(0), g = built.group, p = built.parts, V = VOXEL_FOR[type] || VOXEL;
+  const built = (builder || makeBuilders(F)[type] || makeLandmarks(F)[type])(0), g = built.group, p = built.parts, V = VOXEL_FOR[type] || VOXEL;   // a unit, or a landmark (core/landmarks.js)
   const partOf = new Map();   // rig node -> part name
   const steer = (p.steer || []).map(w => (p.wheels || []).indexOf(w)).filter(i => i >= 0), rotors = [];
   for (const [k, v] of Object.entries(p)) {
@@ -130,6 +131,8 @@ export function exportVox(type, builder = null) {   // builder: a (team) => { gr
   // the other skin tone as a palette variant, for the slots the skin took
   const skin = Object.values(matOf).find(m => m === 'skin' || m === 'skin2'), other = skin === 'skin' ? 'skin2' : 'skin', variants = [];
   if (skin) { const c = MAT[other].color, rgb = [srgb(c[0]), srgb(c[1]), srgb(c[2])], v = {}; for (const [i, m] of Object.entries(matOf)) if (m === skin) v[i] = rgb; variants.push(v); }
+  // a landmark's recolours: each variant maps material names to a hex colour, for the slots those materials took
+  for (const vm of built.variants || []) { const v = {}; for (const [i, m] of Object.entries(matOf)) if (vm[m] !== undefined) v[i] = [(vm[m] >> 16) & 255, (vm[m] >> 8) & 255, vm[m] & 255]; variants.push(v); }
   const ring = p.ring && p.ring.geo ? +p.ring.geo.split(':')[1].split(',')[1] : undefined;   // the selection ring's radius (ring:in,out,seg)
   return { vox: writeVox({ palette, models, scene }), meta: { type, voxel: V, height: built.height, radius: built.radius, ring, pivots, parent, steer, rotors: rotors.length ? rotors : undefined, team, variants: variants.length ? variants : undefined, emissive, colours: index.size } };
 }

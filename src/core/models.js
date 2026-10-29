@@ -519,5 +519,10 @@ export const COLORS = {
   hub: 0x5e5340, tread: 0x2c2c2c, headlight: 0xf2ecd0, grille: 0x171717, amber: 0xd9822b,
   hull: 0x858a8e, hullDark: 0x4f5458,   // landing craft
   sand: 0xd6c08a, sandB: 0x87915f, engine: 0x6b6e6c, wood: 0x8a6a43, drum: 0x3e4a33, case: 0x3a3d40,   // vehicle plates, engines, cargo
+  // Peninsula's landmarks (core/landmarks.js): the lighthouse, the radar station, the harbour sheds and boats, the assault ship
+  lhWhite: 0xf2f0ea, lhRed: 0xc83a30, lhIron: 0x1e2124, stone: 0x9a958b, stone2: 0x8a857b, concrete: 0xcfcac0, concrete2: 0xbdb8ae, steelDoor: 0x5a5e62, domeWhite: 0xf0eee8, domeRib: 0xd8d6d0,
+  shedWall: 0x6f8796, shedRust: 0x8a5a3a, shedRoof: 0x6a6e70, shedRoof2: 0x5c6063, shedDoor: 0x3b3f42, skylight: 0x9fb9b4,
+  boatHull: 0xb33a32, boatDeck: 0x8a6a46, boatHouse: 0xf2f0ea, mast: 0x5a3e2a, netGrey: 0x8d8f86,
+  shipGrey: 0x8f9499, shipDark: 0x4d5256, shipDeck: 0x5a5e62, deckLine: 0xe9e6dc, spotYellow: 0xd9b64a, island: 0x84898c, islandDark: 0x6f7477, gateDark: 0x1e2224, funnel: 0x3a3d40, dockFloor: 0x6e3a32,
 };
 export const TEXTURED = ['uniform', 'vest', 'desert', 'camo', 'tarp', 'trunk', 'frond', 'bush', 'uniformB', 'vestB', 'desertB', 'camoB', 'tarpB', 'wreck', 'net', 'trackLinks', 'trackEdge', 'plaster1', 'plaster2', 'plaster3', 'render', 'liner'];

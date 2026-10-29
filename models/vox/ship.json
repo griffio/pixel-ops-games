@@ -1,0 +1,22 @@
+{
+ "type": "ship",
+ "voxel": 0.25,
+ "height": 35,
+ "radius": 80,
+ "pivots": {
+  "bow": [0,0,0],
+  "mid": [0,0,0],
+  "stern": [0,0,0],
+  "island": [0,0,0],
+  "bow.glow0": [0,0,0],
+  "bow.glow1": [0,0,0]
+ },
+ "parent": {},
+ "steer": [],
+ "team": {},
+ "emissive": {
+  "bow.glow0": [1,0.0144,0.0144],
+  "bow.glow1": [0.0144,1,0.0513]
+ },
+ "colours": 15
+}

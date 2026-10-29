@@ -1,0 +1,22 @@
+{
+ "type": "shed",
+ "voxel": 0.15,
+ "height": 10,
+ "radius": 14,
+ "pivots": {
+  "hull": [0,0,0]
+ },
+ "parent": {},
+ "steer": [],
+ "team": {},
+ "variants": [
+  {
+   "1": [140,111,90]
+  },
+  {
+   "1": [119,128,122]
+  }
+ ],
+ "emissive": {},
+ "colours": 8
+}

@@ -23,7 +23,7 @@ export class World extends WorldState {
   buildProps() {
     const mats = new Map();
     const heads = [];
-    for (const p of this.layout.props) {
+    for (const p of this.layout.props.flatMap(p => p.vox ? (p.alt || []) : [p])) {   // a landmark's vox prop stands here as its fallback boxes
       let mat;
       if (p.tex) mat = MAT[p.tex];
       else if (p.emissive !== undefined) mat = new THREE.MeshLambertMaterial({ color: p.color, emissive: p.emissive, emissiveIntensity: 0 });

@@ -11,23 +11,51 @@ import { F } from './models.js';
 import { parseVox, meshModel, paletteCanvas, VOXEL } from '../core/vox.js';
 import { rng } from '../core/math.js';
 
+// a file's models as geometry and its palette as textures (one per team, and per variant); null when there is no file
+async function loadFile(renderer, name) {
+  const res = await fetch(`models/vox/${name}.vox`); if (!res.ok) return null;
+  const [buf, meta] = await Promise.all([res.arrayBuffer(), fetch(`models/vox/${name}.json`).then(r => r.ok ? r.json() : {}).catch(() => ({}))]);
+  const file = parseVox(buf), geos = file.models.map((m, i) => renderer.registerGeometry(`vox:${name}#${i}`, meshModel(m, meta.voxel || VOXEL)));
+  const opt = { nearest: true, repeat: false, mips: false }, variants = meta.variants || [];
+  renderer.texture(`voxpal:${name}`, paletteCanvas(file.palette), opt);
+  renderer.texture(`voxpal:${name}B`, paletteCanvas(file.palette, meta.team || null), opt);
+  variants.forEach((v, i) => {   // a palette variant (the soldier's other skin, a shed's colour): one more texture per team
+    renderer.texture(`voxpal:${name}:${i}`, paletteCanvas(file.palette, v), opt);
+    renderer.texture(`voxpal:${name}:${i}B`, paletteCanvas(file.palette, { ...(meta.team || {}), ...v }), opt);
+  });
+  return { file, geos, meta, variants };
+}
+
 export async function loadVoxModels(renderer, names) {
   const out = {};
   for (const name of names) {
     try {
-      const res = await fetch(`models/vox/${name}.vox`); if (!res.ok) continue;   // no file: the code model stays
-      const [buf, meta] = await Promise.all([res.arrayBuffer(), fetch(`models/vox/${name}.json`).then(r => r.ok ? r.json() : {}).catch(() => ({}))]);
-      const file = parseVox(buf), geos = file.models.map((m, i) => renderer.registerGeometry(`vox:${name}#${i}`, meshModel(m, meta.voxel || VOXEL)));
-      const opt = { nearest: true, repeat: false, mips: false }, variants = meta.variants || [];
-      renderer.texture(`voxpal:${name}`, paletteCanvas(file.palette), opt);
-      renderer.texture(`voxpal:${name}B`, paletteCanvas(file.palette, meta.team || null), opt);
-      variants.forEach((v, i) => {   // a palette variant (the soldier's other skin): one more texture per team
-        renderer.texture(`voxpal:${name}:${i}`, paletteCanvas(file.palette, v), opt);
-        renderer.texture(`voxpal:${name}:${i}B`, paletteCanvas(file.palette, { ...(meta.team || {}), ...v }), opt);
-      });
+      const f = await loadFile(renderer, name); if (!f) continue;   // no file: the code model stays
+      const { file, geos, meta, variants } = f;
       out[name] = (team = 0) => build(file, geos, name, meta, team, variants.length && rng() < 0.5 ? 0 : -1);   // one rng call, as the code soldier makes for its skin
     } catch (e) { console.warn(`vox model ${name} not loaded:`, e); }
   }
+  return out;
+}
+
+// Landmarks (core/landmarks.js) stand in a map as static props: loadVoxProps reads their files, and voxProp gives the world
+// each model of one as a mesh to place, at its centre in the landmark's frame, with the palette (or a variant's) and any glow.
+const propFiles = new Map();
+export async function loadVoxProps(renderer, names) {
+  for (const name of names) { try { const f = await loadFile(renderer, name); if (f) propFiles.set(name, f); } catch (e) { console.warn(`vox prop ${name} not loaded:`, e); } }
+}
+export function voxProp(name, variant = -1) {
+  const f = propFiles.get(name); if (!f) return null;
+  const { file, geos, meta } = f, vox = meta.voxel || VOXEL, tex = `voxpal:${name}${variant >= 0 && f.variants[variant] ? ':' + variant : ''}`, mats = new Map(), out = [];
+  const matFor = (part) => { const e = (meta.emissive && meta.emissive[part]) || null, k = e ? e.join(',') : ''; if (!mats.has(k)) mats.set(k, { color: [1, 1, 1, 1], tex, emissive: e || [0, 0, 0], cast: true }); return mats.get(k); };
+  const walk = (id, name, t) => {   // t: the place of the transform above, in vox units (the exporter writes every part's centre in the root frame)
+    const n = file.nodes.get(id); if (!n) return;
+    if (n.type === 'grp') { for (const c of n.children) walk(c, name, t); return; }
+    if (n.type === 'shp') { for (const mi of n.models) if (geos[mi]) out.push({ geo: geos[mi], mat: matFor(name), at: [-t[0] * vox, t[2] * vox, t[1] * vox] }); return; }
+    if (n.hidden) return;
+    walk(n.child, n.name || name, n.t || t);
+  };
+  walk(file.root, 'hull', [0, 0, 0]);
   return out;
 }
 

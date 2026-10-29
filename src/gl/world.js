@@ -2,6 +2,7 @@ import { WorldState } from '../core/layout.js';
 import { groundCanvas } from '../core/textures.js';
 import { hexToLinear, smooth } from '../core/math.js';
 import { Node, Mesh } from './scene.js';
+import { voxProp } from './voxmodels.js';
 import { MAT } from './models.js';
 import { GROUND_TEXTURES } from '../game/maps/groundTextures.js';
 import { stripGeometry, decalGeometry } from './strips.js';
@@ -88,7 +89,16 @@ export class World extends WorldState {
 
   buildProps() {
     const mats = new Map(), r = this.renderer;
-    for (const p of this.layout.props) {
+    const add = (p) => {
+      // a landmark from a .vox file (gl/voxmodels.js voxProp): one static mesh per model of it, turned and placed with the
+      // prop; without the file (or ?vox=0) its `alt` props, the map's own boxes, stand instead
+      if (p.vox) {
+        const parts = voxProp(p.vox, p.variant ?? -1);
+        if (!parts) { for (const q of p.alt || []) add(q); return; }
+        const y0 = p.absY ? p.y : p.y + this.heightAt(p.ax ?? p.x, p.az ?? p.z), ry = p.rot ? p.rot[1] : 0, c = Math.cos(ry), s = Math.sin(ry);
+        p.meshes = parts.map(q => { const m = new Mesh(q.geo, q.mat); m.position.set(p.x + q.at[0] * c + q.at[2] * s, y0 + q.at[1], p.z - q.at[0] * s + q.at[2] * c); m.rotation.y = ry; r.addStatic(m); return m; });
+        return;
+      }
       let mat;
       if (p.tex) mat = MAT[p.tex];
       else if (p.emissive !== undefined) { mat = { color: [...hexToLinear(p.color), 1], tex: null, emissive: hexToLinear(p.emissive), emissiveI: 0, cast: p.cast }; this.heads.push(mat); }
@@ -110,7 +120,8 @@ export class World extends WorldState {
       if (p.beam) {   // a lighthouse beam: a long bar on a pivot at the lantern, turning, shown only at night
         const pivot = new Node(); pivot.position.copy(m.position); pivot.bound = 50; m.position.set((scale ? scale[0] : 1) / 2, 0, 0); pivot.add(m); this.scene.add(pivot); this.beams.push(pivot);
       } else if (p.lampHead) { m.bound = 3; this.scene.add(m); } else { p.mesh = m; r.addStatic(m); }   // lamp heads change emissive at night, so they stay dynamic; p.mesh: so a building's props can be taken out
-    }
+    };
+    for (const p of this.layout.props) add(p);
     for (const t of this.layout.tufts) {
       if (this.terrain && this.terrain.height(t.x, t.z) < this.terrain.water) continue;   // none under the water
       const m = new Mesh('tuft:' + t.size + ',' + (t.size * 1.1).toFixed(2), MAT.tuft); m.position.set(t.x, this.heightAt(t.x, t.z), t.z); m.rotation.y = t.yaw; r.addStatic(m);
@@ -119,7 +130,7 @@ export class World extends WorldState {
   // a building comes down (game/buildings.js): its props leave their chunks and a heap of rubble in its own colours stands in
   // the footprint, low enough to shoot over and climb; returns the heaps as obstacles
   collapse(b) {
-    const r = this.renderer, added = new Map(), gone = new Set(b.props.map(p => p.mesh).filter(Boolean));
+    const r = this.renderer, added = new Map(), gone = new Set(b.props.flatMap(p => p.meshes || (p.mesh ? [p.mesh] : [])));
     for (const m of gone) { const k = r.chunkKey(m.position.x, m.position.z); if (!added.has(k)) added.set(k, []); }
     const main = b.props.find(p => p.tex) || b.props[0], tex = main && main.tex, col = main && main.color !== undefined && main.color !== null ? main.color : 0x8b8378;
     const dark = (c, k) => ((Math.round((c >> 16) * k) << 16) | (Math.round(((c >> 8) & 255) * k) << 8) | Math.round((c & 255) * k));

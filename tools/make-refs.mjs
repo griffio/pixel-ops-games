@@ -16,6 +16,12 @@ const VIEW = 'seen from an isometric three-quarter view.';
 const SUBJECTS = {
   hesco: 'a short military Hesco barrier wall, a row of square wire-mesh cages with fabric liners filled with sand,',
   container: 'a weathered steel shipping container with corrugated sides and cargo doors,',
+  // Peninsula's landmarks (P4, 2026-10-29)
+  assaultShip: 'a grey amphibious assault ship (LHD): a long flat flight deck with helicopter landing circles, a tall island superstructure with a bridge, radar mast and funnel on the starboard side, and an open well dock gate at the stern,',
+  lighthouse: 'a tall round white lighthouse tower with one red band, a black railed gallery and a glass lantern room with a red cap on top, on a stone plinth,',
+  radarStation: 'a military radar station: a large white geodesic radome ball on a square concrete blockhouse with a steel door, a lattice antenna mast beside it,',
+  harbourShed: 'a harbour warehouse: a long shed with corrugated metal walls, a low pitched roof with skylights, two big sliding doors on the gable end facing the quay, a bollard and a crate outside,',
+  fishingBoat: 'a small wooden fishing boat with a red hull, a white wheelhouse aft, a short mast with a boom and nets, floating,',
   watchtower: 'a military watchtower: a square concrete tower with a sandbagged observation post on top under a flat corrugated roof, a ladder up one side,',
   hangar: 'an aircraft hangar with a curved corrugated metal roof and large sliding doors on the front,',
   barracks: 'a long single-storey prefab military barracks hut with a low pitched roof, small windows and a door,',

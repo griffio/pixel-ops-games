@@ -101,6 +101,9 @@ export const peninsula = {
       || placed.some(([px, pz, pr]) => Math.hypot(px - x, pz - z) < pr + rad + 3);
     // a box at absolute height (the ship, boats, the breakwater and sea stacks stand in water, not on the sea bed)
     const A = (x, y0, z, w, h, d, color, rot = 0, cast = true) => props.push({ geo: 'box:1,1,1', color, scale: [w, h, d], x, y: y0 + h / 2, z, rot: [0, rot, 0], cast, absY: true });
+    // a landmark from models/vox/<name>.vox (core/landmarks.js, exported by tools/export-vox.mjs), turned by rot about (x, z); alt: the
+    // boxes that stand in for it without the file; variant: a palette recolour; y absolute when absY (things in the water)
+    const vox = (name, x, z, rot, alt, { variant = -1, y = 0, absY = false } = {}) => props.push({ vox: name, variant, x, y, z, rot: [0, rot, 0], cast: true, ax: x, az: z, absY, alt });
 
     // ---- main bases: a sandbag perimeter, containers, lights and a tower
     for (const b of this.bases.filter(b => !b.ship)) { sandbagRing(b.x, b.z, 30, Math.atan2(-b.z, -b.x)); containers(b.x - 30, b.z + 12, 3, 2); floodlight(b.x - 18, b.z - 16); floodlight(b.x + 18, b.z + 16); watchtower(b.x + 22, b.z - 22, 5, 10); take(b.x, b.z, 40); }
@@ -141,37 +144,42 @@ export const peninsula = {
     }
 
     // ---- the lighthouse on the headland: a white tower with a red band, its lantern lit at night, the keepers' cottages
-    { const [x, z] = P(40, 432);
+    { const [x, z] = P(40, 432), s0 = props.length;
       cyl(x, z, 0, 0.5, 0, 4.0, 4.4, 1, 14, 0x9a958b);                                                // plinth
       cyl(x, z, 0, 8, 0, 2.3, 3.0, 14, 12, 0xf2f0ea); cyl(x, z, 0, 11, 0, 2.48, 2.56, 2.4, 12, 0xb33a32);   // tower, red band
       cyl(x, z, 0, 15.2, 0, 3.0, 3.0, 0.4, 12, 0x2b2d30);                                               // gallery
+      cyl(x, z, 0, 18.3, 0, 0.3, 2.0, 1.4, 10, 0xb33a32);                                                // cap
+      vox('lighthouse', x, z, 0, props.splice(s0));                                                       // the tower from models/vox (core/landmarks.js), these boxes its fallback
       props.push({ geo: 'cyl:1.6,1.6,2.2,10', color: 0x333333, emissive: 0xfff2c0, x, y: 16.5, z, rot: [0, 0, 0], cast: true, lampHead: true, ax: x, az: z });
-      cyl(x, z, 0, 18.3, 0, 0.3, 2.0, 1.4, 10, 0xb33a32); K.lamps.push({ x, y: 16.5, z, color: 0xfff2c0, distance: 70 });
+      K.lamps.push({ x, y: 16.5, z, color: 0xfff2c0, distance: 70 });
       props.push({ geo: 'box:72,0.4,1.0', color: 0x1a1a1a, emissive: 0xc9b87e, x, y: 16.5, z, rot: [0, 0, 0], cast: false, lampHead: true, beam: true });   // its beam, turning at night (gl/world.js)
       footprint(8, 8, x, z, 0, 19); take(x, z, 6);
       for (const [e, n] of [[72, 398], [72, 386]]) { const [cx, cz] = P(e, n); cottage(cx, cz, 12, 6, 0, 1); take(cx, cz, 7); } }
 
     // ---- Radar Hill: the dome on a block, an operations hut and a mast just off the top
-    { const [x, z] = P(82, 160);
+    { const [x, z] = P(82, 160), s0 = props.length;
       box(7, 5, 7, 0xcfcac0, x, z); cyl(x, z, 0, 6.2, 0, 4.4, 4.4, 2.4, 16, 0xf0eee8); cyl(x, z, 0, 8.4, 0, 3.4, 4.4, 2.0, 16, 0xf0eee8); cyl(x, z, 0, 10.1, 0, 1.8, 3.4, 1.4, 16, 0xf0eee8);
+      vox('radar', x, z, 0, props.splice(s0));   // the station from models/vox, these its fallback (the obstacle is the box's)
       const [hx, hz] = P(100, 140); box(10, 3.2, 5, 0xa8a49a, hx, hz, { rot: 0.2 }); take(x, z, 8); take(hx, hz, 6);
       const [mx, mz] = P(38, 160); radioMast(mx, mz, 26); take(mx, mz, 3); }
 
     // ---- the harbour: three sheds along the quay, its kerb and bollards, a breakwater with a light, boats in the basin
-    for (const [e, n, w, d, col] of [[268, -2, 16, 26, 0x6f8796], [272, 90, 14, 22, 0x8c6f5a], [228, -28, 18, 18, 0x77807a]]) { const [x, z] = P(e, n); shed(x, z, w, d, 0, col); take(x, z, Math.hypot(w, d) / 2); }
+    [[268, -2, 0x6f8796, -1], [272, 90, 0x8c6f5a, 0], [228, -28, 0x77807a, 1]].forEach(([e, n, col, variant]) => {   // 24 x 16 m, doors to the quay; the vox shed's palette variants give the other two their colours
+      const [x, z] = P(e, n), s0 = props.length; shed(x, z, 24, 16, 0, col); vox('shed', x, z, 0, props.splice(s0), { variant }); take(x, z, 14); });
     { const [x0, z0] = P(...QUAY[0]), [x1, z1] = P(...QUAY[1]), L = Math.hypot(x1 - x0, z1 - z0);
       for (let k = 2; k < L; k += 9) { const t = k / L; A(x0 + (x1 - x0) * t + 1.4, -1.3, z0 + (z1 - z0) * t, 0.5, 0.7, 0.5, 0x2b2d30); } }   // inland is +x
     const BW = [[335, 80], [372, 56], [392, 18]].map(p => P(...p));
     for (let i = 0; i < BW.length - 1; i++) { const [ax, az] = BW[i], [bx, bz] = BW[i + 1], L = Math.hypot(bx - ax, bz - az), rot = Math.atan2(bx - ax, bz - az); for (let k = 0; k <= L; k += 3.5) { const t = k / L, j = (rd() - 0.5) * 0.6; A(ax + (bx - ax) * t, -10, az + (bz - az) * t, 6 + j, 8.2 + rd() * 0.6, 4, [0x8d8880, 0x7e7a72, 0x96918a][Math.floor(rd() * 3)], rot + j * 0.3); } }
     { const [x, z] = BW.at(-1); A(x, -1.8, z, 2.2, 5.5, 2.2, 0xb33a32); A(x, 3.7, z, 1.4, 1.2, 1.4, 0xf2f0ea); }
-    for (const [e, n, rot, col] of [[352, 50, 0.05, 0xb33a32], [360, 34, -0.04, 0x2f5f8a], [340, 64, 0.1, 0x3f6a46], [349, 70, 0.6, 0xc9a23a]]) {   // clear of the craft's berth at the quay   // fishing boats: hull, deck, wheelhouse, mast
-      const [x, z] = P(e, n), c = Math.cos(rot), s = Math.sin(rot), Bt = (lz, y0, w, h, d, m) => A(x + lz * s, y0, z + lz * c, w, h, d, m, rot);
+    [[352, 50, 0.05, 0xb33a32], [360, 34, -0.04, 0x2f5f8a], [340, 64, 0.1, 0x3f6a46], [349, 70, 0.6, 0xc9a23a]].forEach(([e, n, rot, col], i) => {   // clear of the craft's berth at the quay   // fishing boats: the vox boat (red, and three palette variants), these boxes its fallback
+      const [x, z] = P(e, n), c = Math.cos(rot), s = Math.sin(rot), s0 = props.length, Bt = (lz, y0, w, h, d, m) => A(x + lz * s, y0, z + lz * c, w, h, d, m, rot);
       Bt(0, -3.8, 3.4, 1.6, 11, col); Bt(0, -2.2, 3.0, 0.2, 10.4, 0x8a6a46); Bt(-2, -2.0, 2.2, 2.0, 2.6, 0xf2f0ea); Bt(-2, 0, 2.4, 0.2, 2.8, 0x2b2d30); Bt(2.5, -2.0, 0.18, 5.5, 0.18, 0x5a3e2a);
-    }
+      vox('boat', x, z, rot, props.splice(s0), { variant: i - 1, y: -3, absY: true });
+    });
 
     // ---- the assault ship off the west coast (a prop until P2 makes it the attacker's base): hull, flight deck, the island on
     // the starboard (east) side, the well dock's gate at the stern
-    { const [sx, sz] = P(SHIP.e, SHIP.n), L = SHIP.len, B = SHIP.beam, x = (lx) => sx - lx;   // lx: metres east of the centre line
+    { const [sx, sz] = P(SHIP.e, SHIP.n), L = SHIP.len, B = SHIP.beam, x = (lx) => sx - lx, s0 = props.length;   // lx: metres east of the centre line
       A(sx, -8, sz, B - 4, 7, L - 6, 0x4d5256); A(sx, -1, sz, B, 8, L - 4, 0x8f9499);                                       // lower and upper hull
       A(sx, -1, sz + L / 2 + 2, B - 10, 8, 8, 0x8f9499); A(sx, -1, sz + L / 2 + 7, B - 18, 8, 5, 0x8f9499);                   // the bow narrowing
       A(sx, SHIP.deck - 0.6, sz + 2, B + 2, 0.6, L + 10, 0x5a5e62);                                                                       // flight deck
@@ -180,6 +188,7 @@ export const peninsula = {
       A(x(11), 7.6, sz + 8, 6, 12, 34, 0x84898c); A(x(11), 19.6, sz + 12, 6.4, 1.6, 12, GLASS); A(x(11), 21.2, sz + 12, 5, 2.4, 10, 0x84898c);   // island, bridge windows
       props.push({ geo: 'cyl:0.35,0.5,11,6', color: 0x5b5f62, x: x(11), y: 28, z: sz + 12, rot: [0, 0, 0], cast: true, absY: true });   // mast
       A(sx, -1, sz - (L - 4) / 2 - 0.2, 16, 6, 0.4, 0x1e2224);                                                                   // the well dock's stern gate
+      vox('ship', sx, sz, 0, props.splice(s0), { y: 0, absY: true });                                                             // the ship from models/vox (bow north, island to starboard, the well dock open aft), these boxes its fallback
       obstacles.push({ minX: sx - B / 2, maxX: sx + B / 2, minZ: sz - L / 2 - 2, maxZ: sz + L / 2 + 10, h: 7.6 }); }
 
     // ---- sea stacks off the cliffs, rocks along the cliff tops

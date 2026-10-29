@@ -2474,6 +2474,41 @@ Engine changes needed in the existing core:
   - Not done: the Light mirror on Peninsula, where the attacker's extra bodies still win 6 of 6,
     and the CPU defender never contests the beaches.
 
+- **Peninsula P4: the landmarks as vox props (2026-10-29, "go P4").** References came from
+  `tools/make-refs.mjs` (five new subjects: assaultShip, lighthouse, radarStation, harbourShed,
+  fishingBoat; FLUX.2 klein on Workers AI, as before), and the models from them.
+  - **Pipeline.** `src/core/landmarks.js` builds the five in the units' DSL; `exportVox` falls
+    back to it by name, with `VOXEL_FOR` sizes (lighthouse 0.2 m, shed 0.15, ship 0.25) and
+    palette `variants` the builder lists by material (the sheds' and boats' colours);
+    `gl/voxmodels.js` gains `loadVoxProps` and `voxProp(name, variant)`, which gives each model
+    of a file as a mesh at its centre with the palette or a variant's and any glow; a map
+    pushes `{ vox, x, z, rot, variant, y, absY, alt }` and `gl/world.js` stands the meshes
+    turned and placed with the prop (`p.meshes`, so a building's collapse takes them out) or,
+    without the file or under `?vox=0`, the prop's `alt` boxes, which are the map's old ones
+    spliced off the props list; the three.js back end stands the `alt` boxes only. Nothing
+    about obstacles, lamps, the lighthouse's lamp head and beam, or the ship's deck bridge
+    changed: those stay the map's.
+  - **Models.** The lighthouse (an octagonal tower, two red bands, a railed gallery, an open
+    lantern the lamp stands in, a pyramid cap, a stone plinth); the radar station (a radome of
+    stacked slices on a drum, a concrete blockhouse with a steel door and vents; the lattice
+    mast stays the map's); a 24 x 16 m shed (corrugation ribs, rust streaks and patches, a
+    pitched roof with three skylights, sliding doors on the gable to the quay, a bollard and a
+    crate), in three colours; an 11 m fishing boat (a hull tapering to a stem, a deck tapering
+    with it, a wheelhouse, mast, boom, nets), in four; and the ship, in four parts under the
+    format's 255 voxels a side (bow, midships, stern, island): a flat flight deck with its
+    centre line and four landing spots, coaming, sponsons and davits, the bow tapering to a
+    stem with side lights that glow, the island with its bridge, wings, mast, radars, funnel
+    and dome, and the stern cut open as the well dock, 16 m wide between the hull's side
+    walls over a wet deck, its gate lowered to a ramp at the waterline, so the craft are seen
+    to come out of it.
+  - **Lesson.** The first lighthouse was a tapered 8-sided cylinder at 0.1 m and sparkled with
+    lit dots under the noon sun: every ring of a taper is a ledge facing up, and a voxel
+    octagon's diagonal faces are staircases, so the dots were lighting, not a bug. A straight
+    octagon at 0.2 m has clean 45-degree staircases and reads as voxel art.
+  - Checked headless: each landmark by day, the lighthouse and ship by night, the harbour with
+    `?vox=0`, and a vox shed brought down in a match (its mesh goes, no errors). The ship's
+    file is 1.3 MB (its skin at 0.25 m), the others 40 to 250 KB.
+
 ## Open questions
 
 None open. Answered:

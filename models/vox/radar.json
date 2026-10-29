@@ -1,0 +1,14 @@
+{
+ "type": "radar",
+ "voxel": 0.1,
+ "height": 14,
+ "radius": 5,
+ "pivots": {
+  "hull": [0,0,0]
+ },
+ "parent": {},
+ "steer": [],
+ "team": {},
+ "emissive": {},
+ "colours": 8
+}
