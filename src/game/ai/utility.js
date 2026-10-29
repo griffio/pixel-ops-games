@@ -15,7 +15,7 @@ export const PERSONAS = {
 const clamp01 = (v) => Math.max(0, Math.min(1, v));
 const sigmoid = (x, mid, width) => 1 / (1 + Math.exp(-(x - mid) / width));
 // combat weight of a unit: a pinned soldier counts half, an APC four, a helicopter two, a truck half
-const weight = (u) => u.type === 'soldier' ? (u.supp > 0.5 ? 0.5 : 1) : u.type === 'tank' ? 6 : u.type === 'apc' ? 4 : u.type === 'heli' ? 2 : 0.5;
+const weight = (u) => u.type === 'soldier' ? (u.supp > 0.5 ? 0.5 : 1) : u.type === 'tank' ? 6 : u.type === 'apc' ? 4 : u.type === 'heli' || u.type === 'bird' ? 2 : 0.5;
 
 export class UtilityCommander {
   constructor(strategist, persona = 'balanced') {

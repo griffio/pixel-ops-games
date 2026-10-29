@@ -27,7 +27,7 @@ const short = (why) => { for (const [re, out] of SHORT) { const r = why.match(re
 const esc = (t) => String(t).replace(/&/g, '&amp;').replace(/"/g, '&quot;').replace(/</g, '&lt;');
 const BUILD_ACTS = ['fob', 'sandbags', 'traps', 'emp_hmg', 'emp_atgm', 'emp_mortar'];
 const FOOT = { sandbags: 2.8, fob: 6, hmg: 2.4, atgm: 2.4, mortar: 2.4 };   // the ground a build takes, for its outline
-const KIT_NAME = { rifle: 'rifle', mg: 'MG', at: 'AT', marksman: 'marksman', medic: 'rifle', engineer: 'rifle', autocannon: 'autocannon', doorgun: 'door gun', tankgun: '120 mm', coax: 'coax MG', hmg: 'HMG', atgm: 'ATGM', mortar: 'mortar' };
+const KIT_NAME = { rifle: 'rifle', mg: 'MG', at: 'AT', marksman: 'marksman', medic: 'rifle', engineer: 'rifle', autocannon: 'autocannon', doorgun: 'door gun', tankgun: '120 mm', coax: 'coax MG', hmg: 'HMG', atgm: 'ATGM', mortar: 'mortar', hydra: 'rockets', gau19: 'gatling' };
 
 
 // HUD + control panel. Back-end hooks on app: pixel (settings), setShadows(on),
@@ -317,7 +317,7 @@ export class Hud {
       const room = U.some(v => v.seats && v.team === me && !v.dead && v.passengers.length < v.seats);
       orders.push({ act: 'load', glyph: 'load', name: inp && inp.loading ? 'Pick one' : 'Load', key: 'L', on: inp && inp.loading, why: room ? null : 'No vehicle with a free seat', title: inp && inp.loading ? `${this.app.touch ? 'Tap' : 'Click'} a vehicle to board it, or Load again to cancel` : 'Board a vehicle' });
     }
-    const car = list.find(u => u.seats && !u.dead && u.passengers.length), flying = (u) => u.spec.air && !u.dead && u.state !== 'parked' && u.state !== 'spooldown';
+    const car = list.find(u => u.seats && !u.dead && u.passengers.length), flying = (u) => u.spec.air && !u.spec.noLand && !u.dead && u.state !== 'parked' && u.state !== 'spooldown';
     if (car) orders.push({ act: 'unload', glyph: 'unload', name: `${flying(car) ? 'Land' : 'Unload'} ${car.passengers.length}`, key: 'U', title: flying(car) ? 'Land and let them out' : 'Let them out' });   // a helicopter in the air lands first
     else if (list.some(flying)) orders.push({ act: 'unload', glyph: 'unload', name: 'Land', key: 'U', title: 'Land here' });
     else if (list.some(u => u.post && !u.dead)) orders.push({ act: 'unload', glyph: 'unload', name: 'Leave', key: 'U', title: 'Leave the position' });

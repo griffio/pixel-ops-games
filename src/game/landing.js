@@ -23,7 +23,7 @@ export class Landing {
   get base() { return this.m.teams[this.team].base; }
   atShip(x, z) { return Math.hypot(x - this.base.x, z - this.base.z) < this.base.r; }
   slot(i) { const [x, z] = this.sea.dock, h = this.sea.out, o = (i - 1) * RULES.landing.spacing; return [x + Math.cos(h) * o + Math.sin(h) * 16, z - Math.sin(h) * o + Math.cos(h) * 16]; }   // craft wait abreast off the stern gate
-  deckSpot() { const S = this.sea.deck, U = this.units.units, free = S.find(([x, z]) => !U.some(u => u.type === 'heli' && !u.dead && Math.hypot(u.pos.x - x, u.pos.z - z) < 8)); return free || S[Math.floor(Math.random() * S.length)]; }
+  deckSpot() { const S = this.sea.deck, U = this.units.units, free = S.find(([x, z]) => !U.some(u => u.spec.air && !u.dead && Math.hypot(u.pos.x - x, u.pos.z - z) < 8)); return free || S[Math.floor(Math.random() * S.length)]; }
   home() { return this.last.at; }   // where the side's ground units go home to: the beach its craft used last
   held(l) { const o = this.m.objectives, p = o && o.list.find(q => q.name === l.place); return !!p && p.owner === this.team; }
   dumpAt(x, z) { return this.lanes.some(l => this.held(l) && Math.hypot(x - l.at.x, z - l.at.z) < RULES.landing.dump); }

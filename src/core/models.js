@@ -263,6 +263,40 @@ export function makeBuilders(F) {
     return { group: g, parts: p, height: 5.9, radius: 3.0 };
   }
 
+  // AH-6M Little Bird (after the reference, 2026-10-29): an egg of a cabin under a bubble canopy, skids, a slim tail boom
+  // with a fin and a small tail rotor, a five-blade main rotor, and stub mounts carrying a seven-tube rocket pod to port
+  // and a three-barrel gatling to starboard. The tail rotor is still: the loader places a part by its pivot without its
+  // turn, so a spinning part must spin about the model's up.
+  function bird() {
+    const g = group(); const p = { rotors: [] };
+    const body = group(); g.add(body); p.body = body;
+    box(1.5, 1.35, 2.0, 'camo', 0, 1.55, 0.1, body);                                                 // the cabin (z -0.9..1.1), floor at 0.88
+    mesh('frustum:1.0,0.8,1.1,1.5,1.35', 'camo', 0, 1.5, 1.65, body);                                // the nose, tapering forward
+    mesh('frustum:1.5,1.35,1.2,0.9,0.8', 'camo', 0, 1.6, -1.5, body);                                // the tail of the cabin, tapering to the boom
+    box(1.3, 0.5, 0.9, 'glass', 0, 1.98, 1.25, body); box(1.1, 0.4, 0.5, 'glass', 0, 1.55, 2.0, body);   // the bubble canopy and the nose glazing
+    for (const s of [-1, 1]) { box(0.06, 0.6, 1.0, 'glass', s * 0.74, 1.75, 0.45, body); box(0.05, 0.9, 0.08, 'sand', s * 0.76, 1.55, -0.1, body); }   // door glazing, door frames
+    box(0.9, 0.32, 1.1, 'engine', 0, 2.38, -0.5, body); mesh('cyl:0.22,0.22,0.35,6', 'metal', 0, 2.55, 0.1, body);   // engine fairing, rotor mast
+    box(0.18, 0.18, 0.6, 'metal', 0, 2.42, -1.3, body);                                              // exhaust
+    box(0.36, 0.34, 3.4, 'camo', 0, 1.75, -3.6, body);                                                // the tail boom (z -5.3..-1.9)
+    box(0.12, 1.05, 0.55, 'camo', 0, 2.35, -5.0, body); box(0.95, 0.08, 0.38, 'camo', 0, 1.95, -4.8, body);   // fin, stabiliser
+    { const hub = box(0.16, 0.16, 0.14, 'metal', 0.26, 2.05, -5.1, body); for (const r of [0, 1]) { const bl = box(0.08, 0.72, 0.1, 'heliDark', 0.3, 2.05, -5.1, body); bl.rotation.z = r * Math.PI / 2; } }   // the tail rotor
+    for (const s of [-1, 1]) { box(0.08, 0.08, 2.7, 'metal', s * 0.78, 0.26, 0.1, body); for (const z of [-0.7, 0.95]) { const st = box(0.07, 0.75, 0.07, 'metal', s * 0.62, 0.62, z, body); st.rotation.z = s * 0.28; } }   // skids and their struts
+    for (const s of [-1, 1]) box(0.55, 0.12, 0.45, 'metal', s * 0.95, 1.22, 0.1, body);               // stub mounts
+    { const pod = mesh('cyl:0.3,0.3,1.3,8', 'olive', 1.15, 1.1, 0.25, body); pod.rotation.x = Math.PI / 2;   // the rocket pod, to port
+      for (let i = 0; i < 7; i++) { const a = i * Math.PI / 3, r = i === 6 ? 0 : 0.17, t = mesh('cyl:0.06,0.06,0.12,6', 'rifle', 1.15 + Math.cos(a) * r, 1.1 + Math.sin(a) * r, 0.95, body); t.rotation.x = Math.PI / 2; } }   // its seven tubes
+    { box(0.3, 0.3, 0.9, 'gun', -1.15, 1.1, 0.0, body); for (let i = 0; i < 3; i++) { const a = i * Math.PI * 2 / 3, b = mesh('cyl:0.045,0.045,1.2,6', 'rifle', -1.15 + Math.cos(a) * 0.07, 1.1 + Math.sin(a) * 0.07, 1.0, body); b.rotation.x = Math.PI / 2; } }   // the gatling, to starboard: receiver and three barrels
+    p.beacon = box(0.12, 0.12, 0.12, 'navRed', 0, 2.93, -5.0, body);
+    box(0.1, 0.1, 0.1, 'navRed', 0.8, 1.32, 0.1, body); box(0.1, 0.1, 0.1, 'navGreen', -0.8, 1.32, 0.1, body);
+    { const head = group(); head.position.set(0, 2.78, 0.1); body.add(head);
+      box(0.4, 0.3, 0.4, 'metal', 0, 0, 0, head);
+      const blades = group(); head.add(blades);
+      for (let i = 0; i < 5; i++) { const h = group(); h.rotation.y = i * Math.PI * 2 / 5; box(0.26, 0.05, 4.0, 'heliDark', 0, 0.08, 2.1, h); blades.add(h); }
+      const disc = mesh('cyl:4.15,4.15,0.05,24', 'rotorBlur', 0, 0.08, 0, head); disc.visible = false;
+      p.rotors.push({ head, blades, disc, dir: 1 }); }
+    p.ring = ring(4.6, g);
+    return { group: g, parts: p, height: 3.1, radius: 2.1 };
+  }
+
   // Amphibious assault vehicle (Peninsula's sea side: its APCs swim ashore from the ship instead of riding a craft): a tall
   // boxy tracked hull with a blunt sloped bow and a trim vane folded over it, side skirts over six road wheels, a small
   // one-man turret with an autocannon forward of centre, troop hatches aft, a rear ramp, and bilge-pump outlets high on the
@@ -478,7 +512,7 @@ export function makeBuilders(F) {
 
   // each builder takes the team so the whole model picks the right camo set
   const forTeam = (fn) => (t = 0) => { team = t; const r = fn(); team = 0; return r; };
-  return { soldier: forTeam(soldier), truck: forTeam(() => truck(false)), supplyTruck: forTeam(() => truck(true)), apc: forTeam(apc), heli: forTeam(heli), fob: forTeam(fob), cache: forTeam(cache), sandbags: forTeam(sandbags), emp_hmg: forTeam(empHmg), emp_atgm: forTeam(empAtgm), emp_mortar: forTeam(empMortar), traps: forTeam(traps), rally: forTeam(rally), tank: forTeam(tank), craft: forTeam(craft), amphib: forTeam(amphib), amphibSupply: forTeam(amphibSupply) };
+  return { soldier: forTeam(soldier), truck: forTeam(() => truck(false)), supplyTruck: forTeam(() => truck(true)), apc: forTeam(apc), heli: forTeam(heli), bird: forTeam(bird), fob: forTeam(fob), cache: forTeam(cache), sandbags: forTeam(sandbags), emp_hmg: forTeam(empHmg), emp_atgm: forTeam(empAtgm), emp_mortar: forTeam(empMortar), traps: forTeam(traps), rally: forTeam(rally), tank: forTeam(tank), craft: forTeam(craft), amphib: forTeam(amphib), amphibSupply: forTeam(amphibSupply) };
 
 
 

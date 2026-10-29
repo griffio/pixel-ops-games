@@ -10,7 +10,7 @@
 // radio plays one voice line at a time (src/game/voices.js decides what). The
 // context starts on the first pointer or key event.
 const RATE = { shot: [10, 0.15], impact: [5, 0.15], hit: [6, 0.15], explosion: [4, 0.3], blast: [4, 0.2], whizz: [2, 0.5], foley: [3, 0.5] };   // max voices per window (s)
-const CLIP_OF = { medic: 'rifle', engineer: 'rifle', coax: 'mg', hmg: 'mg', atgm: 'at', mortar: 'tankgun' };   // kits that share another kit's recording
+const CLIP_OF = { medic: 'rifle', engineer: 'rifle', coax: 'mg', hmg: 'mg', atgm: 'at', mortar: 'tankgun', hydra: 'at', gau19: 'mg' };   // kits that share another kit's recording
 const ENGINE = { tank: ['engine_tank', 0.5], apc: ['engine_apc', 0.45], truck: ['engine_truck', 0.35] };   // loop and gain per vehicle
 const KITS = {
   rifle:      { dur: 0.09, lp: [3200, 700], g: 0.45, click: [1800, 200, 0.03] },
@@ -111,12 +111,12 @@ export class AudioEngine {
 
   // ---- one-shots -------------------------------------------------------------
   shot(kit, x, z, team = 0) {
-    if (!this.ready) return; const k = KITS[kit] || KITS.rifle, s = this.spatial(x, z); if (s.gain < 0.02 || !this.allow('shot')) return;
+    if (!this.ready) return; const k = KITS[kit] || KITS[CLIP_OF[kit]] || KITS.rifle, s = this.spatial(x, z); if (s.gain < 0.02 || !this.allow('shot')) return;
     this.heat += 1;   // the distant battle ambience swells with the shooting
     const name = CLIP_OF[kit] || kit, own = team === 1 && this.clips.has(name + 'B') ? name + 'B' : name;   // OPFOR riflemen carry AKs
     if (this.clip(own, s.gain * k.g, s.pan, 0.95 + Math.random() * 0.1)) return;
     const dest = this.out(s.gain * k.g, s.pan, k.dur + 0.1);
-    this.burst(dest, k.dur, k.lp, 1, kit === 'at' ? 60 : 120);
+    this.burst(dest, k.dur, k.lp, 1, kit === 'at' || kit === 'hydra' ? 60 : 120);
     if (k.click) this.tone(dest, k.click[0], k.click[1], k.click[2], 0.6, kit === 'at' || kit === 'autocannon' ? 'triangle' : 'square');
   }
   explosion(x, z, k = 1) {

@@ -38,7 +38,13 @@ export class Support {
     for (const t of all) if (t.supply && !t.dead && !t.afloat && t.supplies < RULES.fob.truckSupplies) { if (this.atRefill(t)) t.supplies = Math.min(RULES.fob.truckSupplies, t.supplies + RULES.fob.resupplyRate * dt); }
     this.trips();
     // a helicopter landed in its own main base is patched up by the ground crew (full in a minute)
-    for (const h of all) if (h.type === 'heli' && !h.dead && h.state === 'parked' && h.hp < h.maxHp) { const b = this.teams[h.team].base; if (Math.hypot(h.pos.x - b.x, h.pos.z - b.z) < b.r) h.hp = Math.min(h.maxHp, h.hp + h.maxHp / 60 * dt); }
+    // (the Little Bird never lands: hovering over the base counts, and its rocket pod is refilled too, full in half a minute)
+    for (const h of all) {
+      if (!h.spec.air || h.dead) continue; const b = this.teams[h.team].base; if (Math.hypot(h.pos.x - b.x, h.pos.z - b.z) >= b.r) continue;
+      if (!(h.state === 'parked' || (h.spec.noLand && h.hover && !h.dest))) continue;
+      if (h.hp < h.maxHp) h.hp = Math.min(h.maxHp, h.hp + h.maxHp / 60 * dt);
+      if (h.spec.ammo && h.ammo < h.spec.ammo) h.ammo = Math.min(h.spec.ammo, h.ammo + h.spec.ammo / 30 * dt);
+    }
     for (const u of all) {
       if (u.dead || (u.kit !== 'medic' && u.kit !== 'engineer')) continue;
       if (u.kit === 'medic') {

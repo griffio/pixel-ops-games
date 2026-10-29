@@ -20,4 +20,9 @@ export const WEAPONS = {
   atgm:       { range: 200, rate: 10,  burst: 1,  burstGap: 0,    dmgInf: 40, dmgVeh: 220, acc: 0.8,  speed: 75,  hold: 0,  air: true, prefersVehicles: true, explosive: true, rocket: true },
   mortar:     { range: 400, min: 40,   rate: 7,   burst: 1,  burstGap: 0,  dmgInf: 70, dmgVeh: 30,  acc: 0.3,  speed: 64,  hold: 0,  air: false, explosive: true, arc: true, indirect: true, elev: 0.9, splash: 7 },   // elev: the tube's 52 degrees, the charge set for the range (4 s in the air at 60 m, 10 s at 400 m)
   doorgun:    { range: 80,  rate: 1.3, burst: 14, burstGap: 0.05, dmgInf: 7,  dmgVeh: 1,   acc: 0.18, speed: 320, hold: 0,  air: false },   // the Chinook's crew-door M240: a machine gun's reach, longer bursts from a steady mount
+  // the Little Bird's stub mounts (core/units.js SPEC.bird): a seven-shot pod of unguided rockets to port, fired one at a time
+  // and bursting over splash metres, seven a sortie (SPEC.bird.ammo, refilled hovering over its base), and a three-barrel
+  // .50 gatling to starboard that joins in on infantry
+  hydra:      { range: 140, rate: 1.4, burst: 1,  burstGap: 0,    dmgInf: 45, dmgVeh: 60,  acc: 0.5,  speed: 130, hold: 0,  air: false, prefersVehicles: true, explosive: true, rocket: true, splash: 5 },
+  gau19:      { range: 110, rate: 1.5, burst: 12, burstGap: 0.045, dmgInf: 12, dmgVeh: 3,  acc: 0.2,  speed: 400, hold: 0,  air: false },
 };

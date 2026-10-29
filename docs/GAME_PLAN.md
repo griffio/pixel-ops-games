@@ -2550,6 +2550,40 @@ Engine changes needed in the existing core:
     three reloads, then "Failed to start". The mix itself is the platform's rollout, which no
     header fixes (the stale files came back as cache hits with must-revalidate).
 
+- **Adding a unit: the AH-6M Little Bird (2026-10-29).** The user wanted to see how much work a new
+  unit is, and proposed the "Killer Egg" with one Hydra 70 pod and one GAU-19/B rather than ATGMs
+  (agreed: ATGMs would overlap the AT squad and out-range everything; the mixed load gives it a
+  role, fire support against infantry and light vehicles, with tanks as its counter and AT squads
+  as its threat). Their direction: it circles like the Chinook, a bit faster, and never lands.
+  - **The work, file by file.** `rules.js` (ticket 25, respawn 100 s, sight 140); `weapons.js`
+    (`hydra`: 140 m, one rocket every 1.4 s, 45/60 damage bursting over 5 m, prefers vehicles;
+    `gau19`: 110 m, 12-round bursts at infantry); `units.js` (`SPEC.bird`: speed 20, hp 160,
+    kit and kit2, `seats: 0`, `noLand`, `ammo: 7`; the pod filled at spawn and revive; `tryLand`
+    hovers instead); `combat.js` (an empty pod waits, each rocket counts, muzzles on the stub
+    mounts, flash kinds); `support.js` (a bird hovering over its base repairs and refills, full
+    in 30 s); `respawn.js` (the air doctrine's halved respawn covers every helicopter);
+    `landing.js` (deck spots for any helicopter); `match.js` (deployment behind the helicopters);
+    `loadout.js` (the item at 240, Air Assault's 35% off, a Gunships preset with two, the
+    counter-pick answers one with Defensive); `ai/utility.js` (weight 2); `ai/strategist.js`
+    (`gunship()`: with the pod full and the hull sound it orbits the knot of infantry `gunSpot`
+    picks, loiters half a minute of plan ticks with nothing to shoot, and goes home to hover and
+    rearm when empty or under 60%; `caution()` keeps its orbit when it moves it); `roster.js`
+    (name, "Hovering · n rockets"); `hud.js` (no Land button for a `noLand` unit, feed names);
+    `audio.js` (the new kits borrow the rocket and MG recordings); `models.js` (the model from
+    a generated reference: egg cabin, bubble canopy, skids, boom, fin, five-blade rotor, pod and
+    gatling); `voxexport`/`main.js` (exported to `models/vox/bird.vox`, 17 KB, and loaded);
+    `tools/make-portraits.mjs` (the portrait); the guide and README. About 150 lines over
+    twenty files, most of them one line.
+  - **Checked headless.** The CPU's bird waits parked until there is a fight, then launches,
+    circles, fires, flies home to hover and rearm, and goes out again; the player's bird circles
+    where it is sent, `tryLand` says none and it hovers, and no Land button is offered. Fifteen
+    minutes of Gunships against Balanced on Palm Valley: 8 sorties, 45 rockets, 23 kills (17 by
+    rocket, 6 by gatling), neither bird scratched. Two full matches ran clean; Gunships lost
+    both narrowly on tickets, so it needs a balance pass before it is tuned.
+  - **Not done.** The tail rotor is a still part: the vox loader places a part by its pivot
+    without its turn, so a spinning part must spin about the model's up. The sandbox's spawn
+    buttons have no bird. No balance pass yet.
+
 ## Open questions
 
 None open. Answered:

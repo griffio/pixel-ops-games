@@ -7,6 +7,7 @@ export const SPEC = {
   truck:   { speed: 9.5, turn: 1.1, accel: 5, label: 'TR', air: false, hp: 150, nav: 'vehicle', seats: 8 },   // two squads (a supply truck carries cargo, not troops)
   apc:     { speed: 8,   turn: 0.9, accel: 4, label: 'AP', air: false, hp: 600, nav: 'vehicle', kit: 'autocannon', seats: 4 },   // one squad
   heli:    { speed: 16,  turn: 1.4, accel: 6, label: 'HE', air: true, hp: 300, nav: null, kit: 'doorgun', seats: 8 },
+  bird:    { speed: 20,  turn: 1.9, accel: 7, label: 'LB', air: true, hp: 160, nav: null, kit: 'hydra', kit2: 'gau19', seats: 0, noLand: true, ammo: 7 },   // AH-6M Little Bird: a gunship with no seats; circles like the Chinook, a little faster, never lands after take-off (it rearms hovering over its base)
   fob:     { speed: 0,   turn: 0,   accel: 0, label: 'FB', air: false, hp: 300, nav: null, structure: true },
   cache:   { speed: 0,   turn: 0,   accel: 0, label: 'CA', air: false, hp: 250, nav: null, structure: true },
   sandbags: { speed: 0, turn: 0,   accel: 0, label: 'SB', air: false, hp: 1e9, nav: null, structure: true, untargetable: true, hollow: true },   // low cover, not a target; soldiers stand inside it
@@ -224,7 +225,7 @@ export class Unit {
     if (this.spec.air) { for (const r of this.parts.rotors) { r.blades.visible = true; r.disc.visible = false; } this.alt = 0; this.pos.y = this.mgr ? this.mgr.world.heightAt(this.pos.x, this.pos.z) : 0; this.parts.body.rotation.x = 0; this.parts.body.rotation.z = 0.35; }
   }
   // revive at a position (infantry respawn reuses the object so squads keep their members)
-  revive(x, z, heading) {
+  revive(x, z, heading) { if (this.spec.ammo) this.ammo = this.spec.ammo;
     this.dead = false; this.hp = this.maxHp; this.pos.set(x, 0, z); this.heading = heading; this.group.rotation.set(0, heading, 0);
     this.group.visible = true; this.speed = 0; this.enemy = null; this.target = null; this.path = null; this.dest = null; this.deathT = 0; this.reviveT = 0; this.hold = false; this.boardTarget = null; this.mounted = null; this.landedT = 0;
   }
@@ -404,6 +405,7 @@ export class Unit {
   // A helicopter about to set down: 'here' when it may, 'moved' when it flies on to the nearest spot it may (and lands there),
   // 'none' when there is no such spot within reach: it hovers where it is until it is ordered elsewhere.
   tryLand() {
+    if (this.spec.noLand) { this.hover = true; this.hoverNoRoom = false; return 'none'; }   // the Little Bird never lands: it hovers where it was sent
     const spot = this.landingSpot(this.pos.x, this.pos.z);
     if (spot && Math.hypot(spot[0] - this.pos.x, spot[1] - this.pos.z) < 1.5) { this.state = 'land'; this.hoverNoRoom = false; return 'here'; }
     if (spot) { this.dest = new Vec3(spot[0], 0, spot[1]); this.target = new Vec3(spot[0], 0, spot[1]); this.orbit = null; this.hoverNoRoom = false; return 'moved'; }
@@ -540,6 +542,7 @@ export class UnitManager {
     const build = amphib ? this.builders[type === 'truck' ? 'amphibSupply' : 'amphib'] || this.builders[type] : (opts.supply && this.builders.supplyTruck) || (opts.gun && this.builders['emp_' + opts.gun]) || this.builders[type];   // the supply truck shows its load; an emplacement its gun
     const u = this.add(new Unit(type, build, x, z, heading, team));
     if (opts.gun) u.gun = opts.gun;
+    if (u.spec.ammo) u.ammo = u.spec.ammo;   // a rocket pod, full
     u.pos.y = this.world.heightAt(x, z);
     if (opts.supply) { u.supply = true; u.supplies = 100; u.label = u.label.replace('TR', 'SP'); }
     if (amphib) { u.amphib = true; u.spec = { ...u.spec, nav: 'amphib', swim: SWIM[type] || 3.5 }; if (type === 'apc') u.label = u.label.replace('AP', 'AV'); }   // its own spec: the amphibious grid, a swimming speed

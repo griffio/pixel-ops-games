@@ -48,7 +48,8 @@ keeps your loadout and remembers the map. Its Opponent row has the built-in CPU 
 Llama commander. The Claude commanders are listed only while the engine panels are on,
 because they spend the API key the gateway holds. Then spend
 1,200 points on squads (rifle, support, anti-tank, medic, marksman, engineer),
-vehicles (trucks, supply trucks, 8x8 APCs, M1 Abrams tanks, Chinook helicopters) and one doctrine
+vehicles (trucks, supply trucks, 8x8 APCs, M1 Abrams tanks, Chinook helicopters, AH-6M Little
+Bird gunships) and one doctrine
 (Mechanized, Air Assault, Light Infantry, Entrenched), or pick a preset. Your
 loadout is saved in the browser. The CPU reads it and counter-picks (never Air
 Assault, which pays for landing troops on undefended objectives and needs your
@@ -227,7 +228,14 @@ only on dry ground or a deck with nothing within 3 m (no building, wall, tree or
 trap, never the water): where it is if it may, else at the nearest such spot within
 60 m, flying on to it; with none it hovers, the roster says "No room to land", and
 the next order moves it on. Helicopters cruise at 14 to 22 m, over the panel blocks,
-the ship's island and the lighthouse.
+the ship's island and the lighthouse. The AH-6M Little Bird is a gunship with no
+seats: a seven-shot rocket pod to port that bursts over 5 m and a .50 gatling to
+starboard, circling like the Chinook but faster (20 m/s), and it never lands after
+take-off; send it home and it hovers over your base, where the pod is refilled in half
+a minute and the hull patched up. The CPU flies it in sorties against knots of
+infantry and brings it home when the pod is empty or it is hurt. The Gunships preset
+fields two under Air Assault, and the CPU answers a Little Bird with Defensive's two
+anti-tank squads.
 The CPU's own rides still drop their squad where the vehicle stops or lands. A truck or APC destroyed
 with troops aboard throws them out hurt; a helicopter shot down in the air takes
 them with it. The CPU uses a troop truck to ferry two squads from around base
@@ -499,7 +507,7 @@ src/core/           renderer-agnostic engine
   math.js           Vec3, column-major Mat4, colour-space helpers, seedable rng
   layout.js         world size, props as data (hangar, containers, palms, bushes, grass tufts), obstacles, sun/moon lighting, WorldState
   terrain.js        heightfield from ridge/hill features with noise-jagged crests and notch passes, carved rivers with fords, level pads, coasts (land polygons whose edges are cliffs, beaches, coves or quays); height, normal, slope, water and line-of-sight queries
-  models.js         unit models (soldier, truck, APC, tank, Chinook) built through a per-back-end factory
+  models.js         unit models (soldier, truck, APC, tank, Chinook, Little Bird, amphibians) built through a per-back-end factory
   vox.js            MagicaVoxel .vox reader and writer (models, palette, named scene graph), greedy mesher, palette texture
   landmarks.js      Peninsula's landmarks (lighthouse, radar station, harbour shed, fishing boat, assault ship) in the units' DSL, for export to .vox
   voxexport.js      voxelises a code-built unit or landmark into a .vox of named parts plus a .json of pivots, team colours, variants and glows (run by tools/export-vox.mjs)
@@ -532,7 +540,7 @@ src/game/           milestone 1 game layer (renderer-agnostic)
   maps/             map definitions (valley2km.js, desert1km.js, narva3km.js, peninsula.js), the shared prop kit and ground texture generators (natural ground: fine low-contrast detail, 128 px over 12.8 m, one texel to a pixel of the game's buffer; everything bigger comes from the shader)
   match.js          AAS / Skirmish match flow, 10 Hz game tick, bleed, win checks
 icons/units/        unit-strip portraits (tools/make-portraits.mjs renders them from the game's models)
-models/vox/         unit models and Peninsula's landmarks as MagicaVoxel files with a .json each (soldier, tank, apc, truck, supplyTruck, craft, heli, amphib, amphibSupply; lighthouse, radar, shed, boat, ship); exported by tools/export-vox.mjs, editable in MagicaVoxel, loaded by src/gl/voxmodels.js
+models/vox/         unit models and Peninsula's landmarks as MagicaVoxel files with a .json each (soldier, tank, apc, truck, supplyTruck, craft, heli, bird, amphib, amphibSupply; lighthouse, radar, shed, boat, ship); exported by tools/export-vox.mjs, editable in MagicaVoxel, loaded by src/gl/voxmodels.js
 src/three/          three.js back end: models, world, PixelRenderer (low-res target + outline), dust, markers
 src/gl/             WebGL2 back end
   scene.js          Node / Mesh scene graph with the same position/rotation/visible surface

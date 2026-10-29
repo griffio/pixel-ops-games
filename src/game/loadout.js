@@ -14,12 +14,13 @@ export const ITEMS = {
   apc:      { kind: 'vehicle', type: 'apc', name: 'APC', cost: 220, desc: 'Autocannon, 600 hp; carries a squad' },
   tank:     { kind: 'vehicle', type: 'tank', name: 'M1 Abrams tank', cost: 380, desc: '120 mm gun, 1,200 hp; thick front armour, weak rear' },
   heli:     { kind: 'vehicle', type: 'heli', name: 'Chinook helicopter', cost: 300, desc: 'Door guns, fast, fragile; carries 8' },
+  bird:     { kind: 'vehicle', type: 'bird', name: 'AH-6M Little Bird', cost: 240, desc: 'Gunship: a rocket pod and a gatling gun, faster and tiny; no seats, never lands' },
   fob:      { kind: 'kit', name: 'FOB kit', cost: 50, desc: 'One forward operating base an engineer can build near a supply truck' },
 };
 
 export const DOCTRINES = {
   mechanized: { name: 'Mechanized', desc: 'APCs 25% and tanks 15% cheaper, vehicles respawn 30% faster', costMul: { apc: 0.75, tank: 0.85 }, vehicleRespawn: 0.7, infantryRespawn: 1 },
-  air:        { name: 'Air Assault', desc: 'Helicopters 35% cheaper and back in half the time; troops a helicopter lands capture twice as fast for 90 s; +10 tickets for every location captured; infantry may respawn beside an idle helicopter', costMul: { heli: 0.65 }, vehicleRespawn: 1, heliRespawn: 0.5, infantryRespawn: 1, heliSpawn: true, airCapture: 2, captureBonus: 10 },
+  air:        { name: 'Air Assault', desc: 'Helicopters 35% cheaper and back in half the time; troops a helicopter lands capture twice as fast for 90 s; +10 tickets for every location captured; infantry may respawn beside an idle helicopter', costMul: { heli: 0.65, bird: 0.65 }, vehicleRespawn: 1, heliRespawn: 0.5, infantryRespawn: 1, heliSpawn: true, airCapture: 2, captureBonus: 10 },
   light:      { name: 'Light Infantry', desc: 'Infantry respawn halved and a fallen soldier costs half a ticket, one extra squad slot; infantry may respawn beside a parked truck', costMul: {}, vehicleRespawn: 1, infantryRespawn: 0.5, respawnCost: 0.5, squadSlots: 1, truckSpawn: true },
   entrenched: { name: 'Entrenched', desc: '+20 tickets for every location captured; FOBs build twice as fast', costMul: {}, vehicleRespawn: 1, infantryRespawn: 1, captureBonus: 20, fobBuild: 0.5 },
 };
@@ -31,6 +32,7 @@ export const PRESETS = {
   light:      { name: 'Light Infantry', doctrine: 'light', items: { rifle: 4, support: 1, at: 1, medic: 1, engineer: 1, truck: 1, supply: 1, fob: 1 } },
   armoured:   { name: 'Armoured', doctrine: 'mechanized', items: { rifle: 2, at: 1, engineer: 1, tank: 1, apc: 1, supply: 1, fob: 1 } },
   defensive:  { name: 'Defensive', doctrine: 'entrenched', items: { rifle: 2, support: 1, at: 2, engineer: 1, apc: 1, supply: 1, fob: 1 } },
+  gunship:    { name: 'Gunships', doctrine: 'air', items: { rifle: 3, at: 1, medic: 1, engineer: 1, bird: 2, supply: 1, fob: 1 } },
 };
 
 export function itemCost(key, doctrine) { const it = ITEMS[key], mul = (DOCTRINES[doctrine] && DOCTRINES[doctrine].costMul[key]) || 1; return Math.round(it.cost * mul); }
@@ -63,7 +65,7 @@ export const preset = (key) => clone(PRESETS[key] || PRESETS.balanced);
 export function counterPick(player, rnd = Math.random) {
   const n = (k) => (player.items && player.items[k]) || 0;
   const squads = Object.keys(ITEMS).filter(k => ITEMS[k].kind === 'squad').reduce((s, k) => s + n(k), 0);
-  if (n('apc') >= 2 || n('tank') >= 1) return 'defensive';
+  if (n('apc') >= 2 || n('tank') >= 1 || n('bird') >= 1) return 'defensive';   // two anti-tank squads: their launchers also answer gunships
   if (n('heli') >= 2) return 'light';
   if (player.doctrine === 'light' || squads >= 7) return 'mechanized';
   if (player.doctrine === 'entrenched') return 'armoured';   // a tank against dug-in positions

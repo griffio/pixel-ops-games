@@ -239,6 +239,7 @@ export class Strategist {
         if (v.dest && v.goal && Math.hypot(v.goal[0] - x, v.goal[1] - z) < 12) continue;
         v.goal = [x, z]; v.order(x, z);
       } else if (v.type === 'heli') this.air(v, attack, base, perch, hold);
+      else if (v.type === 'bird') this.gunship(v, attack, hold, land);
       else if (v.type === 'truck' && !v.supply) {   // a troop truck runs squads to the attack, or to the hold when there is none
         const front = attack || hold;
         if (this.ride(v, free, front, land) || v.dest) continue;
@@ -480,7 +481,7 @@ export class Strategist {
       if (h.hp < h.maxHp * 0.7) { this.endLift(h); this.heliHome(h, base); continue; }
       if (this.exposed(h.pos.x, h.pos.z) <= 1 && this.exposed(l.at[0], l.at[1]) <= 1) continue;
       const spot = this.gunSpot(l.places, base);
-      if (spot) { l.at = spot; h.order(spot[0], spot[1]); } else { this.endLift(h); this.heliHome(h, base); }
+      if (spot) { l.at = spot; h.order(spot[0], spot[1]); if (h.spec.noLand) h.orbit = { x: spot[0], z: spot[1], r: 30 }; } else { this.endLift(h); this.heliHome(h, base); }
     }
     for (const [v, l] of [...this.lifts]) {   // Light Infantry's forward truck (ride / forwardTruck)
       if (!v.type || l.stage !== 'park') continue;
@@ -708,6 +709,27 @@ export class Strategist {
       const spot = this.gunSpot([attack, hold], base);
       if (spot) { heli.hover = true; heli.order(spot[0], spot[1]); this.lifts.set(heli, { stage: 'gun', at: spot, places: [attack, hold], idle: 0, riders: [], squads: [] }); }
     }
+  }
+  // The Little Bird (SPEC.bird): a gunship with no seats that never lands after take-off. With its pod full and its hull sound
+  // it circles the knot of enemy infantry gunSpot picks (the same spots a Chinook on fire support hovers at), and goes home
+  // to hover over the base and rearm when the pod is empty or it is hurt; caution() pulls it out when exposed, as the Chinook.
+  gunship(v, attack, hold, base) {
+    const lift = this.lifts.get(v), atBase = Math.hypot(v.pos.x - base.x, v.pos.z - base.z) < 60, empty = v.ammo !== undefined && v.ammo < 1, hurt = v.hp < v.maxHp * 0.6;
+    const home = () => { this.lifts.set(v, { stage: 'return', riders: [], squads: [] }); v.hover = false; v.order(base.x + (Math.random() - 0.5) * 16, base.z + (Math.random() - 0.5) * 16); };
+    const run = (spot) => { v.order(spot[0], spot[1]); v.orbit = { x: spot[0], z: spot[1], r: 30 }; };
+    if (lift && lift.stage === 'gun') {
+      if (empty || hurt) return home();
+      const spot = this.gunSpot([attack, hold], base);
+      if (!spot) { if (++lift.idle >= 6) home(); return; }   // nothing worth a rocket for half a minute of plan ticks: home (a Chinook gives up sooner, it has lifts to fly)
+      lift.idle = 0; if (Math.hypot(spot[0] - lift.at[0], spot[1] - lift.at[1]) > 15) { lift.at = spot; run(spot); }
+      return;
+    }
+    if (lift && lift.stage === 'return') { if (atBase && !v.dest) this.lifts.delete(v); return; }
+    if (lift) return;
+    if (!atBase) return home();
+    if (v.hp < v.maxHp * 0.95 || (v.ammo !== undefined && v.ammo < v.spec.ammo - 0.01)) return;   // patched up and rearmed first
+    const spot = this.gunSpot([attack, hold], base);
+    if (spot) { run(spot); this.lifts.set(v, { stage: 'gun', at: spot, places: [attack, hold], idle: 0, riders: [], squads: [] }); }
   }
   heliHome(heli, base) { heli.hover = false; heli.dropOnLand = true; heli.order(base.x + (Math.random() - 0.5) * 16, base.z + (Math.random() - 0.5) * 16); this.lifts.set(heli, { stage: 'return', riders: [], squads: [] }); }
   // Fire support: a hover point 40 m from the biggest knot of enemy infantry around the places we attack and hold, or around

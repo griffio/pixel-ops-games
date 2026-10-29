@@ -4,7 +4,7 @@ import { WEAPONS } from './weapons.js';
 // round in flight (core/projectiles.js): the hit is rolled when the trigger is pulled, the damage
 // lands when the round arrives, so bullets, cannon shells and rockets are seen travelling.
 const GUN_MUZZLE = { hmg: [1.5, 0.9], atgm: [1.1, 1.02], mortar: [0.62, 1.15] };   // a FOB gun's muzzle: metres out from the mount toward the target, and up
-const MUZZLE_KIND = { coax: 'mg', mg: 'mg', marksman: 'marksman', autocannon: 'cannon', at: 'rocket', doorgun: 'doorgun', tankgun: 'tank', hmg: 'mg', atgm: 'rocket', mortar: 'cannon' };   // flash class per kit (recipes in core/dust.js)
+const MUZZLE_KIND = { coax: 'mg', mg: 'mg', marksman: 'marksman', autocannon: 'cannon', at: 'rocket', doorgun: 'doorgun', tankgun: 'tank', hmg: 'mg', atgm: 'rocket', mortar: 'cannon', hydra: 'rocket', gau19: 'mg' };   // flash class per kit (recipes in core/dust.js)
 const CELL = 20;
 
 export class Combat {
@@ -196,7 +196,7 @@ export class Combat {
         u.hold = false;
         if ((u.retarget -= dt) <= 0) { u.retarget = 0.4 + Math.random() * 0.3; u.enemy = this.findTarget(u, w); }
       }
-      if (u.enemy && u.cooldown <= 0 && this.onTarget(u, u.enemy)) this.fire(u, w, u.enemy, kit);
+      if (u.enemy && u.cooldown <= 0 && this.onTarget(u, u.enemy) && !(u.ammo !== undefined && u.ammo < 1)) this.fire(u, w, u.enemy, kit);   // an empty rocket pod waits for the base
       if (u.kit2) {   // the coax shares the turret: it fires at the turret's target when that is infantry in its range
         const w2 = WEAPONS[u.kit2], e = u.enemy; u.cooldown2 -= dt;
         if (e && e.type === 'soldier' && !e.dead && u.cooldown2 <= 0 && Math.hypot(e.pos.x - u.pos.x, e.pos.z - u.pos.z) <= w2.range && this.onTarget(u, e)) this.fire(u, w2, e, u.kit2);
@@ -207,6 +207,7 @@ export class Combat {
   // one round: roll the hit now, send the round on its way, settle the damage when it lands
   fire(u, w, e, kit = u.kit) {
     const two = !!u.kit2 && kit === u.kit2, B = two ? 'burst2' : 'burst', CD = two ? 'cooldown2' : 'cooldown';   // a second weapon keeps its own burst and reload
+    if (!two && u.ammo !== undefined) u.ammo--;   // a rocket off the pod
     if (!u[B]) u[B] = w.burst;
     const first = u[B] === w.burst; u[B]--;
     u[CD] = u[B] > 0 ? w.burstGap * (0.8 + Math.random() * 0.4) : w.rate * (0.85 + Math.random() * 0.3);
@@ -223,12 +224,15 @@ export class Combat {
     // the round leaves the barrel a little ahead of the unit at gun height, aimed where the target will be
     // when it arrives; a miss is aimed past the target and comes down on the ground around it
     const gun = u.post && u.post.settled && u.post.sb.gun === kit && !u.post.sb.dead ? u.post.sb : null, GM = gun && GUN_MUZZLE[kit];   // a manned FOB gun: from its own muzzle
-    const reach = GM ? GM[0] : u.type === 'soldier' ? (u.kit === 'at' ? 0.75 : u.kit === 'mg' ? 1.28 : 1.16) + 0.1 * (u.kneelK || 0) + 0.46 * (u.proneK || 0) : u.type === 'apc' ? 2.8 : u.type === 'tank' ? (kit === 'coax' ? 2.9 : 6.2) : 1.6, gunY = u.pos.y + (u.type === 'soldier' ? 1.85 - 0.59 * (u.kneelK || 0) - 1.65 * (u.proneK || 0) : u.type === 'tank' ? 2.1 : u.type === 'apc' ? 3.25 : 2.65);
+    const reach = GM ? GM[0] : u.type === 'soldier' ? (u.kit === 'at' ? 0.75 : u.kit === 'mg' ? 1.28 : 1.16) + 0.1 * (u.kneelK || 0) + 0.46 * (u.proneK || 0) : u.type === 'apc' ? 2.8 : u.type === 'tank' ? (kit === 'coax' ? 2.9 : 6.2) : 1.6, gunY = u.pos.y + (u.type === 'soldier' ? 1.85 - 0.59 * (u.kneelK || 0) - 1.65 * (u.proneK || 0) : u.type === 'tank' ? 2.1 : u.type === 'apc' ? 3.25 : u.type === 'bird' ? 1.1 : 2.65);
     const o = GM ? gun.pos : u.pos, hx = e.pos.x - o.x, hz = e.pos.z - o.z, hd = Math.hypot(hx, hz) || 1, gy = GM ? gun.pos.y + GM[1] : gunY;
     let mx = o.x + hx / hd * reach, mz = o.z + hz / hd * reach;
     if (u.type === 'heli') {   // the Chinook fires from the crew-door gun on the target's side
       const c = Math.cos(u.heading), sn = Math.sin(u.heading), side = hx * c - hz * sn > 0 ? 1.45 : -1.45;
       mx = u.pos.x + side * c + 3.6 * sn; mz = u.pos.z - side * sn + 3.6 * c;
+    } else if (u.type === 'bird') {   // the Little Bird fires from its stub mounts: the pod to port, the gatling to starboard
+      const c = Math.cos(u.heading), sn = Math.sin(u.heading), side = kit === 'hydra' ? 1.1 : -1.1;
+      mx = u.pos.x + side * c + 1.0 * sn; mz = u.pos.z - side * sn + 1.0 * c;
     }
     const flight = d / (w.arc ? w.speed * 0.85 : w.speed), ev = Math.abs(e.speed) > 0.05 && !e.dead && !w.indirect ? e.speed : 0;   // a mortar lays on where the target is
     let tx = e.pos.x + Math.sin(e.heading) * ev * flight, tz = e.pos.z + Math.cos(e.heading) * ev * flight, ty = e.pos.y + (e.spec.air ? 2 : e.type === 'soldier' ? 1.1 - 0.35 * (e.kneelK || 0) - 0.75 * (e.proneK || 0) : 2.2);
