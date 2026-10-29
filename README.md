@@ -719,7 +719,11 @@ node tools/pick-test.mjs 'http://localhost:8787/?seed=11&zoom=2' 9352
 ```
 
 `tools/match-test.mjs` runs a CPU-vs-CPU match for a while and reports tickets,
-objectives, FOBs, lifts and the kill feed. `tools/touch-test.mjs` drives the touch
+objectives, FOBs, lifts and the kill feed. `tools/sim-test.mjs <url> <test.js>` steps a
+match with the animation loop frozen and runs the file's body as `(a, m, step)`, where
+`step(n)` advances the simulation n ticks of 50 ms, printing what the body returns and
+any page errors; it works against localhost or the live site (for example, four
+minutes of Peninsula to watch the amphibians swim ashore). `tools/touch-test.mjs` drives the touch
 layer with synthetic touches on an iPad-sized viewport (tap, tap-to-move, hold, Clear, drag, pinch,
 twist, tilt, box select, double-tap) and checks the mobile profile and manifest:
 
