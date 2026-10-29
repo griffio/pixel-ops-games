@@ -2374,6 +2374,49 @@ Engine changes needed in the existing core:
     camera flew while it measured. It now cancels the flight, and every portrait was
     re-rendered from the vox models.
 
+- **Peninsula P5, and a balance batch over every map (2026-10-29, "Go balance batch").**
+  `tools/balance.mjs` seeds `Math.random` per match, so these replay. 21 pairings (the 15
+  pairs of the six presets and their 6 mirrors) on seeds 101-103, both sides, fog off, four
+  at a time: 126 matches a map on Peninsula (Invasion, 20 min), Desert Crossing, Palm Valley
+  and Narva (25 min). 504 matches in 79 minutes; one lost to Chrome not starting (Desert,
+  Mechanized v Defensive, seed 101), no page errors.
+  - **Peninsula.** The attacker won 31 of 126 (25%; P2 was 2 of 16): 24 by exhausting the
+    defender's tickets and 7 by taking every place, 25 of them after 16:40. When the defender
+    held out (95 matches) it had a median 86 tickets left (3 to 331) against the attacker's
+    487. So the clock holds the attacker off, not its tickets. Mirrors: the attacker won 8 of
+    36 (Defensive and Light 4 of 6 each, the other four presets 0). As attacker: Light and
+    Defensive 7 of 21, Balanced and Mechanized 5, Armoured 4, Air 3. As defender: Balanced 20
+    of 21, Armoured and Mechanized 19, Defensive 17, Air 14, Light 6. Losses were even (115 v
+    119 infantry, 2.9 v 2.5 vehicles a match). No landing craft was sunk in 126 matches: the
+    CPU defender still holds places, not beaches.
+    - Counterfactuals from the held-out matches (the attacker wins where the extra margin
+      covers the defender's remaining tickets): clock 23 min 43%, 24 min 50%, 25 min 60%;
+      defender tickets 350 42%, 330 55%, 300 64%; a lost place costing 40 45%, 50 66%.
+    - Proposal (not applied): a 24-minute clock on Peninsula as a map-level length, keeping
+      650 v 400 and 30 a place. It keeps the ending the attacker already reaches (tickets
+      exhausted, late) instead of making the defender's pool the limit. Second choice: 40 a
+      place.
+  - **Desert Crossing.** North-east 74, south-west 51 of 125 (59/41); mirrors 22 of 36
+    north-east. The lean found on 2026-10-24 remains. Armoured 81% (34 of 42), Mechanized
+    67%, Balanced and Defensive 52%, Light 29%, Air 17% (7 of 42: 0 of 6 against Armoured,
+    Defensive, Light and Mechanized). 123 of 125 went to the clock.
+  - **Palm Valley.** South-west 67, north-east 59 (53/47); mirrors 18 of 36: even. Balanced
+    74%, Defensive 62%, Air 57%, Light 55%, Mechanized 29%, Armoured 24%. One side fault: the
+    Armoured mirror went to the south-west all six times (285-193, 290-69, 310-7), so the
+    south-west base's armour has the better run; its route is worth a look. All 126 to the
+    clock.
+  - **Narva.** South-west 59, north-east 67 (47/53); mirrors 18 of 36: even. Balanced 81%,
+    Defensive 69%, Light 50%, Air 43%, Mechanized 33%, Armoured 24%. All to the clock.
+  - **Across maps.** Preset strength follows the ground. Armoured rules the open desert and
+    loses on the two maps where it must cross a valley or a river. Air is hopeless on the
+    desert and above par on Palm Valley (6 of 6 against Armoured on Valley and on Narva, 0 of
+    6 on Desert). Balanced, on the Entrenched doctrine, is best or next best everywhere;
+    Light is worst or next to it except on Valley and Narva. Air Assault is no longer
+    uniformly weak in CPU hands, so `counterPick`'s exclusion of it could become per map.
+    No match on the 1.5 to 3 km maps ended by tickets inside 25 minutes.
+  - Raw results and the analysis script (per side, per preset, per pairing with lopsided
+    flags, held-out margins) live in the session scratchpad `bal/`, which is wiped daily.
+
 ## Open questions
 
 None open. Answered:
