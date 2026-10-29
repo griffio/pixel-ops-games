@@ -104,7 +104,7 @@ export function runLoop(app) {
     app.units.update(simDt);
     if (app.match) app.match.update(simDt);
     app.dust.update(simDt); if (app.world.ambient) app.world.ambient(simDt);
-    app.markers.update(simDt);
+    app.markers.update(simDt); if (app.rings) app.rings.update(app.match || null);   // capture rings follow the locations' owners
     if (app.audio) app.audio.update(dt);
     if (app.input) app.input.update(dt);
     app.rts.update(dt, W, H);

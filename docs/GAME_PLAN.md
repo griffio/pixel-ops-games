@@ -2522,6 +2522,17 @@ Engine changes needed in the existing core:
   sent onto the lighthouse and onto the church it lands 10 m clear of them; sent onto the ship
   it lands on the deck; it cruised at 17 to 20 m; an Air Assault mirror match ran clean.
 
+- **Capture rings (2026-10-29, preview asked for by the user).** A ring on the ground round each
+  location at its capture radius, so the zone to stand in is plain: the holder's colour (BLUFOR
+  blue #7fb2e5, OPFOR the HUD's red), solid while held, dashed in the taking side's colour while
+  a side is capturing or draining it, a faint grey ring when nobody holds or takes it.
+  `src/gl/rings.js`: one solid and one dashed geometry per location per match, built with every
+  vertex on the ground (the height query, 0.35 m up), 0.45 m wide (the user asked for a thin line:
+  it is a hint), 24 dashes at 60%, unlit with alpha; `app.rings.update(match)` each tick sets visibility and material from `owner` and
+  `pushing`. A "Capture rings" setting (remembered in the browser) turns them off. Previewed
+  headless on Peninsula (the Village held blue, then neutral with a dashed red ring as OPFOR
+  took it back, then solid red) and on Palm Valley (the Bridge's ring across the river).
+
 ## Open questions
 
 None open. Answered:

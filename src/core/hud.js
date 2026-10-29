@@ -63,6 +63,11 @@ export class Hud {
     $('b-manual').addEventListener('click', () => { if (a.guide) a.guide.toggle(); });
     $('b-dev').addEventListener('click', () => this.toggleDev());
     if (a.guide) { $('c-hints').checked = a.guide.store.hints; $('c-hints').addEventListener('change', e => a.guide.setHints(e.target.checked)); }
+    if (a.rings && $('c-rings')) {   // capture rings round the locations (gl/rings.js), remembered in the browser
+      let on = true; try { on = localStorage.getItem('pixelops.rings') !== '0'; } catch {}
+      a.rings.on = on; $('c-rings').checked = on;
+      $('c-rings').addEventListener('change', e => { a.rings.on = e.target.checked; try { localStorage.setItem('pixelops.rings', e.target.checked ? '1' : '0'); } catch {} });
+    }
     // the touch toolbar (top left): box select, pause, the camera to base, the manual, sound, the engine panels
     const TB = { box: ['box', 'Box'], pause: ['pause', ''], base: ['base', ''], help: ['help', ''], sound: ['sound', ''], dev: ['gear', ''] };
     for (const b of document.querySelectorAll('[data-tb]')) { const t = TB[b.dataset.tb]; if (t) b.innerHTML = icon(t[0]) + (t[1] ? `<span>${t[1]}</span>` : ''); b.addEventListener('click', () => this.touchAction(b.dataset.tb)); }

@@ -4,6 +4,7 @@ import { World } from './world.js';
 import { builders, registerTextures, F } from './models.js';
 import { loadVoxModels, loadVoxProps } from './voxmodels.js';
 import { Markers } from './markers.js';
+import { Rings } from './rings.js';
 import { FogView } from './fog.js';
 import { Guide } from '../core/guide.js';
 import { RtsCamera } from '../core/camera.js';
@@ -29,12 +30,12 @@ const world = new World(scene, renderer, sandbox ? null : mapFor(q.get('map') ||
 const rts = new RtsCamera(pixel, world.half - 10);
 const units = new UnitManager(scene, world, builders, F.recolor);
 const dust = new DustSim(); units.dust = dust; world.dust = dust;   // the world reads muzzle-flash lights from the particle pool
-const markers = new Markers(scene, world.heightAt);
+const markers = new Markers(scene, world.heightAt), rings = new Rings(scene, renderer, world.heightAt);   // capture rings round the locations (gl/rings.js)
 world.focus = rts.target; rts.heightAt = world.heightAt;
 
 if (touch) { document.body.classList.add('touch'); rts.edgePan = false; }
 const app = {
-  canvas, pixel, rts, world, units, dust, markers, touch, renderer,
+  canvas, pixel, rts, world, units, dust, markers, rings, touch, renderer,
   rendererName: 'WebGL2', otherRenderer: { name: 'three.js sandbox', param: 'three' },
   drawCalls: () => renderer.stats.calls,
   setShadows: (on) => { renderer.shadows = on; },
