@@ -220,9 +220,12 @@ out, 8 m/s), its door gun working on everything in reach, until **U** (Land and
 unload, or Land when empty) puts it down where it is and lets the passengers out.
 The CPU's own rides still drop their squad where the vehicle stops or lands. A truck or APC destroyed
 with troops aboard throws them out hurt; a helicopter shot down in the air takes
-them with it. The CPU uses its trucks to ferry a squad from around
-base toward a far objective, stopping 120 m short, and an APC leaving base takes
-a squad with it; its helicopters fly anyone stranded at main base (waiting up to
+them with it. The CPU uses a troop truck to ferry two squads from around base
+toward the attack, or toward the place it holds when it has none, stopping 120 m
+short; under Light Infantry the truck then stays parked at the drop as the
+doctrine's forward spawn, driving home when enemies come within 40 m or armour
+within 120 m and moving up when the front shifts more than 250 m, and an APC
+leaving base takes a squad with it; its helicopters fly anyone stranded at main base (waiting up to
 15 s for a fuller load) to 70 m short, and under Air Assault one helicopter parks
 130 m short of the objective, clear of enemies and armour, as a forward spawn,
 taking off when it is hit or threatened. A CPU helicopter with nothing to carry

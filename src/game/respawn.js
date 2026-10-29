@@ -85,8 +85,10 @@ export class Respawn {
       const rally = this.rallyFor(u, team);
       if (rally ? !(rally.waveNow && this.clock - q.died >= RULES.rally.cutoff) : q.t > 0) continue;
       if (u.type === 'soldier') {
-        if (team.tickets < RULES.ticketCost.soldier) continue;            // can't afford it yet
-        team.tickets -= RULES.ticketCost.soldier;
+        // a doctrine may make men cheaper (Light Infantry: half a ticket); the fraction carries over, so every second man is free
+        const cost = RULES.ticketCost.soldier * ((team.doctrine && team.doctrine.respawnCost) ?? 1), due = Math.floor((team.respawnDebt || 0) + cost + 1e-9);
+        if (team.tickets < due) continue;            // can't afford it yet
+        team.respawnDebt = (team.respawnDebt || 0) + cost - due; team.tickets -= due;
         const [x, z] = rally ? this.atRally(rally) : this.spawnPoint(u, team);
         u.revive(x, z, Math.random() * Math.PI * 2);
         const L = u.squad && u.squad.members.find(m => !m.dead && m !== u && !m.afloat);

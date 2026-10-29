@@ -37,7 +37,7 @@ spawn during the match and set the respawn timers.
 - FOB kits 50 each (radio + HAB spawn point); engineers place them near a supply truck
 - Doctrine (pick one, free): Mechanized (APCs 25% cheaper, faster vehicle respawn) ·
   Air Assault (helicopters cheaper, squads can spawn aboard) · Light Infantry (respawn
-  timer halved, +1 squad slot) · Entrenched (FOB build time halved, +10 tickets per held location)
+  timer halved, a fallen soldier costs half a ticket, +1 squad slot) · Entrenched (FOB build time halved, +10 tickets per held location)
 
 The CPU picks from archetype loadouts (Mechanized, Air Assault, Light Infantry,
 Defensive) and counter-picks against the player's choice (for example more
@@ -2434,6 +2434,45 @@ Engine changes needed in the existing core:
   - Light is the map's best attacker and loses 20 of 21 as the defender (6 of 21 held at 20
     minutes), so that is a preset fault, not a clock one: its men come back fast but it holds
     nothing. Air stays the weakest attacker (5 of 21). Both are left for the preset pass.
+
+- **Light Infantry as Peninsula's defender (2026-10-29, "Go Light defender").** It held 1 of 21 at
+  24 minutes. Traced on seed 101 with `tools/sim-test.mjs` (scratchpad light/trace.js: every
+  defender spawn and death, per-minute losses, the truck's whereabouts) and measured with
+  `tools/balance.mjs`, whose seeded matches replay exactly: a change that leaves every result
+  identical seed for seed did nothing.
+  - **What was wrong.** Light's men died about 174 a match against Balanced's 135 and
+    Mechanized's 80 while killing about as many (131 against 145); it gets no capture bonus
+    (Entrenched's +20 on about five recaptures is worth 100 to Balanced and Defensive); and
+    every place it retakes costs 30 again when it falls again. Every defeat was by tickets, a
+    median 131 short of the clock. Its troop truck sat at base for eight minutes with nobody
+    aboard, so the doctrine's truck spawn was used twice in 71 respawns, and the Village fell at
+    minute two with no defender near it.
+  - **The troop truck (kept).** `ride()` now takes a goal of the attack or, with none, the hold,
+    so a defender's squads ride forward from the first second; a truck seats two squads and
+    loads both; under `truckSpawn` the truck stays parked at the drop as the forward spawn
+    (`forwardTruck`: home when enemies come within 40 m or armour within 120 m, up to a fresh
+    quiet spot when the front moves more than 250 m, and out again from base when it has
+    nobody to carry); `caution()` sends it home between plans. On seed 101 the truck ran eight
+    men to the Village inside a minute, 52 men came back beside it, and the defence lasted
+    twelve minutes longer with a better kill ratio. In the batch it changed no result: 1 of 21
+    and 15 of 21 again.
+  - **Two commander experiments, both dropped.** The Invasion defender's `attackShare` 0.5 →
+    0.25 in `invasion.js` changed nothing at all: the utility commander decides Invasion plans
+    and overrides it. Measuring an Invasion defender's pressure by whether its pool outlasts
+    the clock instead of its lead (always −250 by design, so it read maximum pressure from the
+    first second) made it hold rather than counterattack: Light 2 of 9, but Balanced fell from
+    8 of 9 to 6 of 9, both died more and killed less, and recaptures dropped from 4.9 to 1.7 a
+    match. Counterattacks are what keep an Invasion defence alive, so the aggressive reading
+    was right by accident. Reverted.
+  - **Half-ticket men (kept).** The doctrine now reads "Infantry respawn halved and a fallen
+    soldier costs half a ticket" (`respawnCost: 0.5`; respawn.js carries the fraction, so every
+    second man is free). Light defends Peninsula 9 of 21 (Mechanized 3 of 3, Armoured and
+    Defensive 2 of 3, Balanced and Air 1 of 3, the mirror still 0 of 6) and attacks 15 of 21 as
+    before, because the attacker's pool was never the limit. Elsewhere it moves little, since
+    those matches go to the clock and are decided on the ticket count: Palm Valley 23 → 24 of
+    42, Desert Crossing 12 → 13, Narva 21 → 25.
+  - Not done: the Light mirror on Peninsula, where the attacker's extra bodies still win 6 of 6,
+    and the CPU defender never contests the beaches.
 
 ## Open questions
 

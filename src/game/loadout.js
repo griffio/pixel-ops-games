@@ -20,7 +20,7 @@ export const ITEMS = {
 export const DOCTRINES = {
   mechanized: { name: 'Mechanized', desc: 'APCs 25% and tanks 15% cheaper, vehicles respawn 30% faster', costMul: { apc: 0.75, tank: 0.85 }, vehicleRespawn: 0.7, infantryRespawn: 1 },
   air:        { name: 'Air Assault', desc: 'Helicopters 35% cheaper and back in half the time; troops a helicopter lands capture twice as fast for 90 s; +10 tickets for every location captured; infantry may respawn beside an idle helicopter', costMul: { heli: 0.65 }, vehicleRespawn: 1, heliRespawn: 0.5, infantryRespawn: 1, heliSpawn: true, airCapture: 2, captureBonus: 10 },
-  light:      { name: 'Light Infantry', desc: 'Infantry respawn halved, one extra squad slot; infantry may respawn beside a parked truck', costMul: {}, vehicleRespawn: 1, infantryRespawn: 0.5, squadSlots: 1, truckSpawn: true },
+  light:      { name: 'Light Infantry', desc: 'Infantry respawn halved and a fallen soldier costs half a ticket, one extra squad slot; infantry may respawn beside a parked truck', costMul: {}, vehicleRespawn: 1, infantryRespawn: 0.5, respawnCost: 0.5, squadSlots: 1, truckSpawn: true },
   entrenched: { name: 'Entrenched', desc: '+20 tickets for every location captured; FOBs build twice as fast', costMul: {}, vehicleRespawn: 1, infantryRespawn: 1, captureBonus: 20, fobBuild: 0.5 },
 };
 

@@ -116,7 +116,7 @@ export class Strategist {
     const base = this.teams[this.team].base, land = this.teams[this.team].home;   // home on land: the main base, or the beach a ship's landing craft use
     // drop lifts whose carrier or troops are gone, so squads return to the pool
     // (lift keys are carriers, which are units with a type, and the squads riding them whole)
-    for (const [k, v] of [...this.lifts]) if (k.type && (k.dead || (v.sq ? !v.sq.leader : v.riders.length && !k.passengers.length && v.riders.every(m => m.dead)))) this.endLift(k);
+    for (const [k, v] of [...this.lifts]) if (k.type && (k.dead || (v.stage === 'park' ? false : v.sqs ? !v.sqs.some(s => s.leader) : v.sq ? !v.sq.leader : v.riders.length && !k.passengers.length && v.riders.every(m => m.dead)))) this.endLift(k);   // a parked truck carries nobody
     const squads = this.units.squads.filter(s => s.team === this.team && s.leader && !this.lifts.has(s) && !s.members.some(m => m.building) && !(s.pinUntil > this.match.elapsed));   // pinned squads (in cover from armour, or stalking it) keep doing that
     const vehicles = this.units.units.filter(u => u.team === this.team && !u.dead && !u.squad && !u.spec.structure && !u.spec.naval && !u.afloat);   // not landing craft, nor what waits on the ship
     const myFobs = this.units.units.filter(u => u.type === 'fob' && u.team === this.team && !u.dead).map(f => ({ x: f.pos.x, z: f.pos.z, r: 18, index: 'fob' + f.id }));
@@ -239,7 +239,16 @@ export class Strategist {
         if (v.dest && v.goal && Math.hypot(v.goal[0] - x, v.goal[1] - z) < 12) continue;
         v.goal = [x, z]; v.order(x, z);
       } else if (v.type === 'heli') this.air(v, attack, base, perch, hold);
-      else if (v.type === 'truck' && !v.supply) { if (!this.ride(v, free, attack, land) && !v.dest && Math.hypot(v.pos.x - land.x, v.pos.z - land.z) > 40) v.order(land.x + (Math.random() - 0.5) * 24, land.z + (Math.random() - 0.5) * 24); }   // a troop truck between runs waits at base
+      else if (v.type === 'truck' && !v.supply) {   // a troop truck runs squads to the attack, or to the hold when there is none
+        const front = attack || hold;
+        if (this.ride(v, free, front, land) || v.dest) continue;
+        // Light Infantry: with nobody to carry it still drives out to park 120 m short of the front, as a spawn (forwardTruck)
+        if (this.teams[this.team].doctrine.truckSpawn && front && Math.hypot(front.x - v.pos.x, front.z - v.pos.z) > 250) {
+          const spot = this.quietSpot(land, front, 120, 80);
+          if (spot && this.vehicleReaches(v, spot[0], spot[1])) { this.lifts.set(v, { stage: 'park' }); v.order(spot[0], spot[1]); continue; }
+        }
+        if (Math.hypot(v.pos.x - land.x, v.pos.z - land.z) > 40) v.order(land.x + (Math.random() - 0.5) * 24, land.z + (Math.random() - 0.5) * 24);   // between runs it waits at base
+      }
     }
   }
 
@@ -473,6 +482,10 @@ export class Strategist {
       const spot = this.gunSpot(l.places, base);
       if (spot) { l.at = spot; h.order(spot[0], spot[1]); } else { this.endLift(h); this.heliHome(h, base); }
     }
+    for (const [v, l] of [...this.lifts]) {   // Light Infantry's forward truck (ride / forwardTruck)
+      if (!v.type || l.stage !== 'park') continue;
+      if (v.dead) this.lifts.delete(v); else if (this.enemiesNear(v.pos.x, v.pos.z, 40).length || this.armourNear(v.pos.x, v.pos.z, 120)) { this.lifts.delete(v); home(v); }
+    }
     for (const v of this.units.units) {
       if (v.team !== this.team || v.dead || !v.supply || Math.hypot(v.pos.x - base.x, v.pos.z - base.z) < 80) continue;
       if (!this.armourNear(v.pos.x, v.pos.z, 120) && !this.enemiesNear(v.pos.x, v.pos.z, 40).length) continue;
@@ -612,8 +625,9 @@ export class Strategist {
   }
   endLift(c) {
     const l = this.lifts.get(c); if (!l) return; this.lifts.delete(c);
-    for (const s of l.sq ? [l.sq] : l.squads) { this.lifts.delete(s); s.goal = null; }
-    for (const m of l.sq ? l.sq.members : l.riders) if (m.boardTarget === c) m.boardTarget = null;
+    const sqs = l.sqs || (l.sq ? [l.sq] : l.squads || []);   // a truck's one or two squads, a helicopter's, or none (a parked truck)
+    for (const s of sqs) { this.lifts.delete(s); s.goal = null; }
+    for (const m of l.riders || sqs.flatMap(s => s.members)) if (m.boardTarget === c) m.boardTarget = null;
   }
   // a point `keep` metres short of `at` on our side, stepped back 50 m at a time while enemies are within r (or, with
   // armour set, enemy armour within that distance); null when no quiet, open spot is left
@@ -752,15 +766,22 @@ export class Strategist {
   ride(v, squads, goal, base) {
     const lift = this.lifts.get(v);
     if (lift) {
-      const sq = lift.sq, done = () => { this.lifts.delete(v); this.lifts.delete(sq); for (const m of sq.members) m.boardTarget = null; sq.goal = null; };
-      if (!sq.leader || v.dead) { done(); return false; }
+      if (lift.stage === 'park') return this.forwardTruck(v, lift, goal, base);
+      const sqs = lift.sqs || [lift.sq], done = () => { this.lifts.delete(v); for (const s of sqs) { this.lifts.delete(s); for (const m of s.members) m.boardTarget = null; s.goal = null; } };
+      if (!sqs.some(s => s.leader) || v.dead) { done(); return false; }
       if (lift.stage === 'board') {
-        const waiting = sq.members.some(m => !m.dead && !m.mounted && m.boardTarget === v);
+        const waiting = sqs.some(s => s.members.some(m => !m.dead && !m.mounted && m.boardTarget === v));
         if (v.passengers.length && !waiting) { v.order(lift.drop[0], lift.drop[1]); lift.stage = 'drive'; }
         else if ((lift.t += 5) > 60) { done(); if (v.passengers.length) v.unload(); return false; }   // the squad never made it: give up
         return true;
       }
-      if (!v.passengers.length) { done(); if (v.type === 'truck') v.order(base.x + (Math.random() - 0.5) * 24, base.z + (Math.random() - 0.5) * 24); return false; }
+      if (!v.passengers.length) {
+        done();
+        if (v.type !== 'truck') return false;
+        // Light Infantry's troop truck stays where it set the squad down, parked, as the forward spawn the doctrine allows
+        if (this.teams[this.team].doctrine.truckSpawn && Math.hypot(v.pos.x - lift.drop[0], v.pos.z - lift.drop[1]) < 30) { this.lifts.set(v, { stage: 'park' }); return true; }
+        v.order(base.x + (Math.random() - 0.5) * 24, base.z + (Math.random() - 0.5) * 24); return false;
+      }
       if (!v.dest) v.order(lift.drop[0], lift.drop[1]);   // stopped short (backed off from a threat, say): carry on
       return true;
     }
@@ -776,12 +797,26 @@ export class Strategist {
     }
     if (!this.lift || !goal || v.passengers.length || Math.hypot(v.pos.x - base.x, v.pos.z - base.z) > 60 || Math.hypot(goal.x - v.pos.x, goal.z - v.pos.z) < 250) return false;
     // a squad around base (just respawned there, or not yet sent far) that would otherwise walk 250 m or more
-    const sq = squads.filter(s => { const c = s.centroid(); return !s.mounted && !this.lifts.has(s) && s.aliveCount <= v.seats && Math.hypot(c.x - base.x, c.z - base.z) < 150 && Math.hypot(c.x - goal.x, c.z - goal.z) > 250; })
-      .sort((p, q) => Math.hypot(p.centroid().x - v.pos.x, p.centroid().z - v.pos.z) - Math.hypot(q.centroid().x - v.pos.x, q.centroid().z - v.pos.z))[0];
-    if (!sq) return false;
+    const cands = squads.filter(s => { const c = s.centroid(); return !s.mounted && !this.lifts.has(s) && s.aliveCount <= v.seats && Math.hypot(c.x - base.x, c.z - base.z) < 150 && Math.hypot(c.x - goal.x, c.z - goal.z) > 250; })
+      .sort((p, q) => Math.hypot(p.centroid().x - v.pos.x, p.centroid().z - v.pos.z) - Math.hypot(q.centroid().x - v.pos.x, q.centroid().z - v.pos.z));
+    const sq = cands[0]; if (!sq) return false;
+    const sqs = [sq], two = v.type === 'truck' ? cands.find(s => s !== sq && s.aliveCount + sq.aliveCount <= v.seats) : null; if (two) sqs.push(two);   // a truck seats two squads
     let drop = this.quietSpot(base, goal, v.type === 'apc' ? 100 : 120, 80); if (!drop) return false;   // short of the objective on our side, only to a quiet spot
     if (!this.vehicleReaches(v, drop[0], drop[1])) { drop = this.supportSpot(v, goal, 140); if (!drop) return false; }   // not in the river or on an island it cannot reach
-    sq.board(v); sq.tag = 'lift'; this.lifts.set(v, { sq, drop, stage: 'board', t: 0 }); this.lifts.set(sq, v);
+    for (const s of sqs) { s.board(v); s.tag = 'lift'; this.lifts.set(s, v); }
+    this.lifts.set(v, { sq, sqs, drop, stage: 'board', t: 0 });
+    return true;
+  }
+  // A troop truck parked forward under Light Infantry (respawn.js counts a parked truck with no enemy within 30 m as a spawn):
+  // it drives home when enemies come within 40 m or armour within 120 m, and when the front has moved more than 250 m from
+  // it, it moves to a quiet spot 120 m short of the new front, or home if there is none it can reach.
+  forwardTruck(v, lift, front, base) {
+    const home = () => { this.lifts.delete(v); if (!v.dead) v.order(base.x + (Math.random() - 0.5) * 24, base.z + (Math.random() - 0.5) * 24); return false; };
+    if (v.dead || !front || this.enemiesNear(v.pos.x, v.pos.z, 40).length || this.armourNear(v.pos.x, v.pos.z, 120)) return home();
+    if (Math.hypot(front.x - v.pos.x, front.z - v.pos.z) > 250 && !v.dest) {
+      const spot = this.quietSpot(base, front, 120, 80); if (!spot || !this.vehicleReaches(v, spot[0], spot[1])) return home();
+      v.order(spot[0], spot[1]);
+    }
     return true;
   }
 
