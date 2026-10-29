@@ -102,6 +102,7 @@ export class Unit {
     const first = this.path && this.path.length ? this.path[0] : [x, z];
     this.target = new Vec3(first[0], 0, first[1]);
     if (this.spec.air && (this.state === 'parked' || this.state === 'spooldown')) this.state = 'spool';
+    if (this.spec.air && this.hoverNoRoom) { this.hover = false; this.hoverNoRoom = false; }   // a hover for want of a landing spot ends with the next order
     if (!this.spec.air && this.seats) this.dropOnArrive = true;   // passengers get out where it stops
   }
   // No route from here (a vehicle shoved into a pocket between buildings): drive straight to the nearest cell from which the goal
@@ -384,11 +385,35 @@ export class Unit {
   }
 
   // ---- helicopter ----------------------------------------------------------
+  // Where a helicopter may set down: dry ground or a deck (the ship's flight deck: a bridge the height query knows), with no
+  // obstacle within pad m (a building, a wall, a tree, a trap; on a deck only what stands above the deck counts, since the
+  // hull's own obstacle lies under it), and never the water. The nearest such spot to (x, z) within reach m, searched in
+  // rings 4 m apart, or null.
+  landingSpot(x, z, reach = 60, pad = 3) {
+    const W = this.mgr.world, T = W.terrain;
+    const ok = (px, pz) => {
+      if (Math.abs(px) > W.half - 6 || Math.abs(pz) > W.half - 6) return false;
+      const h = W.heightAt(px, pz); if (T && h < T.water) return false;
+      if (W.onBridge(px, pz)) return !W.obstaclesNear(px, pz, pad, (o) => px > o.minX - pad && px < o.maxX + pad && pz > o.minZ - pad && pz < o.maxZ + pad && (o.h || 0) > h + 0.5);
+      return !W.isBlocked(px, pz, pad, true);
+    };
+    if (ok(x, z)) return [x, z];
+    for (let r = 4; r <= reach; r += 4) { const n = Math.max(8, Math.round(r * 1.5)); for (let i = 0; i < n; i++) { const a = i / n * Math.PI * 2, px = x + Math.cos(a) * r, pz = z + Math.sin(a) * r; if (ok(px, pz)) return [px, pz]; } }
+    return null;
+  }
+  // A helicopter about to set down: 'here' when it may, 'moved' when it flies on to the nearest spot it may (and lands there),
+  // 'none' when there is no such spot within reach: it hovers where it is until it is ordered elsewhere.
+  tryLand() {
+    const spot = this.landingSpot(this.pos.x, this.pos.z);
+    if (spot && Math.hypot(spot[0] - this.pos.x, spot[1] - this.pos.z) < 1.5) { this.state = 'land'; this.hoverNoRoom = false; return 'here'; }
+    if (spot) { this.dest = new Vec3(spot[0], 0, spot[1]); this.target = new Vec3(spot[0], 0, spot[1]); this.orbit = null; this.hoverNoRoom = false; return 'moved'; }
+    this.hover = true; this.hoverNoRoom = true; return 'none';
+  }
   stepAir(dt, world) {
     const s = this.spec, p = this.parts;
     switch (this.state) {
       case 'parked': this.rotorT = 0; break;
-      case 'spool': this.rotorT = 1; if (this.rotor > 0.95) { this.state = 'takeoff'; this.altT = rnd(7, 11); } break;
+      case 'spool': this.rotorT = 1; if (this.rotor > 0.95) { this.state = 'takeoff'; this.altT = rnd(14, 22); } break;   // cruising height, twice what it was: over the panel blocks, the ship's island and the lighthouse
       case 'takeoff': if (this.alt > this.altT - 0.5) this.state = 'cruise'; break;
       case 'cruise': {
         // circling (the player's helicopters at the end of a move): fly at a point a little ahead on a circle round the
@@ -409,7 +434,7 @@ export class Unit {
           break;
         }
         const dx = this.target.x - this.pos.x, dz = this.target.z - this.pos.z, dist = Math.hypot(dx, dz);
-        if (dist < 1.2 && this.speed < 1.5) { this.target = null; this.dest = null; if (!this.hover) this.state = 'land'; break; }
+        if (dist < 1.2 && this.speed < 1.5) { this.target = null; this.dest = null; if (!this.hover) this.tryLand(); break; }
         const desired = Math.atan2(dx, dz), diff = wrap(desired - this.heading);
         const turn = clamp(diff, -s.turn * dt, s.turn * dt); this.heading += turn;
         const want = Math.min(circling ? 8 : s.speed, s.speed * clamp(dist / 14, 0.08, 1) * clamp(1.3 - Math.abs(diff), 0.15, 1));   // circling at 8 m/s

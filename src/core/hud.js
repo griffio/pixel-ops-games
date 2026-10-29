@@ -412,12 +412,12 @@ export class Hud {
       const air = (u) => u.spec.air && !u.dead && u.state !== 'parked' && u.state !== 'spooldown';
       const cars = sel.filter(u => u.seats && !u.dead && (u.passengers.length || air(u))), crew = sel.filter(u => u.post && !u.dead);
       if (cars.length) {
-        let n = 0, landing = 0;
+        let n = 0, landing = 0, noRoom = 0;
         for (const c of cars) {
-          if (air(c)) { c.orbit = null; c.hover = false; c.target = null; c.dest = null; c.dropOnLand = c.passengers.length > 0; if (c.state !== 'land') c.state = 'land'; landing++; continue; }
+          if (air(c)) { c.orbit = null; c.hover = false; c.target = null; c.dest = null; c.dropOnLand = c.passengers.length > 0; if (c.state !== 'land') { if (c.tryLand() === 'none') noRoom++; else landing++; } continue; }   // here if it may, else at the nearest clear ground, else it hovers
           if (!c.spec.air) { c.dest = null; c.target = null; c.path = null; c.speed = 0; } n += c.passengers.length; c.unload();
         }
-        this.toast(n ? `Unloaded ${n}${landing ? `; ${landing} landing` : ''}` : landing ? (cars.some(c => c.passengers.length) ? 'Landing: they get out on the ground' : 'Landing') : 'Nobody aboard');
+        this.toast(noRoom && !landing && !n ? `No room to land within 60 m: ${noRoom > 1 ? noRoom + ' hover' : 'it hovers'} until ordered elsewhere` : n ? `Unloaded ${n}${landing ? `; ${landing} landing` : ''}${noRoom ? `; ${noRoom} with no room to land` : ''}` : landing ? (cars.some(c => c.passengers.length) ? 'Landing: they get out on the ground' : 'Landing') + (noRoom ? `; ${noRoom} with no room to land` : '') : 'Nobody aboard');
       } else if (crew.length) {
         const where = new Set(crew.map(u => u.post.sb.label));
         for (const u of crew) { const [ex, ez] = u.post.sb.postEntry(); u.order(ex + (Math.random() - 0.5) * 3, ez + (Math.random() - 0.5) * 3); }

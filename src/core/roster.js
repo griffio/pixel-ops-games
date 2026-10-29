@@ -112,6 +112,7 @@ export class Roster {
     if (u.afloat) Object.assign(d, { glyph: 'ride', tone: 'go', text: u.mounted && u.mounted.type !== 'dock' ? `In ${u.mounted.label}` : 'On the ship' });   // waiting for, or aboard, a landing craft
     else if (feeding) Object.assign(d, { glyph: 'sup', tone: 'y', text: `Supplying ${feeding.eng.label}` });
     else if (d.alert) Object.assign(d, { glyph: 'fire', tone: 'red', text: 'Under fire' });
+    else if (air && u.hoverNoRoom) Object.assign(d, { glyph: 'air', tone: 'y', text: 'No room to land' });
     else if (air && u.state === 'land') Object.assign(d, { glyph: 'air', tone: 'go', text: 'Landing' });
     else if (air && u.orbit) Object.assign(d, { glyph: 'air', tone: 'go', text: `Circling ${this.place(u.orbit.x, u.orbit.z, 80) || 'the spot'}` });
     else if (go) Object.assign(d, { glyph: air ? 'air' : 'move', tone: 'go', text: this.toward(u, go) });

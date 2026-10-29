@@ -2509,6 +2509,19 @@ Engine changes needed in the existing core:
     `?vox=0`, and a vox shed brought down in a match (its mesh goes, no errors). The ship's
     file is 1.3 MB (its skin at 0.25 m), the others 40 to 250 KB.
 
+- **Helicopters land only where they may, and fly higher (2026-10-29).** The user: helicopters
+  could land on water and on props, and could they fly about twice as high, over the taller
+  buildings. `Unit.landingSpot(x, z, reach 60, pad 3)` finds the nearest point that is dry
+  ground or a deck (the height query knows the ship's flight deck; on a deck only obstacles
+  standing above it count, since the hull's own obstacle lies under it) with no obstacle within
+  3 m, in rings 4 m apart; `tryLand()` sets down there if that is here, flies on to it if it is
+  near, or hovers with `hoverNoRoom` (the roster says "No room to land", the Land toast says
+  so, and the next order ends it). Every landing goes through it: the arrival at a move's end
+  and the HUD's Land, so the CPU's rides and perches too. Cruising height is `rnd(14, 22)` m
+  from 7 to 11. Checked headless on Peninsula: over the sea the helicopter hovers with no room;
+  sent onto the lighthouse and onto the church it lands 10 m clear of them; sent onto the ship
+  it lands on the deck; it cruised at 17 to 20 m; an Air Assault mirror match ran clean.
+
 ## Open questions
 
 None open. Answered:

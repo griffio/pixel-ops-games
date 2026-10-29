@@ -218,7 +218,12 @@ anyone past the seats stays behind. They stay aboard however often the vehicle
 stops, until **U** (or the Unload button) lets them out, stopping a ground vehicle
 where it is. A helicopter you send somewhere does not land: it circles there (30 m
 out, 8 m/s), its door gun working on everything in reach, until **U** (Land and
-unload, or Land when empty) puts it down where it is and lets the passengers out.
+unload, or Land when empty) puts it down and lets the passengers out. It sets down
+only on dry ground or a deck with nothing within 3 m (no building, wall, tree or
+trap, never the water): where it is if it may, else at the nearest such spot within
+60 m, flying on to it; with none it hovers, the roster says "No room to land", and
+the next order moves it on. Helicopters cruise at 14 to 22 m, over the panel blocks,
+the ship's island and the lighthouse.
 The CPU's own rides still drop their squad where the vehicle stops or lands. A truck or APC destroyed
 with troops aboard throws them out hurt; a helicopter shot down in the air takes
 them with it. The CPU uses a troop truck to ferry two squads from around base
