@@ -1,6 +1,6 @@
 {
  "type": "ship",
- "voxel": 0.25,
+ "voxel": 0.3,
  "height": 35,
  "radius": 80,
  "pivots": {

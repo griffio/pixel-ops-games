@@ -17,7 +17,7 @@ import { writeVox, VOXEL } from './vox.js';
 import { UV_SCALE } from './geometry.js';
 
 const UNIT = new Vec3(1, 1, 1);
-const VOXEL_FOR = { soldier: 0.05, lighthouse: 0.2, shed: 0.15, ship: 0.25 };   // finer than the vehicles' 0.1 m for the soldier (a rifle barrel or a pair of glasses is one voxel either way, but limbs keep their shape); coarser for the big landmarks, whose parts must stay under 255 voxels a side
+const VOXEL_FOR = { soldier: 0.05, lighthouse: 0.2, shed: 0.15, ship: 0.3 };   // finer than the vehicles' 0.1 m for the soldier (a rifle barrel or a pair of glasses is one voxel either way, but limbs keep their shape); coarser for the big landmarks, whose parts must stay under 255 voxels a side
 const TEAMED = ['uniform', 'vest', 'desert', 'camo', 'sand', 'tarp', 'rim', 'boots'];   // the recoloured-per-team materials of core/models.js
 const NAME = new Map(Object.entries(MAT).map(([k, v]) => [v, k]));
 const canvases = new Map(), canvasFor = (n) => { if (!canvases.has(n)) canvases.set(n, CAMO[n] ? (() => { const c = camoCanvas(CAMO[n]); return { w: c.width, h: c.height, d: c.getContext('2d').getImageData(0, 0, c.width, c.height).data }; })() : null); return canvases.get(n); };

@@ -2507,7 +2507,7 @@ Engine changes needed in the existing core:
     octagon at 0.2 m has clean 45-degree staircases and reads as voxel art.
   - Checked headless: each landmark by day, the lighthouse and ship by night, the harbour with
     `?vox=0`, and a vox shed brought down in a match (its mesh goes, no errors). The ship's
-    file is 1.3 MB (its skin at 0.25 m), the others 40 to 250 KB.
+    file was 1.3 MB at 0.25 m, 915 KB at 0.3 m the same day; the others 40 to 250 KB.
 
 - **Helicopters land only where they may, and fly higher (2026-10-29).** The user: helicopters
   could land on water and on props, and could they fly about twice as high, over the taller
@@ -2532,6 +2532,23 @@ Engine changes needed in the existing core:
   `pushing`. A "Capture rings" setting (remembered in the browser) turns them off. Previewed
   headless on Peninsula (the Village held blue, then neutral with a dashed red ring as OPFOR
   took it back, then solid red) and on Palm Valley (the Bridge's ring across the river).
+
+- **Three small fixes (2026-10-29).** From the day's loose ends, on the user's word.
+  - **Landing time.** Cruising higher made every landing slower (a descent at 2.2 m/s from 20 m
+    took 9 s against 4 from the old 9 m), and the user ruled out going higher still for Narva's
+    46 m chimney for the same reason. A landing now drops at 5.5 m/s to 5 m and flares at 2.2
+    below it, so from the new height it takes about what it took from the old. Measured
+    headless: deck to the lighthouse headland, parked in 52 s with a descent and spool-down of
+    about 7 s.
+  - **The ship's file.** `VOXEL_FOR.ship` 0.25 → 0.3 m: 1.3 MB → 915 KB, and it reads the same at
+    play zoom.
+  - **The deploy window.** For about a minute after `wrangler deploy` the edge serves a mix of
+    old and new files, and a page loaded then can fail to start (P4's deploy did: the new map
+    met the old world code). The boot script in index.html now reloads a failed start, up to
+    three times four seconds apart with a toast saying so, before it gives up and shows the
+    error; a start that succeeds clears the count. Tested headless with the entry module blocked:
+    three reloads, then "Failed to start". The mix itself is the platform's rollout, which no
+    header fixes (the stale files came back as cache hits with must-revalidate).
 
 ## Open questions
 

@@ -450,7 +450,7 @@ export class Unit {
       case 'spooldown': this.rotorT = 0; if (this.passengers.length && this.dropOnLand) { this.unload(); this.dropOnLand = false; } if (this.rotor < 0.02) { this.state = 'parked'; this.rotor = 0; } break;
     }
     if (this.state !== 'cruise') { this.bank = lerp(this.bank, 0, 1 - Math.pow(0.02, dt)); if (this.state !== 'land') this.speed = Math.max(0, this.speed - s.accel * dt); }
-    const climb = this.state === 'land' ? 2.2 : 3.5;
+    const climb = this.state === 'land' ? (this.alt > 5 ? 5.5 : 2.2) : 3.5;   // a landing drops fast to 5 m, then flares at the old rate, so the higher cruise costs no landing time
     this.alt += clamp(this.altT - this.alt, -climb * dt, climb * dt);
     if (this.state === 'land' && this.alt < 0.02) this.alt = 0;
     this.rotor += clamp(this.rotorT - this.rotor, -0.35 * dt, 0.3 * dt);

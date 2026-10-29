@@ -454,8 +454,17 @@
 <script type="module">
   // WebGL2 is the game renderer; ?r=three loads the legacy three.js back end (airfield sandbox only).
   const q = new URLSearchParams(location.search);
+  // For a minute after a deploy the edge can serve a mix of old and new files, and the game then fails to start; so a
+  // failed start reloads the page, up to three times a few seconds apart, before it gives up and says why.
+  const toast = (msg) => { const t = document.getElementById('toast'); t.textContent = msg; t.style.opacity = 1; };
   import(q.get('r') === 'three' ? './src/three/main.js' : './src/gl/main.js')
-    .catch(e => { console.error(e.stack || e); const t = document.getElementById('toast'); t.textContent = 'Failed to start: ' + e.message; t.style.opacity = 1; });
+    .then(() => { try { sessionStorage.removeItem('pixelops.boot'); } catch {} })
+    .catch(e => {
+      console.error(e.stack || e);
+      let tries = 0; try { tries = +(sessionStorage.getItem('pixelops.boot') || 0); } catch {}
+      if (tries < 3) { try { sessionStorage.setItem('pixelops.boot', String(tries + 1)); } catch {} toast(`Updating: reloading in 4 s (${tries + 1} of 3)`); setTimeout(() => location.reload(), 4000); }
+      else { try { sessionStorage.removeItem('pixelops.boot'); } catch {} toast('Failed to start: ' + e.message); }
+    });
 </script>
 </body>
 </html>
