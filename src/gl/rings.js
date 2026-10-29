@@ -7,7 +7,7 @@ import { hexToLinear } from '../core/math.js';
 import { Mesh } from './scene.js';
 
 const COLOUR = { 0: 0x7fb2e5, 1: 0xe86a5a, n: 0xd8d4c8 }, LIFT = 0.35, WIDTH = 0.45, SEGS = 120, DASHES = 24;   // a thin line: it is a hint, not a wall
-const mat = (hex, alpha) => ({ color: [...hexToLinear(hex), alpha], tex: null, emissive: [0, 0, 0], unlit: true, cast: false });
+const mat = (hex, alpha) => ({ color: [...hexToLinear(hex), alpha], tex: null, emissive: [0, 0, 0], unlit: true, cast: false, overlay: true });   // overlay: drawn over walls and roofs (renderer.js), so a ring inside Hermann Castle's walls still shows
 export class Rings {
   constructor(scene, renderer, heightAt) {
     this.scene = scene; this.renderer = renderer; this.heightAt = heightAt; this.match = null; this.items = [];

@@ -2532,6 +2532,10 @@ Engine changes needed in the existing core:
   `pushing`. A "Capture rings" setting (remembered in the browser) turns them off. Previewed
   headless on Peninsula (the Village held blue, then neutral with a dashed red ring as OPFOR
   took it back, then solid red) and on Palm Valley (the Bridge's ring across the river).
+  - The user found Hermann Castle's ring hidden: its zone is the 44 m courtyard (r 16, entered
+    by the gate), so the ring lay on the courtyard floor behind 13 m walls. Rings are now an
+    `overlay` material: the renderer's unlit pass draws overlay batches with the depth test off,
+    over whatever stands in the way.
 
 - **Three small fixes (2026-10-29).** From the day's loose ends, on the user's word.
   - **Landing time.** Cruising higher made every landing slower (a descent at 2.2 m/s from 20 m

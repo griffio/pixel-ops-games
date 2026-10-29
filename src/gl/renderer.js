@@ -141,10 +141,10 @@ export class GLRenderer {
   geometry(key) { return this.geos.get(key) || this.uploadGeometry(key, buildGeometry(key)); }
   registerGeometry(key, src) { if (!this.geos.has(key)) this.uploadGeometry(key, src); return key; }
 
-  batchKey(geo, m) { return `${geo}|${m.tex || ''}|${m.unlit ? 1 : 0}|${m.cast ? 1 : 0}|${m.cutout ? 1 : 0}|${m.ground ? 1 : 0}|${m.water ? 1 : 0}|${m.sway ? 1 : 0}`; }
+  batchKey(geo, m) { return `${geo}|${m.tex || ''}|${m.unlit ? 1 : 0}|${m.cast ? 1 : 0}|${m.cutout ? 1 : 0}|${m.ground ? 1 : 0}|${m.water ? 1 : 0}|${m.sway ? 1 : 0}|${m.overlay ? 1 : 0}`; }
   makeBatch(geoKey, m, cap) {
     const gl = this.gl, geo = this.geometry(geoKey);
-    const b = { geo, tex: m.tex, unlit: !!m.unlit, cast: !!m.cast, cutout: !!m.cutout, ground: !!m.ground, water: !!m.water, sway: !!m.sway, vao: gl.createVertexArray(), ibo: gl.createBuffer(), cap, n: 0, data: new Float32Array(cap * STRIDE) };
+    const b = { geo, tex: m.tex, unlit: !!m.unlit, cast: !!m.cast, cutout: !!m.cutout, ground: !!m.ground, water: !!m.water, sway: !!m.sway, overlay: !!m.overlay, vao: gl.createVertexArray(), ibo: gl.createBuffer(), cap, n: 0, data: new Float32Array(cap * STRIDE) };
     gl.bindVertexArray(b.vao);
     gl.bindBuffer(gl.ARRAY_BUFFER, geo.vbo);
     [[0, 3, 0], [1, 3, 12], [2, 2, 24]].forEach(([loc, n, off]) => { gl.enableVertexAttribArray(loc); gl.vertexAttribPointer(loc, n, gl.FLOAT, false, 32, off); });
@@ -345,7 +345,11 @@ export class GLRenderer {
     for (const b of this.eachBatch(mainChunks)) if (b.water) { gl.bindTexture(gl.TEXTURE_2D, this.white); this.drawBatch(b); }
     gl.depthMask(true); gl.disable(gl.BLEND);
     gl.uniform1i(u.uMode, 0); gl.uniform1f(u.uUnlit, 1); gl.uniform1f(u.uCutout, 0); gl.depthMask(false); gl.enable(gl.BLEND); gl.blendFunc(gl.SRC_ALPHA, gl.ONE_MINUS_SRC_ALPHA); gl.disable(gl.CULL_FACE);
-    for (const b of this.eachBatch(mainChunks)) if (b.unlit) { gl.bindTexture(gl.TEXTURE_2D, b.tex ? this.textures.get(b.tex) : this.white); this.drawBatch(b); }
+    for (const b of this.eachBatch(mainChunks)) if (b.unlit && !b.overlay) { gl.bindTexture(gl.TEXTURE_2D, b.tex ? this.textures.get(b.tex) : this.white); this.drawBatch(b); }
+    // overlays (capture rings): unlit and drawn over whatever stands in the way, so a ring on a castle's courtyard shows through its walls
+    gl.disable(gl.DEPTH_TEST);
+    for (const b of this.eachBatch(mainChunks)) if (b.unlit && b.overlay) { gl.bindTexture(gl.TEXTURE_2D, b.tex ? this.textures.get(b.tex) : this.white); this.drawBatch(b); }
+    gl.enable(gl.DEPTH_TEST);
 
     // 3. particles (one draw call)
     if (dust && dust.n) {

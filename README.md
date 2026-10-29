@@ -128,8 +128,8 @@ Cliffs ring the coast except at three landings:
 
 Every location wears a ring on the ground at its capture radius: the holder's colour
 (blue or red), solid while held and dashed in the taking side's colour while it is
-being captured, faint grey when nobody holds it; the Capture rings setting turns
-them off.
+being captured, faint grey when nobody holds it, drawn over anything in the way so a
+courtyard's ring shows through its walls; the Capture rings setting turns them off.
 The three landing places (Village, Lighthouse, Harbour) are the attacker's home places,
 so it can take any of them first. Radar Hill is in the middle, and the Bridgehead
 guards the bridge. Whichever side you pick, the beach side attacks: defending, or a
