@@ -2588,6 +2588,27 @@ Engine changes needed in the existing core:
     without its turn, so a spinning part must spin about the model's up. The sandbox's spawn
     buttons have no bird. No balance pass yet.
 
+- **Gunships balance pass (2026-10-29, "Go Gunships balance pass").** Gunships against every
+  preset and itself, seeds 101-103, both sides, on Palm Valley, Peninsula and Desert Crossing (42
+  matches a map, mirrors counted both ways).
+  - **First pass.** The preset: Palm Valley 56% (beats Armoured and Mechanized, loses to
+    Balanced), Peninsula 44% (43% attacking, 29% defending, as weak a defender as Light and
+    Air), Desert Crossing 23% (loses to everything but Air and itself: an infantry-only force
+    with no APC on open ground, like Light at 29% and Air at 17% there). The unit: 21 to 27
+    kills a match per bird, up to 104 for the pair against Light on the desert, and 0.05 losses
+    a match per bird on the open maps (1.0 on Peninsula, where APCs and AT-heavy sides reach
+    it), because the CPU brings it home at 60% and the ground crew has it whole in a minute. An
+    APC takes 20 to 30 kills a match for 220 points; the bird was taking the same or more for
+    240 (156 under Air Assault) and never dying. Against Mechanized it takes only 6: it keeps
+    out of autocannon reach, so APCs are its counter.
+  - **Trim.** A rocket does 30 to infantry, not 45 (it kills only near its burst and wounds the
+    rest), one every 2 s instead of 1.4; the gatling 9 a round, not 12. Kills a match per bird
+    fell to 16, 18 and 19 on the three maps, APC territory; the preset moved by a match or two
+    (52%, 40%, 21%). Losses unchanged.
+  - **Left as is.** The preset's desert weakness is its composition; a rounder Gunships (one
+    bird and an APC, 1186 points) is a one-line change if wanted. The bird's near-immortality
+    in CPU hands is the sortie loop working; a human answers it with an APC near the infantry.
+
 ## Open questions
 
 None open. Answered:

@@ -23,6 +23,6 @@ export const WEAPONS = {
   // the Little Bird's stub mounts (core/units.js SPEC.bird): a seven-shot pod of unguided rockets to port, fired one at a time
   // and bursting over splash metres, seven a sortie (SPEC.bird.ammo, refilled hovering over its base), and a three-barrel
   // .50 gatling to starboard that joins in on infantry
-  hydra:      { range: 140, rate: 1.4, burst: 1,  burstGap: 0,    dmgInf: 45, dmgVeh: 60,  acc: 0.5,  speed: 130, hold: 0,  air: false, prefersVehicles: true, explosive: true, rocket: true, splash: 5 },
-  gau19:      { range: 110, rate: 1.5, burst: 12, burstGap: 0.045, dmgInf: 12, dmgVeh: 3,  acc: 0.2,  speed: 400, hold: 0,  air: false },
+  hydra:      { range: 140, rate: 2.0, burst: 1,  burstGap: 0,    dmgInf: 30, dmgVeh: 60,  acc: 0.5,  speed: 130, hold: 0,  air: false, prefersVehicles: true, explosive: true, rocket: true, splash: 5 },   // a rocket kills a soldier only near its burst (35 hp), and wounds the rest; the first pass (45, every 1.4 s) mowed 50 a match a bird
+  gau19:      { range: 110, rate: 1.6, burst: 12, burstGap: 0.045, dmgInf: 9,  dmgVeh: 3,  acc: 0.2,  speed: 400, hold: 0,  air: false },
 };
