@@ -25,7 +25,7 @@ export class NavGrid {
     const border = Math.ceil(3 / this.cell);
     for (let iz = 0; iz < this.n; iz++) for (let ix = 0; ix < this.n; ix++)
       if (ix < border || iz < border || ix >= this.n - border || iz >= this.n - border) L[iz * this.n + ix] = 1;
-    for (const o of obstacles) {
+    for (const o of [...obstacles, ...(this.extra || [])]) {   // extra: the vehicle grids' own blocks (thickets from the start, tank traps as they are laid)
       const x0 = Math.max(0, this.cellOf(o.minX - pad)), x1 = Math.min(this.n - 1, this.cellOf(o.maxX + pad));
       const z0 = Math.max(0, this.cellOf(o.minZ - pad)), z1 = Math.min(this.n - 1, this.cellOf(o.maxZ + pad));
       for (let iz = z0; iz <= z1; iz++) for (let ix = x0; ix <= x1; ix++) L[iz * this.n + ix] = 1;

@@ -36,7 +36,7 @@ export const PRESETS = {
 };
 
 export function itemCost(key, doctrine) { const it = ITEMS[key], mul = (DOCTRINES[doctrine] && DOCTRINES[doctrine].costMul[key]) || 1; return Math.round(it.cost * mul); }
-export function summarize(l) {
+export function summarize(l, infantryOnly = false) {
   let cost = 0, squads = 0, vehicles = 0;
   for (const [k, n] of Object.entries(l.items || {})) { if (!ITEMS[k] || !n) continue; cost += itemCost(k, l.doctrine) * n; if (ITEMS[k].kind === 'squad') squads += n; else if (ITEMS[k].kind === 'vehicle') vehicles += n; }
   const slots = MAX_SQUADS + ((DOCTRINES[l.doctrine] && DOCTRINES[l.doctrine].squadSlots) || 0);
@@ -44,6 +44,7 @@ export function summarize(l) {
   if (cost > BUDGET) errors.push(`over budget by ${cost - BUDGET}`);
   if (squads > slots) errors.push(`too many squads (${squads}/${slots})`);
   if (vehicles > MAX_VEHICLES) errors.push(`too many vehicles (${vehicles}/${MAX_VEHICLES})`);
+  if (infantryOnly && vehicles > 0) errors.push('no vehicles on this map');
   if (squads === 0) errors.push('at least one squad');
   if (!DOCTRINES[l.doctrine]) errors.push('pick a doctrine');
   return { cost, squads, vehicles, slots, errors, ok: errors.length === 0 };
@@ -58,6 +59,13 @@ export function expand(l) {
   return out;
 }
 export const clone = (l) => ({ doctrine: l.doctrine, items: { ...l.items } });
+// A map for infantry only (map.infantryOnly): vehicles and the FOB kit come off, and the points go into rifle squads
+export function fitMap(l, map) {
+  if (!map || !map.infantryOnly) return l;
+  const out = clone(l); for (const k of Object.keys(out.items)) if (!ITEMS[k] || ITEMS[k].kind !== 'squad') delete out.items[k];
+  let s = summarize(out); while (s.cost + itemCost('rifle', out.doctrine) <= BUDGET && s.squads < s.slots) { out.items.rifle = (out.items.rifle || 0) + 1; s = summarize(out); }
+  return out;
+}
 export const preset = (key) => clone(PRESETS[key] || PRESETS.balanced);
 
 // The CPU reads the player's force and answers it. It never picks Air Assault: that doctrine pays for landing troops

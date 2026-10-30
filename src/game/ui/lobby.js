@@ -1,4 +1,4 @@
-import { ITEMS, DOCTRINES, PRESETS, BUDGET, itemCost, summarize, clone, preset, saveLoadout, loadSaved } from '../loadout.js';
+import { ITEMS, DOCTRINES, PRESETS, BUDGET, itemCost, summarize, clone, preset, fitMap, saveLoadout, loadSaved } from '../loadout.js';
 import { MODES } from '../modes/index.js';
 import { DIFFICULTY } from '../difficulty.js';
 
@@ -28,7 +28,7 @@ export class Lobby {
     $('lb-vehicles').innerHTML = Object.keys(ITEMS).filter(k => ITEMS[k].kind !== 'squad').map(row).join('');
     $('lb-doctrines').innerHTML = Object.entries(DOCTRINES).map(([k, d]) => `<label class="lb-doc"><input type="radio" name="doctrine" value="${k}"><div><b>${d.name}</b><small>${d.desc}</small></div></label>`).join('');
     $('lb-presets').innerHTML = Object.entries(PRESETS).map(([k, p]) => `<button data-preset="${k}">${p.name}</button>`).join('');
-    $('lb-maps').innerHTML = this.maps.map(m => `<button class="lb-map${m.key === this.mapKey ? ' on' : ''}" data-map="${m.key}" title="${m.blurb || ''}"><img src="icons/maps/${m.key}.png" alt=""><b>${m.name}</b><small>${+(m.size / 1000).toFixed(1)} km${m.mode ? ` · ${MODES[m.mode].name} only` : ''}</small><span>${m.blurb || ''}</span></button>`).join('');
+    $('lb-maps').innerHTML = this.maps.map(m => `<button class="lb-map${m.key === this.mapKey ? ' on' : ''}" data-map="${m.key}" title="${m.blurb || ''}"><img src="icons/maps/${m.key}.png" alt=""><b>${m.name}</b><small>${+(m.size / 1000).toFixed(1)} km${m.infantryOnly ? ' · infantry' : ''}${m.mode ? ` · ${MODES[m.mode].name} only` : ''}</small><span>${m.blurb || ''}</span></button>`).join('');
     $('lb-modes').innerHTML = Object.values(MODES).filter(M => !this.fixedMode || M.key === this.fixedMode).map(M => `<label class="lb-doc"><input type="radio" name="mode" value="${M.key}"><div><b>${M.name}</b><small>${M.desc}</small></div></label>`).join('') + `<div id="lb-side" class="row"><span class="lb-lbl">Your side</span><label><input type="radio" name="side" value="attack"> attack</label><label><input type="radio" name="side" value="defend"> defend</label></div>` + `<div id="lb-diff" class="row"><span class="lb-lbl">CPU</span>${Object.entries(DIFFICULTY).map(([k, d]) => `<label title="${d.desc}"><input type="radio" name="difficulty" value="${k}"> ${d.name.toLowerCase()}</label>`).join('')}</div>` + `<div id="lb-hour" class="row"><span class="lb-lbl">Time</span>${[['', 'map'], ['6.3', 'dawn'], ['9.5', 'morning'], ['13', 'noon'], ['17.6', 'evening'], ['21.5', 'night']].map(([v, n]) => `<label><input type="radio" name="hour" value="${v}"> ${n}</label>`).join('')}</div>` + `<div id="lb-cmd" class="row"><span class="lb-lbl">Opponent</span><select id="lb-cmd-s" title="Who commands the CPU side: the built-in planner, or a language model through the game's server"></select></div>`;
     this.renderOpponent();
     this.root.addEventListener('click', (e) => {
@@ -73,7 +73,9 @@ export class Lobby {
   set(k, v) { this.loadout.items[k] = Math.max(0, Math.min(9, v)); if (!this.loadout.items[k]) delete this.loadout.items[k]; this.render(); }
 
   render() {
-    const l = this.loadout, s = summarize(l);
+    const card = this.maps.find(m => m.key === this.mapKey), inf = !!(card && card.infantryOnly); if (inf) this.loadout = fitMap(this.loadout, { infantryOnly: true });   // an infantry-only map: no vehicles to pick
+    $('lb-vehicles').style.display = inf ? 'none' : '';
+    const l = this.loadout, s = summarize(l, inf);
     for (const k of Object.keys(ITEMS)) { $('lb-squads').parentElement.querySelector(`[data-n="${k}"]`).textContent = this.n(k); $('lb-squads').parentElement.querySelector(`[data-cost="${k}"]`).textContent = itemCost(k, l.doctrine); }
     for (const r of this.root.querySelectorAll('input[name=doctrine]')) r.checked = r.value === l.doctrine;
     for (const r of this.root.querySelectorAll('input[name=mode]')) r.checked = r.value === this.modeOpts.mode;

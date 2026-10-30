@@ -15,7 +15,7 @@ export class Combat {
     // line of sight, low ones (walls, sandbags, rocks) give partial cover to a soldier right behind them
     this.half = (world.size || 1000) / 2; this.nx = Math.ceil(this.half * 2 / CELL) + 1;
     const h = (o) => (o.h === undefined ? 2 : o.h);
-    this.tall = this.gridOf(world.obstacles.filter(o => h(o) >= 1.5));
+    this.tall = this.gridOf([...world.obstacles.filter(o => h(o) >= 1.5), ...(world.thickets || [])]);   // thickets block sight like walls (world.thickets, never obstacles)
     this.low = this.gridOf(world.obstacles.filter(o => h(o) >= 0.7 && h(o) < 1.5));
     this.buildings = null;   // game/buildings.js, set by the match
     dust.shots.walls = (x0, y0, z0, x1, y1, z1) => this.wallHit(x0, y0, z0, x1, y1, z1);
@@ -23,7 +23,7 @@ export class Combat {
   // the obstacles changed in height or number (a building came down): the grids again
   rebuildGrids() {
     const h = (o) => (o.h === undefined ? 2 : o.h), O = this.world.obstacles; for (const o of O) delete o.top;
-    this.tall = this.gridOf(O.filter(o => h(o) >= 1.5)); this.low = this.gridOf(O.filter(o => h(o) >= 0.7 && h(o) < 1.5));
+    this.tall = this.gridOf([...O.filter(o => h(o) >= 1.5), ...(this.world.thickets || [])]); this.low = this.gridOf(O.filter(o => h(o) >= 0.7 && h(o) < 1.5));
   }
   // where a stray round's step meets a tall box: into a wall where the line enters below the top, onto the roof where it comes
   // down inside; a step that starts inside a box (a muzzle against a wall) passes. Only misses are stopped: a hit was settled at
@@ -61,14 +61,14 @@ export class Combat {
     return g;
   }
   // does the 2D segment cross any box of the grid?
-  segHits(G, ax, az, bx, bz, ya, yb) {
+  segHits(G, ax, az, bx, bz, ya, yb, skipA = null, skipB = null) {   // skipA/B: boxes the line may pass (the thicket each end stands in)
     const B = G.list, st = G.stamp, gen = ++G.gen, dx = bx - ax, dz = bz - az;
     const x0 = this.ci(Math.min(ax, bx)), x1 = this.ci(Math.max(ax, bx)), z0 = this.ci(Math.min(az, bz)), z1 = this.ci(Math.max(az, bz));
     for (let cz = z0; cz <= z1; cz++) for (let cx = x0; cx <= x1; cx++) {
       const a = G.cells.get(cz * this.nx + cx); if (!a) continue;
       for (const i of a) {
         if (st[i] === gen) continue; st[i] = gen;
-        const o = B[i]; let t0 = 0, t1 = 1;
+        const o = B[i]; if (o === skipA || o === skipB) continue; let t0 = 0, t1 = 1;
         for (const [p, d, lo, hi] of [[ax, dx, o.minX, o.maxX], [az, dz, o.minZ, o.maxZ]]) {
           if (Math.abs(d) < 1e-9) { if (p < lo || p > hi) { t0 = 2; break; } continue; }
           let ta = (lo - p) / d, tb = (hi - p) / d; if (ta > tb) [ta, tb] = [tb, ta];
@@ -85,7 +85,7 @@ export class Combat {
   }
   // ya/yb (absolute heights of the two ends) make it a 3D test: a box blocks only where the line passes below its top, so
   // a tank's gun at 3 m sees over a bush, a rock or a garden wall midway while a soldier crouched behind one stays hidden
-  los(ax, az, bx, bz, ya, yb) { return !this.segHits(this.tall, ax, az, bx, bz, ya, yb); }
+  los(ax, az, bx, bz, ya, yb, skipA, skipB) { return !this.segHits(this.tall, ax, az, bx, bz, ya, yb, skipA, skipB); }
   // a low obstacle added after the match started (sandbags)
   addLow(o) {
     const G = this.low, i = G.list.length; G.list.push(o); const st = new Int32Array(i + 1); st.set(G.stamp); G.stamp = st;
@@ -131,8 +131,10 @@ export class Combat {
   canSee(u, e) {
     const T = this.world.terrain;
     if (T && !T.los(u.pos.x, this.eyeY(u), u.pos.z, e.pos.x, e.pos.y + 1.2, e.pos.z)) return false;   // hills block
+    const W = this.world, tu = W.thicketAt ? W.thicketAt(u.pos.x, u.pos.z) : null, te = W.thicketAt ? W.thicketAt(e.pos.x, e.pos.z) : null;
+    if (te && te !== tu && Math.hypot(e.pos.x - u.pos.x, e.pos.z - u.pos.z) > 15) return false;   // a man in a thicket is seen only from inside it or within 15 m, from the air too
     if ((u.spec.air && u.alt > 2) || (e.spec.air && e.alt > 2)) return true;
-    return this.los(u.pos.x, u.pos.z, e.pos.x, e.pos.z, this.eyeY(u), e.pos.y + 1.2);
+    return this.los(u.pos.x, u.pos.z, e.pos.x, e.pos.z, this.eyeY(u), e.pos.y + 1.2, tu, te);   // each sees out of the thicket he stands in
   }
   // a turreted vehicle (tank, APC) fires only once its turret has swung onto the target, so the round leaves the barrel
   onTarget(u, e) {

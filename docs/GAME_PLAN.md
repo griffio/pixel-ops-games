@@ -2722,7 +2722,7 @@ Engine changes needed in the existing core:
   after the two squad orders: a small map for soldier squads only, dense trees and buildings, few direct lines
   of sight, ridges and gullies, where squads ambush with hold fire and advance with attack-move. Working name
   The Hollow, `?map=hollow`; the name is a placeholder. Four steps, each playable:
-  - **H1, three engine pieces (about half a day).**
+  - **H1, three engine pieces (about half a day). Done 2026-10-30, see below.**
     - *Thickets: cover you can walk through.* Today an obstacle blocks movement and sight together, and a tree
       is a trunk, so a wood hides nothing it does not also wall off (Narva's woods block sight trunk by trunk
       in combat's exact test, but the vision grid wants an eighth of a cell covered). A `thicket` prop
@@ -2773,6 +2773,32 @@ Engine changes needed in the existing core:
     README map section.
   - Not in the plan: vehicles of any kind, air, landing craft, FOB logistics; the CPU learning to stalk
     through thickets (it routes by the nav grid, so it walks the gully and the draws like anyone).
+
+- **H1 done (2026-10-30, "Go H1").** The three engine pieces, with no map yet to use them (`?infantry=1` tries any).
+  - *Thickets.* A map's `build()` may return `thickets`: boxes `{ minX, maxX, minZ, maxZ, h: 2.2, thicket: true,
+    walk: 0.55 }`. They live in `world.thickets`, never in `obstacles`, so the foot grid, `isBlocked` and
+    `penetration` ignore them; they seed `world.vehicleObstacles`, which the vehicle and amphibian grids now take
+    from their first build (`NavGrid.build` folds in `extra`, set before the build), so vehicles treat them as
+    walls. Combat's tall grid holds them, so they block the exact line of sight, with two rules in `canSee`: each
+    man sees out of the thicket he stands in (`segHits` skips the box at each end), and a man in a thicket is seen
+    only from inside it or from within 15 m, from the air too. The vision grid treats them as walls and, by a
+    `thick` flag per cell, lets a thicket cell be seen into only from two cells (16 m) off, so a quiet squad at a
+    wood's edge is on nobody's map; a shot still reveals it for 5 s as before. A soldier inside walks at `walk`.
+    `Vision.buildTops()` rebuilds the sight grid, which tests use after planting a thicket. Checked on Palm Valley
+    with a 30 m thicket planted at run time: foot grid open and vehicle grid shut through it; a man 3 m inside
+    its edge sees an enemy 43 m out and is not seen, is seen from 12 m, and two men inside see each other; the
+    team vision agrees once both hold fire (the first run had him shoot, and the shot revealed him, which is the
+    rule working); he walks at 0.54 of his open-ground pace inside.
+  - *Infantry only.* `map.infantryOnly` (or `?infantry=1`): `fitMap` strips vehicles and the FOB kit from a
+    loadout and puts the points into rifle squads up to the squad slots; the match fits both sides' loadouts,
+    the lobby hides the vehicle list, fits the saved loadout and refuses vehicles, and the map card says
+    "infantry". `map.tickets` (or `?tickets=N`) sets the pool through `Mode.tickets`, as `clock` sets the
+    length. Checked: Balanced against Mechanized on Palm Valley with the override fields eight squads a side,
+    no vehicles, 200 tickets each; without it the control run fields APCs and trucks and 500.
+  - *CPU ambushes.* `Strategist.send` sets hold fire on a squad sent to hold, reserve or screen with no enemy
+    known within 120 m of the spot, and clears it for any other job. Six minutes of Balanced against Defensive on
+    Palm Valley with fog: every holding squad quiet at minute 3, the screen squad at minute 6, two ambushes
+    sprung, the match otherwise as before; six minutes on Narva and Peninsula with fog ran clean.
 
 ## Open questions
 

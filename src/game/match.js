@@ -13,7 +13,7 @@ import { UtilityCommander } from './ai/utility.js';
 import { Rallies } from './rally.js';
 import { Vision } from './vision.js';
 import { VoiceDirector } from './voices.js';
-import { DOCTRINES, PRESETS, expand, preset } from './loadout.js';
+import { DOCTRINES, PRESETS, expand, fitMap, preset } from './loadout.js';
 import { createMode } from './modes/index.js';
 import { Landing } from './landing.js';
 import { difficulty } from './difficulty.js';
@@ -40,9 +40,10 @@ export class Match {
     });
     const nc = (map && map.nav) || {};   // grid cells: 1 m and 2 m; a 2 km map uses coarser ones (memory: 4 M cells at 1 m is 130 MB)
     this.nav = { foot: new NavGrid(this.world.size, nc.foot || 1, 0.6), vehicle: new NavGrid(this.world.size, nc.vehicle || 2, 2.2) };
+    this.nav.vehicle.extra = this.world.vehicleObstacles;   // thickets now, tank traps as they are laid: blocks for vehicles only
     this.nav.foot.build(this.world.obstacles, this.world.terrain, 0.9, this.world.onBridge); this.nav.vehicle.build(this.world.obstacles, this.world.terrain, 0.45, (x, z) => this.world.onBridge(x, z, true));
     if (map && map.sea) {   // a side based on a ship: its APCs and supply trucks swim, on a grid open over any water and vehicle-passable land
-      const T = this.world.terrain, A = this.nav.amphib = new NavGrid(this.world.size, nc.vehicle || 2, 2.2);
+      const T = this.world.terrain, A = this.nav.amphib = new NavGrid(this.world.size, nc.vehicle || 2, 2.2); A.extra = this.world.vehicleObstacles;
       A.build(this.world.obstacles, T, 0.45, (x, z) => this.world.onBridge(x, z, true) || (T && T.height(x, z) < T.water));
       this.units.amphibFor = (team, type, opts) => !!(this.teams[team] && this.teams[team].base.ship && (type === 'apc' || (type === 'truck' && opts.supply)));
     }
@@ -85,7 +86,6 @@ export class Match {
     };
     // tank traps: boxes that stop vehicles only (world.vehicleObstacles, and the vehicle grid's extra blocks); a vehicle caught
     // in the row is put on the nearest free ground. Cleared, the boxes go and the grid round them is worked out again.
-    this.nav.vehicle.extra = this.world.vehicleObstacles; if (this.nav.amphib) this.nav.amphib.extra = this.world.vehicleObstacles;
     this.fobs.onTraps = (u, boxes) => {
       u.trapBoxes = boxes;
       for (const o of boxes) { this.world.vehicleObstacles.push(o); this.nav.vehicle.block(o); if (this.nav.amphib) this.nav.amphib.block(o); }
@@ -175,7 +175,7 @@ export class Match {
       const b = team.base, d = Math.hypot(b.x, b.z) || 1, dx = -b.x / d, dz = -b.z / d, lx = -dz, lz = dx, toward = Math.atan2(dx, dz);
       const at = (fwd, lat) => [b.x + dx * fwd + lx * lat, b.z + dz * fwd + lz * lat];
       const place = (fwd, lat, pad, fn) => { let [x, z] = at(fwd, lat); if (w.isBlocked(x, z, pad)) [x, z] = team.spawnPoint(w, pad); return fn(x, z); };
-      const force = expand(team.loadout);
+      const force = expand(fitMap(team.loadout, this.world.map));   // an infantry-only map strips the vehicles
       const squads = force.filter(f => f.kind === 'squad'), apcs = force.filter(f => f.type === 'apc'), tanks = force.filter(f => f.type === 'tank'), trucks = force.filter(f => f.type === 'truck'), helis = force.filter(f => f.type === 'heli'), birds = force.filter(f => f.type === 'bird');
       squads.forEach((f, i) => place(4 + (i % 2) * 5, -14 + Math.floor(i / 2) * 7, 2, (x, z) => {
         const sq = this.units.spawnSquad(x, z, team.id, f.kits); sq.item = f.item; for (const m of sq.members) { m.heading = toward; m.group.rotation.y = toward; }

@@ -19,6 +19,11 @@ export class Vision {
     this.stamp = [new Int32Array(this.n * this.n), new Int32Array(this.n * this.n)]; this.gen = 0;
     this.cache = new Map(); this.ghosts = [new Map(), new Map()]; this.mark = new Int32Array(this.n * this.n); this.markGen = 0;
     this.t = 0; this.acc = V.every;   // the first tick looks at once
+    this.buildTops();
+  }
+  // the sight grid: the ground and the walls (and thickets) over it; again when the map's thickets change (tests)
+  buildTops() {
+    const world = this.world, combat = this.combat;
     // the ground at each cell's centre, and tall obstacles (combat's line-of-sight boxes, 1.5 m and up) as the highest top in
     // it, where they cover an eighth of the cell or more (8 m2): a house wall (houses are walls 1 m thick) or a container stack
     // blocks the view, a lamp post or a fence post does not (a whole cell would make a 0.6 m pole an 8 m wall; combat's own
@@ -26,13 +31,13 @@ export class Vision {
     const n = this.n, c = this.cell, ground = this.ground = new Float32Array(n * n), sea = world.terrain ? world.terrain.water : -Infinity;   // over water, its surface: a boat floats on it
     for (let cz = 0; cz < n; cz++) for (let cx = 0; cx < n; cx++) ground[cz * n + cx] = Math.max(sea, combat.groundAt((cx + 0.5) * c - this.half, (cz + 0.5) * c - this.half));
     const top = this.top = new Float32Array(n * n).fill(-Infinity), cover = new Float32Array(n * n), ci = (v) => Math.max(0, Math.min(n - 1, Math.floor((v + this.half) / c)));
-    const highest = new Float32Array(n * n).fill(-Infinity);
-    for (const o of world.obstacles) {
+    const highest = new Float32Array(n * n).fill(-Infinity), thick = this.thick = new Uint8Array(n * n);
+    for (const o of [...world.obstacles, ...(world.thickets || [])]) {
       const h = o.h === undefined ? 2 : o.h; if (h < 1.5) continue;
       const y = combat.groundAt((o.minX + o.maxX) / 2, (o.minZ + o.maxZ) / 2) + h;
       for (let cz = ci(o.minZ); cz <= ci(o.maxZ); cz++) for (let cx = ci(o.minX); cx <= ci(o.maxX); cx++) {
         const x0 = cx * c - this.half, z0 = cz * c - this.half, k = cz * n + cx;
-        cover[k] += Math.max(0, Math.min(o.maxX, x0 + c) - Math.max(o.minX, x0)) * Math.max(0, Math.min(o.maxZ, z0 + c) - Math.max(o.minZ, z0));
+        cover[k] += Math.max(0, Math.min(o.maxX, x0 + c) - Math.max(o.minX, x0)) * Math.max(0, Math.min(o.maxZ, z0 + c) - Math.max(o.minZ, z0)); if (o.thicket) thick[k] = 1;
         if (y > highest[k]) highest[k] = y;
       }
     }
@@ -44,7 +49,7 @@ export class Vision {
   // the cells a viewer at (ox, oz) with its eye at height eye sees out to R, one sample per cell along each ray (the ground at
   // the cell's centre); from the air, buildings do not block
   cast(ox, oz, eye, R, air) {
-    const out = [], c = this.cell, n = this.n, half = this.half, ground = this.ground, top = this.top;
+    const out = [], c = this.cell, n = this.n, half = this.half, ground = this.ground, top = this.top, thick = this.thick;
     const mark = this.mark, mg = ++this.markGen;   // each cell once: rays crowd together near the viewer
     const own = this.cellOf(ox, oz); if (own >= 0) { out.push(own); mark[own] = mg; }
     const rays = Math.max(24, Math.ceil(2 * Math.PI * R / c));
@@ -55,7 +60,7 @@ export class Vision {
         const x = ox + dx * d, z = oz + dz * d, cx = Math.floor((x + half) / c), cz = Math.floor((z + half) / c);
         if (cx < 0 || cz < 0 || cx >= n || cz >= n) break;
         const k = cz * n + cx, g = ground[k];
-        if ((g + 1.2 - eye) / d >= max && mark[k] !== mg) { mark[k] = mg; out.push(k); }
+        if ((g + 1.2 - eye) / d >= max && mark[k] !== mg && !(thick[k] && d > 16)) { mark[k] = mg; out.push(k); }   // a thicket cell: seen into only from two cells off
         const y = !air && top[k] > g ? top[k] : g, s = (y - eye) / d; if (s > max) max = s;
       }
     }

@@ -513,7 +513,7 @@ target, then put it on the shoulder and sling the carbine.
 
 URL parameters set the initial state so the two back ends can be compared on
 identical frames: `?r=gl&seed=7&x=52&z=50&zoom=6&yaw=0.6&pitch=0.95&hour=21&pixel=0&tpu=12`
-(`&warp=300` pre-steps a match 300 s, `&follow=LB-01` starts the camera on that unit, `&hud=0` hides everything but the view)
+(`&warp=300` pre-steps a match 300 s, `&follow=LB-01` starts the camera on that unit, `&hud=0` hides everything but the view, `&infantry=1` plays any map infantry only and `&tickets=200` sets the pool, as a map may with `infantryOnly` and `tickets`)
 
 `?stage=soldier|truck|apc|tank|heli` spawns just that unit at the camera target, sends it
 forward and follows it, for close-up inspection of models and animation:

@@ -113,7 +113,10 @@ export class WorldState {
     this.map = map; this.size = map ? map.size : WORLD_SIZE; this.half = this.size / 2;
     this.layout = map ? map.build() : buildLayout(); this.obstacles = this.layout.obstacles;
     this.terrain = map && map.terrain ? new Terrain(this.size, map.terrain.cell || 4, { ...map.terrain, flats: map.flats || [] }) : null;   // a 4 m height grid unless the map asks for finer (cliffs)
-    this.bridges = (map && map.bridges) || []; this.vehicleObstacles = [];
+    this.bridges = (map && map.bridges) || [];
+    // thickets (map.build().thickets): boxes that block sight like a wall and stop vehicles, but infantry walk through at
+    // o.walk of their speed; never in `obstacles`, so the foot grid, isBlocked and penetration ignore them
+    this.thickets = this.layout.thickets || []; this.vehicleObstacles = [...this.thickets];
     // height including bridge decks (local-frame rectangle test)
     this.heightAt = (x, z) => {
       let h = this.terrain ? this.terrain.height(x, z) : 0;
@@ -158,6 +161,14 @@ export class WorldState {
     return false;
   }
   // vehicle: also the obstacles that stop vehicles only (vehicleObstacles: tank traps, which infantry walk between)
+  // the thicket box (x, z) lies in, or null; buckets of 32 m, built once
+  thicketAt(x, z) {
+    const T = this.thickets; if (!T.length) return null;
+    if (!this._thick) { const g = new Map(); for (const o of T) for (let cz = Math.floor(o.minZ / 32); cz <= Math.floor(o.maxZ / 32); cz++) for (let cx = Math.floor(o.minX / 32); cx <= Math.floor(o.maxX / 32); cx++) { const k = cx * 4096 + cz; let a = g.get(k); if (!a) g.set(k, a = []); a.push(o); } this._thick = g; }
+    const a = this._thick.get(Math.floor(x / 32) * 4096 + Math.floor(z / 32)); if (!a) return null;
+    for (const o of a) if (x >= o.minX && x <= o.maxX && z >= o.minZ && z <= o.maxZ) return o;
+    return null;
+  }
   isBlocked(x, z, pad = 0, vehicle = false) {
     const hit = (o) => x > o.minX - pad && x < o.maxX + pad && z > o.minZ - pad && z < o.maxZ + pad;
     return this.obstaclesNear(x, z, pad, hit) || (vehicle && this.vehicleObstacles.some(hit));

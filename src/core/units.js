@@ -273,6 +273,7 @@ export class Unit {
         this.heading += clamp(diff, -maxTurn, maxTurn);
         const align = vehicle ? clamp(1.2 - Math.abs(diff) / Math.PI * 2.2, 0.3, 1) : 1;
         want = s.speed * align * (last ? clamp(dist / (vehicle ? 6 : 1.5), 0.25, 1) : 1);
+        if (!vehicle && this.mgr && this.mgr.world && this.mgr.world.thicketAt) { const T = this.mgr.world.thicketAt(this.pos.x, this.pos.z); if (T) want *= T.walk || 0.55; }   // pushing through a thicket
         if (reverse) want = -want * 0.7;
         else if (vehicle && last && dist < 10 && Math.abs(diff) > 0.9) want = 0;
         // trying to move but getting no nearer for a while (a wall, a crowd): call the last waypoint reached, else look for a way round.
