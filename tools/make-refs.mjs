@@ -21,6 +21,7 @@ const SUBJECTS = {
   lighthouse: 'a tall round white lighthouse tower with one red band, a black railed gallery and a glass lantern room with a red cap on top, on a stone plinth,',
   radarStation: 'a military radar station: a large white geodesic radome ball on a square concrete blockhouse with a steel door, a lattice antenna mast beside it,',
   harbourShed: 'a harbour warehouse: a long shed with corrugated metal walls, a low pitched roof with skylights, two big sliding doors on the gable end facing the quay, a bollard and a crate outside,',
+  humvee: 'a US Army HMMWV Humvee with an Mk 19 automatic grenade launcher on a roof ring mount behind a small gunner shield, a boxy slab-sided body with a flat bonnet, four big tyres, a spare wheel on the back, a grenade belt box beside the gun, olive drab with a tan dust coat,',
   littleBird: 'an AH-6 Little Bird attack helicopter: a tiny egg-shaped cabin with a bubble canopy, skids, a slim tail boom with a small tail rotor, a five-blade main rotor, stub mounts carrying a seven-shot rocket pod on one side and a three-barrel gatling gun on the other, dark olive drab,',
   fishingBoat: 'a small wooden fishing boat with a red hull, a white wheelhouse aft, a short mast with a boom and nets, floating,',
   watchtower: 'a military watchtower: a square concrete tower with a sandbagged observation post on top under a flat corrugated roof, a ladder up one side,',

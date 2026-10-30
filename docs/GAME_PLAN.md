@@ -2863,7 +2863,7 @@ Engine changes needed in the existing core:
 - **Humvee with an Mk 19 (plan, 2026-10-30, "go plan Humvee").** The user's next unit after The Hollow: a fast,
   lightly armoured anti-infantry vehicle with a limited belt, the ground cousin of the Little Bird. Built to kill and
   pin infantry from outside their reach and run home to rearm; not on infantry-only maps. Four steps:
-  - **U1, the unit (a day).** `SPEC.humvee`: truck speed and turn, 200 hp (two anti-tank rockets or a short autocannon
+  - **U1, the unit (a day). Done 2026-10-30, see below.** `SPEC.humvee`: truck speed and turn, 200 hp (two anti-tank rockets or a short autocannon
     burst), 3 seats (a fire team: the Load and Unload paths as for the truck), `kit: 'mk19'`, `ammo: 48`. The kit
     `mk19` in weapons.js: direct fire with the autocannon's arcing round, range 130, bursts of 5 at a burst gap of
     0.16 s, rate 3 s, speed 75, explosive with a 5 m splash, dmgInf 22, dmgVeh 5, acc 0.3; the explosive suppression
@@ -2890,6 +2890,25 @@ Engine changes needed in the existing core:
     Peninsula for the roads and the landing. Expect it strong on Desert and weak on Narva's streets.
   - Not in the plan: a TOW variant (the APC and the Little Bird carry the anti-armour weight), the Hollow (infantry
     only), armour the Humvee cannot drive over.
+
+- **U1 done (2026-10-30, "Go U1").** The Humvee is a unit: `SPEC.humvee` (speed 11, turn 1.3, 200 hp, three seats,
+  `kit: 'mk19'`, a belt of 48), the `mk19` kit (range 130, a burst of four at 0.18 s, every 3.5 s, lobbed at 75 m/s,
+  explosive with a 4.5 m splash, dmgInf 12, dmgVeh 4), the flash as a cannon's, the muzzle on the ring mount (1.0 m
+  ahead, 2.62 m up), 12 tickets, back in 70 s, 140 m sight, the belt counted down a round at a time by the Little
+  Bird's gate. The belt refills parked in the main base, full in half a minute, and a supply truck stopped within
+  12 m swaps it for 10 supplies once it is half spent (`RULES.rearm`, support.js). The model after a FLUX
+  reference (scratchpad refs/humvee.jpg): the slab body on big tyres, the flat bonnet under the cab roof, a slatted
+  grille between round lights, mirrors, a canvas cargo cover sloping to the tail, the spare on the tailgate, and
+  the ring mount with the gunner's shield, the boxy receiver, the short fat barrel and the belt box; exported to
+  models/vox/humvee.vox (23 KB, parts hull, turret, four wheels) and loaded with the others; the portrait
+  icons/units/humvee.png. Loadout item `humvee` at 160 and a Motorised preset (rifle 3, support 1, at 1, medic 1,
+  humvee 2, supply 1, fob 1) so a CPU side can field it; the roster row HUMVEE with its rounds; the kill feed and
+  debrief names; a sandbox spawn button. Tuned once: the first cut (22 damage, five a burst, 5 m splash) killed a
+  whole squad at 90 m in three bursts; at 12 damage and four a burst it leaves one dead and three pinned at 0.66
+  after 12 s, as meant. Checked headless: the fight, the belt running down, the base refill (33 to 48 in 35 s),
+  the field belt (20 to 48, the truck 100 to 90, nothing at 30), Motorised deploying a truck and two Humvees with
+  the card reading "Parked · main base · 48 rounds". `tools/shoot.mjs` needs a match, so a staged unit is shot
+  from a match with the preset that fields it, not `?stage=`.
 
 ## Open questions
 

@@ -174,6 +174,45 @@ export function makeBuilders(F) {
   // Reference look: 8x8 wheeled carrier in tri-colour camo. Slab-sided hull over eight big wheels, a long sloped glacis
   // with the driver's hatch, raised roof hatches in lighter plate, a slotted stowage rail along each roof edge, a remote
   // weapon station with a heavy gun, width-marker posts at the nose, a stowage cage and two tall antennas at the rear.
+  // Reference look: HMMWV with an Mk 19 on a roof ring mount. A boxy slab-sided body on big tyres, the flat bonnet lower than
+  // the cab roof, a slatted grille between round lights, a slant-back cargo cover behind the cab with the spare on the tail,
+  // the gunner's ring with a small shield, the launcher's boxy receiver and short fat barrel, the belt box beside it.
+  // Front is +z; the turret part turns about its ring (combat.onTarget).
+  function humvee() {
+    const g = group(); const p = { wheels: [], steer: [] };
+    box(1.4, 0.3, 4.4, 'metal', 0, 0.55, 0, g);                                                     // chassis
+    box(2.3, 0.7, 4.7, 'camo', 0, 1.1, 0, g);                                                       // lower body (y 0.75..1.45)
+    box(2.3, 0.28, 1.5, 'camo', 0, 1.59, 1.65, g);                                                  // bonnet
+    box(2.2, 0.55, 2.3, 'camo', 0, 1.72, -0.35, g);                                                 // cab
+    box(2.26, 0.1, 2.4, 'camo', 0, 2.02, -0.35, g);                                                 // roof
+    box(1.9, 0.4, 0.06, 'glass', 0, 1.76, 0.82, g);                                                 // windscreen
+    box(2.3, 0.5, 1.3, 'camo', 0, 1.7, -1.8, g); box(2.2, 0.08, 0.5, 'tarp', 0, 1.98, -1.3, g);     // cargo cover sloping to the tail, its canvas
+    box(1.4, 0.5, 0.06, 'grille', 0, 1.2, 2.36, g);                                                 // grille
+    for (let i = 0; i < 7; i++) box(0.06, 0.5, 0.04, 'camo', -0.6 + i * 0.2, 1.2, 2.39, g);         // its slats
+    box(2.4, 0.22, 0.25, 'camo', 0, 0.85, 2.45, g);                                                 // bumper
+    for (const s of [-1, 1]) {
+      box(0.06, 0.36, 0.8, 'glass', s * 1.13, 1.78, 0.25, g); box(0.06, 0.36, 0.8, 'glass', s * 1.13, 1.78, -0.85, g);   // door windows
+      box(0.04, 0.02, 0.6, 'metal', s * 1.16, 1.5, 0.25, g); box(0.04, 0.02, 0.6, 'metal', s * 1.16, 1.5, -0.85, g);     // door lines
+      box(0.22, 0.22, 0.06, 'headlight', s * 0.9, 1.25, 2.37, g); box(0.12, 0.12, 0.06, 'amber', s * 0.72, 1.03, 2.37, g);   // headlight, indicator
+      box(0.05, 0.3, 0.2, 'metal', s * 1.3, 1.78, 0.7, g); box(0.2, 0.04, 0.04, 'metal', s * 1.2, 1.9, 0.7, g);             // mirror on its arm
+      box(0.14, 0.18, 0.06, 'navRed', s * 1.0, 1.25, -2.38, g);                                     // tail light
+      box(0.4, 0.1, 1.6, 'metal', s * 1.0, 0.78, 0.2, g);                                           // sill step
+    }
+    const sp = wheel(0.48, 0.3, 0.55, 1.4, -2.5, g); sp.rotation.y = Math.PI / 2;                   // spare on the tail
+    box(0.04, 1.2, 0.04, 'metal', -1.0, 2.6, -1.0, g); box(0.12, 0.1, 0.12, 'metal', -1.0, 2.05, -1.0, g);   // antenna
+    // the ring mount: the gunner's ring and shield, the Mk 19's boxy receiver, short fat barrel and the belt box beside it
+    p.turret = group(); p.turret.position.set(0, 2.07, -0.3); g.add(p.turret); const T = p.turret;
+    mesh('cyl:0.5,0.55,0.12,10', 'metal', 0, 0.06, 0, T);
+    box(0.9, 0.5, 0.06, 'camo', 0, 0.55, 0.5, T); box(0.3, 0.12, 0.04, 'glass', 0.2, 0.62, 0.54, T);   // the shield and its slit
+    box(0.32, 0.3, 0.8, 'metal', 0, 0.5, 0.25, T);                                                  // receiver
+    box(0.14, 0.14, 0.55, 'metal', 0, 0.55, 0.95, T); box(0.18, 0.18, 0.1, 'metal', 0, 0.55, 1.25, T);   // barrel, muzzle
+    box(0.45, 0.32, 0.5, 'olive', -0.45, 0.45, 0.2, T); for (let i = 0; i < 4; i++) box(0.06, 0.08, 0.06, 'metal', -0.33 + i * 0.07, 0.63, 0.1, T);   // the belt box, the belt feeding in
+    box(0.22, 0.4, 0.22, 'metal', 0.3, 0.2, -0.1, T);                                               // the pintle
+    for (let i = 0; i < 2; i++) for (const x of [-1.05, 1.05]) { const w = wheel(0.5, 0.4, x, 0.5, [1.55, -1.55][i], g); p.wheels.push(w); if (i === 0) p.steer.push(w); }
+    p.ring = ring(3.0, g);
+    return { group: g, parts: p, height: 2.7, radius: 1.9 };
+  }
+
   function apc() {
     const g = group(); const p = { wheels: [], steer: [] };
     box(2.0, 0.9, 6.2, 'camo', 0, 0.95, -0.4, g);                                                   // belly between the wheels
@@ -512,7 +551,7 @@ export function makeBuilders(F) {
 
   // each builder takes the team so the whole model picks the right camo set
   const forTeam = (fn) => (t = 0) => { team = t; const r = fn(); team = 0; return r; };
-  return { soldier: forTeam(soldier), truck: forTeam(() => truck(false)), supplyTruck: forTeam(() => truck(true)), apc: forTeam(apc), heli: forTeam(heli), bird: forTeam(bird), fob: forTeam(fob), cache: forTeam(cache), sandbags: forTeam(sandbags), emp_hmg: forTeam(empHmg), emp_atgm: forTeam(empAtgm), emp_mortar: forTeam(empMortar), traps: forTeam(traps), rally: forTeam(rally), tank: forTeam(tank), craft: forTeam(craft), amphib: forTeam(amphib), amphibSupply: forTeam(amphibSupply) };
+  return { soldier: forTeam(soldier), truck: forTeam(() => truck(false)), supplyTruck: forTeam(() => truck(true)), apc: forTeam(apc), humvee: forTeam(humvee), heli: forTeam(heli), bird: forTeam(bird), fob: forTeam(fob), cache: forTeam(cache), sandbags: forTeam(sandbags), emp_hmg: forTeam(empHmg), emp_atgm: forTeam(empAtgm), emp_mortar: forTeam(empMortar), traps: forTeam(traps), rally: forTeam(rally), tank: forTeam(tank), craft: forTeam(craft), amphib: forTeam(amphib), amphibSupply: forTeam(amphibSupply) };
 
 
 

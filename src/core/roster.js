@@ -8,7 +8,7 @@ import { icon, ring, mmss, BUILDS, buildKind, portrait } from './icons.js';
 const ALERT = 6;           // seconds a card stays red after its unit was hit
 const PLACE_PAD = 30;      // a squad this far outside a location still holds it
 const HOLD_MS = 500, SLOP = 10;
-const VEH = { tank: ['TANK', 0], apc: ['APC', 1], heli: ['CHINOOK', 2], bird: ['LITTLE BIRD', 2], truck: ['TRUCK', 3] };
+const VEH = { tank: ['TANK', 0], apc: ['APC', 1], humvee: ['HUMVEE', 1.5], heli: ['CHINOOK', 2], bird: ['LITTLE BIRD', 2], truck: ['TRUCK', 3] };
 const STRUCT = { fob: 0, emplacement: 1, sandbags: 2, traps: 3 };
 const GUN = { hmg: 'HMG', atgm: 'AT GUN', mortar: 'MORTAR' };
 export const squadKind = (kits) => kits.includes('engineer') ? ['engineer', 'ENG'] : kits.includes('medic') ? ['medic', 'MEDIC'] : kits.includes('at') ? ['at', 'AT']
@@ -119,8 +119,8 @@ export class Roster {
     else if (air && u.orbit) Object.assign(d, { glyph: 'air', tone: 'go', text: `Circling ${this.place(u.orbit.x, u.orbit.z, 80) || 'the spot'}` });
     else if (go) Object.assign(d, { glyph: air ? 'air' : 'move', tone: 'go', text: this.toward(u, go) });
     else if (u.refilling) Object.assign(d, { glyph: 'sup', text: 'Refilling' });
-    else if (u.enemy) Object.assign(d, { glyph: 'aim', text: 'Engaging' });
-    else { const p = this.place(u.pos.x, u.pos.z, 60); Object.assign(d, { glyph: 'idle', text: `Parked · ${p || 'open ground'}`, idle: true }); }
+    else if (u.enemy) Object.assign(d, { glyph: 'aim', text: `Engaging${!air && u.ammo !== undefined ? ` · ${Math.floor(u.ammo)} rounds` : ''}` });
+    else { const p = this.place(u.pos.x, u.pos.z, 60); Object.assign(d, { glyph: 'idle', text: `Parked · ${p || 'open ground'}${!air && u.ammo !== undefined ? ` · ${Math.floor(u.ammo)} rounds` : ''}`, idle: true }); }
     return d;
   }
   lost(e, T) {   // a destroyed vehicle waiting at main

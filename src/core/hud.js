@@ -27,8 +27,8 @@ const short = (why) => { for (const [re, out] of SHORT) { const r = why.match(re
 const esc = (t) => String(t).replace(/&/g, '&amp;').replace(/"/g, '&quot;').replace(/</g, '&lt;');
 const BUILD_ACTS = ['fob', 'sandbags', 'traps', 'emp_hmg', 'emp_atgm', 'emp_mortar'];
 const FOOT = { sandbags: 2.8, fob: 6, hmg: 2.4, atgm: 2.4, mortar: 2.4 };   // the ground a build takes, for its outline
-const KIT_NAME = { rifle: 'rifle', mg: 'MG', at: 'AT', marksman: 'marksman', medic: 'rifle', engineer: 'rifle', autocannon: 'autocannon', doorgun: 'door gun', tankgun: '120 mm', coax: 'coax MG', hmg: 'HMG', atgm: 'ATGM', mortar: 'mortar', hydra: 'rockets', gau19: 'gatling' };
-const TYPE_NAME = { apc: 'APC', tank: 'tank', heli: 'Chinook', bird: 'Little Bird', truck: 'truck', craft: 'landing craft', emplacement: 'FOB gun' };   // vehicles in the debrief's weapon list
+const KIT_NAME = { rifle: 'rifle', mg: 'MG', at: 'AT', marksman: 'marksman', medic: 'rifle', engineer: 'rifle', autocannon: 'autocannon', doorgun: 'door gun', tankgun: '120 mm', coax: 'coax MG', hmg: 'HMG', atgm: 'ATGM', mortar: 'mortar', hydra: 'rockets', mk19: 'Mk 19', gau19: 'gatling' };
+const TYPE_NAME = { apc: 'APC', humvee: 'Humvee', tank: 'tank', heli: 'Chinook', bird: 'Little Bird', truck: 'truck', craft: 'landing craft', emplacement: 'FOB gun' };   // vehicles in the debrief's weapon list
 
 
 // HUD + control panel. Back-end hooks on app: pixel (settings), setShadows(on),

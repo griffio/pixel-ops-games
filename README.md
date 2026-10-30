@@ -587,7 +587,7 @@ src/game/           milestone 1 game layer (renderer-agnostic)
   maps/             map definitions (valley2km.js, desert1km.js, narva3km.js, peninsula.js), the shared prop kit and ground texture generators (natural ground: fine low-contrast detail, 128 px over 12.8 m, one texel to a pixel of the game's buffer; everything bigger comes from the shader)
   match.js          AAS / Skirmish match flow, 10 Hz game tick, bleed, win checks
 icons/units/        unit-strip portraits (tools/make-portraits.mjs renders them from the game's models)
-models/vox/         unit models and Peninsula's landmarks as MagicaVoxel files with a .json each (soldier, tank, apc, truck, supplyTruck, craft, heli, bird, amphib, amphibSupply; lighthouse, radar, shed, boat, ship); exported by tools/export-vox.mjs, editable in MagicaVoxel, loaded by src/gl/voxmodels.js
+models/vox/         unit models and Peninsula's landmarks as MagicaVoxel files with a .json each (soldier, tank, apc, humvee, truck, supplyTruck, craft, heli, bird, amphib, amphibSupply; lighthouse, radar, shed, boat, ship); exported by tools/export-vox.mjs, editable in MagicaVoxel, loaded by src/gl/voxmodels.js
 src/three/          three.js back end: models, world, PixelRenderer (low-res target + outline), dust, markers
 src/gl/             WebGL2 back end
   scene.js          Node / Mesh scene graph with the same position/rotation/visible surface

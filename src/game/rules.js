@@ -4,8 +4,8 @@
 export const RULES = {
   matchLength: 25 * 60,
   startTickets: { skirmish: 500, aas: 500 },
-  ticketCost: { soldier: 1, truck: 10, supply: 16, apc: 20, tank: 30, heli: 30, bird: 25, craft: 20, fob: 40, emplacement: 10, location: 20 },
-  respawnTime: { soldier: 15, truck: 60, apc: 90, tank: 150, heli: 120, bird: 100 },
+  ticketCost: { soldier: 1, truck: 10, supply: 16, apc: 20, humvee: 12, tank: 30, heli: 30, bird: 25, craft: 20, fob: 40, emplacement: 10, location: 20 },
+  respawnTime: { soldier: 15, truck: 60, apc: 90, humvee: 70, tank: 150, heli: 120, bird: 100 },
   waveSlack: 8,              // squadmates who died within this many seconds come back together
   captureRate: 1.2,          // progress per unit-second; 4 soldiers take ~21 s
   bleedEvery: 5,             // seconds per ticket while the enemy holds the majority
@@ -14,9 +14,10 @@ export const RULES = {
   // 150, tank gun 200); `air` is a helicopter in the air, which also looks over buildings. A shooter shows to the side it
   // fires at for `reveal` s; a last-known position stays `ghost` s. Cells are `cell` m, refreshed every `every` s. The CPU
   // takes a place the enemy holds that it has not seen for 30 s to hold `guess` (combat weight: about four soldiers).
-  vision: { cell: 8, every: 0.2, reveal: 5, ghost: 30, guess: 4, sight: { soldier: 120, apc: 160, tank: 210, truck: 100, heli: 120, bird: 140, craft: 120, air: 250, fob: 100, sandbags: 100 } },
+  vision: { cell: 8, every: 0.2, reveal: 5, ghost: 30, guess: 4, sight: { soldier: 120, apc: 160, humvee: 140, tank: 210, truck: 100, heli: 120, bird: 140, craft: 120, air: 250, fob: 100, sandbags: 100 } },
   // tank traps (a row of hedgehogs, 15 m): an engineer by a supply truck lays them; any engineer standing at a row clears it
   traps: { buildTime: 10, supplyCost: 20, max: 6, minSpacing: 18, enemyBaseDistance: 100, clearTime: 8, clearRange: 8 },
+  rearm: { supplyCost: 10, range: 12 },   // a belt for a vehicle with one (the Humvee) from a supply truck stopped beside it
   sandbags: { buildTime: 12, supplyCost: 12, max: 8, minSpacing: 12, enemyBaseDistance: 60, roadClear: 10, clearTime: 8, clearRange: 8 },   // any engineer standing at a position clears it, like traps
   // FOB emplacements: an engineer by a supply truck, within fobRange of one of his side's FOBs, builds a gun the soldier
   // manning it fires (weapons.js hmg / atgm / mortar); perFob to a FOB, spaced from each other, sandbags and the FOB itself

@@ -11,6 +11,7 @@ export const ITEMS = {
   engineer: { kind: 'squad', name: 'Engineer squad', cost: 120, kits: ['rifle', 'engineer', 'rifle', 'rifle'], desc: 'Repairs vehicles, builds FOBs' },
   truck:    { kind: 'vehicle', type: 'truck', name: 'Truck', cost: 60, desc: 'Fast, unarmed; carries two squads' },
   supply:   { kind: 'vehicle', type: 'truck', name: 'Supply truck', cost: 80, supply: true, desc: 'Carries FOB supplies' },
+  humvee:   { kind: 'vehicle', type: 'humvee', name: 'Humvee', cost: 160, desc: 'Mk 19 grenade launcher, fast and thin-skinned; a belt of 48, rearmed at base or by a supply truck; carries 3' },
   apc:      { kind: 'vehicle', type: 'apc', name: 'APC', cost: 220, desc: 'Autocannon, 600 hp; carries a squad' },
   tank:     { kind: 'vehicle', type: 'tank', name: 'M1 Abrams tank', cost: 380, desc: '120 mm gun, 1,200 hp; thick front armour, weak rear' },
   heli:     { kind: 'vehicle', type: 'heli', name: 'Chinook helicopter', cost: 300, desc: 'Door guns, fast, fragile; carries 8' },
@@ -33,6 +34,7 @@ export const PRESETS = {
   armoured:   { name: 'Armoured', doctrine: 'mechanized', items: { rifle: 2, at: 1, engineer: 1, tank: 1, apc: 1, supply: 1, fob: 1 } },
   defensive:  { name: 'Defensive', doctrine: 'entrenched', items: { rifle: 2, support: 1, at: 2, engineer: 1, apc: 1, supply: 1, fob: 1 } },
   gunship:    { name: 'Gunships', doctrine: 'air', items: { rifle: 3, at: 1, medic: 1, engineer: 1, bird: 2, supply: 1, fob: 1 } },
+  motorised:  { name: 'Motorised', doctrine: 'light', items: { rifle: 3, support: 1, at: 1, medic: 1, humvee: 2, supply: 1, fob: 1 } },
 };
 
 export function itemCost(key, doctrine) { const it = ITEMS[key], mul = (DOCTRINES[doctrine] && DOCTRINES[doctrine].costMul[key]) || 1; return Math.round(it.cost * mul); }

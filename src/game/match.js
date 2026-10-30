@@ -176,7 +176,7 @@ export class Match {
       const at = (fwd, lat) => [b.x + dx * fwd + lx * lat, b.z + dz * fwd + lz * lat];
       const place = (fwd, lat, pad, fn) => { let [x, z] = at(fwd, lat); if (w.isBlocked(x, z, pad)) [x, z] = team.spawnPoint(w, pad); return fn(x, z); };
       const force = expand(fitMap(team.loadout, this.world.map));   // an infantry-only map strips the vehicles
-      const squads = force.filter(f => f.kind === 'squad'), apcs = force.filter(f => f.type === 'apc'), tanks = force.filter(f => f.type === 'tank'), trucks = force.filter(f => f.type === 'truck'), helis = force.filter(f => f.type === 'heli'), birds = force.filter(f => f.type === 'bird');
+      const squads = force.filter(f => f.kind === 'squad'), apcs = force.filter(f => f.type === 'apc'), tanks = force.filter(f => f.type === 'tank'), trucks = force.filter(f => f.type === 'truck'), humvees = force.filter(f => f.type === 'humvee'), helis = force.filter(f => f.type === 'heli'), birds = force.filter(f => f.type === 'bird');
       squads.forEach((f, i) => place(4 + (i % 2) * 5, -14 + Math.floor(i / 2) * 7, 2, (x, z) => {
         const sq = this.units.spawnSquad(x, z, team.id, f.kits); sq.item = f.item; for (const m of sq.members) { m.heading = toward; m.group.rotation.y = toward; }
       }));
@@ -185,6 +185,7 @@ export class Match {
       trucks.forEach((f, i) => place(-4, -12 + i * 8, 4, (x, z) => this.units.spawn('truck', x, z, toward, team.id, { supply: f.supply })));
       helis.forEach((f, i) => place(-13, -12 + i * 16, 8, (x, z) => this.units.spawn('heli', x, z, toward, team.id)));
       birds.forEach((f, i) => place(-22, -8 + i * 12, 6, (x, z) => this.units.spawn('bird', x, z, toward, team.id)));
+      humvees.forEach((f, i) => place(-4, 12 + i * 7, 3, (x, z) => this.units.spawn('humvee', x, z, toward, team.id)));
     }
   }
 

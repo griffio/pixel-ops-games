@@ -6,6 +6,7 @@ export const SPEC = {
   soldier: { speed: 4.6, turn: 9, accel: 18, label: 'SQ', air: false, hp: 35, nav: 'foot' },   // four rifle hits; infantry are expendable, vehicles are not
   truck:   { speed: 9.5, turn: 1.1, accel: 5, label: 'TR', air: false, hp: 150, nav: 'vehicle', seats: 8 },   // two squads (a supply truck carries cargo, not troops)
   apc:     { speed: 8,   turn: 0.9, accel: 4, label: 'AP', air: false, hp: 600, nav: 'vehicle', kit: 'autocannon', seats: 4 },   // one squad
+  humvee:  { speed: 11,  turn: 1.3, accel: 6, label: 'HV', air: false, hp: 200, nav: 'vehicle', kit: 'mk19', seats: 3, ammo: 48 },   // a fast, thin-skinned Mk 19 carrier with a belt of 48: kills and pins infantry from outside their reach, rearms at base or beside a supply truck
   heli:    { speed: 16,  turn: 1.4, accel: 6, label: 'HE', air: true, hp: 300, nav: null, kit: 'doorgun', seats: 8 },
   bird:    { speed: 20,  turn: 1.9, accel: 7, label: 'LB', air: true, hp: 160, nav: null, kit: 'hydra', kit2: 'gau19', seats: 0, noLand: true, ammo: 7 },   // AH-6M Little Bird: a gunship with no seats; circles like the Chinook, a little faster, never lands after take-off (it rearms hovering over its base)
   fob:     { speed: 0,   turn: 0,   accel: 0, label: 'FB', air: false, hp: 300, nav: null, structure: true },

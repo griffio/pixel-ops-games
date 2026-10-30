@@ -45,6 +45,16 @@ export class Support {
       if (h.hp < h.maxHp) h.hp = Math.min(h.maxHp, h.hp + h.maxHp / 60 * dt);
       if (h.spec.ammo && h.ammo < h.spec.ammo) h.ammo = Math.min(h.spec.ammo, h.ammo + h.spec.ammo / 30 * dt);
     }
+    // a ground vehicle with a belt (the Humvee) refills it parked in its own main base, full in half a minute; in the field a
+    // supply truck stopped beside it swaps the belt for 10 supplies once it is half spent
+    for (const v of all) {
+      if (v.spec.air || v.dead || !v.spec.ammo || v.ammo >= v.spec.ammo || v.dest || Math.abs(v.speed) > 0.3) continue;
+      const b = this.teams[v.team].base;
+      if (Math.hypot(v.pos.x - b.x, v.pos.z - b.z) < b.r) { v.ammo = Math.min(v.spec.ammo, v.ammo + v.spec.ammo / 30 * dt); continue; }
+      if (v.ammo > v.spec.ammo / 2) continue;
+      const t = all.find(t => t.supply && !t.dead && t.team === v.team && t.supplies >= RULES.rearm.supplyCost && !t.dest && Math.abs(t.speed) < 0.3 && Math.hypot(t.pos.x - v.pos.x, t.pos.z - v.pos.z) < RULES.rearm.range);
+      if (t) { t.supplies -= RULES.rearm.supplyCost; v.ammo = v.spec.ammo; if (this.onRearm) this.onRearm(v, t); }
+    }
     for (const u of all) {
       if (u.dead || (u.kit !== 'medic' && u.kit !== 'engineer')) continue;
       if (u.kit === 'medic') {

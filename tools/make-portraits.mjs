@@ -10,7 +10,7 @@ const only = process.argv.slice(2), port = '9351', OUT = 'icons/units';
 const SUBJECTS = {
   rifle: ['rifle', 'rifle', 'mg', 'rifle'], support: ['mg', 'mg', 'rifle', 'rifle'], at: ['at', 'at', 'rifle', 'rifle'], medic: ['rifle', 'medic', 'rifle', 'rifle'],
   engineer: ['rifle', 'engineer', 'rifle', 'rifle'], marksman: ['marksman', 'rifle', 'rifle', 'rifle'],
-  apc: 'apc', truck: 'truck', supply: 'supply', tank: 'tank', heli: 'heli', bird: 'bird', amphib: 'amphib', amphibSupply: 'amphibSupply', fob: 'fob', sandbags: 'sandbags', traps: 'traps', hmg: 'emp_hmg', atgm: 'emp_atgm', mortar: 'emp_mortar',
+  apc: 'apc', humvee: 'humvee', truck: 'truck', supply: 'supply', tank: 'tank', heli: 'heli', bird: 'bird', amphib: 'amphib', amphibSupply: 'amphibSupply', fob: 'fob', sandbags: 'sandbags', traps: 'traps', hmg: 'emp_hmg', atgm: 'emp_atgm', mortar: 'emp_mortar',
 };
 const W = 240, H = 136;
 const sleep = (ms) => new Promise(r => setTimeout(r, ms));
