@@ -2638,7 +2638,16 @@ Engine changes needed in the existing core:
   all four maps: 208 matches, no page errors, none unfinished. Sides by base: Palm Valley 25-27,
   Desert 23-29, Narva 27-25, Peninsula 20-32 (the attacker, with mirrors counted both ways). Two
   URL parameters for screenshots: `follow=<label>` starts the camera on a unit, `hud=0` hides
-  everything but the view.
+  everything but the view. Three README frames: the Little Bird pair over a palm grove with a rocket
+  just away (docs/screenshots/little-bird.webp), the Village ring dashed red under capture
+  (capture-ring.webp) and the craft wave retaken with the vox ship's well dock behind it
+  (peninsula-wave.webp). Taking them cost most of the day: Chrome's `--virtual-time-budget`
+  screenshot hung on a pre-stepped match (3 hours, 49 s of CPU), and `Page.captureScreenshot`
+  returns a blank page while the animation loop is frozen, so `tools/shoot.mjs` (kept in the
+  repo now) freezes rAF, steps the simulation tick by tick until a predicate on `app` finds the
+  moment, places the camera, renders one frame and reads the canvas with `toDataURL`. The camera
+  clamps its target to the ground, so a unit at height h is centred by moving the target
+  h / tan(pitch) along the view direction.
 
 ## Open questions
 

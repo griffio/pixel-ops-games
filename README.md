@@ -27,7 +27,11 @@ pixels chunkier while the camera rotates freely. No build step.
 </tr>
 <tr>
 <td><img src="docs/screenshots/peninsula-rubble.webp" alt="A cottage by the church reduced to a heap of rubble in a grassy village at dusk, tracers crossing, a squad firing beside it"><br><sub><b>Peninsula.</b> Stray fire has brought two cottages down by the church.</sub></td>
-<td><img src="docs/screenshots/peninsula-wave.webp" alt="Two landing craft under way at dusk, each trailing a line of foam, the stern of the assault ship behind them"><br><sub><b>Peninsula.</b> A wave runs for the beach, each craft on its own line.</sub></td>
+<td><img src="docs/screenshots/peninsula-wave.webp" alt="Two landing craft under way at dusk, each trailing a line of foam, a third still in the assault ship's well dock behind them and two amphibious vehicles alongside"><br><sub><b>Peninsula.</b> A wave runs for the beach, each craft on its own line, the next still in the well dock.</sub></td>
+</tr>
+<tr>
+<td><img src="docs/screenshots/little-bird.webp" alt="Two small gunship helicopters over a palm grove, the lead one's rocket just leaving its pod in a flash, their shadows on the sand below"><br><sub><b>Gunships.</b> A pair of Little Birds on a sortie over Palm Valley, the lead bird's rocket just away.</sub></td>
+<td><img src="docs/screenshots/capture-ring.webp" alt="A dashed red ring around the Village on Peninsula with an APC firing and a truck inside it, cottages around the ring and one burning at the corner"><br><sub><b>Capture rings.</b> The Village under capture: the ring goes dashed in the taker's colour until the place turns.</sub></td>
 </tr>
 <tr>
 <td colspan="2"><img src="docs/screenshots/hud.webp" alt="The match screen on Narva: squads by a block of flats beside the railway, the places bar and tickets along the top, reinforcements and settings at the right, the unit strip and the minimap along the bottom"><br><sub><b>The match HUD</b> (Narva, fog of war on): the places and tickets along the top, reinforcements at the right, the unit strip and the minimap below.</sub></td>
@@ -770,6 +774,13 @@ node tools/match-test.mjs 'http://localhost:8787/?cpu=both&seed=11&warp=240&mode
 node tools/match-test.mjs 'http://localhost:8787/?cpu=both&loadout=balanced&cpuloadout=balanced&seed=3&warp=1500&swap=1' 9334   # full mirrored match, sides swapped (map-balance check)
 node tools/touch-test.mjs 'http://localhost:8787/?mobile=1&cpu=none&loadout=balanced&seed=5' 9341 /tmp/touch-profile shot.png
 ```
+
+**README frames.** `tools/shoot.mjs <jobs.json>` photographs a moment in a match: with the
+animation loop frozen it pre-steps the match by `?warp=`, steps tick by tick until a predicate
+over `app` finds the moment (a rocket leaving the Little Bird's pod, a place under capture, a
+wave of craft clear of the well dock), places the camera, renders one frame and saves the canvas
+as PNG; the file's header has the job format and examples. The frames in docs/screenshots are
+those PNGs as lossless WebP (`cwebp -lossless -z 9`).
 
 **Balance runs.** `tools/balance.mjs` plays CPU-vs-CPU matchups to the end, several at
 once, stepping the simulation in the page as fast as it goes (a 25-minute match takes
