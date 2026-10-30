@@ -2688,6 +2688,10 @@ Engine changes needed in the existing core:
   blocks the vehicle grid, an engineer clears it (26 boxes gone, grid open, the unit removed, one event); a squad
   with one man at base boards 1 and keeps 3, standing together boards 4.
 
+- **Released (2026-10-30).** Tag `v1.0.0`, deployed as Cloudflare version 7c1a208e and verified live: every
+  changed file served on the first poll, the private paths 404, and the sandbag, clearing and boarding checks pass
+  against the live page.
+
 ## Open questions
 
 None open. Answered:
