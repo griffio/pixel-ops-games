@@ -63,6 +63,7 @@ export const clone = (l) => ({ doctrine: l.doctrine, items: { ...l.items } });
 export function fitMap(l, map) {
   if (!map || !map.infantryOnly) return l;
   const out = clone(l); for (const k of Object.keys(out.items)) if (!ITEMS[k] || ITEMS[k].kind !== 'squad') delete out.items[k];
+  for (const k of ['at', 'engineer']) if (out.items[k]) { out.items.rifle = (out.items.rifle || 0) + out.items[k]; delete out.items[k]; }   // nothing to shoot rockets at or to build: rifles instead
   let s = summarize(out); while (s.cost + itemCost('rifle', out.doctrine) <= BUDGET && s.squads < s.slots) { out.items.rifle = (out.items.rifle || 0) + 1; s = summarize(out); }
   return out;
 }

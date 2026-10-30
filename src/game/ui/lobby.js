@@ -74,7 +74,7 @@ export class Lobby {
 
   render() {
     const card = this.maps.find(m => m.key === this.mapKey), inf = !!(card && card.infantryOnly); if (inf) this.loadout = fitMap(this.loadout, { infantryOnly: true });   // an infantry-only map: no vehicles to pick
-    $('lb-vehicles').style.display = inf ? 'none' : '';
+    $('lb-vehicles').style.display = inf ? 'none' : ''; for (const k of ['at', 'engineer']) { const row = $('lb-squads').querySelector(`[data-k="${k}"]`); if (row) row.style.display = inf ? 'none' : ''; }
     const l = this.loadout, s = summarize(l, inf);
     for (const k of Object.keys(ITEMS)) { $('lb-squads').parentElement.querySelector(`[data-n="${k}"]`).textContent = this.n(k); $('lb-squads').parentElement.querySelector(`[data-cost="${k}"]`).textContent = itemCost(k, l.doctrine); }
     for (const r of this.root.querySelectorAll('input[name=doctrine]')) r.checked = r.value === l.doctrine;

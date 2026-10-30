@@ -134,6 +134,20 @@ whose place the attacker holds refills supply trucks. With none held, a truck wa
 the beach rides a craft back to the ship and comes out full. The defender's base is on the
 mainland, so everything it sends crosses the bridge.
 
+`?map=hollow` plays *The Hollow*, 500 m, infantry only, Advance and Secure only, 200
+tickets and a 12-minute clock. Two wooded ridges run north to south with a gully between
+them: a hamlet on the floor, a clearing on each crest, a ford and a mill on the floor
+near either end. The woods are thickets: they block sight like a wall and infantry push
+through them at half pace, so a squad at a wood's edge is on nobody's map until it fires
+or an enemy walks into it, and the draws cut into the flanks are dead ground between.
+Each side's clearing and floor place touch its base and the Hamlet links all four, so
+holding your two and the Hamlet bleeds the enemy, and taking all five means taking two
+places under their base. The map is point-symmetric through its centre: every wood and
+wall on one side is the other's turned round, and the walk from either base to the
+Hamlet is 308 m. Hold fire and attack-move are the orders here, and the CPU's holding
+squads hold fire too. No vehicles: the force builder hides them and turns anti-tank and
+engineer squads into rifles.
+
 Cliffs ring the coast except at three landings:
 - West Beach: sand, open to vehicles.
 - North Cove: under the cliffs, infantry only.

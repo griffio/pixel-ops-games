@@ -2743,7 +2743,7 @@ Engine changes needed in the existing core:
       enemy is in sight at their post (set when the order is given, dropped by the combat tick when sprung,
       never set on an attack). Checked in a CPU-v-CPU batch that it does not cost the CPU matches on the
       open maps. About 15 lines.
-  - **H2, the blockout (a day).** 500 m, north up, laid out in (x, z) like Desert Crossing.
+  - **H2, the blockout (a day). Done 2026-10-30, see below.** 500 m, north up, laid out in (x, z) like Desert Crossing.
     - Two ridges run north to south, crests at x = -150 and x = 150, 14 to 18 m above the gully floor at
       x = 0, rounded, with four side draws cut into each flank (a draw every 100 m, 3 to 5 m deep) so the
       flanks are a maze of dead ground. The gully floor carries a stream bed and a dirt track along z.
@@ -2799,6 +2799,29 @@ Engine changes needed in the existing core:
     known within 120 m of the spot, and clears it for any other job. Six minutes of Balanced against Defensive on
     Palm Valley with fog: every holding squad quiet at minute 3, the screen squad at minute 6, two ambushes
     sprung, the match otherwise as before; six minutes on Narva and Peninsula with fog ran clean.
+
+- **H2 done (2026-10-30): `maps/hollow.js`, `?map=hollow`.** 500 m, AAS only, infantry only, 200 tickets, 12 minutes.
+  Two ridges (crests at x = ±150 from z = -140 to 140, 16 m, profile p 0.8 so a crest does not overlook the floor),
+  five draws cut into each (negative ridges, 5 m deep), a dry stream bed down the floor, a knoll either side of each
+  base so it sits in a bowl. Everything is point-symmetric: each feature, thicket and copse is placed on the west half
+  and turned through the centre, so the two sides' walks and views are the same to the metre (the jagged noise on
+  the crests is the one asymmetry: the clearings stand 14.5 and 16.3 m). Five places, not the plan's three: a CPU
+  match on three ended by capture-all in four minutes, so the Ford (0, -115) and the Mill (0, 115) joined the two
+  clearings as each side's second home place, the Hamlet links all four, and capturing all means taking two places
+  under the enemy's base. Woods: thickets wherever the ground stands 1.5 m up, off the track, the draws' floors, the
+  places and the bases (336 boxes, a bush every 3 m and a tree every 90 m2 inside); eleven hedgerows (5 m by 30 to
+  60 m) across the floor; copses on the floor. The blockout's buildings are the kit's plain houses, a well and low
+  field walls round the hamlet green, a ruined barn on each clearing, a tall house for the mill, stepping stones
+  at the ford, a hut at each base; H3 dresses them. Measured (`sim-test`): the walk from either base to the Hamlet
+  is 308 m by the foot grid, to its own clearing 297 and 301, to its floor place 252 and 249, across the map 408 to
+  418; the steepest point on the clearing route is slope 0.57 (0.9 is the limit); of 877 random pairs of open points
+  40 to 120 m apart 21% have line of sight (38% at 40 to 60 m, 16% at 90 to 120), under the plan's quarter; 1,500
+  random points found no pocket; the CPU's first two ticks take 14 ms. Six CPU minutes twice (Light against Balanced,
+  then swapped): no errors, 94 to 53 and 56 to 66 kills, ambushes sprung 8 and 3, the places split 3-2 each way.
+  The lobby's card reads "0.5 km · infantry · Advance & Secure only", the vehicle list and the anti-tank and
+  engineer rows are hidden, and `fitMap` now turns anti-tank and engineer squads into rifles (nothing to shoot
+  rockets at or to build): the saved Balanced force comes out as six rifle, one support and one medic squad. The
+  thumbnail is from `tools/make-map-thumbs.mjs`.
 
 ## Open questions
 
