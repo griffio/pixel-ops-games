@@ -126,10 +126,6 @@ Cliffs ring the coast except at three landings:
 - North Cove: under the cliffs, infantry only.
 - The harbour quay on the east coast.
 
-Every location wears a ring on the ground at its capture radius: the holder's colour
-(blue or red), solid while held and dashed in the taking side's colour while it is
-being captured, faint grey when nobody holds it, drawn over anything in the way so a
-courtyard's ring shows through its walls; the Capture rings setting turns them off.
 The three landing places (Village, Lighthouse, Harbour) are the attacker's home places,
 so it can take any of them first. Radar Hill is in the middle, and the Bridgehead
 guards the bridge. Whichever side you pick, the beach side attacks: defending, or a
@@ -331,6 +327,11 @@ precedence and the utility AI fills the gaps.
 - *Territory Control*: a hex grid over the map; capture only hexes touching your own; more
   hexes bleeds the enemy; 80% of the land wins outright.
 - *Skirmish*: tickets only.
+
+**Capture rings.** Every location wears a ring on the ground at its capture radius: the holder's colour
+(blue or red), solid while held and dashed in the taking side's colour while it is
+being captured, faint grey when nobody holds it, drawn over anything in the way so a
+courtyard's ring shows through its walls; the Capture rings setting turns them off.
 
 ## Controls
 

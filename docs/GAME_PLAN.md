@@ -2609,6 +2609,30 @@ Engine changes needed in the existing core:
     bird and an APC, 1186 points) is a one-line change if wanted. The bird's near-immortality
     in CPU hands is the sortie loop working; a human answers it with an APC near the infantry.
 
+- **Ship week, days 2 and 4 (2026-10-30).** A week to ship; the user picked days 2, 4 and 6 of the
+  plan (the commander setting and a text pass; an iPad pass and the end screen; screenshots, docs,
+  a tag and the release deploy).
+  - **Commander setting.** Already in the lobby: the Opponent select offers the built-in CPU and
+    Llama, and the Claude models only with the engine panels on, since they spend the key; a link's
+    `?commander=` locks it. The "URL-only" note in the plan's list was stale.
+  - **Text pass.** The field manual's Objective page explains the capture rings; Vehicles covers
+    where a helicopter may set down and what the Little Bird is, and the respawn times list it;
+    the README's capture-ring paragraph moved from the Peninsula section to Game modes, where it
+    belongs.
+  - **Debrief.** The end screen counts Little Birds among vehicles, and gains rows for buildings
+    brought down, landing craft sunk, each side's three deadliest weapons (kills by the killer's
+    kit or vehicle, a new `stats.killsBy`) and its deadliest unit (`stats.killsByUnit` by label,
+    kept on the team because a wreck's object leaves the unit list after 90 s). Checked at the
+    end of a headless Gunships-against-Balanced Invasion: "Little Bird 72 · rifle 57 · AT 32".
+  - **iPad pass.** `tools/touch-test.mjs` on Palm Valley and on Peninsula with the Gunships
+    loadout: the mobile profile, manifest and icon pass, every gesture reports, no errors (on
+    the ship side the hold-box check finds too few units on screen, since they wait aboard).
+    A Little Bird's command bar offers Follow and Deselect only: no Load, no Land.
+  - **Frame cost** on the Mac mini's GPU (metal, vsync off, 240 frames at play zoom), median
+    and 90th percentile: Palm Valley 11.8 / 20.3 ms (628 draw calls), Peninsula at the ship
+    8.4 / 15.8 (164), the harbour 8.6 / 17.9 (332), the lighthouse 7.6 / 14.2 (212), Narva at
+    the castle 9.7 / 13.4 (291). The vox landmarks and the rings cost nothing to speak of.
+
 ## Open questions
 
 None open. Answered:

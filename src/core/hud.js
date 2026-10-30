@@ -28,6 +28,7 @@ const esc = (t) => String(t).replace(/&/g, '&amp;').replace(/"/g, '&quot;').repl
 const BUILD_ACTS = ['fob', 'sandbags', 'traps', 'emp_hmg', 'emp_atgm', 'emp_mortar'];
 const FOOT = { sandbags: 2.8, fob: 6, hmg: 2.4, atgm: 2.4, mortar: 2.4 };   // the ground a build takes, for its outline
 const KIT_NAME = { rifle: 'rifle', mg: 'MG', at: 'AT', marksman: 'marksman', medic: 'rifle', engineer: 'rifle', autocannon: 'autocannon', doorgun: 'door gun', tankgun: '120 mm', coax: 'coax MG', hmg: 'HMG', atgm: 'ATGM', mortar: 'mortar', hydra: 'rockets', gau19: 'gatling' };
+const TYPE_NAME = { apc: 'APC', tank: 'tank', heli: 'Chinook', bird: 'Little Bird', truck: 'truck', craft: 'landing craft', emplacement: 'FOB gun' };   // vehicles in the debrief's weapon list
 
 
 // HUD + control panel. Back-end hooks on app: pixel (settings), setShadows(on),
@@ -208,20 +209,26 @@ export class Hud {
     const mins = Math.floor(m.elapsed / 60), secs = String(Math.floor(m.elapsed % 60)).padStart(2, '0');
     $('end-d').textContent = `${m.mode.constructor.name} · ${m.reason} · ${mins}:${secs} played`;
     this.drawTickets(m, $('end-graph'));
-    const [a, b] = m.teams, S = (t, k) => t.stats.kills[k] || 0, L = (t, k) => t.stats.losses[k] || 0;
+    const [a, b] = m.teams, S = (t, k) => t.stats.kills[k] || 0, L = (t, k) => t.stats.losses[k] || 0, VEHS = ['truck', 'apc', 'tank', 'heli', 'bird'];
     const sum = (o) => Object.values(o).reduce((s, v) => s + v, 0);
     const rows = [
       ['Tickets left', Math.max(0, Math.round(a.tickets)), Math.max(0, Math.round(b.tickets))],
       ['Net tickets', (() => { const v = Math.round(a.tickets - m.mode.tickets(0)); return (v >= 0 ? '+' : '') + v; })(), (() => { const v = Math.round(b.tickets - m.mode.tickets(1)); return (v >= 0 ? '+' : '') + v; })()],
       ['Kills', sum(a.stats.kills), sum(b.stats.kills)],
       ['Infantry lost', L(a, 'soldier'), L(b, 'soldier')],
-      ['Vehicles lost', L(a, 'truck') + L(a, 'apc') + L(a, 'tank') + L(a, 'heli'), L(b, 'truck') + L(b, 'apc') + L(b, 'tank') + L(b, 'heli')],
-      ['Vehicles killed', S(a, 'truck') + S(a, 'apc') + S(a, 'tank') + S(a, 'heli'), S(b, 'truck') + S(b, 'apc') + S(b, 'tank') + S(b, 'heli')],
+      ['Vehicles lost', VEHS.reduce((n, k) => n + L(a, k), 0), VEHS.reduce((n, k) => n + L(b, k), 0)],
+      ['Vehicles killed', VEHS.reduce((n, k) => n + S(a, k), 0), VEHS.reduce((n, k) => n + S(b, k), 0)],
       ['Captures', a.stats.captures, b.stats.captures],
       ['Locations lost', a.stats.lost, b.stats.lost],
       ['FOBs built / lost', `${a.stats.fobs} / ${a.stats.fobsLost}`, `${b.stats.fobs} / ${b.stats.fobsLost}`],
     ];
     if (a.stats.caches || b.stats.caches) rows.push(['Caches destroyed', a.stats.caches, b.stats.caches]);
+    if (a.stats.buildings || b.stats.buildings) rows.push(['Buildings brought down', a.stats.buildings, b.stats.buildings]);
+    if (L(a, 'craft') || L(b, 'craft')) rows.push(['Landing craft sunk', L(a, 'craft'), L(b, 'craft')]);
+    // what did the killing: the three deadliest weapons of each side, and the unit with the most kills
+    const WEAPON = (k) => KIT_NAME[k] || TYPE_NAME[k] || k, top = (t) => Object.entries(t.stats.killsBy || {}).sort((p, q) => q[1] - p[1]).slice(0, 3).map(([k, n]) => `${WEAPON(k)} ${n}`).join(' · ') || '–';
+    const ace = (t) => { const e = Object.entries(t.stats.killsByUnit || {}).sort((p, q) => q[1] - p[1])[0]; return e ? `${e[0]} · ${e[1]}` : '–'; };
+    rows.push(['Deadliest weapons', top(a), top(b)], ['Deadliest unit', ace(a), ace(b)]);
     $('end-stats').innerHTML = `<table><tr><th></th><th class="t0">BLUFOR<em>${a.loadoutName} · ${a.doctrine.name}</em></th><th class="t1">OPFOR<em>${b.loadoutName} · ${b.doctrine.name}${m.cpu.includes(1) ? ' · ' + m.difficulty.name : ''}</em></th></tr>${rows.map(r => `<tr><td>${r[0]}</td><td>${r[1]}</td><td>${r[2]}</td></tr>`).join('')}</table>`;
     $('end').style.display = 'block';
     $('end-again').onclick = () => location.reload();

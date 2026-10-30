@@ -54,7 +54,7 @@ export class Buildings {
   }
   // down it comes: props out, rubble in, the obstacles and grids updated, dust and a scorch, anyone stood in a heap steps out
   collapse(b, u) {
-    b.down = true; this.down++;
+    b.down = true; this.down++; if (u && this.m.teams && this.m.teams[u.team] && this.m.teams[u.team].stats) this.m.teams[u.team].stats.buildings++;
     const W = this.world, m = this.m, cx = (b.minX + b.maxX) / 2, cz = (b.minZ + b.maxZ) / 2, O = W.obstacles;
     for (const o of b.boxes) { const i = O.indexOf(o); if (i >= 0) O.splice(i, 1); }
     const heaps = W.collapse(b);   // the props go and rubble stands in their place; back come the heaps as low obstacles

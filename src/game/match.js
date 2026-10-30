@@ -35,7 +35,7 @@ export class Match {
       t.loadout = loadouts[i]; t.doctrine = DOCTRINES[t.loadout.doctrine] || DOCTRINES.entrenched;
       const p = Object.entries(PRESETS).find(([k, v]) => v.doctrine === t.loadout.doctrine && JSON.stringify(v.items) === JSON.stringify(t.loadout.items));
       t.loadoutName = p ? p[1].name : 'Custom'; t.fobKits = (t.loadout.items && t.loadout.items.fob) || 0;
-      t.stats = { kills: {}, losses: {}, captures: 0, lost: 0, fobs: 0, fobsLost: 0, caches: 0 };
+      t.stats = { kills: {}, losses: {}, killsBy: {}, killsByUnit: {}, buildings: 0, captures: 0, lost: 0, fobs: 0, fobsLost: 0, caches: 0 };   // kills by what they hit, and by what did it (a soldier's kit, a vehicle's type); buildings brought down
       if (cpu.includes(i)) { const d = this.difficulty; t.acc = d.acc; t.dmg = d.dmg; t.respawnMul = d.respawn; t.fobKits += d.kits; }
     });
     const nc = (map && map.nav) || {};   // grid cells: 1 m and 2 m; a 2 km map uses coarser ones (memory: 4 M cells at 1 m is 130 MB)
@@ -105,7 +105,7 @@ export class Match {
     this.combat.onDeath = (v, k) => {
       this.respawn.onDeath(v, k);
       const s = this.teams[v.team].stats; s.losses[v.type] = (s.losses[v.type] || 0) + 1; if (v.type === 'fob') s.fobsLost++;
-      if (k) { const ks = this.teams[k.team].stats; ks.kills[v.type] = (ks.kills[v.type] || 0) + 1; }
+      if (k) { const ks = this.teams[k.team].stats, by = k.type === 'soldier' ? (k.firedKit || k.kit) : k.type; ks.kills[v.type] = (ks.kills[v.type] || 0) + 1; ks.killsBy[by] = (ks.killsBy[by] || 0) + 1; ks.killsByUnit[k.label] = (ks.killsByUnit[k.label] || 0) + 1; }   // by unit label (a squad's men share theirs), kept on the team: a wreck's object may be gone by the debrief
       this.pushFeed({ kind: 'kill', v, k });
       if (v.type !== 'soldier' && this.app.audio) this.app.audio.explosion(v.pos.x, v.pos.z, v.type === 'tank' ? 1.8 : v.type === 'apc' ? 1.5 : 1);
       if (v.type === 'apc' || v.type === 'tank') for (const s of this.strategists || []) if (s.remote && s.team === v.team) s.remote.nudge();
