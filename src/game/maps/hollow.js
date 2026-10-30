@@ -68,13 +68,19 @@ export const hollow = {
     const K = makeKit({ r, rd, onRoad: (x, z) => onTrack(x, z) });
     const { props, obstacles, lamps, tufts, decals, emitters, box, pine, birch, rock, well, scrub, cottage, church, fieldWall, pen, ruinedBarn, mill } = K;
     const placeFree = (x, z, m) => !this.locations.some(l => Math.hypot(x - l.x, z - l.z) < l.r + m) && !this.bases.some(b => Math.hypot(x - b.x, z - b.z) < b.r + m);
-    // a bush with no collision of its own (the kit's blocks the foot grid): three swaying cylinders, as the kit draws one
-    const bushAt = (x, z, s = 0.9 + r() * 0.5) => { for (const [ox, oz, rr, h] of [[0, 0, 1.3, 1.6], [0.9, 0.5, 0.9, 1.2], [-0.8, 0.6, 1.0, 1.1]]) props.push({ geo: 'cyl:' + (rr * s).toFixed(2) + ',' + (rr * s * 1.15).toFixed(2) + ',' + (h * s).toFixed(2) + ',7', tex: 'bush', x: x + ox * s, y: h * s / 2, z: z + oz * s, rot: [0, 0, 0], cast: true, sway: true }); };
-    // ---- thickets over the flanks: where the ground stands 2.5 to 12.5 m up, off the track, the draws' floors, the places and
-    // the bases; a jittered box of 14 to 24 m a side in three cells of four (20 m cells), a bush every 3 m and a tree every 90 m2
+    // hedge masses and bushes with no collision of their own (the kit's bush blocks the foot grid): one swaying cylinder each.
+    // The first cut drew every thicket as a bush every 3 m of three cylinders apiece, 28,800 shadow-casting cylinders over the
+    // map (Palm Valley has 1,500), and an iPad juddered on a drag; now a few broad masses carry the shadow and the small
+    // bushes between them cast none
+    const mass = (x, z, rr, h) => props.push({ geo: 'cyl:' + rr.toFixed(2) + ',' + (rr * 1.12).toFixed(2) + ',' + h.toFixed(2) + ',8', tex: 'bush', x, y: h / 2, z, rot: [0, 0, 0], cast: true, sway: true });
+    const bushAt = (x, z, s = 0.9 + r() * 0.5) => props.push({ geo: 'cyl:' + (1.3 * s).toFixed(2) + ',' + (1.5 * s).toFixed(2) + ',' + (1.6 * s).toFixed(2) + ',7', tex: 'bush', x, y: 0.8 * s, z, rot: [0, 0, 0], cast: false, sway: true });
+    // ---- thickets over the flanks: where the ground stands 1.5 m up, off the track, the draws' floors, the places and the
+    // bases; a jittered box of 12 to 20 m a side in nine cells of ten (16 m cells); inside, a hedge mass every 40 m2, a small
+    // bush every 25 m2 and a tree every 90 m2
     const thicket = (x, z, w, d) => {
       thickets.push({ minX: x - w / 2, maxX: x + w / 2, minZ: z - d / 2, maxZ: z + d / 2, h: 2.2, thicket: true, walk: 0.55 });
-      for (let i = 0; i < w * d / 9; i++) bushAt(x + (r() - 0.5) * (w - 2), z + (r() - 0.5) * (d - 2));
+      for (let i = 0; i < w * d / 40; i++) mass(x + (r() - 0.5) * (w - 4), z + (r() - 0.5) * (d - 4), 2.4 + r() * 1.2, 1.7 + r() * 0.5);
+      for (let i = 0; i < w * d / 25; i++) bushAt(x + (r() - 0.5) * (w - 2), z + (r() - 0.5) * (d - 2));
       for (let i = 0; i < w * d / 90; i++) { const tx = x + (r() - 0.5) * (w - 3), tz = z + (r() - 0.5) * (d - 3); if (r() < 0.6) pine(tx, tz, 9 + r() * 4); else birch(tx, tz, 7 + r() * 3); }
     };
     // the west half decides and the east half is its turn through the centre, so both sides get the same woods
