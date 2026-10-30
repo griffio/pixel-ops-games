@@ -72,14 +72,17 @@ export const hollow = {
     // The first cut drew every thicket as a bush every 3 m of three cylinders apiece, 28,800 shadow-casting cylinders over the
     // map (Palm Valley has 1,500), and an iPad juddered on a drag; now a few broad masses carry the shadow and the small
     // bushes between them cast none
-    const mass = (x, z, rr, h) => props.push({ geo: 'cyl:' + rr.toFixed(2) + ',' + (rr * 1.12).toFixed(2) + ',' + h.toFixed(2) + ',8', tex: 'bush', x, y: h / 2, z, rot: [0, 0, 0], cast: true, sway: true });
-    const bushAt = (x, z, s = 0.9 + r() * 0.5) => props.push({ geo: 'cyl:' + (1.3 * s).toFixed(2) + ',' + (1.5 * s).toFixed(2) + ',' + (1.6 * s).toFixed(2) + ',7', tex: 'bush', x, y: 0.8 * s, z, rot: [0, 0, 0], cast: false, sway: true });
+    // sizes come from short lists, never a free random: the renderer batches instances by geometry string, and a bush of
+    // its own size was a draw call of its own (18,000 calls and 126 ms a frame for the hamlet view on the Mac mini)
+    const MASS = [[2.4, 1.7], [3.0, 1.9], [3.6, 2.2]], BUSH = [0.9, 1.15, 1.4];
+    const mass = (x, z) => { const [rr, h] = MASS[Math.floor(r() * MASS.length)]; props.push({ geo: `cyl:${rr},${(rr * 1.12).toFixed(2)},${h},8`, tex: 'bush', x, y: h / 2, z, rot: [0, r() * Math.PI * 2, 0], cast: true, sway: true }); };
+    const bushAt = (x, z) => { const s = BUSH[Math.floor(r() * BUSH.length)]; props.push({ geo: `cyl:${(1.3 * s).toFixed(2)},${(1.5 * s).toFixed(2)},${(1.6 * s).toFixed(2)},7`, tex: 'bush', x, y: 0.8 * s, z, rot: [0, r() * Math.PI * 2, 0], cast: false, sway: true }); };
     // ---- thickets over the flanks: where the ground stands 1.5 m up, off the track, the draws' floors, the places and the
     // bases; a jittered box of 12 to 20 m a side in nine cells of ten (16 m cells); inside, a hedge mass every 40 m2, a small
     // bush every 25 m2 and a tree every 90 m2
     const thicket = (x, z, w, d) => {
       thickets.push({ minX: x - w / 2, maxX: x + w / 2, minZ: z - d / 2, maxZ: z + d / 2, h: 2.2, thicket: true, walk: 0.55 });
-      for (let i = 0; i < w * d / 40; i++) mass(x + (r() - 0.5) * (w - 4), z + (r() - 0.5) * (d - 4), 2.4 + r() * 1.2, 1.7 + r() * 0.5);
+      for (let i = 0; i < w * d / 40; i++) mass(x + (r() - 0.5) * (w - 4), z + (r() - 0.5) * (d - 4));
       for (let i = 0; i < w * d / 25; i++) bushAt(x + (r() - 0.5) * (w - 2), z + (r() - 0.5) * (d - 2));
       for (let i = 0; i < w * d / 90; i++) { const tx = x + (r() - 0.5) * (w - 3), tz = z + (r() - 0.5) * (d - 3); if (r() < 0.6) pine(tx, tz, 9 + r() * 4); else birch(tx, tz, 7 + r() * 3); }
     };

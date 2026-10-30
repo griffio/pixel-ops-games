@@ -2884,7 +2884,7 @@ Engine changes needed in the existing core:
     sortie loop in strategist.js (`gunship`) generalised to any `ammo` unit: orbit a gun spot behind the attack,
     home when the belt is under a burst or hp under 60%, back when full; a supply truck escorting it is the field
     rearm. The digest lists it among vehicles with its rounds.
-  - **U4, balance (half a day).** The seeded batch, Motorised and Light-with-Humvee against Balanced, Light and
+  - **U4, balance (half a day). Done 2026-10-30, see below.** The seeded batch, Motorised and Light-with-Humvee against Balanced, Light and
     Defensive, three seeds, both bases, on Desert Crossing and Palm Valley (open ground is where it bites): if the
     Humvee pairings pass 60% against Light on Desert, the belt shrinks to 36 or the burst to 4; then Narva and
     Peninsula for the roads and the landing. Expect it strong on Desert and weak on Narva's streets.
@@ -2931,6 +2931,30 @@ Engine changes needed in the existing core:
   bursts, about 40 s of fire, and the base is 400 to 560 m away, so a sortie is mostly road. A supply truck riding
   with it (the plan's field rearm) is the obvious next step if U4 finds it toothless. Light Infantry's own Humvee
   on Palm Valley parked the whole match: its front saw no enemy. No errors on Palm Valley, Desert, Narva, Peninsula.
+
+- **U4 done (2026-10-30).** The seeded batch, Motorised and Light (with its Humvee) against Balanced, Light and
+  Defensive, seeds 101-103, both bases, 25-minute matches, 30 a map. Desert Crossing: Motorised won 7 of 18
+  (beat Light 4-2, lost to Balanced 1-5 and Defensive 2-4; margin against Light +98), Light 5 of 18, Balanced 11
+  of 12; a Motorised side's two Humvees killed 28 a match and lost 0.3. Palm Valley: Motorised 8 of 18 (beat
+  Defensive 4-2, lost to Balanced and Light 2-4), Light 13 of 18 (72%: it beat Balanced 4-2 and Defensive 5-1,
+  where it had been the weakest preset), Balanced 6 of 12; the Humvees killed 15 a match and lost 0.7. Every
+  match ran to the clock. The plan's trigger (Humvee pairings past 60% against Light on Desert) is met only
+  because Light is weak there (28%); Motorised as a whole is under half everywhere, so the belt and the burst
+  stay. The Humvee is modest rather than dangerous: 15 to 28 kills a match from a pair is a rifle squad's share,
+  because a belt is 40 s of fire and the trip home 400 m each way. The next step if it wants teeth is the plan's
+  supply truck riding with it, not a bigger belt. Light's rise on Palm Valley comes with the Humvee in its truck's
+  place, worth a look if the preset tables are revisited.
+- **The iPad judder on The Hollow (2026-10-30).** The user: dragging the map juddered. The map put 28,776 bush
+  cylinders on screen (Palm Valley has 1,458), 36,600 swaying and 35,450 shadow-casting props, but the real cost
+  was draw calls: the renderer batches instances by geometry string, and every bush had a random size, so each was
+  a geometry and a draw call of its own: 18,123 calls and 126 ms a frame for the hamlet view on the Mac mini's
+  GPU against Palm Valley's 779 and 13 ms. Fixed twice over: each thicket is now a few broad hedge masses that cast
+  shadows and a sparse sprinkling of small bushes that do not (14,000 props, 5,900 bush cylinders, 8,700 casters),
+  and the masses and bushes come in three sizes each, so they batch: the hamlet view 759 calls and 16 ms, a wood
+  view 785 and 17 ms, level with Palm Valley. Sight lines and routes unchanged (20% of pairs, 306 and 318 m).
+  Lesson for every map: a prop with a free random size is a draw call; sizes come from a short list, or the size
+  goes in the per-instance scale as the colour boxes do. A frame-time bench is back in the scratchpad
+  (bench.mjs: metal, vsync off, 240 rAF intervals, the renderer's call count); it must run with no sims alongside.
 
 ## Open questions
 
