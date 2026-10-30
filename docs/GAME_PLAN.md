@@ -2718,6 +2718,62 @@ Engine changes needed in the existing core:
   The first run sprang at once, which was the rest of the base shooting the placed enemy squad over the test's head:
   a reminder that a placed scene needs the map cleared round it.
 
+- **The Hollow: an infantry map for ambush and fire and movement (plan, 2026-10-30, "go").** The user's idea
+  after the two squad orders: a small map for soldier squads only, dense trees and buildings, few direct lines
+  of sight, ridges and gullies, where squads ambush with hold fire and advance with attack-move. Working name
+  The Hollow, `?map=hollow`; the name is a placeholder. Four steps, each playable:
+  - **H1, three engine pieces (about half a day).**
+    - *Thickets: cover you can walk through.* Today an obstacle blocks movement and sight together, and a tree
+      is a trunk, so a wood hides nothing it does not also wall off (Narva's woods block sight trunk by trunk
+      in combat's exact test, but the vision grid wants an eighth of a cell covered). A `thicket` prop
+      (`{ kind: 'thicket', x, z, w, d, h: 2.2, walk: 0.55 }`) becomes one obstacle box flagged `thicket`:
+      in `world.obstacles` so combat's tall grid and the vision grid treat it as a 2.2 m wall for sight;
+      skipped by the foot nav grid's `build` and `refresh` and by `isBlocked` for soldiers, so infantry walk
+      through; kept on the vehicle and amphibian grids. Inside one a soldier walks at `walk` of his speed
+      (a coarse thicket grid in the world, read in `Unit.update` beside the road check). Drawn as a dense
+      cluster of swaying shrub instances with a few trunks, no collision of their own. Suppression and cover
+      unchanged: a thicket is concealment, not cover. About 50 lines across world, nav, combat, vision, units
+      and the gl world.
+    - *Infantry only, and a map-set ticket pool.* `map.infantryOnly` hides every vehicle item in the force
+      builder, strips vehicles from presets with the points refunded into squads (five squads at most), and
+      the CPU's counter-pick stays among infantry presets; the lobby card says "Infantry only". `map.tickets`
+      sets the pool the way `clock` sets the length (`Mode.tickets` reads it; 200 here). Without supply
+      trucks there are no FOBs, sandbags or guns: rally points are the spawn. About 30 lines.
+    - *A CPU that ambushes.* The strategist's `screen` and `hold` squads, and a reserve, hold fire when no
+      enemy is in sight at their post (set when the order is given, dropped by the combat tick when sprung,
+      never set on an attack). Checked in a CPU-v-CPU batch that it does not cost the CPU matches on the
+      open maps. About 15 lines.
+  - **H2, the blockout (a day).** 500 m, north up, laid out in (x, z) like Desert Crossing.
+    - Two ridges run north to south, crests at x = -150 and x = 150, 14 to 18 m above the gully floor at
+      x = 0, rounded, with four side draws cut into each flank (a draw every 100 m, 3 to 5 m deep) so the
+      flanks are a maze of dead ground. The gully floor carries a stream bed and a dirt track along z.
+    - Bases: BLUFOR at (-210, -210) behind the north end of the west ridge, OPFOR at (210, 210) behind the
+      south end of the east ridge, radius 30; each sits in a bowl with one way in over the ridge end and one
+      along the gully, so a first wave cannot sit on a spawn with a view of it.
+    - Three places: the Hamlet at (0, 0), radius 22, on the gully floor; West Clearing at (-150, 60),
+      radius 18, on the west crest; East Clearing at (150, -60), radius 18, on the east crest. West Clearing
+      touches BLUFOR's base, East Clearing OPFOR's, the Hamlet links both. Holding the Hamlet and your own
+      clearing is the majority; the other clearing is the deep raid. Advance and Secure, 12 minutes, 200
+      tickets, 20 tickets a place lost.
+    - Woods: thickets over both ridge flanks and the draws, pines and birches from the Narva kit inside
+      them and in loose copses on the floor, the two clearings and the hamlet green bare. Lines of sight
+      under 80 m nearly everywhere; across a clearing 120 m and along the floor at the hamlet 100 m, the
+      two killing grounds.
+    - Acceptance: a sim-test that samples 2,000 random pairs of points 40 to 120 m apart finds line of
+      sight on fewer than a quarter; the walk from either base to the Hamlet is 280 to 320 m by the nav
+      grid; no pocket on the foot grid; the first plan of either CPU paths every squad in under 150 ms.
+  - **H3, the dressing (a day).** Five whitewashed cottages and the church from Peninsula's kit round the
+    green, stone walls along the lane for low cover, two sheds, a well; a ruined barn on each clearing;
+    stone-walled pens on the draws; the track's fords; fog-of-war ambience (the mist emitter). Vox
+    landmarks only if something earns one. Screenshots for the README table.
+  - **H4, balance and the CPU (half a day).** The seeded batch with Light and Balanced (infantry only) on
+    both sides, 3 seeds, both bases; mirrors even by side within 55/45 or the layout moves; the CPU's
+    ambushes watched in a CPU-v-CPU trace (how often a screen squad springs on an enemy inside 20 m); the
+    player side checked by hand on the iPad with the touch harness. Then the guide's Maps page and the
+    README map section.
+  - Not in the plan: vehicles of any kind, air, landing craft, FOB logistics; the CPU learning to stalk
+    through thickets (it routes by the nav grid, so it walks the gully and the draws like anyone).
+
 ## Open questions
 
 None open. Answered:
