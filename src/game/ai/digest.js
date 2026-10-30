@@ -50,7 +50,7 @@ export function buildDigest(match, team, remote = null) {
   // enemy helicopters in the air (left out of the groups above): where we see them, or last saw them
   const air = known.filter(u => u.spec && u.spec.air && u.alt > 2).map(u => ({ id: u.label, near: nearLoc(u.pos.x, u.pos.z), lastSeen: u.ghost ? r(u.age) : undefined }));
   const traps = { ours: U.filter(u => u.type === 'traps' && u.team === team && !u.dead).map(u => nearLoc(u.pos.x, u.pos.z)), theirs: known.filter(u => u.type === 'traps').map(u => nearLoc(u.pos.x, u.pos.z)) };   // rows of tank traps: they stop every vehicle, ours too
-  const said = { captured: 'captured', lost: 'lost', fob: 'built a FOB', sandbags: 'dug in with sandbags', traps: 'laid tank traps', 'traps cleared': 'cleared tank traps', 'rally lost': 'lost a rally point', emplacement: 'set up an emplacement', 'cache revealed': 'found a cache at', 'cache destroyed': 'destroyed the cache at' };
+  const said = { captured: 'captured', lost: 'lost', fob: 'built a FOB', sandbags: 'dug in with sandbags', traps: 'laid tank traps', 'traps cleared': 'cleared tank traps', 'sandbags cleared': 'cleared a sandbag position', 'rally lost': 'lost a rally point', emplacement: 'set up an emplacement', 'cache revealed': 'found a cache at', 'cache destroyed': 'destroyed the cache at' };
   // trends from the 5 s history: tickets 1, 2 and 3 minutes ago, losses per minute over the last 3 minutes, locations that changed hands in the last 5
   const H = m.history, last = m.sample(), ago = (sec) => { const want = m.elapsed - sec; let best = H[0] || last; for (const h of H) if (h[0] <= want) best = h; return best; };
   const tk = (h) => [h[1 + team], h[2 - team]], span = Math.max(0.5, Math.min(3, m.elapsed / 60)), base = ago(180);

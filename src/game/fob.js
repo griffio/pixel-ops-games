@@ -1,6 +1,6 @@
 import { RULES } from './rules.js';
 import { sandbagBoxes, trapBoxes, emplacementBoxes, TRAPS } from '../core/models.js';
-import { roadDist, roadAlong } from '../core/math.js';
+import { roadDist, roadAlong, pathDist } from '../core/math.js';
 
 // Forward operating bases: an engineer within range of a supply truck that holds
 // enough supplies builds a FOB (radio + spawn point) over buildTime seconds.
@@ -29,6 +29,7 @@ export class Fobs {
     if (this.builds.some(b => (b.kind === 'emplacement' || b.kind === 'sandbags') && b.team === team && Math.hypot(b.x - x, b.z - z) < R.minSpacing)) return { reason: 'too close to another build', fob };
     if (this.units.nav && this.units.nav.foot.blocked(x, z)) return { reason: 'no room here', fob };
     if (roadDist(this.world.map, x, z) < R.roadClear) return { reason: 'too close to the road', fob };
+    const xr = this.onCrossing(x, z); if (xr) return { reason: xr, fob };
     return { fob };
   }
   // at: the spot the CPU chose, used when the engineer stands within 3 m of it (he stops a little short of a point)
@@ -50,6 +51,15 @@ export class Fobs {
     eng.building = b; eng.hold = true; eng.target = null; eng.dest = null; eng.path = null;
     this.builds.push(b); return { ok: true, build: b };
   }
+  // Bags never go where they would shut a crossing: the road check keeps them off roads, this keeps them off bridge decks
+  // (any bridge, within m of its edges) and the railway, which the road check does not know (the Rail Bridge on Narva is
+  // railway, and a position on its 10 m deck once closed it to every vehicle for the rest of the match)
+  onCrossing(x, z, m = 6) {
+    const B = this.world.bridges || [];
+    for (const b of B) { const dx = x - b.x, dz = z - b.z, c = Math.cos(b.angle), s = Math.sin(b.angle); if (Math.abs(dx * s + dz * c) <= b.len / 2 + m && Math.abs(dx * c - dz * s) <= b.w / 2 + m) return 'not on a bridge'; }
+    const rail = this.world.map && this.world.map.rail; if (rail && rail.length > 1 && pathDist(rail, x, z) < RULES.sandbags.roadClear) return 'too close to the railway';
+    return null;
+  }
   // Improvised sandbag position: the same crew as a FOB (an engineer by a supply truck), cheaper and quicker, no kit
   canBuildSandbags(eng) {
     const r = RULES.sandbags;
@@ -62,6 +72,7 @@ export class Fobs {
     const enemyBase = this.teams[1 - eng.team].base; if (Math.hypot(enemyBase.x - eng.pos.x, enemyBase.z - eng.pos.z) < r.enemyBaseDistance) return { ok: false, reason: 'too close to the enemy main base' };
     if (this.units.nav && this.units.nav.foot.blocked(eng.pos.x, eng.pos.z)) return { ok: false, reason: 'no room here' };
     if (roadDist(this.world.map, eng.pos.x, eng.pos.z) < r.roadClear) return { ok: false, reason: 'too close to the road' };   // it would block our own convoys
+    const x = this.onCrossing(eng.pos.x, eng.pos.z); if (x) return { ok: false, reason: x };
     return { ok: true, truck };
   }
   startSandbags(eng) {
@@ -108,16 +119,24 @@ export class Fobs {
     eng.building = b; eng.hold = true; eng.target = null; eng.dest = null; eng.path = null;
     this.builds.push(b); return { ok: true, build: b };
   }
+  // the sandbag position (anyone's) nearest a point, within r of its centre
+  sandbagsAt(x, z, r = RULES.sandbags.clearRange) {
+    let best = null, bd = r;
+    for (const s of this.units.units) { if (s.type !== 'sandbags' || s.dead) continue; const d = Math.hypot(s.pos.x - x, s.pos.z - z); if (d < bd) { bd = d; best = s; } }
+    return best;
+  }
+  // an engineer clears the row of traps he stands at, or failing that the sandbag position: either side's
   canClear(eng) {
     if (!eng || eng.dead || eng.kit !== 'engineer' || eng.mounted) return { ok: false, reason: 'needs an engineer' };
     if (eng.building) return { ok: false, reason: 'already working' };
-    const traps = this.trapsAt(eng.pos.x, eng.pos.z); if (!traps) return { ok: false, reason: `no traps within ${RULES.traps.clearRange} m` };
-    if (this.builds.some(b => b.kind === 'clear' && b.traps === traps)) return { ok: false, reason: 'already being cleared' };
-    return { ok: true, traps };
+    const traps = this.trapsAt(eng.pos.x, eng.pos.z), sandbags = traps ? null : this.sandbagsAt(eng.pos.x, eng.pos.z);
+    if (!traps && !sandbags) return { ok: false, reason: `no traps or sandbags within ${RULES.traps.clearRange} m` };
+    if (this.builds.some(b => b.kind === 'clear' && (traps ? b.traps === traps : b.sandbags === sandbags))) return { ok: false, reason: 'already being cleared' };
+    return { ok: true, traps, sandbags };
   }
   startClear(eng) {
     const c = this.canClear(eng); if (!c.ok) return c;
-    const t = RULES.traps.clearTime, b = { kind: 'clear', eng, traps: c.traps, team: eng.team, x: eng.pos.x, z: eng.pos.z, t, total: t };
+    const t = c.traps ? RULES.traps.clearTime : RULES.sandbags.clearTime, b = { kind: 'clear', eng, traps: c.traps || null, sandbags: c.sandbags || null, team: eng.team, x: eng.pos.x, z: eng.pos.z, t, total: t };
     eng.building = b; eng.hold = true; eng.target = null; eng.dest = null; eng.path = null;
     this.builds.push(b); return { ok: true, build: b };
   }
@@ -151,7 +170,7 @@ export class Fobs {
   tick(dt) {
     for (let i = this.builds.length - 1; i >= 0; i--) {
       const b = this.builds[i], e = b.eng;
-      const cancel = e.dead || e.mounted || Math.hypot(e.pos.x - b.x, e.pos.z - b.z) > 3 || (b.truck && (b.truck.dead || Math.hypot(b.truck.pos.x - b.x, b.truck.pos.z - b.z) > RULES.fob.buildRange + 5)) || (b.traps && b.traps.dead);
+      const cancel = e.dead || e.mounted || Math.hypot(e.pos.x - b.x, e.pos.z - b.z) > 3 || (b.truck && (b.truck.dead || Math.hypot(b.truck.pos.x - b.x, b.truck.pos.z - b.z) > RULES.fob.buildRange + 5)) || (b.traps && b.traps.dead) || (b.sandbags && b.sandbags.dead);
       if (cancel) { e.building = null; e.hold = false; this.builds.splice(i, 1); continue; }
       b.t -= dt; if (b.t > 0) continue;
       e.building = null; e.hold = false; this.builds.splice(i, 1);
@@ -161,7 +180,7 @@ export class Fobs {
         if (this.onTraps) this.onTraps(u, trapBoxes(b.rx, b.rz, b.h));
         continue;
       }
-      if (b.kind === 'clear') { if (this.onTrapsCleared) this.onTrapsCleared(b.traps, b.team); continue; }
+      if (b.kind === 'clear') { if (b.sandbags) { if (this.onSandbagsCleared) this.onSandbagsCleared(b.sandbags, b.team); } else if (this.onTrapsCleared) this.onTrapsCleared(b.traps, b.team); continue; }
       if (b.kind === 'emplacement') {
         b.truck.supplies -= RULES.emplacement[b.gun].supplyCost;
         const eb = this.teams[1 - b.team].base, h = Math.atan2(eb.x - b.x, eb.z - b.z), pre = { hmg: 'MG', atgm: 'AT', mortar: 'MO' }[b.gun];

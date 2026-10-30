@@ -120,6 +120,12 @@ export function smooth(points, iterations = 2) {
 // Metres from the centre line of the nearest of a map's roads as drawn (roadPath, and each entry of roads that is not a
 // dirt track, smoothed); Infinity on a map without one.
 const roadLines = new WeakMap();
+// the distance from (x, z) to a polyline of [x, z] points (a railway, a path)
+export function pathDist(P, x, z) {
+  let best = Infinity;
+  for (let i = 0; i < P.length - 1; i++) { const [ax, az] = P[i], [bx, bz] = P[i + 1], l2 = (bx - ax) ** 2 + (bz - az) ** 2 || 1, t = Math.max(0, Math.min(1, ((x - ax) * (bx - ax) + (z - az) * (bz - az)) / l2)); best = Math.min(best, Math.hypot(x - (ax + (bx - ax) * t), z - (az + (bz - az) * t))); }
+  return best;
+}
 export function roadDist(map, x, z) {
   if (!map) return Infinity;
   let L = roadLines.get(map);

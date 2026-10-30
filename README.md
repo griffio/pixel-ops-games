@@ -219,7 +219,10 @@ truck or APC, or right-click it (on a touch screen, hold on it; a plain tap on a
 vehicle selects it). Infantry and a vehicle selected together board at once on
 **L**. After Load the vehicle becomes the selection, ready to drive. The soldiers
 walk to it (a ground vehicle's tail) and get in once it has stopped or landed, and
-anyone past the seats stays behind. They stay aboard however often the vehicle
+anyone past the seats stays behind. Only the men within 60 m of the squad member
+nearest the vehicle go: a squad standing together all walk over, while a man back
+from a respawn at the base gets into a vehicle there alone and his squadmates at
+the front keep their orders (Load used to march the whole squad back). They stay aboard however often the vehicle
 stops, until **U** (or the Unload button) lets them out, stopping a ground vehicle
 where it is. A helicopter you send somewhere does not land: it circles there (30 m
 out, 8 m/s), its door gun working on everything in reach, until **U** (Land and
@@ -270,7 +273,11 @@ up to four soldiers walk in through the back and take a slot each (the rest stay
 put), hold it, and face out over the bags. Manned, a soldier is about a third as
 likely to be hit from the front and sides (against a half behind any low cover)
 and takes half the suppression; through the open rear he has no protection. Any
-other order, or **U** (the Leave position button), takes them out. The CPU digs
+other order, or **U** (the Leave position button), takes them out. A position never
+goes on a road, a bridge deck or the railway, so a crossing cannot be shut by one, and
+any engineer standing at a position clears it with **X** in 8 s, the enemy's included
+(a CPU position on Narva's Rail Bridge once closed the deck to vehicles for the rest
+of the match). The CPU digs
 in the same way at the location it holds, up to three positions there (in front
 of the middle and on both flanks, off the road), preferably in a lull and after
 its FOB while it has a kit; it mans them, keeps the manning squads in place and

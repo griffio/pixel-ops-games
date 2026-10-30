@@ -64,6 +64,7 @@ export class Match {
     this.fobs.onBuilt = (fob) => this.event({ type: 'fob', team: fob.team, fob });
     // a finished sandbag position becomes low cover: obstacles for movement, cover for combat; anyone caught inside a bag steps out
     this.fobs.onSandbags = (u, boxes) => {
+      u.sbBoxes = boxes;
       for (const o of boxes) { this.world.obstacles.push(o); this.nav.foot.block(o, 0.3); this.nav.vehicle.block(o); if (this.nav.amphib) this.nav.amphib.block(o); this.combat.addLow(o); }   // a tighter foot pad keeps the inside of the U open
       for (const v of this.units.units) {
         if (v.dead || v === u || v.spec.structure || !v.spec.nav || Math.hypot(v.pos.x - u.pos.x, v.pos.z - u.pos.z) > 7) continue;
@@ -101,6 +102,20 @@ export class Match {
       u.dead = true; u.remove = true;
       if (B.length) this.nav.vehicle.refresh(Math.min(...B.map(o => o.minX)), Math.max(...B.map(o => o.maxX)), Math.min(...B.map(o => o.minZ)), Math.max(...B.map(o => o.maxZ)));
       this.event({ type: 'traps cleared', team });
+    };
+    // a sandbag position cleared by an engineer: its crew step out, its bags stop being obstacles and cover, and the grids
+    // round it are worked out again, so a crossing it shut is open
+    this.fobs.onSandbagsCleared = (u, team) => {
+      for (const s of this.units.units) if (s.post && s.post.sb === u) s.leavePost();
+      const O = this.world.obstacles, B = u.sbBoxes || [];
+      for (const o of B) { const i = O.indexOf(o); if (i >= 0) O.splice(i, 1); }
+      u.dead = true; u.remove = true;
+      if (B.length) {
+        const x0 = Math.min(...B.map(o => o.minX)), x1 = Math.max(...B.map(o => o.maxX)), z0 = Math.min(...B.map(o => o.minZ)), z1 = Math.max(...B.map(o => o.maxZ));
+        for (const g of [this.nav.foot, this.nav.vehicle, this.nav.amphib]) if (g) g.refresh(x0, x1, z0, z1);
+        this.combat.rebuildGrids();
+      }
+      this.event({ type: 'sandbags cleared', team });
     };
     this.combat.onDeath = (v, k) => {
       this.respawn.onDeath(v, k);

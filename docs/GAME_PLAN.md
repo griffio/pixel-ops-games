@@ -2674,6 +2674,20 @@ Engine changes needed in the existing core:
   or a suppression bar; if suppression wants showing, a "Pinned" word on the card when the
   squad's average `supp` passes 0.5 is a few lines.
 
+- **Two fixes from a Narva game against Opus (2026-10-30).** The user's APC took the Rail Bridge but could not cross
+  it: the CPU's engineer had dug sandbags "at the first place we hold" on the deck, since the road rule knows nothing
+  of the railway or bridge decks, and a position is indestructible with no way to clear it. Now `Fobs.onCrossing`
+  refuses a sandbag position or emplacement on any bridge deck (6 m margin) or within 10 m of the railway, the CPU's
+  dig spots keep 10 m off both, and any engineer standing at a position clears it in 8 s, either side's, with the
+  traps key or button (`canClear` finds traps first, then a position; `onSandbagsCleared` steps the crew out, drops
+  its boxes from the obstacles and the cover grid and reworks the three grids over them). Second, Load on a split
+  squad marched the men at the front back to the vehicle: a respawned man at base rejoins on foot, so selecting
+  the squad and loading him into an APC at base dragged the other three home. `Squad.board` now takes the men within
+  60 m of the member nearest the vehicle and returns how many stay; the toast says so. Checked headless on Narva: the
+  deck and the rail end are refused, Friendship Bridge by the road rule as before; a position built by the base
+  blocks the vehicle grid, an engineer clears it (26 boxes gone, grid open, the unit removed, one event); a squad
+  with one man at base boards 1 and keeps 3, standing together boards 4.
+
 ## Open questions
 
 None open. Answered:

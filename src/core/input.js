@@ -155,11 +155,12 @@ export class Input {
   }
   // the selected soldiers' squads walk to vehicle u and get in
   board(u) {
-    const squads = new Set(); for (const s of this.selected) if (s.type === 'soldier') (s.squad ? squads.add(s.squad) : s.board(u));
-    for (const sq of squads) sq.board(u);
-    const want = this.selected.filter(s => s.type === 'soldier' && !s.mounted && !s.dead).length, room = u.seats - u.passengers.length;
+    const squads = new Set(); let want = 0, far = 0;
+    for (const s of this.selected) if (s.type === 'soldier') { if (s.squad) squads.add(s.squad); else if (!s.mounted && !s.dead) { s.board(u); want++; } }
+    for (const sq of squads) { const r = sq.board(u); want += r.n; far += r.far; }   // a split squad: only the men near the vehicle go
+    const room = u.seats - u.passengers.length;
     u.dropOnArrive = false; u.dropOnLand = false;   // aboard until Unload (U), however often it stops or lands
-    this.hud.toast(`Boarding ${u.label}${want > room ? ` (${room} seat${room === 1 ? '' : 's'}; the rest stay)` : ''}: ${u.spec.air ? 'fly it, land, then Unload (U)' : 'drive it, then Unload (U)'}`);
+    this.hud.toast(`Boarding ${u.label}${want > room ? ` (${room} seat${room === 1 ? '' : 's'}; the rest stay)` : ''}${far ? ` (${far} far off stay where they are)` : ''}: ${u.spec.air ? 'fly it, land, then Unload (U)' : 'drive it, then Unload (U)'}`);
   }
   // Load (L or the button): soldiers selected with a vehicle that has room board it at once; otherwise the next tap or click on
   // one of our vehicles is the one they board (pressing Load again, or Esc, cancels)

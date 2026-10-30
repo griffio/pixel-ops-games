@@ -508,7 +508,15 @@ export class Squad {
     for (const m of this.members) { if (m.dead) continue; const [ox, oz] = offs[i++ % offs.length]; m.order(x + ox * c + oz * s, z - ox * s + oz * c); }
   }
   get busy() { return this.members.some(m => !m.dead && (m.dest || m.boardTarget)); }
-  board(c) { for (const m of this.members) if (!m.dead && !m.mounted) m.board(c); }
+  // Into vehicle c: the men within 60 m of the member nearest it. A squad standing together all go; a man back from a
+  // respawn a long way from the rest goes alone when the vehicle is at him, and the rest keep their orders (a Load at the
+  // base used to march the whole squad back from the front). Returns how many go and how many stay.
+  board(c) {
+    const live = this.members.filter(m => !m.dead && !m.mounted); if (!live.length) return { n: 0, far: 0 };
+    const d = (m) => Math.hypot(m.pos.x - c.pos.x, m.pos.z - c.pos.z), near = Math.min(...live.map(d)); let n = 0;
+    for (const m of live) if (d(m) <= near + 60) { m.board(c); n++; }
+    return { n, far: live.length - n };
+  }
   man(sb) { let n = 0; for (const m of this.members) if (!m.dead && !m.mounted && m.man(sb)) n++; return n; }   // into a sandbag position, as many as it has slots
   get posted() { const a = this.members.filter(m => !m.dead); return a.length > 0 && a.every(m => m.post); }
   get mounted() { const a = this.members.filter(m => !m.dead); return a.length > 0 && a.every(m => m.mounted); }

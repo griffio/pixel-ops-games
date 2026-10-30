@@ -610,7 +610,7 @@ export class Strategist {
       const face = ([x, z]) => ((x - hold.x) * ex + (z - hold.z) * ez) / (Math.hypot(x - hold.x, z - hold.z) || 1);
       for (const [x, z] of hold.defend.filter(p => face(p) > -0.35).sort((a, b) => face(b) - face(a))) {
         if (N.blocked(x, z) || N.inPocket(x, z)) continue;
-        if (mine.some(s => Math.hypot(s.pos.x - x, s.pos.z - z) < RULES.sandbags.minSpacing + 1) || roadDist(this.match.world.map, x, z) < RULES.sandbags.roadClear + 4 || this.armourNear(x, z, 150) || this.enemiesNear(x, z, 40).length) continue;
+        if (mine.some(s => Math.hypot(s.pos.x - x, s.pos.z - z) < RULES.sandbags.minSpacing + 1) || roadDist(this.match.world.map, x, z) < RULES.sandbags.roadClear + 4 || this.match.fobs.onCrossing(x, z, 10) || this.armourNear(x, z, 150) || this.enemiesNear(x, z, 40).length) continue;
         return [x, z];
       }
       return null;
@@ -619,7 +619,7 @@ export class Strategist {
       let x = hold.x + (ex * a + ez * c) * k, z = hold.z + (ez * a - ex * c) * k;
       if (N.blocked(x, z)) { const cell = N.nearest(N.cellOf(x), N.cellOf(z), 6); if (!cell) continue; x = N.world(cell[0]); z = N.world(cell[1]); }
       if (N.inPocket(x, z)) continue;                                                   // somewhere the engineer can walk to
-      if (mine.some(s => Math.hypot(s.pos.x - x, s.pos.z - z) < RULES.sandbags.minSpacing + 1) || roadDist(this.match.world.map, x, z) < RULES.sandbags.roadClear + 4 || this.armourNear(x, z, 150) || this.enemiesNear(x, z, 40).length) continue;
+      if (mine.some(s => Math.hypot(s.pos.x - x, s.pos.z - z) < RULES.sandbags.minSpacing + 1) || roadDist(this.match.world.map, x, z) < RULES.sandbags.roadClear + 4 || this.match.fobs.onCrossing(x, z, 10) || this.armourNear(x, z, 150) || this.enemiesNear(x, z, 40).length) continue;
       return [x, z];
     }
     return null;
