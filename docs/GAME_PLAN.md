@@ -2649,6 +2649,31 @@ Engine changes needed in the existing core:
   clamps its target to the ground, so a unit at height h is centred by moving the target
   h / tan(pitch) along the view direction.
 
+- **Post-release: two infantry postures (decided 2026-10-30).** Asked whether the game should have
+  attack and defend postures, and whether soldiers are suppressed. Suppression is in and works:
+  every round that lands or cracks past near a soldier raises `u.supp` (explosions 0.4 within
+  9 m, a machine-gun burst 0.1 a round within 4 m, heavy single rounds 0.25, rifle fire 0.07,
+  double for the man aimed at, half for a man settled at sandbags), a suppressed man aims up to
+  40% worse, kneels then goes flat, crawls at a third of his speed and is 40% harder to hit
+  lying down; the CPU counts a pinned squad at half strength. The player sees it only as the red
+  card edge (a man over 0.35) and the men going prone. "Defend" is already what every unit
+  does: sent somewhere, it stays and shoots what comes into range, and nothing pursues on its
+  own. Two postures are missing and are parked until after the release, in this order:
+  1. **Attack-move to ground.** Infantry on the move only stop for an enemy inside about 18 m
+     (`combat.js`, the `u.hold` rule), so a squad sent across a field walks through fire instead
+     of going to ground and fighting back. The order: a modifier key (and a command-bar button,
+     so the touch layer has it) that marks the move as an attack, and the hold rule then uses the
+     weapon's full hold range on the way; the roster card says "Advancing"; the guide and README
+     each gain a line. The CPU keeps its own routes. About 40 lines.
+  2. **Hold fire.** Soldiers shoot at anything in range and the shot reveals them
+     (`combat.js` reveals the shooter to the team it fires at), so an ambush cannot be set. A
+     toggle on the squad's command bar; the combat tick skips a squad holding fire unless an
+     enemy comes inside grenade range or the squad is fired on; the card says "Holding fire".
+     The CPU never uses it. About 30 lines.
+  Not planned: an aggressive or pursue setting for vehicles (the game is hands-off by design),
+  or a suppression bar; if suppression wants showing, a "Pinned" word on the card when the
+  squad's average `supp` passes 0.5 is a few lines.
+
 ## Open questions
 
 None open. Answered:
