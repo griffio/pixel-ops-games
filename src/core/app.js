@@ -89,6 +89,10 @@ export function runLoop(app) {
   // ?warp=N pre-steps the simulation N seconds so screenshots can start mid-action (silently)
   const warp = +(new URLSearchParams(location.search).get('warp') || 0);
   for (let t = 0; t < warp; t += 0.05) { app.world.update(0.05); app.units.update(0.05); if (app.match) app.match.update(0.05); app.dust.update(0.05); app.markers.update(0.05); }
+  // ?follow=<label> starts the camera following that unit (LB-01, SQ-03); ?hud=0 hides everything but the view: both for screenshots
+  { const q = new URLSearchParams(location.search), f = q.get('follow'), u = f && app.units.units.find(u => u.label === f && !u.dead);
+    if (u) { app.rts.fly = null; app.rts.follow = u; app.rts.target.set(u.pos.x, 0, u.pos.z); }
+    if (q.get('hud') === '0') for (const el of document.body.children) if (el.id !== 'view') el.style.visibility = 'hidden'; }
   app.audio = new AudioEngine(app); if (app.match) app.match.attachAudio(app.audio);
 
   let W = 0, H = 0;

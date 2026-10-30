@@ -2633,6 +2633,13 @@ Engine changes needed in the existing core:
     8.4 / 15.8 (164), the harbour 8.6 / 17.9 (332), the lighthouse 7.6 / 14.2 (212), Narva at
     the castle 9.7 / 13.4 (291). The vox landmarks and the rings cost nothing to speak of.
 
+- **Ship week, day 6: release checks (2026-10-30).** A regression batch before the release build:
+  every preset against Balanced and against itself (13 pairings), seeds 101 and 102, both sides, on
+  all four maps: 208 matches, no page errors, none unfinished. Sides by base: Palm Valley 25-27,
+  Desert 23-29, Narva 27-25, Peninsula 20-32 (the attacker, with mirrors counted both ways). Two
+  URL parameters for screenshots: `follow=<label>` starts the camera on a unit, `hud=0` hides
+  everything but the view.
+
 ## Open questions
 
 None open. Answered:
