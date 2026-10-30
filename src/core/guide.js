@@ -48,7 +48,7 @@ const PAGES = [
   { title: 'Squads', body: (t, k) => `
     <p>Squads of four, each man with a kit: <b>rifle</b>; <b>machine gun</b>, which pins a squad down; <b>anti-tank</b>, rockets that kill vehicles from 90 m; <b>medic</b>, who revives a fallen squadmate within ${REVIVE_WINDOW} s; <b>engineer</b>, who repairs vehicles and builds FOBs and sandbags; <b>marksman</b>, who picks off infantry at 110 m.</p>
     <p>Soldiers kneel to shoot and go flat under heavy fire. A <b>suppressed</b> squad shoots badly and crawls: machine guns and explosions do that.</p>
-    <p><b>Cover</b>: a wall or rock right in front of a soldier halves his chance of being hit; buildings and hills block sight and fire.</p>
+    <p><b>Cover</b>: a wall or rock right in front of a soldier halves his chance of being hit; buildings and hills block sight and fire. <b>Thickets</b> (the woods on The Hollow) block sight like a wall but not bullets or men: infantry push through at half pace, see out from the edge, and a man inside is seen only from within 20 m or once he fires.</p>
     <p>A fallen soldier comes back after ${RS.soldier} s, with squadmates who fell about the same time, for ${T.soldier} ticket. Where he comes back is the next page.</p>` },
   { title: 'Spawns: FOBs and rally points', body: (t, k) => `
     <p>Every fallen soldier walks back to the fight from where he comes back, so <b>where your spawns are decides how fast an attack refills</b>. He comes back at the one nearest his squad (nearest where he fell, if the whole squad is down).</p>

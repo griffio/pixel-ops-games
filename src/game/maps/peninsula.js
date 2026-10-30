@@ -95,7 +95,7 @@ export const peninsula = {
     const onRoad = (x, z, extra = 0) => lines.some(l => near(x, z, l.P, l.clear + extra));
     const inland = (x, z) => coastDistance(LAND, x, z)[0];   // metres from the coast, + on land
     const K = makeKit({ r, rd, onRoad: (x, z) => onRoad(x, z) });
-    const { props, obstacles, box, part, footprint, cyl, sandbagRing, containers, floodlight, watchtower, radioMast, pine, birch, bush, scrub } = K;
+    const { props, obstacles, cottage, church, box, part, footprint, cyl, sandbagRing, containers, floodlight, watchtower, radioMast, pine, birch, bush, scrub } = K;
     const placed = [], take = (x, z, rad) => placed.push([x, z, rad]);
     const busy = (x, z, rad) => onRoad(x, z, rad) || inland(x, z) < rad + 8 || this.locations.some(l => Math.hypot(x - l.x, z - l.z) < l.r + 12 + rad) || this.bases.some(b => Math.hypot(x - b.x, z - b.z) < 70 + rad)
       || placed.some(([px, pz, pr]) => Math.hypot(px - x, pz - z) < pr + rad + 3);
@@ -111,23 +111,7 @@ export const peninsula = {
 
     // ---- buildings of the coast: whitewashed cottages under slate roofs stepped like voxels, a church, harbour sheds
     const WALLS = [0xebe8de, 0xdfd9cb, 0xe6e0d2, 0xcfc8b8], ROOF = [0x4f5359, 0x5a4b45, 0x464a50], DOORS = [0x3d5a6e, 0x6e3a32, 0x3f5e3f], GLASS = 0x2c3138;
-    const cottage = (x, z, w, d, rot, floors = 1) => {   // ridge along local x, door and windows on the long faces, a chimney on one gable
-      const Q = (lx, ly, lz, bw, bh, bd, m) => part(x, z, rot, lx, ly, lz, bw, bh, bd, m), h = 3.1 * floors;
-      const wall = WALLS[Math.floor(rd() * WALLS.length)], roof = ROOF[Math.floor(rd() * ROOF.length)], du = (rd() < 0.5 ? -1 : 1) * w / 4;
-      Q(0, 0, 0, w, h, d, wall); footprint(w, d, x, z, rot, h + 2.4, true);
-      for (let k = 0; k < 4; k++) Q(0, h + k * 0.62, 0, w + 0.5, 0.62, +((d + 0.7) * (1 - k / 4.3)).toFixed(2), roof);
-      Q(w / 2 - 0.8, h, 0, 0.9, 3.4, 0.9, wall); Q(w / 2 - 0.8, h + 3.4, 0, 1.0, 0.2, 1.0, 0x6b6660);
-      rd();   // (the hearth smoke that used to be rolled here is gone; the roll stays so the rest of the village keeps its layout)
-      Q(du, 0, -d / 2 - 0.04, 1.0, 2.1, 0.08, DOORS[Math.floor(rd() * DOORS.length)]);
-      for (const s of [-1, 1]) for (let fl = 0; fl < floors; fl++) for (const u of [-w / 3, 0, w / 3]) if (!(s < 0 && fl === 0 && Math.abs(u - du) < 1.4)) Q(u, fl * 3.1 + 1.1, s * (d / 2 + 0.03), 0.9, 1.0, 0.06, GLASS);
-    };
-    const church = (x, z, rot) => {   // a nave and a square tower with a stepped spire at its west end
-      const Q = (lx, ly, lz, bw, bh, bd, m) => part(x, z, rot, lx, ly, lz, bw, bh, bd, m);
-      Q(0, 0, 0, 18, 6, 9, 0xd9d3c4); for (let k = 0; k < 5; k++) Q(0, 6 + k * 0.8, 0, 18.4, 0.8, +(9.8 * (1 - k / 5.4)).toFixed(2), 0x4c5056);
-      Q(-11, 0, 0, 5, 13, 5, 0xcfc8b8); for (let k = 0; k < 5; k++) Q(-11, 13 + k * 1.4, 0, +(5.4 * (1 - k / 5)).toFixed(2), 1.4, +(5.4 * (1 - k / 5)).toFixed(2), 0x4c5056);
-      for (const s of [-1, 1]) for (const u of [-5, 0, 5]) Q(u, 2, s * 4.53, 1.0, 2.6, 0.06, GLASS);
-      Q(-13.53, 0, 0, 0.08, 3, 1.6, 0x5b3a2a); footprint(23, 9, x, z, rot, 20);
-    };
+    // (the cottage and the church builders moved into kit.js on 2026-10-30, for The Hollow; the same rd() calls, so the village keeps its layout)
     const shed = (x, z, w, d, rot, col) => {   // a harbour warehouse: corrugated walls, a low stepped roof, big doors to the quay (its -x face)
       const Q = (lx, ly, lz, bw, bh, bd, m) => part(x, z, rot, lx, ly, lz, bw, bh, bd, m);
       Q(0, 0, 0, w, 7, d, col); for (let k = 0; k < 3; k++) Q(0, 7 + k * 0.6, 0, +((w + 0.6) * (1 - k / 3.4)).toFixed(2), 0.6, d + 0.4, 0x6a6e70);

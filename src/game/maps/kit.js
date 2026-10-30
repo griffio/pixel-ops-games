@@ -518,6 +518,60 @@ export function makeKit({ r, rd, onRoad = () => false }) {
     if (merlons) for (let u = -len / 2 + 1; u <= len / 2 - 0.5; u += 2.2) Q(0, h, u, t, 1.2, 1.1, cols[1]);
     for (let k = 0; k < Math.round(len / 9); k++) { const u = (rd() - 0.5) * (len - 6), y = 1 + rd() * (h - 4), side = rd() < 0.5 ? -1 : 1; Q(side * (t / 2 + 0.03), y, u, 0.06, 1.5 + rd() * 2.5, 2 + rd() * 4, rd() < 0.4 ? MOSS : cols[2]); }
   };
+
+  // ---- a countryside set (Peninsula's village, The Hollow): whitewashed cottages under slate roofs stepped like voxels, a
+  // church, dry-stone field walls (low cover), a stone pen, a ruined barn, a water mill
+  const COT = { WALLS: [0xebe8de, 0xdfd9cb, 0xe6e0d2, 0xcfc8b8], ROOF: [0x4f5359, 0x5a4b45, 0x464a50], DOORS: [0x3d5a6e, 0x6e3a32, 0x3f5e3f], GLASS: 0x2c3138 };
+  const cottage = (x, z, w, d, rot, floors = 1) => {   // ridge along local x, door and windows on the long faces, a chimney on one gable
+    const Q = (lx, ly, lz, bw, bh, bd, m) => part(x, z, rot, lx, ly, lz, bw, bh, bd, m), h = 3.1 * floors;
+    const wall = COT.WALLS[Math.floor(rd() * COT.WALLS.length)], roof = COT.ROOF[Math.floor(rd() * COT.ROOF.length)], du = (rd() < 0.5 ? -1 : 1) * w / 4;
+    Q(0, 0, 0, w, h, d, wall); footprint(w, d, x, z, rot, h + 2.4, true);
+    for (let k = 0; k < 4; k++) Q(0, h + k * 0.62, 0, w + 0.5, 0.62, +((d + 0.7) * (1 - k / 4.3)).toFixed(2), roof);
+    Q(w / 2 - 0.8, h, 0, 0.9, 3.4, 0.9, wall); Q(w / 2 - 0.8, h + 3.4, 0, 1.0, 0.2, 1.0, 0x6b6660);
+    rd();   // (the hearth smoke that used to be rolled here is gone; the roll stays so the rest of the village keeps its layout)
+    Q(du, 0, -d / 2 - 0.04, 1.0, 2.1, 0.08, COT.DOORS[Math.floor(rd() * COT.DOORS.length)]);
+    for (const s of [-1, 1]) for (let fl = 0; fl < floors; fl++) for (const u of [-w / 3, 0, w / 3]) if (!(s < 0 && fl === 0 && Math.abs(u - du) < 1.4)) Q(u, fl * 3.1 + 1.1, s * (d / 2 + 0.03), 0.9, 1.0, 0.06, COT.GLASS);
+  };
+  const church = (x, z, rot) => {   // a nave and a square tower with a stepped spire at its west end
+    const Q = (lx, ly, lz, bw, bh, bd, m) => part(x, z, rot, lx, ly, lz, bw, bh, bd, m);
+    Q(0, 0, 0, 18, 6, 9, 0xd9d3c4); for (let k = 0; k < 5; k++) Q(0, 6 + k * 0.8, 0, 18.4, 0.8, +(9.8 * (1 - k / 5.4)).toFixed(2), 0x4c5056);
+    Q(-11, 0, 0, 5, 13, 5, 0xcfc8b8); for (let k = 0; k < 5; k++) Q(-11, 13 + k * 1.4, 0, +(5.4 * (1 - k / 5)).toFixed(2), 1.4, +(5.4 * (1 - k / 5)).toFixed(2), 0x4c5056);
+    for (const s of [-1, 1]) for (const u of [-5, 0, 5]) Q(u, 2, s * 4.53, 1.0, 2.6, 0.06, COT.GLASS);
+    Q(-13.53, 0, 0, 0.08, 3, 1.6, 0x5b3a2a); footprint(23, 9, x, z, rot, 20);
+  };
+  // a dry-stone wall from (x0, z0) to (x1, z1): one course the length of the run and a ragged top of loose stones, t thick,
+  // h high; it blocks movement and, at 1 m, is low cover
+  const fieldWall = (x0, z0, x1, z1, h = 1.0, t = 0.5) => {
+    const len = Math.hypot(x1 - x0, z1 - z0), rot = Math.atan2(x1 - x0, z1 - z0), cx = (x0 + x1) / 2, cz = (z0 + z1) / 2;
+    const Q = (lx, ly, lz, w, hh, d, m) => part(cx, cz, rot, lx, ly, lz, w, hh, d, m);
+    Q(0, 0, 0, t, h, len, GREYST[0]); footprint(t, len, cx, cz, rot, h);
+    for (let u = -len / 2 + 0.6; u < len / 2 - 0.4; u += 1.1 + rd() * 0.6) Q(0, h, u, t + 0.06, 0.12 + rd() * 0.16, 0.6 + rd() * 0.5, rd() < 0.3 ? MOSS : GREYST[1 + Math.floor(rd() * 2)]);
+  };
+  // a stone-walled pen, w by d in its own frame, open along its +lz side
+  const pen = (x, z, rot, w = 10, d = 8) => {
+    const F = frameOf(x, z, rot), W = (ax, az, bx, bz) => fieldWall(...F(ax, az), ...F(bx, bz));
+    W(-w / 2, -d / 2, w / 2, -d / 2); W(-w / 2, -d / 2, -w / 2, d / 2); W(w / 2, -d / 2, w / 2, d / 2);
+  };
+  // a barn with three walls left standing at different heights and its roof down inside: cover and a sight block on a crest
+  const ruinedBarn = (x, z, rot, w = 10, d = 6) => {
+    const Q = (lx, ly, lz, bw, bh, bd, m) => part(x, z, rot, lx, ly, lz, bw, bh, bd, m), F = frameOf(x, z, rot), col = GREYST[0];
+    Q(-w / 2, 0, 0, 0.5, 2.6, d, col); footprint(0.5, d, ...F(-w / 2, 0), rot, 2.6);
+    Q(0, 0, -d / 2, w, 1.7, 0.5, col); footprint(w, 0.5, ...F(0, -d / 2), rot, 1.7);
+    Q(w / 2, 0, 0, 0.5, 1.0, d * 0.6, col); footprint(0.5, d * 0.6, ...F(w / 2, 0), rot, 1.0);
+    Q(-1, 0, 0.5, w * 0.6, 0.5, d * 0.5, 0x5a4b45); Q(1.5, 0.5, -0.5, 0.3, 0.3, d * 0.7, TIMBERB);
+  };
+  // a two-storey stone mill under a slate roof, its water wheel on its -lx side
+  const mill = (x, z, rot) => {
+    const Q = (lx, ly, lz, bw, bh, bd, m) => part(x, z, rot, lx, ly, lz, bw, bh, bd, m), F = frameOf(x, z, rot), w = 9, d = 7, h = 6.2;
+    Q(0, 0, 0, w, h, d, GREYST[1]); footprint(w, d, x, z, rot, h + 2.4, true);
+    for (let k = 0; k < 4; k++) Q(0, h + k * 0.62, 0, w + 0.5, 0.62, +((d + 0.7) * (1 - k / 4.3)).toFixed(2), COT.ROOF[0]);
+    for (const s of [-1, 1]) for (const fl of [0, 1]) for (const u of [-w / 3, w / 3]) Q(u, fl * 3.1 + 1.1, s * (d / 2 + 0.03), 0.9, 1.0, 0.06, COT.GLASS);
+    Q(-w / 4, 0, -d / 2 - 0.04, 1.2, 2.3, 0.08, COT.DOORS[1]);
+    const [wx, wz] = F(-w / 2 - 1.2, 0);
+    props.push({ geo: 'cyl:2.6,2.6,0.5,12', color: TIMBERB, x: wx, y: 2.3, z: wz, rot: [0, rot, Math.PI / 2], cast: true, ax: x, az: z });
+    props.push({ geo: 'cyl:0.5,0.5,1.6,8', color: DARK, x: wx, y: 2.3, z: wz, rot: [0, rot, Math.PI / 2], cast: false, ax: x, az: z });
+    footprint(1.4, 5.2, wx, wz, rot, 4.9);
+  };
   const stepRoof = (Q, lx, ly, lz, w, d, h, steps, cols) => { for (let k = 0; k < steps; k++) { const f = 1 - k / steps; Q(lx, ly + k * h / steps, lz, +(w * f).toFixed(2), +(h / steps).toFixed(2), +(d * f).toFixed(2), cols[k % cols.length]); } };   // a pyramid in voxel steps
   const flag = (Q, lx, ly, lz, col = 0xb5432f) => { Q(lx, ly, lz, 0.14, 3, 0.14, 0x4a4a4a); Q(lx + 0.6, ly + 2.2, lz, 1.1, 0.7, 0.06, col); };
   // Hermann Castle: a square of limestone curtain walls round a grass court, red gallery roofs stepped down inside the walls,
@@ -728,5 +782,5 @@ export function makeKit({ r, rd, onRoad = () => false }) {
     }
     { const [ox, oz] = W(px, 0); footprint(3.8, 3.8, ox, oz, rot, 28); }
   };
-  return { props, obstacles, lamps, tufts, decals, emitters, bridge, box, damWorks, hydroHall, switchyard, townHall, stationBuilding, car, fountain, hermannCastle, fortress, millBuilding, millRace, panelBlock, panelTower, garages, pine, birch, boxcar, tankWagon, platform, chimney, footprint, part, BAG, bagStack, BLOCK, blockWall, palm, bush, rock, PLASTER, house, controlTower, wallRun, MESH, hesco, shade, container, cyl, tilt, CONC, stains, watchtower, hangar, barracks, fuelTank, floodlight, radioMast, equipmentHut, FRUIT, stall, STONE, well, sandbagRing, containers, scrub, TRIM, WOOD, DOOR, DARK, STAIN, TIN, TIMBER, STEEL, DARKM };
+  return { props, obstacles, lamps, tufts, decals, emitters, bridge, box, damWorks, hydroHall, switchyard, townHall, stationBuilding, car, fountain, hermannCastle, fortress, millBuilding, millRace, panelBlock, panelTower, garages, pine, birch, boxcar, tankWagon, platform, chimney, footprint, part, BAG, bagStack, BLOCK, blockWall, palm, bush, rock, PLASTER, house, controlTower, wallRun, MESH, hesco, shade, container, cyl, tilt, CONC, stains, watchtower, hangar, barracks, fuelTank, floodlight, radioMast, equipmentHut, FRUIT, stall, STONE, well, sandbagRing, containers, scrub, cottage, church, fieldWall, pen, ruinedBarn, mill, TRIM, WOOD, DOOR, DARK, STAIN, TIN, TIMBER, STEEL, DARKM };
 }

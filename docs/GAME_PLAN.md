@@ -2762,7 +2762,7 @@ Engine changes needed in the existing core:
     - Acceptance: a sim-test that samples 2,000 random pairs of points 40 to 120 m apart finds line of
       sight on fewer than a quarter; the walk from either base to the Hamlet is 280 to 320 m by the nav
       grid; no pocket on the foot grid; the first plan of either CPU paths every squad in under 150 ms.
-  - **H3, the dressing (a day).** Five whitewashed cottages and the church from Peninsula's kit round the
+  - **H3, the dressing (a day). Done 2026-10-30, see below.** Five whitewashed cottages and the church from Peninsula's kit round the
     green, stone walls along the lane for low cover, two sheds, a well; a ruined barn on each clearing;
     stone-walled pens on the draws; the track's fords; fog-of-war ambience (the mist emitter). Vox
     landmarks only if something earns one. Screenshots for the README table.
@@ -2822,6 +2822,22 @@ Engine changes needed in the existing core:
   engineer rows are hidden, and `fitMap` now turns anti-tank and engineer squads into rifles (nothing to shoot
   rockets at or to build): the saved Balanced force comes out as six rifle, one support and one medic squad. The
   thumbnail is from `tools/make-map-thumbs.mjs`.
+
+- **H3 done (2026-10-30).** The kit gained a countryside set: Peninsula's cottage and church moved into it verbatim
+  (the same `rd()` calls, so Peninsula's props and obstacles hash exactly as before: 6,711 and 1,042), plus
+  `fieldWall` (a dry-stone run with a ragged top, 1 m, low cover), `pen` (three walls open on one side), `ruinedBarn`
+  (three walls at 2.6, 1.7 and 1.0 m, the roof down inside) and `mill` (two storeys of stone under slate, a water
+  wheel on its -x side). The Hollow's lane now forks round the hamlet green (a loop that turns onto itself, so the
+  ring stays symmetric; the track used to run through the church), the church stands at the very centre with its nave
+  along x, three pairs of cottages, a well and a trough, and five pairs of walls line the lane and the gardens; a
+  ruined barn and a wall on each clearing; a byre at the Ford and the mill at the Mill, wheel to the stream bed;
+  stone pens in the mouths of the six inner draws; a cottage and a wall at each base; mist along the stream bed
+  (off the green) and up the draws under a low morning sun (hour 8.4). The guide's cover line explains thickets.
+  Measured again: sight on 20% of random pairs 40 to 120 m apart; no pockets; base to Hamlet 306 and 321 m (the
+  church now sits on the zone's centre, so the two paths end at different sides of it). Three README frames shot
+  with `tools/shoot.mjs` on CPU matches: the fight for the Hamlet under its ring, a squad firing from a hedgerow,
+  West Clearing's barn ringed by woods. Lesson: the first dressing pass ran the track through the church; look at
+  the frame before trusting the coordinates.
 
 ## Open questions
 

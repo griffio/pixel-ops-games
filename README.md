@@ -34,6 +34,13 @@ pixels chunkier while the camera rotates freely. No build step.
 <td><img src="docs/screenshots/capture-ring.webp" alt="A dashed red ring around the Village on Peninsula with an APC firing and a truck inside it, cottages around the ring and one burning at the corner"><br><sub><b>Capture rings.</b> The Village under capture: the ring goes dashed in the taker's colour until the place turns.</sub></td>
 </tr>
 <tr>
+<td><img src="docs/screenshots/hollow-hamlet.webp" alt="A whitewashed church on a green inside a looping lane, slate-roofed cottages and dry-stone walls round it, a squad fighting at the church's west end inside the grey capture ring, woods beyond"><br><sub><b>The Hollow.</b> The fight for the Hamlet: the church on its green inside the lane, the ring grey while nobody holds it.</sub></td>
+<td><img src="docs/screenshots/hollow-hedge.webp" alt="A squad firing from a hedgerow of bushes towards a fight round a cottage and the church, tracers crossing the lane"><br><sub><b>The Hollow.</b> A squad opens up from a hedgerow on the floor: thickets hide a squad until it fires.</sub></td>
+</tr>
+<tr>
+<td colspan="2"><img src="docs/screenshots/hollow-clearing.webp" alt="A ruined stone barn and a wall stub in a grassy clearing on a crest, ringed on every side by dense pine and birch woods"><br><sub><b>The Hollow.</b> West Clearing on its crest, the one open ground on that side: a ruined barn for cover, woods all round.</sub></td>
+</tr>
+<tr>
 <td colspan="2"><img src="docs/screenshots/hud.webp" alt="The match screen on Narva: squads by a block of flats beside the railway, the places bar and tickets along the top, reinforcements and settings at the right, the unit strip and the minimap along the bottom"><br><sub><b>The match HUD</b> (Narva, fog of war on): the places and tickets along the top, reinforcements at the right, the unit strip and the minimap below.</sub></td>
 </tr>
 </table>

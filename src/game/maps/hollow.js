@@ -12,7 +12,8 @@ import { makeKit } from './kit.js';
 const CREST_X = 150, CREST_Z = 140, RIDGE = { w: 70, h: 16 };
 const turn = (k) => { const o = { ...k }; for (const key of ['x', 'z', 'x1', 'z1', 'x2', 'z2']) if (o[key] !== undefined) o[key] = -o[key]; return o; };   // the same feature on the other side
 const sym = (list) => list.flatMap(k => [k, turn(k)]);
-const TRACK = [[-215, -215], [-150, -220], [-60, -195], [-10, -120], [0, -40], [0, 40], [10, 120], [60, 195], [150, 220], [215, 215]];
+const TRACK = [[-215, -215], [-150, -220], [-60, -195], [-10, -120], [0, -44], [-20, -22], [-20, 22], [0, 44], [10, 120], [60, 195], [150, 220], [215, 215]];
+const LOOP = [[0, 44], [20, 22], [20, -22], [0, -44]];   // the lane's other arm round the hamlet green: the track's turn, so the ring is symmetric
 // draws: dead ground cut into the flanks, three into each ridge's gully side and two into its outer side (centre lines)
 const DRAWS = sym([
   { type: 'ridge', x1: -150, z1: -110, x2: -70, z2: -95, w: 14, h: -5, p: 0.7 },
@@ -24,7 +25,7 @@ const DRAWS = sym([
 
 export const hollow = {
   name: 'The Hollow', size: 500, mode: 'aas', infantryOnly: true, tickets: 200, clock: 12,
-  hour: 10.5, wind: [0.5, 0.8],
+  hour: 8.4, wind: [0.5, 0.8],   // a low morning sun, mist in the gully
   blurb: 'Infantry only: two wooded ridges and the gully between, a hamlet on the floor, a clearing on each crest. Ambush, or be ambushed.',
   nav: { foot: 1, vehicle: 2 },
   splatRes: 512,
@@ -60,12 +61,12 @@ export const hollow = {
   build() {
     const r = rand(5051), rd = rand(6163), strips = [], thickets = [];
     const T = new Terrain(this.size, 4, { ...this.terrain, flats: this.flats });   // the heights the world will build, to place by height
-    const track = smooth(TRACK, 2), draws = DRAWS.map(d => [[d.x1, d.z1], [d.x2, d.z2]]);
+    const track = smooth(TRACK, 2), loop = smooth(LOOP, 2), draws = DRAWS.map(d => [[d.x1, d.z1], [d.x2, d.z2]]);
     const near = (x, z, P, clear) => { for (let i = 0; i < P.length - 1; i++) { const [ax, az] = P[i], [bx, bz] = P[i + 1], t = Math.max(0, Math.min(1, ((x - ax) * (bx - ax) + (z - az) * (bz - az)) / ((bx - ax) ** 2 + (bz - az) ** 2))); if (Math.hypot(x - (ax + (bx - ax) * t), z - (az + (bz - az) * t)) < clear) return true; } return false; };
-    const onTrack = (x, z, extra = 0) => near(x, z, track, 5 + extra);
+    const onTrack = (x, z, extra = 0) => near(x, z, track, 5 + extra) || near(x, z, loop, 5 + extra);
     const inDraw = (x, z, extra = 0) => draws.some(d => near(x, z, d, 7 + extra));
     const K = makeKit({ r, rd, onRoad: (x, z) => onTrack(x, z) });
-    const { props, obstacles, lamps, tufts, decals, emitters, box, house, pine, birch, rock, well, scrub } = K;
+    const { props, obstacles, lamps, tufts, decals, emitters, box, pine, birch, rock, well, scrub, cottage, church, fieldWall, pen, ruinedBarn, mill } = K;
     const placeFree = (x, z, m) => !this.locations.some(l => Math.hypot(x - l.x, z - l.z) < l.r + m) && !this.bases.some(b => Math.hypot(x - b.x, z - b.z) < b.r + m);
     // a bush with no collision of its own (the kit's blocks the foot grid): three swaying cylinders, as the kit draws one
     const bushAt = (x, z, s = 0.9 + r() * 0.5) => { for (const [ox, oz, rr, h] of [[0, 0, 1.3, 1.6], [0.9, 0.5, 0.9, 1.2], [-0.8, 0.6, 1.0, 1.1]]) props.push({ geo: 'cyl:' + (rr * s).toFixed(2) + ',' + (rr * s * 1.15).toFixed(2) + ',' + (h * s).toFixed(2) + ',7', tex: 'bush', x: x + ox * s, y: h * s / 2, z: z + oz * s, rot: [0, 0, 0], cast: true, sway: true }); };
@@ -96,19 +97,29 @@ export const hollow = {
     for (let i = 0; i < 5; i++) { const x = -(r() * 200), z = (r() - 0.5) * 420, h = T.height(x, z); if (h > 2.5 || onTrack(x, z, 10) || !placeFree(x, z, 26)) continue; for (const s of [1, -1]) for (let k = 0; k < 4 + r() * 4; k++) { const tx = s * (x + (r() - 0.5) * 24), tz = s * (z + (r() - 0.5) * 24); if (!onTrack(tx, tz, 4)) (r() < 0.5 ? pine : birch)(tx, tz); } }
     for (let i = 0; i < 40; i++) { const x = (r() - 0.5) * 460, z = (r() - 0.5) * 460, h = T.height(x, z); if (h < 3 || h > 14 || onTrack(x, z, 6) || !placeFree(x, z, 6)) continue; rock(x, z); }
     for (let i = 0; i < 14; i++) { const x = (r() - 0.5) * 400, z = (r() - 0.5) * 400; if (T.height(x, z) < 3 && !onTrack(x, z, 8)) scrub(x, z, 14 + r() * 14, 40); }
-    // ---- the hamlet (blockout: the kit's plain houses round a green, a well, low field walls along the lane; H3 dresses it)
-    { const H = this.locations[2], lowWall = (x, z, len, rot) => box(len, 1.1, 0.5, 0x8a8478, x, z, { rot });
-      house(H.x - 16, H.z + 10, 8, 7, 1, 0.15); house(H.x + 13, H.z + 13, 7, 9, 1, -0.2); house(H.x + 15, H.z - 11, 9, 7, 1, 0.1); house(H.x - 13, H.z - 15, 7, 7, 1, -0.1); house(H.x + 1, H.z + 26, 8, 8, 1, 0.05);
-      well(H.x + 2, H.z - 1);
-      lowWall(H.x - 24, H.z - 2, 22, Math.PI / 2 + 0.1); lowWall(H.x + 26, H.z + 1, 24, Math.PI / 2 - 0.1); lowWall(H.x - 4, H.z - 26, 20, 0.05); lowWall(H.x + 8, H.z + 34, 18, -0.05); }
-    // ---- the ford: stepping stones and a wall; the mill: a tall house by the stream (blockout)
-    { const F = this.locations[1], M = this.locations[3]; for (let k = 0; k < 5; k++) rock(F.x - 8 + k * 4, F.z + (k % 2) * 2); box(12, 1.0, 0.5, 0x8a8478, F.x - 14, F.z + 10, { rot: 0.3 });
-      house(M.x + 10, M.z - 6, 9, 7, 2, 0.05); box(12, 1.0, 0.5, 0x8a8478, M.x - 12, M.z + 8, { rot: -0.3 }); }
-    // ---- the clearings: a ruined barn and a wall stub each, cover on the crest
-    for (const l of [this.locations[0], this.locations[4]]) { const s = l.z > 0 ? 1 : -1; box(10, 2.6, 6, 0x6b5a48, l.x + 6 * s, l.z - 8 * s, { rot: 0.3 * s }); box(9, 1.0, 0.5, 0x8a8478, l.x - 8 * s, l.z + 6 * s, { rot: Math.PI / 2 + 0.2 * s }); }
-    // ---- the bases: a hut and a wall each
-    for (const b of this.bases) { const s = b.x > 0 ? 1 : -1; house(b.x + 14 * s, b.z - 12 * s, 7, 6, 1, 0.1); box(14, 1.1, 0.5, 0x8a8478, b.x - 16 * s, b.z + 10 * s, { rot: 0.2 }); }
-    strips.push({ points: TRACK, width: 5, tex: 'track', vRepeat: 5, smooth: 2, y: 0.02, cutout: true });
+    // ---- the hamlet: the church on the green at the very centre (its nave along x, so it turns onto itself but for the
+    // tower), three pairs of cottages turned through the centre, a well and a trough, field walls along the lane and
+    // round the gardens, every wall paired with its turn
+    { const H = this.locations[2];
+      church(H.x, H.z, 0);
+      for (const [x, z, w, d, rot] of [[-30, 10, 8, 6, 1.5], [-7, 29, 9, 6, 0.05], [31, -6, 7, 8, 1.6]]) { cottage(H.x + x, H.z + z, w, d, rot); cottage(H.x - x, H.z - z, w, d, rot + Math.PI); }
+      well(H.x - 12, H.z - 9); box(2.4, 0.7, 1.0, 0x8a847a, H.x + 12, H.z + 9, { rot: 0.4 });   // the well, and a stone trough across the green
+      for (const [x0, z0, x1, z1] of [[-25, -24, -25, 2], [-36, 18, -24, 24], [-18, 36, 2, 38], [24, -30, 34, -16], [27, 4, 27, 16]]) { fieldWall(H.x + x0, H.z + z0, H.x + x1, H.z + z1); fieldWall(H.x - x0, H.z - z0, H.x - x1, H.z - z1); } }
+    // ---- the ford: stepping stones over the bed and a byre; the mill: the mill with its wheel to the stream; a wall each
+    { const F = this.locations[1], M = this.locations[3];
+      for (let k = 0; k < 5; k++) rock(F.x - 8 + k * 4, F.z + (k % 2) * 2);
+      cottage(F.x - 12, F.z - 9, 8, 6, 0.2); fieldWall(F.x - 20, F.z + 6, F.x - 6, F.z + 12);
+      mill(M.x + 13, M.z + 9, 0.2); fieldWall(M.x + 22, M.z - 6, M.x + 8, M.z - 12); }   // the wheel on its west side, to the stream bed
+    // ---- the clearings: a ruined barn and a run of wall each, cover on the crest
+    for (const l of [this.locations[0], this.locations[4]]) { const s = l.z > 0 ? 1 : -1; ruinedBarn(l.x + 6 * s, l.z - 8 * s, 0.3 * s); fieldWall(l.x - 9 * s, l.z + 2 * s, l.x - 7 * s, l.z + 12 * s); }
+    // ---- pens in the mouths of the inner draws (the three on each ridge's gully side): a wall round dead ground
+    for (const d of DRAWS) { if (Math.abs(d.x2) > 100) continue; const a = Math.atan2(d.x1 - d.x2, d.z1 - d.z2); pen(d.x2 + Math.sin(a) * 10, d.z2 + Math.cos(a) * 10, a + Math.PI / 2 + 0.3, 9, 7); }
+    // ---- the bases: a cottage and a wall each
+    for (const b of this.bases) { const s = b.x > 0 ? 1 : -1; cottage(b.x + 14 * s, b.z - 12 * s, 8, 6, 0.1 + (s < 0 ? 0 : Math.PI)); fieldWall(b.x - 22 * s, b.z + 8 * s, b.x - 10 * s, b.z + 12 * s); }
+    // ---- mist along the stream bed and up the draws, a morning haze that the sun burns through slowly
+    for (let z = -200; z <= 200; z += 40) if (Math.abs(z) > 50) emitters.push({ x: (r() - 0.5) * 10, y: 0.6, z: z + (r() - 0.5) * 10, kind: 'mist', k: 1.7, rate: 1.4 });   // not on the hamlet green
+    for (const d of DRAWS) if (Math.abs(d.x2) <= 100) emitters.push({ x: (d.x1 + d.x2) / 2, y: 0.8, z: (d.z1 + d.z2) / 2, kind: 'mist', k: 1.8, rate: 1.2 });
+    strips.push({ points: TRACK, width: 5, tex: 'track', vRepeat: 5, smooth: 2, y: 0.02, cutout: true }, { points: LOOP, width: 5, tex: 'track', vRepeat: 5, smooth: 2, y: 0.02, cutout: true });
     return { props, obstacles, lamps, emitters, tufts, decals, strips, thickets };
   },
   // the splat: dirt along the track and on the bare ground of the bases and the hamlet's lane, the rest meadow
@@ -120,7 +131,7 @@ export const hollow = {
     const stroke = (pts, width, style) => { g.strokeStyle = style; g.lineWidth = width * ppm; g.lineCap = 'round'; g.lineJoin = 'round'; g.beginPath(); pts.forEach(([x, z], i) => i ? g.lineTo(X(x), Z(z)) : g.moveTo(X(x), Z(z))); g.stroke(); };
     for (const b of this.bases) disc(b.x, b.z, 30, mix(0, 0, 0.55));
     disc(0, 0, 16, mix(0, 0, 0.4));
-    stroke(smooth(TRACK, 2), 7, mix(0, 0, 0.8));
+    stroke(smooth(TRACK, 2), 7, mix(0, 0, 0.8)); stroke(smooth(LOOP, 2), 7, mix(0, 0, 0.8));
     for (const l of [this.locations[0], this.locations[4]]) disc(l.x, l.z, 14, mix(0, 0, 0.25));
     for (const l of [this.locations[1], this.locations[3]]) disc(l.x, l.z, 12, mix(0, 0, 0.35));
   },
