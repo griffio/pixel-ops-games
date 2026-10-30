@@ -179,7 +179,9 @@ export class Combat {
   // the weapon a unit fires: its kit, or the gun of the emplacement it mans once in place
   gunOf(u) { const p = u.post; return p && p.settled && p.sb.gun && !p.sb.dead ? p.sb.gun : u.kit; }
   tick(dt) {
-    for (const u of this.units.units) {
+    const U = this.units.units, n = U.length, back = (this.tickNo = (this.tickNo || 0) + 1) & 1;   // forward one tick, backward the next: no side aims and fires first every time
+    for (let i = 0; i < n; i++) {
+      const u = U[back ? n - 1 - i : i];
       if (u.dead || !u.kit || u.mounted) continue;
       const kit = this.gunOf(u), w = WEAPONS[kit];
       if (u.armed !== kit) { if (u.armed !== undefined) { u.enemy = null; u.burst = 0; u.retarget = 0; } u.armed = kit; }   // took over or left a gun

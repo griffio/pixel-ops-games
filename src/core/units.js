@@ -573,8 +573,9 @@ export class UnitManager {
   clear() { for (const u of this.units) this.scene.remove(u.group); this.units = []; this.squads = []; }
 
   update(dt) {
-    const w = this.world;
-    for (const u of this.units) {
+    const w = this.world, U = this.units, n = U.length, back = (this.tickNo = (this.tickNo || 0) + 1) & 1;   // forward one tick, backward the next: no side moves first every time
+    for (let i = 0; i < n; i++) {
+      const u = U[back ? n - 1 - i : i];
       u.step(dt, w);
       if (!this.dust || dt <= 0 || u.dead || u.spec.naval) continue;   // no dust off a craft at sea
       if (u.swimming) { if (Math.abs(u.speed) > 0.8) this.dust.wake(u.pos.x, w.terrain.water + 0.05, u.pos.z, u.heading, Math.abs(u.speed), 3.2, 9, dt); } else this.dust.fromUnit(u, dt);

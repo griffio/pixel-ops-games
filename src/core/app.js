@@ -51,12 +51,13 @@ export function populate(app) {
     app.commanderModel = q.get('model') || null;
     app.aiModes = (q.get('ai') || '').split(','); app.personas = (q.get('persona') || '').split(',');   // ?ai=rules for the older planner (default utility; per team: utility,rules), ?persona=balanced|aggressive|patient   // ?model=<key> picks a model from the Worker's allow-list (llama, gpt-oss-120b, qwen3-30b, mistral-small)
     app.startMatch = (playerLoadout, modeOpts = {}) => {
-      const cpuKey = q.get('cpuloadout') || counterPick(playerLoadout);
+      const cpuKey = q.get('cpuloadout') || (app.world.map && app.world.map.infantryOnly ? 'light' : counterPick(playerLoadout));   // on an infantry-only map the CPU brings Light Infantry: the vehicle doctrines have nothing to spend on, and Light's half-price men won every infantry pairing
       const fixed = app.world.map && app.world.map.mode;   // a map made for one mode (Peninsula: Invasion, attacked from its first base)
       const mode = fixed || q.get('mode') || modeOpts.mode || 'aas', difficulty = q.get('difficulty') || modeOpts.difficulty || 'normal';
       if (!q.has('commander') && modeOpts.commander !== undefined) { app.commanderUrl = modeOpts.commander ? '/commander' : null; app.commanderModel = modeOpts.commander || null; }   // the lobby's Opponent (a link's ?commander= wins)
       let side = q.get('side') || modeOpts.side || 'attack', swap = q.get('swap') === '1';
       if (fixed) { if (side === 'defend') swap = !swap; side = swap ? 'defend' : 'attack'; }   // its first base always attacks: defending, or ?swap=1, plays from the other base
+      app.cpuAmbush = q.get('cpuambush') !== '0';   // ?cpuambush=0: the CPU's posts never hold fire (a balance check)
       if (app.world.map && q.get('infantry') === '1') app.world.map.infantryOnly = true;   // ?infantry=1: any map for infantry only; ?tickets=N: the pool
       if (app.world.map && q.has('tickets')) app.world.map.tickets = +q.get('tickets') || undefined;
       // ?swap=1 plays the sides the other way round (BLUFOR from the NE base, lattice reversed): a balance check for CPU-vs-CPU runs

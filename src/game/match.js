@@ -213,7 +213,7 @@ export class Match {
     this.support.tick(dt);
     this.fobs.tick(dt);
     this.mode.tick(dt);
-    for (const s of this.strategists) s.tick(dt);
+    for (const s of ((this.tickNo = (this.tickNo || 0) + 1) & 1) ? [...this.strategists].reverse() : this.strategists) s.tick(dt);   // neither commander plans first every tick
     if (this.voices) this.voices.tick(dt);
   }
   end(winner, reason) {

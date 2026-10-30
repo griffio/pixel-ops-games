@@ -29,7 +29,7 @@ export class Strategist {
     sq.goal = [x, z]; sq.tag = tag; sq.zone = zone;
     const via = careful ? this.detour(sq, c, x, z) : (sq.route = null);
     if (via) sq.order(via.x, via.z); else sq.order(x, z);
-    if (sq.setHoldFire) sq.setHoldFire(/^(hold|reserve|screen)/.test(tag) && !this.enemiesNear(x, z, 120).length);   // a quiet post is an ambush: hold fire until an enemy is at 20 m or the squad is fired on; an attack never holds
+    if (sq.setHoldFire) sq.setHoldFire(this.match.app.cpuAmbush !== false && /^(hold|reserve|screen)/.test(tag) && !this.enemiesNear(x, z, 120).length);   // a quiet post is an ambush: hold fire until an enemy is at 20 m or the squad is fired on; an attack never holds
   }
   // Known enemy fire, for routes: where we see enemies or last saw them, with the reach of their guns (a soldier in a group of
   // three or more 110 m, an APC 190, a tank 240, a machine-gun emplacement 150, an anti-tank one 220; the mortar is left out,

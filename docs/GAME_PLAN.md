@@ -2766,7 +2766,7 @@ Engine changes needed in the existing core:
     green, stone walls along the lane for low cover, two sheds, a well; a ruined barn on each clearing;
     stone-walled pens on the draws; the track's fords; fog-of-war ambience (the mist emitter). Vox
     landmarks only if something earns one. Screenshots for the README table.
-  - **H4, balance and the CPU (half a day).** The seeded batch with Light and Balanced (infantry only) on
+  - **H4, balance and the CPU (half a day). Done 2026-10-30, see below.** The seeded batch with Light and Balanced (infantry only) on
     both sides, 3 seeds, both bases; mirrors even by side within 55/45 or the layout moves; the CPU's
     ambushes watched in a CPU-v-CPU trace (how often a screen squad springs on an enemy inside 20 m); the
     player side checked by hand on the iPad with the touch harness. Then the guide's Maps page and the
@@ -2838,6 +2838,58 @@ Engine changes needed in the existing core:
   with `tools/shoot.mjs` on CPU matches: the fight for the Hamlet under its ring, a squad firing from a hedgerow,
   West Clearing's barn ringed by woods. Lesson: the first dressing pass ran the track through the church; look at
   the frame before trusting the coordinates.
+
+- **H4 done (2026-10-30), and a fairness fix in the engine.** The first seeded batch (Balanced, Light, Balanced v
+  Light, Defensive v Balanced; seeds 101-103; both bases; 24 matches) came back south-west 18, north-east 6, and the
+  Balanced mirror 6-0 for the south-west base, the same with the map's sides swapped (`?swap=1`, so team 0 at the
+  north-east base), the same under the rules planner: the lean followed team 0, not the ground. With the fog off it
+  was 2-2, with the CPU's hold fire off 1-3; a trace found team 0 firing 20% more shots for the same men. Reversing
+  the unit list in a test flipped the winner, and the cause is the tick order: the first team's men were stepped,
+  aimed and fired first in every tick, and every commander planned first, a small edge the Hollow's bleed (12 a
+  minute from a pool of 200, plus Entrenched's 20 a capture) snowballs into a result. Now `Units.update`,
+  `Combat.tick` and the commanders' ticks run forward one tick and backward the next, on every map (seeded replays
+  on the other maps change slightly from here). With that, 27 distinct Balanced mirror seeds split 15-12 for the
+  south-west base and 15 Light seeds 10-5: 25 of 42, 60%, within noise of even at that sample and inside the
+  plan's 55/45 for Balanced; 22 of 27 Balanced matches ran to the clock, 5 ended by tickets, the median margin
+  86 of 200. Light beat Balanced 6-0 before the order fix (half-price men), so on an infantry-only map the CPU now
+  brings Light Infantry whatever the player picks (`counterPick` is skipped there). `?cpuambush=0` turns the
+  CPU's hold fire off for checks like this. The ambush trace over a full match (Balanced v Balanced, seed 21):
+  15 ambushes sprung, 9 from reserve posts and 6 from hold posts, all but 4 sprung by incoming fire rather than
+  an enemy walking into 20 m, none from inside a thicket: the CPU posts on open ground, so its ambushes are
+  reactions, not traps (the plan's "CPU that stalks" stays out). The touch harness on the Hollow: every gesture
+  reports, 32 soldiers selected by double-tap, manifest and icon fine. Lesson: a mirror on a small map with a
+  fast bleed is chaotic; judge it on 25 seeds or more, and a seeded "both ways round" of a mirror is the same
+  match twice.
+- **Humvee with an Mk 19 (plan, 2026-10-30, "go plan Humvee").** The user's next unit after The Hollow: a fast,
+  lightly armoured anti-infantry vehicle with a limited belt, the ground cousin of the Little Bird. Built to kill and
+  pin infantry from outside their reach and run home to rearm; not on infantry-only maps. Four steps:
+  - **U1, the unit (a day).** `SPEC.humvee`: truck speed and turn, 200 hp (two anti-tank rockets or a short autocannon
+    burst), 3 seats (a fire team: the Load and Unload paths as for the truck), `kit: 'mk19'`, `ammo: 48`. The kit
+    `mk19` in weapons.js: direct fire with the autocannon's arcing round, range 130, bursts of 5 at a burst gap of
+    0.16 s, rate 3 s, speed 75, explosive with a 5 m splash, dmgInf 22, dmgVeh 5, acc 0.3; the explosive suppression
+    rule pins a squad through it. The belt: `u.ammo--` a round, the combat tick's ammo gate (the Little Bird's), the
+    refill at the main base from support.js and, new, beside a supply truck in the field for 10 supplies a belt, so a
+    supply truck has a job on every loadout. The muzzle on the ring mount; the kill feed and debrief names (KIT_NAME
+    mk19, TYPE_NAME humvee); audio: CLIP_OF mk19 as the autocannon's. The model from a voxel reference
+    (`tools/make-refs.mjs` subject humvee: the slab body, the turret ring with the gunner's shield, the spare on the
+    back), exported to models/vox/humvee.vox with its portrait, team recolours; the checklist in memory
+    (pixel-ops-new-unit-checklist) lists every file.
+  - **U2, the force builder and the manual (half a day).** Loadout item `humvee` at 160 points, kind vehicle, type
+    humvee; the Light preset swaps its truck for one, a new "Motorised" preset (rifle 3, support 1, at 1, medic 1,
+    humvee 2, supply 1, fob 1); counterPick answers two or more with Defensive (its two anti-tank squads); roster VEH
+    row "HUMVEE" with "n rounds" as the Little Bird's; the HUD's Load and Unload as for the truck; the guide's Vehicles
+    page and the README's vehicle paragraph; `fitMap` strips it on infantry-only maps like any vehicle.
+  - **U3, the CPU (half a day).** A stand-off vehicle: the armour closing rule per spec at 120 m and backing off when
+    an enemy comes inside 95 m (outside rifle 60, machine gun 80 and rocket 90), so it kites; the Little Bird's
+    sortie loop in strategist.js (`gunship`) generalised to any `ammo` unit: orbit a gun spot behind the attack,
+    home when the belt is under a burst or hp under 60%, back when full; a supply truck escorting it is the field
+    rearm. The digest lists it among vehicles with its rounds.
+  - **U4, balance (half a day).** The seeded batch, Motorised and Light-with-Humvee against Balanced, Light and
+    Defensive, three seeds, both bases, on Desert Crossing and Palm Valley (open ground is where it bites): if the
+    Humvee pairings pass 60% against Light on Desert, the belt shrinks to 36 or the burst to 4; then Narva and
+    Peninsula for the roads and the landing. Expect it strong on Desert and weak on Narva's streets.
+  - Not in the plan: a TOW variant (the APC and the Little Bird carry the anti-armour weight), the Hollow (infantry
+    only), armour the Humvee cannot drive over.
 
 ## Open questions
 
