@@ -241,6 +241,7 @@ export class Strategist {
         v.goal = [x, z]; v.order(x, z);
       } else if (v.type === 'heli') this.air(v, attack, base, perch, hold);
       else if (v.type === 'bird') this.gunship(v, attack, hold, land);
+      else if (v.type === 'humvee') this.motor(v, attack, hold, land);
       else if (v.type === 'truck' && !v.supply) {   // a troop truck runs squads to the attack, or to the hold when there is none
         const front = attack || hold;
         if (this.ride(v, free, front, land) || v.dest) continue;
@@ -462,9 +463,10 @@ export class Strategist {
       best.pinUntil = now + 6;
     }
     for (const v of this.units.units) {
-      if (v.team !== this.team || v.dead || (v.type !== 'apc' && v.type !== 'tank')) continue;
-      const keep = v.type === 'tank' ? 90 : 70;
-      const [e, d] = nearest(v.pos.x, v.pos.z); if (!e || d > 50 * k) continue;
+      if (v.team !== this.team || v.dead || (v.type !== 'apc' && v.type !== 'tank' && v.type !== 'humvee')) continue;
+      const keep = v.type === 'tank' ? 90 : v.type === 'humvee' ? 125 : 70, trigger = v.type === 'humvee' ? 95 : 50;   // the Humvee's skin is thin: it keeps outside rocket reach
+      if (v.type === 'humvee') { let a = null, ad = 180 * k; for (const p of apcs) { const dd = Math.hypot(p.pos.x - v.pos.x, p.pos.z - v.pos.z); if (dd < ad) { ad = dd; a = p; } } if (a) { const [x, z] = away(v.pos.x, v.pos.z, a, 220 * k - ad); v.goal = [x, z]; v.order(x, z); continue; } }   // and well clear of armour
+      const [e, d] = nearest(v.pos.x, v.pos.z); if (!e || d > trigger * k) continue;
       const [x, z] = away(v.pos.x, v.pos.z, e, keep * k - d); v.goal = [x, z]; v.order(x, z);
     }
     // soft vehicles: the perched helicopter takes off when it is hit or enemies or armour come close, and a supply truck
@@ -478,7 +480,7 @@ export class Strategist {
     // a fire-support helicopter goes home to the ground crew below 70% (one rocket does it), and moves off when an APC can
     // reach it or more than one launcher is about: to another firing point, or home if there is none
     for (const [h, l] of [...this.lifts]) {
-      if (!h.type || l.stage !== 'gun') continue;
+      if (!h.type || l.stage !== 'gun' || !h.spec.air) continue;   // a Humvee on station is motor()'s, not a hover point
       if (h.hp < h.maxHp * 0.7) { this.endLift(h); this.heliHome(h, base); continue; }
       if (this.exposed(h.pos.x, h.pos.z) <= 1 && this.exposed(l.at[0], l.at[1]) <= 1) continue;
       const spot = this.gunSpot(l.places, base);
@@ -731,6 +733,32 @@ export class Strategist {
     if (v.hp < v.maxHp * 0.95 || (v.ammo !== undefined && v.ammo < v.spec.ammo - 0.01)) return;   // patched up and rearmed first
     const spot = this.gunSpot([attack, hold], base);
     if (spot) { run(spot); this.lifts.set(v, { stage: 'gun', at: spot, places: [attack, hold], idle: 0, riders: [], squads: [] }); }
+  }
+  // The Humvee (SPEC.humvee): a stand-off vehicle. With its belt and hull sound it takes a point 120 m from the knot of enemy
+  // infantry nearest the place we push for or hold (outside rifle, machine-gun and rocket reach, inside the Mk 19's 130 m);
+  // caution() backs it off to 125 m from anything inside 95, and to 220 m from armour. With no enemy known near the front it
+  // parks short of the front on our side, which under Light Infantry makes it the doctrine's forward spawn, as the troop
+  // truck was. Home to rearm when the belt is under a burst or the hull under half (the belt refills parked in the base,
+  // support.js; an engineer about patches the hull), out again with the belt full.
+  motor(v, attack, hold, base) {
+    const lift = this.lifts.get(v), atBase = Math.hypot(v.pos.x - base.x, v.pos.z - base.z) < 50, empty = v.ammo !== undefined && v.ammo < 4, hurt = v.hp < v.maxHp * 0.5, front = attack || hold;
+    const home = () => { this.lifts.set(v, { stage: 'return', riders: [], squads: [] }); v.order(base.x + (Math.random() - 0.5) * 16, base.z + (Math.random() - 0.5) * 16); };
+    const go = (x, z, stage) => {
+      if (!this.vehicleReaches(v, x, z)) { const p = front && this.supportSpot(v, front, 130); if (!p) return; [x, z] = p; }
+      if (v.dest && v.goal && Math.hypot(v.goal[0] - x, v.goal[1] - z) < 12) return;
+      v.goal = [x, z]; v.order(x, z); this.lifts.set(v, { stage, riders: [], squads: [] });
+    };
+    if (lift && lift.stage === 'return') { if (atBase && !v.dest) this.lifts.delete(v); return; }
+    if (empty || hurt) { if (!atBase) home(); return; }
+    if (atBase && v.ammo !== undefined && v.ammo < v.spec.ammo - 0.01) return;             // rearmed first
+    if (!front) { if (!atBase && !v.dest) home(); return; }
+    const foes = this.enemiesNear(front.x, front.z, front.r + 140).filter(e => e.type === 'soldier'), c = this.cluster(foes);
+    if (c) {
+      const dx = c.x - v.pos.x, dz = c.z - v.pos.z, d = Math.hypot(dx, dz) || 1;
+      if (d >= 108 && d <= 132) { if (v.dest) { v.dest = null; v.path = null; v.target = null; } this.lifts.set(v, { stage: 'gun', riders: [], squads: [] }); return; }   // on station: the turret does the work
+      const k = (d - 120) / d; go(v.pos.x + dx * k, v.pos.z + dz * k, 'gun'); return;
+    }
+    const spot = this.quietSpot(base, front, 110, 80, 180); if (spot) go(spot[0], spot[1], 'park');
   }
   heliHome(heli, base) { heli.hover = false; heli.dropOnLand = true; heli.order(base.x + (Math.random() - 0.5) * 16, base.z + (Math.random() - 0.5) * 16); this.lifts.set(heli, { stage: 'return', riders: [], squads: [] }); }
   // Fire support: a hover point 40 m from the biggest knot of enemy infantry around the places we attack and hold, or around

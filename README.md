@@ -281,7 +281,10 @@ The CPU's own rides still drop their squad where the vehicle stops or lands. A t
 with troops aboard throws them out hurt; a helicopter shot down in the air takes
 them with it. The CPU uses a troop truck to ferry two squads from around base
 toward the attack, or toward the place it holds when it has none, stopping 120 m
-short; under Light Infantry the truck then stays parked at the drop as the
+short. Its Humvee stands 120 m off the nearest knot of enemy infantry at the front, backs
+away from anything inside 95 m and from armour, parks short of a quiet front (a Light
+Infantry spawn), and drives home to rearm when its belt is nearly out. Under Light
+Infantry the truck then stays parked at the drop as the
 doctrine's forward spawn, driving home when enemies come within 40 m or armour
 within 120 m and moving up when the front shifts more than 250 m, and an APC
 leaving base takes a squad with it; its helicopters fly anyone stranded at main base (waiting up to

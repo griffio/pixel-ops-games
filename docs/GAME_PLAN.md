@@ -2879,7 +2879,7 @@ Engine changes needed in the existing core:
     humvee 2, supply 1, fob 1); counterPick answers two or more with Defensive (its two anti-tank squads); roster VEH
     row "HUMVEE" with "n rounds" as the Little Bird's; the HUD's Load and Unload as for the truck; the guide's Vehicles
     page and the README's vehicle paragraph; `fitMap` strips it on infantry-only maps like any vehicle.
-  - **U3, the CPU (half a day).** A stand-off vehicle: the armour closing rule per spec at 120 m and backing off when
+  - **U3, the CPU (half a day). Done 2026-10-30, see below.** A stand-off vehicle: the armour closing rule per spec at 120 m and backing off when
     an enemy comes inside 95 m (outside rifle 60, machine gun 80 and rocket 90), so it kites; the Little Bird's
     sortie loop in strategist.js (`gunship`) generalised to any `ammo` unit: orbit a gun spot behind the attack,
     home when the belt is under a burst or hp under 60%, back when full; a supply truck escorting it is the field
@@ -2917,6 +2917,20 @@ Engine changes needed in the existing core:
   (Humvees carry 3), Vehicles and respawn-time lines name it; the README's force list and vehicle paragraph
   describe it. Checked headless: Light deploys a Humvee and no truck; a squad 15 m from the Humvee parked 300 m out
   respawns 5 m from it; the Desert lobby loads clean with the new row and preset.
+
+- **U3 done (2026-10-30).** `Strategist.motor` drives the CPU's Humvees: with the belt and hull sound it takes a point
+  120 m from the knot of enemy infantry nearest the place it pushes for or holds and stops there (the turret does the
+  work); with no enemy known near the front it parks at a quiet spot 110 m short of it on its own side, which under
+  Light Infantry is the doctrine's forward spawn, as the troop truck's park was; home when the belt is under a burst
+  or the hull under half, out again with the belt full (the belt refills parked in the base, support.js). `caution`
+  backs a Humvee off to 125 m from anything inside 95, and to 220 m from armour inside 180 (the APC's 50/70 rule,
+  scaled by posture as before), and its fire-support check now skips ground vehicles (a Humvee's station entry has
+  no hover point, which threw on the first run). The digest lists a Humvee's rounds. Six CPU minutes with
+  Motorised on one side: Palm Valley 144 shots, Desert 140, the Humvees on station about a quarter of the time,
+  parked forward most of the rest, and a fifth to a third of samples driving home to rearm: the belt lasts twelve
+  bursts, about 40 s of fire, and the base is 400 to 560 m away, so a sortie is mostly road. A supply truck riding
+  with it (the plan's field rearm) is the obvious next step if U4 finds it toothless. Light Infantry's own Humvee
+  on Palm Valley parked the whole match: its front saw no enemy. No errors on Palm Valley, Desert, Narva, Peninsula.
 
 ## Open questions
 
