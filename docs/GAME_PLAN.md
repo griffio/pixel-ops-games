@@ -2665,7 +2665,7 @@ Engine changes needed in the existing core:
      so the touch layer has it) that marks the move as an attack, and the hold rule then uses the
      weapon's full hold range on the way; the roster card says "Advancing"; the guide and README
      each gain a line. The CPU keeps its own routes. About 40 lines.
-  2. **Hold fire.** Soldiers shoot at anything in range and the shot reveals them
+  2. **Hold fire** (done 2026-10-30, below). Soldiers shoot at anything in range and the shot reveals them
      (`combat.js` reveals the shooter to the team it fires at), so an ambush cannot be set. A
      toggle on the squad's command bar; the combat tick skips a squad holding fire unless an
      enemy comes inside grenade range or the squad is fired on; the card says "Holding fire".
@@ -2705,6 +2705,18 @@ Engine changes needed in the existing core:
   walks on (nobody holds), an attack-move stops all four with the enemy targeted, resumes 16 m on within 3 s of the
   enemy leaving, a plain order clears the flag, the bar shows Advance, `Z` arms and disarms. The sim harness now
   nulls `combat.onShot` with the voices (a player-side shot threw in it).
+
+- **Hold fire (2026-10-30).** The second post-release order, the ambush. `u.holdFire` on a soldier (set for the squad
+  by `Squad.setHoldFire`, read by `holdingFire`; a revived man takes his squad's state) makes the combat tick skip him:
+  no target and no shot, so nothing gives the squad away, until an enemy comes within 20 m of him or he is fired on
+  (`u.supp > 0.1`), when his whole squad drops the flag and opens up; the match toasts "SQ-03 opens fire" for the
+  player's side. `O` or the Hold fire button toggles it for the selected soldiers' squads (on when every selected man
+  holds; off again is "Fire at will"); a plain move keeps it. The card says "Holding fire · ..." with a barred-muzzle
+  glyph. The CPU never uses it. Checked headless on Palm Valley with everyone else moved out of range: two squads 45 m
+  apart both holding fire stand 4 s without a target or a scratch; the enemy walked to 15 m springs it, all four
+  targeting; fired on at 45 m springs it inside 3 s; a move keeps it; the toggle, the bar and the card read right.
+  The first run sprang at once, which was the rest of the base shooting the placed enemy squad over the test's head:
+  a reminder that a placed scene needs the map cleared round it.
 
 ## Open questions
 

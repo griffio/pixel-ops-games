@@ -182,6 +182,12 @@ export class Combat {
       const kit = this.gunOf(u), w = WEAPONS[kit];
       if (u.armed !== kit) { if (u.armed !== undefined) { u.enemy = null; u.burst = 0; u.retarget = 0; } u.armed = kit; }   // took over or left a gun
       u.cooldown -= dt;
+      if (u.holdFire && u.type === 'soldier') {   // holding fire (an ambush): no target and no shot until an enemy is within 20 m or the man is fired on, then his whole squad opens up
+        const sprung = u.supp > 0.1 || this.spatial.query(u.pos.x, u.pos.z, 20, this.scratch).some(e => !e.dead && !e.mounted && e.team !== u.team && e.team >= 0 && e.team <= 1 && !e.spec.structure && !e.spec.untargetable);
+        if (!sprung) { if (u.enemy) { u.enemy = null; u.burst = 0; } u.hold = false; continue; }
+        for (const m of u.squad ? u.squad.members : [u]) m.holdFire = false;
+        if (this.onSprung) this.onSprung(u);
+      }
       if (u.enemy) {
         const e = u.enemy, d = Math.hypot(e.pos.x - u.pos.x, e.pos.z - u.pos.z);
         let lost = e.dead || e.mounted || d > w.range * 1.15 || (w.min && d < w.min * 0.8);

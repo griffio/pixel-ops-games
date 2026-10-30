@@ -117,6 +117,7 @@ export class Match {
       }
       this.event({ type: 'sandbags cleared', team });
     };
+    this.combat.onSprung = (u) => { if (u.team === (this.app.playerTeam ?? 0) && this.app.hud) this.app.hud.toast(`${u.squad && u.squad.leader ? u.squad.leader.label : u.label} opens fire`); };
     this.combat.onDeath = (v, k) => {
       this.respawn.onDeath(v, k);
       const s = this.teams[v.team].stats; s.losses[v.type] = (s.losses[v.type] || 0) + 1; if (v.type === 'fob') s.fobsLost++;

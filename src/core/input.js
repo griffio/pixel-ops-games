@@ -88,6 +88,7 @@ export class Input {
       if (e.code === 'KeyU') { this.hud.action('unload'); return; }
       if (e.code === 'KeyL') { this.hud.action('load'); return; }
       if (e.code === 'KeyZ') { this.hud.action('advance'); return; }
+      if (e.code === 'KeyO') { this.hud.action('holdfire'); return; }
       if (e.code === 'KeyG') { this.hud.action('emp_hmg'); return; }
       if (e.code === 'KeyJ') { this.hud.action('emp_atgm'); return; }
       if (e.code === 'KeyK') { this.hud.action('emp_mortar'); return; }
@@ -198,6 +199,15 @@ export class Input {
   postAt(nx, ny) { const me = this.app.playerTeam ?? 0, g = this.rts.screenToGround(nx, ny); return this.units.units.find(s => s.crew && s.team === me && !s.dead && (([lx, lz]) => Math.abs(lx) < 3.5 && lz > -2.5 && lz < 2.5)(s.worldToLocal(g.x, g.z))) || null; }
   // a friendly sandbag position, and infantry in the selection to man it
   canMan(u) { const me = this.app.playerTeam ?? 0; return !!(u && u.crew && u.team === me && !u.dead && this.selected.some(s => s.type === 'soldier' && !s.mounted)); }
+  // Hold fire (O or the button): the selected soldiers' squads stay quiet and hidden, taking no target, until an enemy
+  // comes within 20 m or they are fired on, then open up (game/combat.js); pressed again: fire at will
+  toggleHoldFire() {
+    const sqs = [...new Set(this.selected.filter(u => u.type === 'soldier' && !u.dead).map(u => u.squad || u))];
+    if (!sqs.length) { this.hud.toast('Select soldiers'); return; }
+    const on = !sqs.every(s => s.setHoldFire ? s.holdingFire : s.holdFire);
+    for (const s of sqs) { if (s.setHoldFire) s.setHoldFire(on); else s.holdFire = on; }
+    this.hud.toast(on ? `Holding fire: ${sqs.length} squad${sqs.length > 1 ? 's' : ''}, until an enemy is at 20 m or they are fired on` : 'Fire at will'); if (this.app.audio) this.app.audio.ui('order'); this.hud.showSelection(this.selected);
+  }
   orderAt(gx, gz, advance = false) {
     if (!this.selected.length) return;
     if (this.selected.every(u => u.spec.structure)) { if (this.app.touch) this.select([]); return; }   // a FOB, sandbags or a gun can't move

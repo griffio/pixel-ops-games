@@ -73,7 +73,7 @@ export class Unit {
     this.pickId = m.group.pickId = ++pickSeq; this.group = m.group; this.parts = m.parts; this.height = m.height; this.radius = m.radius;
     this.pos = this.group.position; this.pos.set(x, 0, z);
     this.heading = heading; this.group.rotation.y = heading;
-    this.speed = 0; this.target = null; this.dest = null; this.path = null; this.hold = false; this.advance = false;   // advance: an attack-move, so infantry stop and fight anything in their hold range on the way
+    this.speed = 0; this.target = null; this.dest = null; this.path = null; this.hold = false; this.advance = false; this.holdFire = false;   // advance: an attack-move, so infantry stop and fight anything in their hold range on the way; holdFire: no target and no shot until sprung
     this.selected = false; this.squad = null; this.mgr = null;
     this.idle = rnd(0, 3); this.phase = rng() * 6;
     this.hp = this.maxHp = spec.hp; this.kit = spec.kit || null; this.enemy = null; this.cooldown = 0; this.retarget = 0;
@@ -226,7 +226,7 @@ export class Unit {
     if (this.spec.air) { for (const r of this.parts.rotors) { r.blades.visible = true; r.disc.visible = false; } this.alt = 0; this.pos.y = this.mgr ? this.mgr.world.heightAt(this.pos.x, this.pos.z) : 0; this.parts.body.rotation.x = 0; this.parts.body.rotation.z = 0.35; }
   }
   // revive at a position (infantry respawn reuses the object so squads keep their members)
-  revive(x, z, heading) { if (this.spec.ammo) this.ammo = this.spec.ammo;
+  revive(x, z, heading) { if (this.spec.ammo) this.ammo = this.spec.ammo; this.holdFire = !!(this.squad && this.squad.members.some(m => !m.dead && m !== this && m.holdFire));   // a man back to a squad holding fire holds it too
     this.dead = false; this.hp = this.maxHp; this.pos.set(x, 0, z); this.heading = heading; this.group.rotation.set(0, heading, 0);
     this.group.visible = true; this.speed = 0; this.enemy = null; this.target = null; this.path = null; this.dest = null; this.deathT = 0; this.reviveT = 0; this.hold = false; this.boardTarget = null; this.mounted = null; this.landedT = 0;
   }
@@ -509,6 +509,8 @@ export class Squad {
     for (const m of this.members) { if (m.dead) continue; const [ox, oz] = offs[i++ % offs.length]; m.order(x + ox * c + oz * s, z - ox * s + oz * c); }
   }
   advanceTo(x, z) { this.order(x, z); for (const m of this.members) if (!m.dead && m.dest) m.advance = true; }
+  setHoldFire(v) { for (const m of this.members) if (!m.dead) m.holdFire = v; }   // hold fire: quiet and hidden until an enemy is at 20 m or the squad is fired on (game/combat.js)
+  get holdingFire() { const a = this.members.filter(m => !m.dead); return a.length > 0 && a.every(m => m.holdFire); }
   get busy() { return this.members.some(m => !m.dead && (m.dest || m.boardTarget)); }
   // Into vehicle c: the men within 60 m of the member nearest it. A squad standing together all go; a man back from a
   // respawn a long way from the rest goes alone when the vehicle is at him, and the rest keep their orders (a Load at the

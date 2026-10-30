@@ -94,6 +94,7 @@ export class Roster {
     if (b) { const B = BUILDS[buildKind(b)]; Object.assign(d, { glyph: 'build', tone: 'y', text: `${B.name} ${mmss(b.t)}`, ring: { f: 1 - b.t / b.total, t: b.t, glyph: B.glyph } }); }
     else if (d.alert) Object.assign(d, { glyph: 'fire', tone: 'red', text: `Under fire${this.place(cx, cz) ? ' · ' + this.place(cx, cz) : ''}` });
     else if (car) Object.assign(d, { glyph: car.spec.air ? 'air' : 'ride', tone: 'go', text: car.type === 'dock' ? 'On the ship' : `${car.spec.air ? 'Flying in' : 'In'} ${car.label}` });   // the dock: waiting for a landing craft
+    else if (foot.length && foot.every(u => u.holdFire)) Object.assign(d, { glyph: 'holdfire', tone: 'y', text: `Holding fire · ${mv ? this.toward(mv, mv.dest || mv.target) : post ? 'manning ' + post.post.sb.label : this.place(cx, cz) || 'open ground'}` });
     else if (post) Object.assign(d, { glyph: 'post', text: `Manning ${post.post.sb.label}` });
     else if (mv) Object.assign(d, { glyph: 'move', tone: 'go', text: this.toward(mv, mv.dest || mv.target) });
     else if (foot.some(u => u.enemy)) Object.assign(d, { glyph: 'aim', text: `Engaging${this.place(cx, cz) ? ' · ' + this.place(cx, cz) : ''}` });

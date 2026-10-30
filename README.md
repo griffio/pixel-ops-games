@@ -71,7 +71,11 @@ move walks through fire: infantry on the way only stop for an enemy inside 18 m.
 An **attack-move** to ground (**Z** then a click, **Alt + right-click**, or the
 Advance button then a tap) has them stop and fight whatever comes into their hold
 range on the way, then walk on when it is dead or gone; the unit card says
-Advancing.
+Advancing. **Hold fire** (**O** or the button) is the ambush: the squad takes no
+target and fires no shot, so nothing gives it away, until an enemy comes within
+20 m of one of its men or it is fired on, when the whole squad opens up (a toast
+says so); press again to fire at will. A man back from a respawn holds fire with
+his squad.
 
 *Desert Crossing* (`?map=desert1km`) was built to be fair to both sides: the Village sits on the
 strip of land between two parallel rivers, each bridged where the road crosses
@@ -368,6 +372,7 @@ off. On a touch screen both name the buttons instead of the keys
 | Right click | Move order (selected squads and vehicles move in formation); on a friendly carrier, board it; on a friendly sandbag position, man it |
 | `L` | Load: the selected soldiers board the vehicle clicked next (or the one selected with them); `L` again or `Esc` cancels |
 | `Z` | Attack-move: the selection goes to the ground clicked next, infantry stopping to fight whatever comes into range on the way; `Z` again or `Esc` cancels. `Alt` + right-click does it in one |
+| `O` | Hold fire / fire at will: the selected soldiers' squads stay quiet and hidden, no target and no shot, until an enemy is within 20 m or they are fired on |
 | `U` | Unload a selected carrier, or take selected soldiers out of their sandbag position |
 | `H` | Open or close the field manual (pauses the game); its Objective page explains the mode being played and your side |
 | `F3` | Show or hide the engine panels (stats, spawning, render and world settings), hidden on a map until asked for; the Engine button does the same |
