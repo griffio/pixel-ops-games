@@ -59,8 +59,8 @@ keeps your loadout and remembers the map. Its Opponent row has the built-in CPU 
 Llama commander. The Claude commanders are listed only while the engine panels are on,
 because they spend the API key the gateway holds. Then spend
 1,200 points on squads (rifle, support, anti-tank, medic, marksman, engineer),
-vehicles (trucks, supply trucks, 8x8 APCs, M1 Abrams tanks, Chinook helicopters, AH-6M Little
-Bird gunships) and one doctrine
+vehicles (trucks, supply trucks, Humvees with Mk 19 grenade launchers, 8x8 APCs, M1 Abrams
+tanks, Chinook helicopters, AH-6M Little Bird gunships) and one doctrine
 (Mechanized, Air Assault, Light Infantry, Entrenched), or pick a preset. Your
 loadout is saved in the browser. The CPU reads it and counter-picks (never Air
 Assault, which pays for landing troops on undefended objectives and needs your
@@ -270,7 +270,13 @@ take-off; send it home and it hovers over your base, where the pod is refilled i
 a minute and the hull patched up. The CPU flies it in sorties against knots of
 infantry and brings it home when the pod is empty or it is hurt. The Gunships preset
 fields two under Air Assault, and the CPU answers a Little Bird with Defensive's two
-anti-tank squads.
+anti-tank squads. The Humvee is the ground gunship: truck speed, 200 hp (two rockets),
+three seats, and an Mk 19 that lobs bursts of four grenades to 130 m, each bursting
+over 4.5 m, to wound and pin infantry from outside their reach. Its belt of 48 counts
+down a round at a time; parked at the main base it refills in half a minute, and a
+supply truck stopped beside it swaps the belt for 10 supplies once it is half spent.
+Light Infantry fields one in place of its truck (parked, it is the doctrine's forward
+spawn too), the Motorised preset two, and the CPU answers two with Defensive.
 The CPU's own rides still drop their squad where the vehicle stops or lands. A truck or APC destroyed
 with troops aboard throws them out hurt; a helicopter shot down in the air takes
 them with it. The CPU uses a troop truck to ferry two squads from around base

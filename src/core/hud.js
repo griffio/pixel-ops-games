@@ -209,7 +209,7 @@ export class Hud {
     const mins = Math.floor(m.elapsed / 60), secs = String(Math.floor(m.elapsed % 60)).padStart(2, '0');
     $('end-d').textContent = `${m.mode.constructor.name} · ${m.reason} · ${mins}:${secs} played`;
     this.drawTickets(m, $('end-graph'));
-    const [a, b] = m.teams, S = (t, k) => t.stats.kills[k] || 0, L = (t, k) => t.stats.losses[k] || 0, VEHS = ['truck', 'apc', 'tank', 'heli', 'bird'];
+    const [a, b] = m.teams, S = (t, k) => t.stats.kills[k] || 0, L = (t, k) => t.stats.losses[k] || 0, VEHS = ['truck', 'apc', 'humvee', 'tank', 'heli', 'bird'];
     const sum = (o) => Object.values(o).reduce((s, v) => s + v, 0);
     const rows = [
       ['Tickets left', Math.max(0, Math.round(a.tickets)), Math.max(0, Math.round(b.tickets))],

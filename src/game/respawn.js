@@ -38,7 +38,7 @@ export class Respawn {
     if (this.carriersAt !== this.clock) { this.carriersAt = this.clock; this.carrierCache = []; }
     const hit = this.carrierCache[team.id]; if (hit) return hit;
     const d = team.doctrine || {}, U = this.units.units;
-    const list = U.filter(v => v.team === team.id && !v.dead && (v.type === 'heli' ? d.heliSpawn && v.state === 'parked' : v.type === 'truck' && d.truckSpawn && !v.supply && Math.abs(v.speed) < 0.3 && !v.dest)
+    const list = U.filter(v => v.team === team.id && !v.dead && (v.type === 'heli' ? d.heliSpawn && v.state === 'parked' : (v.type === 'truck' || v.type === 'humvee') && d.truckSpawn && !v.supply && Math.abs(v.speed) < 0.3 && !v.dest)
       && !U.some(e => e.team !== team.id && !e.dead && !e.mounted && !e.spec.structure && Math.hypot(e.pos.x - v.pos.x, e.pos.z - v.pos.z) < 30)
       && !(v.type === 'heli' && this.sea(team) && this.sea(team).atShip(v.pos.x, v.pos.z)));   // not one on a ship's flight deck: men there would be stranded
     return (this.carrierCache[team.id] = list);

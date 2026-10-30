@@ -30,7 +30,7 @@ export const PRESETS = {
   balanced:   { name: 'Balanced', doctrine: 'entrenched', items: { rifle: 3, support: 1, at: 1, medic: 1, engineer: 1, apc: 1, supply: 1, fob: 1 } },
   mechanized: { name: 'Mechanized', doctrine: 'mechanized', items: { rifle: 2, support: 1, at: 1, engineer: 1, apc: 2, supply: 1, fob: 1 } },
   air:        { name: 'Air Assault', doctrine: 'air', items: { rifle: 3, at: 1, medic: 1, engineer: 1, heli: 2, supply: 1, fob: 1 } },
-  light:      { name: 'Light Infantry', doctrine: 'light', items: { rifle: 4, support: 1, at: 1, medic: 1, engineer: 1, truck: 1, supply: 1, fob: 1 } },
+  light:      { name: 'Light Infantry', doctrine: 'light', items: { rifle: 4, support: 1, at: 1, medic: 1, engineer: 1, humvee: 1, supply: 1, fob: 1 } },   // the Humvee took the truck's place on 2026-10-30: it carries three and, parked, is the doctrine's forward spawn
   armoured:   { name: 'Armoured', doctrine: 'mechanized', items: { rifle: 2, at: 1, engineer: 1, tank: 1, apc: 1, supply: 1, fob: 1 } },
   defensive:  { name: 'Defensive', doctrine: 'entrenched', items: { rifle: 2, support: 1, at: 2, engineer: 1, apc: 1, supply: 1, fob: 1 } },
   gunship:    { name: 'Gunships', doctrine: 'air', items: { rifle: 3, at: 1, medic: 1, engineer: 1, bird: 2, supply: 1, fob: 1 } },
@@ -76,7 +76,7 @@ export const preset = (key) => clone(PRESETS[key] || PRESETS.balanced);
 export function counterPick(player, rnd = Math.random) {
   const n = (k) => (player.items && player.items[k]) || 0;
   const squads = Object.keys(ITEMS).filter(k => ITEMS[k].kind === 'squad').reduce((s, k) => s + n(k), 0);
-  if (n('apc') >= 2 || n('tank') >= 1 || n('bird') >= 1) return 'defensive';   // two anti-tank squads: their launchers also answer gunships
+  if (n('apc') >= 2 || n('tank') >= 1 || n('bird') >= 1 || n('humvee') >= 2) return 'defensive';   // two anti-tank squads: their launchers also answer gunships and Humvees
   if (n('heli') >= 2) return 'light';
   if (player.doctrine === 'light' || squads >= 7) return 'mechanized';
   if (player.doctrine === 'entrenched') return 'armoured';   // a tank against dug-in positions

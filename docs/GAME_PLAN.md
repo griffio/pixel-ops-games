@@ -2874,7 +2874,7 @@ Engine changes needed in the existing core:
     (`tools/make-refs.mjs` subject humvee: the slab body, the turret ring with the gunner's shield, the spare on the
     back), exported to models/vox/humvee.vox with its portrait, team recolours; the checklist in memory
     (pixel-ops-new-unit-checklist) lists every file.
-  - **U2, the force builder and the manual (half a day).** Loadout item `humvee` at 160 points, kind vehicle, type
+  - **U2, the force builder and the manual (half a day). Done 2026-10-30, see below.** Loadout item `humvee` at 160 points, kind vehicle, type
     humvee; the Light preset swaps its truck for one, a new "Motorised" preset (rifle 3, support 1, at 1, medic 1,
     humvee 2, supply 1, fob 1); counterPick answers two or more with Defensive (its two anti-tank squads); roster VEH
     row "HUMVEE" with "n rounds" as the Little Bird's; the HUD's Load and Unload as for the truck; the guide's Vehicles
@@ -2909,6 +2909,14 @@ Engine changes needed in the existing core:
   the field belt (20 to 48, the truck 100 to 90, nothing at 30), Motorised deploying a truck and two Humvees with
   the card reading "Parked · main base · 48 rounds". `tools/shoot.mjs` needs a match, so a staged unit is shot
   from a match with the preset that fields it, not `?stage=`.
+
+- **U2 done (2026-10-30).** Light Infantry fields a Humvee in place of its truck (the preset lands on 1,200 points
+  exactly; every preset still fits), and a parked Humvee counts as the doctrine's forward spawn as the parked truck
+  did (respawn.js lists both), so the doctrine keeps its character; the Motorised preset fields two. `counterPick`
+  answers two Humvees with Defensive. The debrief counts Humvees among vehicles. The guide's ticket line, Transport
+  (Humvees carry 3), Vehicles and respawn-time lines name it; the README's force list and vehicle paragraph
+  describe it. Checked headless: Light deploys a Humvee and no truck; a squad 15 m from the Humvee parked 300 m out
+  respawns 5 m from it; the Desert lobby loads clean with the new row and preset.
 
 ## Open questions
 
