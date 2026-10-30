@@ -7,7 +7,7 @@ import { TouchInput } from './touch.js';
 export class Input {
   constructor(app) {
     this.app = app; this.canvas = app.canvas; this.rts = app.rts; this.units = app.units; this.hud = app.hud;
-    this.selected = []; this.down = null; this.loading = false;   // loading: Load was pressed, the next pick is the vehicle to board
+    this.selected = []; this.down = null; this.loading = false; this.advancing = false;   // loading: Load was pressed, the next pick is the vehicle to board; advancing: Z was pressed, the next click on the ground is an attack-move
     this.box = document.getElementById('selbox');
     this.touch = new TouchInput(this);
     const c = this.canvas, rts = this.rts, mouse = (e) => e.pointerType === 'mouse';
@@ -52,7 +52,7 @@ export class Input {
     const d = this.down; if (!d) return; this.down = null; this.box.style.display = 'none';
     const [nx, ny] = this.norm(e);
     if (d.button === 0) { d.moved ? this.boxSelect(d.x, d.y, e.clientX, e.clientY, e.shiftKey) : this.clickSelect(nx, ny, e.shiftKey); }
-    else if (d.button === 2 && !d.moved) this.issueOrder(nx, ny);
+    else if (d.button === 2 && !d.moved) this.issueOrder(nx, ny, 0, e.altKey);   // Alt + right-click: an attack-move
   }
 
   onWheel(e) {
@@ -77,7 +77,7 @@ export class Input {
     if (down) {
       if (e.code === 'Space') { e.preventDefault(); this.hud.togglePause(); return; }
       if (e.code === 'KeyF') { this.rts.follow = this.selected[0] || null; if (this.rts.follow) this.hud.toast('Following ' + this.rts.follow.label); return; }
-      if (e.code === 'Escape') { if (this.app.guide && this.app.guide.isOpen) this.app.guide.close(); else if (this.loading) this.startLoad(); else this.select([]); return; }
+      if (e.code === 'Escape') { if (this.app.guide && this.app.guide.isOpen) this.app.guide.close(); else if (this.loading) this.startLoad(); else if (this.advancing) this.startAdvance(); else this.select([]); return; }
       if (e.code === 'KeyH') { if (this.app.guide) this.app.guide.toggle(); return; }
       if (e.code === 'F3') { e.preventDefault(); this.hud.toggleDev(); return; }   // the engine panels
       if (e.code === 'KeyR') { this.rts.reset(); return; }
@@ -87,6 +87,7 @@ export class Input {
       if (e.code === 'KeyT') { this.hud.action('rally'); return; }
       if (e.code === 'KeyU') { this.hud.action('unload'); return; }
       if (e.code === 'KeyL') { this.hud.action('load'); return; }
+      if (e.code === 'KeyZ') { this.hud.action('advance'); return; }
       if (e.code === 'KeyG') { this.hud.action('emp_hmg'); return; }
       if (e.code === 'KeyJ') { this.hud.action('emp_atgm'); return; }
       if (e.code === 'KeyK') { this.hud.action('emp_mortar'); return; }
@@ -102,6 +103,7 @@ export class Input {
   clickSelect(nx, ny, add, radiusPx = 0) {
     const u = this.app.pick(nx, ny, radiusPx), me = this.app.playerTeam ?? 0;
     if (this.loading) { this.loadInto(u); return; }   // after Load the click picks the vehicle
+    if (this.advancing) { this.advancing = false; const g = u && u.team !== me ? u.pos : this.rts.screenToGround(nx, ny); if (this.selected.length) this.orderAt(g.x, g.z, true); else this.hud.showSelection(this.selected); return; }   // after Z the click is the attack-move's goal
     if (u && u.team !== me) { if (this.selected.length) this.orderAt(u.pos.x, u.pos.z); return; }   // click an enemy: attack-move there
     if (!u) { if (!add) this.select([]); return; }
     const set = u.squad ? u.squad.members : [u];
@@ -127,7 +129,7 @@ export class Input {
   }
 
   select(list) {
-    this.loading = false;
+    this.loading = false; this.advancing = false;
     for (const u of this.selected) u.setSelected(false);
     const me = this.app.playerTeam ?? 0;
     this.selected = list.filter(u => !u.dead && u.team === me && !u.spec.naval && !u.afloat);   // landing craft run themselves
@@ -136,9 +138,9 @@ export class Input {
     this.hud.showSelection(this.selected);
   }
 
-  issueOrder(nx, ny, radiusPx = 0) {
+  issueOrder(nx, ny, radiusPx = 0, advance = false) {
     // right-click (or a hold) on a friendly helicopter, truck or APC with infantry selected: board it; on a sandbag position: man it
-    this.loading = false;
+    this.loading = false; advance = advance || this.advancing; this.advancing = false;
     const me = this.app.playerTeam ?? 0, hit = this.app.pick(nx, ny, radiusPx);
     const u = !hit || (hit.team === me && !hit.seats && !hit.crew) ? this.postAt(nx, ny) || hit : hit;   // the open middle of a sandbag position counts as the position
     if (this.canBoard(u)) { this.board(u); return; }
@@ -150,8 +152,16 @@ export class Input {
       this.hud.toast(n ? `Manning ${u.label}: ${n} in${want.length > n ? `, ${want.length - n} wait behind (${slots === 1 ? 'one gunner' : slots + ' slots'})` : ''}` : `${u.label} is fully manned`);
       if (this.app.audio) this.app.audio.ui(n ? 'order' : 'deny'); return;
     }
-    if (u && u.team !== me && !u.dead) { this.orderAt(u.pos.x, u.pos.z); return; }   // an enemy under the finger: attack-move onto it
-    const g = this.rts.screenToGround(nx, ny); this.orderAt(g.x, g.z);
+    if (u && u.team !== me && !u.dead) { this.orderAt(u.pos.x, u.pos.z, advance); return; }   // an enemy under the finger: attack-move onto it
+    const g = this.rts.screenToGround(nx, ny); this.orderAt(g.x, g.z, advance);
+  }
+  // Attack-move (Z or the Advance button): the next click or tap on the ground sends the selection there with infantry
+  // stopping to fight whatever comes into their hold range on the way, instead of only what is at close quarters (a plain
+  // move walks through fire). Pressing again, or Esc, cancels; Alt + right-click does it in one
+  startAdvance() {
+    if (!this.selected.some(u => !u.spec.structure)) { this.hud.toast('Select units first'); return; }
+    this.advancing = !this.advancing; this.loading = false;
+    this.hud.toast(this.advancing ? `Attack-move: ${this.app.touch ? 'tap' : 'click'} the ground` : 'Attack-move cancelled'); this.hud.showSelection(this.selected);
   }
   // the selected soldiers' squads walk to vehicle u and get in
   board(u) {
@@ -188,7 +198,7 @@ export class Input {
   postAt(nx, ny) { const me = this.app.playerTeam ?? 0, g = this.rts.screenToGround(nx, ny); return this.units.units.find(s => s.crew && s.team === me && !s.dead && (([lx, lz]) => Math.abs(lx) < 3.5 && lz > -2.5 && lz < 2.5)(s.worldToLocal(g.x, g.z))) || null; }
   // a friendly sandbag position, and infantry in the selection to man it
   canMan(u) { const me = this.app.playerTeam ?? 0; return !!(u && u.crew && u.team === me && !u.dead && this.selected.some(s => s.type === 'soldier' && !s.mounted)); }
-  orderAt(gx, gz) {
+  orderAt(gx, gz, advance = false) {
     if (!this.selected.length) return;
     if (this.selected.every(u => u.spec.structure)) { if (this.app.touch) this.select([]); return; }   // a FOB, sandbags or a gun can't move
     const g = { x: gx, z: gz };
@@ -200,12 +210,12 @@ export class Input {
     all.forEach((t, i) => {
       const c = i % cols, rw = Math.floor(i / cols);
       const ox = g.x + (c - (cols - 1) / 2) * gap, oz = g.z + (rw - (Math.ceil(n / cols) - 1) / 2) * gap;
-      t.order(ox, oz);
+      if (advance) t.advanceTo(ox, oz); else t.order(ox, oz);
       t.dropOnArrive = false;   // the player's passengers stay aboard until Unload (U): a stop on the way is not a drop
       if (t.spec && t.spec.air) { t.dropOnLand = false; t.orbit = { x: ox, z: oz, r: 30 }; }   // a helicopter circles there, door gun firing, until Unload or Land
     });
     this.app.markers.add(g.x, g.z); if (this.app.audio) this.app.audio.ui('order');
     if (this.app.match && this.app.match.voices) this.app.match.voices.ordered(this.selected);
-    const moving = this.selected.filter(u => !u.spec.structure).length; this.hud.toast(`Move order: ${moving} unit${moving > 1 ? 's' : ''}`);
+    const moving = this.selected.filter(u => !u.spec.structure).length; this.hud.toast(`${advance ? 'Attack-move' : 'Move order'}: ${moving} unit${moving > 1 ? 's' : ''}`);
   }
 }

@@ -73,7 +73,7 @@ export class Unit {
     this.pickId = m.group.pickId = ++pickSeq; this.group = m.group; this.parts = m.parts; this.height = m.height; this.radius = m.radius;
     this.pos = this.group.position; this.pos.set(x, 0, z);
     this.heading = heading; this.group.rotation.y = heading;
-    this.speed = 0; this.target = null; this.dest = null; this.path = null; this.hold = false;
+    this.speed = 0; this.target = null; this.dest = null; this.path = null; this.hold = false; this.advance = false;   // advance: an attack-move, so infantry stop and fight anything in their hold range on the way
     this.selected = false; this.squad = null; this.mgr = null;
     this.idle = rnd(0, 3); this.phase = rng() * 6;
     this.hp = this.maxHp = spec.hp; this.kit = spec.kit || null; this.enemy = null; this.cooldown = 0; this.retarget = 0;
@@ -97,7 +97,7 @@ export class Unit {
     if (!keepPost) this.leavePost();
     const nav = this.mgr && this.mgr.nav && this.spec.nav ? this.mgr.nav[this.spec.nav] : null;
     if (nav && nav.inPocket(x, z)) { const c = nav.nearestMain(nav.cellOf(x), nav.cellOf(z)); if (c) { x = nav.world(c[0]); z = nav.world(c[1]); } }   // a goal inside a building, or in a pocket between buildings, becomes the nearest open ground
-    this.dest = new Vec3(x, 0, z); this.idle = 0; this.hold = false; this.bestDist = Infinity; this.noProgress = 0; this.turnT = 0; this.orbit = null;
+    this.dest = new Vec3(x, 0, z); this.idle = 0; this.hold = false; this.advance = false; this.bestDist = Infinity; this.noProgress = 0; this.turnT = 0; this.orbit = null;
     this.path = nav ? nav.findPath(this.pos.x, this.pos.z, x, z) : null;
     if (nav && !this.path) this.path = this.escapeRoute(nav, x, z);
     const first = this.path && this.path.length ? this.path[0] : [x, z];
@@ -137,6 +137,7 @@ export class Unit {
     return [c.pos.x - Math.sin(c.heading) * 4.5, c.pos.z - Math.cos(c.heading) * 4.5];   // the tail: the APC's ramp, the truck's tailgate
   }
   board(c) { if (this.type !== 'soldier' || this.dead || this.mounted || c.swimming) return; this.boardTarget = c; this.boardT = 0; const [x, z] = this.boardPoint(c); this.order(x, z); }
+  advanceTo(x, z) { this.order(x, z); if (this.dest) this.advance = true; }   // an attack-move: the same walk, stopping to fight whatever comes into range
   mount(c) {
     this.mounted = c; c.passengers.push(this); this.boardTarget = null; this.group.visible = false;
     this.target = null; this.dest = null; this.path = null; this.hold = false; this.enemy = null; this.speed = 0;
@@ -279,9 +280,9 @@ export class Unit {
         // for a few seconds, which used to cancel the order (a truck told to drive back out the way it came would not move);
         // still turning after 8 s it is circling something it cannot reach, and is released like one making no progress
         // (a vehicle short of its goal on a straight route, its way blocked after swinging round, finds another way first, three tries)
-        const release = () => { const d = this.dest; if (!last || (vehicle && dist > 8 && (this.retry = (this.retry || 0) + 1) <= 3)) this.order(d.x, d.z, true); else { this.retry = 0; this.nextWaypoint(); } };
+        const release = () => { const d = this.dest, adv = this.advance; if (!last || (vehicle && dist > 8 && (this.retry = (this.retry || 0) + 1) <= 3)) this.order(d.x, d.z, true); else { this.retry = 0; this.nextWaypoint(); } this.advance = adv; };   // a way round keeps an attack-move an attack-move
         if (vehicle && Math.abs(diff) > 0.6) { this.bestDist = dist; this.noProgress = 0; if ((this.turnT += dt) > 8) { this.turnT = 0; release(); } }
-        else if (want !== 0) {
+        else if (want !== 0 && !(this.hold && this.type === 'soldier')) {   // a soldier stopped to fight is not stuck
           this.turnT = 0;
           if (dist < this.bestDist - 0.15) { if (this.bestDist - dist > 3) this.retry = 0; this.bestDist = dist; this.noProgress = 0; } else this.noProgress += dt;
           if (this.noProgress > 1.5) release();
@@ -507,6 +508,7 @@ export class Squad {
     let i = 0;
     for (const m of this.members) { if (m.dead) continue; const [ox, oz] = offs[i++ % offs.length]; m.order(x + ox * c + oz * s, z - ox * s + oz * c); }
   }
+  advanceTo(x, z) { this.order(x, z); for (const m of this.members) if (!m.dead && m.dest) m.advance = true; }
   get busy() { return this.members.some(m => !m.dead && (m.dest || m.boardTarget)); }
   // Into vehicle c: the men within 60 m of the member nearest it. A squad standing together all go; a man back from a
   // respawn a long way from the rest goes alone when the vehicle is at him, and the rest keep their orders (a Load at the

@@ -66,7 +66,12 @@ five wins outright. Each side starts with 500 tickets; vehicle losses and
 infantry respawns drain them, and the first team at 0 loses. Infantry are
 expendable: 35 hit points, one ticket, back in 15 seconds in squad waves. Left-drag to select
 squads, right-click to move them, click an enemy to attack-move, click the
-minimap to jump the camera, and keep zooming out for the strategic view.
+minimap to jump the camera, and keep zooming out for the strategic view. A plain
+move walks through fire: infantry on the way only stop for an enemy inside 18 m.
+An **attack-move** to ground (**Z** then a click, **Alt + right-click**, or the
+Advance button then a tap) has them stop and fight whatever comes into their hold
+range on the way, then walk on when it is dead or gone; the unit card says
+Advancing.
 
 *Desert Crossing* (`?map=desert1km`) was built to be fair to both sides: the Village sits on the
 strip of land between two parallel rivers, each bridged where the road crosses
@@ -362,6 +367,7 @@ off. On a touch screen both name the buttons instead of the keys
 | Left click / drag | Select unit or squad / box-select |
 | Right click | Move order (selected squads and vehicles move in formation); on a friendly carrier, board it; on a friendly sandbag position, man it |
 | `L` | Load: the selected soldiers board the vehicle clicked next (or the one selected with them); `L` again or `Esc` cancels |
+| `Z` | Attack-move: the selection goes to the ground clicked next, infantry stopping to fight whatever comes into range on the way; `Z` again or `Esc` cancels. `Alt` + right-click does it in one |
 | `U` | Unload a selected carrier, or take selected soldiers out of their sandbag position |
 | `H` | Open or close the field manual (pauses the game); its Objective page explains the mode being played and your side |
 | `F3` | Show or hide the engine panels (stats, spawning, render and world settings), hidden on a map until asked for; the Engine button does the same |
@@ -422,7 +428,7 @@ Touch and pen pointers go to a gesture layer; a mouse or trackpad keeps the tabl
 | Gesture | Action |
 |---|---|
 | Tap a unit | Select it (its whole squad) |
-| Tap the ground (with a selection) | Move the selection there (a helicopter circles there until Unload or Land); tap an enemy to attack-move, a friendly sandbag position to man it |
+| Tap the ground (with a selection) | Move the selection there (a helicopter circles there until Unload or Land); tap an enemy to attack-move, a friendly sandbag position to man it; Advance, then tap the ground, for an attack-move there |
 | Double-tap a unit | Select every friendly unit of that type on screen |
 | Hold on the ground | The same order as a tap (the ring fills in 0.45 s) |
 | Hold with nothing selected, then drag | Box select |

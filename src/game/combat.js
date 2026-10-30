@@ -190,7 +190,7 @@ export class Combat {
           if (!lost && u.kit2 && e.type !== 'soldier') { const n = this.findTarget(u, w); if (n && n.type === 'soldier') { u.enemy = n; u.burst = 0; continue; } }   // a tank turns from armour to infantry closing in
         }
         if (lost) { u.enemy = null; u.retarget = 0.3; u.burst = 0; }
-        else u.hold = u.type === 'soldier' && d < (u.dest ? Math.min(w.hold, 18) : w.hold);   // infantry on the move only stop for an enemy at close quarters; once where they were sent they hold and shoot out to their hold range
+        else u.hold = u.type === 'soldier' && d < (u.dest && !u.advance ? Math.min(w.hold, 18) : w.hold);   // infantry on the move only stop for an enemy at close quarters, unless the move is an attack-move; once where they were sent they hold and shoot out to their hold range
       }
       if (!u.enemy) {
         u.hold = false;

@@ -1,6 +1,7 @@
 // 16x16 glyphs for the unit strip, the command bar and the toolbar (fill: currentColor).
 const P = {
   move: '<path d="M1 6.5h9V3l5 5-5 5V9.5H1z"/>',
+  advance: '<path d="M1 6.5h5V3l5 5-5 5V9.5H1z"/><path d="M10 3l5 5-5 5z"/>',
   hold: '<path d="M8 1l6 2.2v4.3c0 3.9-2.7 6.3-6 7.5-3.3-1.2-6-3.6-6-7.5V3.2z"/>',
   aim: '<path d="M7 0h2v4H7zM7 12h2v4H7zM0 7h4v2H0zM12 7h4v2h-4z"/><path d="M8 3.2a4.8 4.8 0 1 0 0 9.6 4.8 4.8 0 0 0 0-9.6zm0 2a2.8 2.8 0 1 1 0 5.6 2.8 2.8 0 0 1 0-5.6z"/>',
   fire: '<path d="M8 .5c.6 2.6 4.8 4.4 4.8 9a4.8 4.8 0 0 1-9.6 0c0-2.2 1.2-3.5 2.2-4.6.2 1.4.8 2.3 1.6 2.6C6.6 5 7.4 2.6 8 .5z"/>',

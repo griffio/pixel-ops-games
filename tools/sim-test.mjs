@@ -26,7 +26,7 @@ try {
   else {
     const body = readFileSync(testFile, 'utf8');
     const r = await send('Runtime.evaluate', { awaitPromise: true, returnByValue: true, expression: `(async () => { const a = window.app, m = a.match;
-      a.audio = null; if (m.combat) m.combat.audio = null; m.voices = null;
+      a.audio = null; if (m.combat) { m.combat.audio = null; m.combat.onShot = null; } m.voices = null;   // onShot calls the voices, nulled here
       const step = (n) => { for (let i = 0; i < n; i++) { a.world.update(0.05); a.units.update(0.05); m.update(0.05); a.dust.update(0.05); a.world.ambient && a.world.ambient(0.05); a.markers.update(0.05); } };
       const result = await (async (a, m, step) => { ${body} })(a, m, step);
       return JSON.stringify({ result, errs: window.__errs }); })()` });

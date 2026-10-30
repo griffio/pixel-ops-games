@@ -61,7 +61,7 @@ export class Roster {
     const T = this.app.match.teams[this.me]; if (Math.hypot(T.base.x - x, T.base.z - z) < 90) return 'main base';
     const n = this.near(x, z); return n.l && n.d < n.l.r + pad ? n.l.name : null;
   }
-  toward(u, at) { const where = this.place(at.x, at.z, 60), d = Math.round(Math.hypot(at.x - u.pos.x, at.z - u.pos.z)); return where ? `${where === 'main base' ? 'Base' : where} · ${d} m` : `Moving · ${d} m`; }   // the arrow says where to
+  toward(u, at) { const where = this.place(at.x, at.z, 60), d = Math.round(Math.hypot(at.x - u.pos.x, at.z - u.pos.z)), adv = u.advance && u.dest ? 'Advancing · ' : ''; return where ? `${adv}${where === 'main base' ? 'Base' : where} · ${d} m` : `${adv || 'Moving · '}${d} m`; }   // the arrow says where to
   // a card goes red for a few seconds after its unit loses health, and while its soldiers are pinned down
   hit(key, units, hpNow) {
     const now = this.app.match.elapsed, before = this.hp.get(key); this.hp.set(key, hpNow);

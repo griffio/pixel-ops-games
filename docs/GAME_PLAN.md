@@ -2659,7 +2659,7 @@ Engine changes needed in the existing core:
   card edge (a man over 0.35) and the men going prone. "Defend" is already what every unit
   does: sent somewhere, it stays and shoots what comes into range, and nothing pursues on its
   own. Two postures are missing and are parked until after the release, in this order:
-  1. **Attack-move to ground.** Infantry on the move only stop for an enemy inside about 18 m
+  1. **Attack-move to ground** (done 2026-10-30, below). Infantry on the move only stop for an enemy inside about 18 m
      (`combat.js`, the `u.hold` rule), so a squad sent across a field walks through fire instead
      of going to ground and fighting back. The order: a modifier key (and a command-bar button,
      so the touch layer has it) that marks the move as an attack, and the hold rule then uses the
@@ -2691,6 +2691,20 @@ Engine changes needed in the existing core:
 - **Released (2026-10-30).** Tag `v1.0.0`, deployed as Cloudflare version 7c1a208e and verified live: every
   changed file served on the first poll, the private paths 404, and the sandbag, clearing and boarding checks pass
   against the live page.
+
+- **Attack-move to ground (2026-10-30).** The first post-release order. `Unit.advanceTo` and `Squad.advanceTo` are
+  the plain move with `u.advance` set (any plain order clears it); the combat tick's hold rule then uses the
+  weapon's full hold range on the way instead of the 18 m close-quarters stop, so the squad goes to ground and
+  fights whatever comes into range, and walks on when it is dead or gone. Given three ways: `Z` arms the next click
+  or tap on the ground (the Advance button on the command bar does the same, so the touch layer has it; `Z` again
+  or Esc cancels), and `Alt` + right-click does it in one. The toast says "Attack-move: n units", the unit card
+  "Advancing · place · d m", the glyph a double chevron. Two movement fixes it needed: a soldier stopped to fight no
+  longer counts as making no progress (the stuck detector released a held man after 1.5 s, re-ordering him, which
+  used to clear the flag and could end the move), and the re-route a release makes keeps the flag. The CPU keeps its
+  own routes and never advances. Checked headless on Palm Valley with an enemy squad 26 m off the way: a plain move
+  walks on (nobody holds), an attack-move stops all four with the enemy targeted, resumes 16 m on within 3 s of the
+  enemy leaving, a plain order clears the flag, the bar shows Advance, `Z` arms and disarms. The sim harness now
+  nulls `combat.onShot` with the voices (a player-side shot threw in it).
 
 ## Open questions
 
