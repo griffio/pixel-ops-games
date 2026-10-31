@@ -3104,6 +3104,72 @@ Engine changes needed in the existing core:
   Light stayed 9-9 with more matches to the clock (15 of 18 from 7), so the change is neutral in CPU v CPU and bites
   where it was meant to: a human garrison hidden in hedges. Not changed: the decision to attack, which was Opus's.
 
+- **Command Wheel: a hybrid commander for the player's side (plan, 2026-10-31, branch `command-wheel`).** The user's
+  concept: two LLM commanders, one a side. The enemy's is today's. The player's side gets the same Strategist and
+  RemoteCommander, a CO who plans and runs the squads, but it takes orders from the player: dialled on a Command Wheel
+  built for a thumb on an iPad, or typed and dictated as prompts in the map's own words ("SQ-01 take the Bridge"), with
+  Clairic coercing free text into the plan's schema. The player can still pick a squad up and move it by hand.
+  Principles, from the two Opus games and the Clairic probe:
+  1. An order is carried out by the engine at once; the CO is told, not waited for. Its plans arrive every 20 to 60 s,
+     and an order that waited that long would feel broken. A direct order ("SQ-01 hold the Mill") becomes that squad's
+     role in the strategist immediately, exactly as a remote plan's `squads` entry does; an intent ("take the Ford",
+     "go quiet", "hold the line") sets the strategist's goals now (attack, first hold, posture, attack share) and binds
+     the CO's next plan.
+  2. The wheel speaks the plan's vocabulary, so it needs no parser: who (a squad by id, all, the fresh squads at base,
+     vehicles), what (the roles assault, hold, reserve, screen, grab, raid, escort, antiair, plus the intents take,
+     press, hold the line, go quiet, bleed them, fall back, rejoin), where (the map's places by distance, landmarks such
+     as the Bridge or the Castle, "here" with a tap on the ground), how (quietly = hold fire, at all costs = aggressive,
+     carefully = cautious). Clairic is for the free-text and dictation path only: fields `squads` (list of text spans),
+     `verb` (text), `place` (text), `quiet` (estimate 0 to 1), each with a confidence; under 0.8, or a missing span, the
+     UI shows a confirm chip ("SQ-01 hold the Mill?"); a parse that still fails goes to the CO as raw text in the digest.
+  3. Prompts are offered in the context of the map: a chips row above the wheel with three suggestions the rules make
+     from the state (the next capturable place for the nearest fresh squad, a threatened hold, an enemy group just
+     sighted, an idle squad), and the CO's own suggestions from its plan ("CO: SQ-04 screen the Ford").
+  4. A squad the player moves by hand is "in your hand": the strategist leaves it alone until Rejoin from the wheel or
+     90 s idle at its destination; the card says so. Without this the plan's re-sent holds would override every manual
+     move within seconds.
+  Data: `team.orders`, each `{ id, text, who: ['SQ-01'] | 'all' | 'fresh', role | intent, at, how, since, status:
+  standing | done | refused, note }`. The digest gains `orders` (standing and recent, with status); the Worker's prompt a
+  paragraph: the player is your commanding officer; standing orders bind the plan; carry them out and plan the rest;
+  acknowledge each in reason in a few words; if one cannot be done say why and do the nearest thing; never countermand
+  one. The CO's `reason` is read back to the player as the radio acknowledgement ("Roger, SQ-01 moving on the Bridge").
+  The gateway logs carry side BLUFOR entries as well, so a game can be read back from both chairs.
+  The wheel (src/core/wheel.js, HTML and CSS, no canvas): a round button bottom-right in thumb reach (a left-hand
+  setting mirrors it), or a long press on a squad card or the map. Three steps, as rings or successive dials:
+      who: [selection] | All | Fresh | SQ-01 .. SQ-09 | Vehicles
+      what: Take | Hold | Screen | Ambush (hold, quietly) | Grab | Fall back | Raid or Escort (by map) | Rejoin
+            centre: the intents dial  Press | Hold the line | Go quiet | Bleed them | Pull back | Lift on/off
+      where: the places nearest the subject first (up to 7) | Here (tap the ground) | landmarks (Bridge, Castle, Dam)
+  Drag through the rings and release to send, or tap, tap, tap; 44 pt targets; the composed sentence shows in a prompt
+  bar above the wheel ("SQ-01 take the Bridge, quietly") with Send and a mic; a sent order becomes a tag by the squad on
+  the map and on its card ("Order: take the Bridge"), and a feed line with the CO's acknowledgement when it comes. On
+  the desktop the same through the command bar and number keys.
+  Steps:
+  - **W1, the hybrid side in the engine (a day).** `?hybrid=1` and a lobby row "Your commander: none | built-in | Haiku
+    | Sonnet | Opus" (the Claude ones behind the engine panels as the enemy's are); a Strategist and RemoteCommander
+    for the player's team; `team.orders` with the enforcement in `applyPlan` and the squad roles (direct orders first,
+    then the CO's plan, then the share); intents into goals at once; the manual flag and Rejoin; digest `orders`; the
+    prompt paragraph; metadata side BLUFOR; the CO's reason to the feed. Checked with sim-test: orders added through
+    `match.orders.add(...)` and the squads' tags read back; a Worker probe with orders in the digest.
+  - **W2, the Command Wheel (a day).** wheel.js: the three rings, drag or tap, the sentence bar, the chips from the
+    rules, order tags on the map and the roster, the desktop keys. Touch-tested over CDP on an iPad viewport (the
+    touch harness exists) and by the user on the iPad.
+  - **W3, free text and dictation (half a day).** A Worker route `/orders`: text plus the known squad ids, places and
+    landmarks to Clairic, back a structured order with confidences (about a tenth of a cent and 0.3 s); the confirm
+    chips; the mic through the browser's speech recognition on the iPad (to be verified on iPad Safari); the raw-text
+    fallback to the CO.
+  - **W4, the CO's voice (half a day).** Acknowledgements and refusals with the reason ("Can't take the Mill: it links
+    only to the Hamlet"), a "What's the plan?" prompt that shows the CO's notes, the CO's suggested prompts as chips.
+  - **W5, playtest (half a day).** On the Hollow and Palm Valley: how an order feels (engine-immediate), what two LLM
+    commanders cost (Haiku for the player's side by default, about 3 cents a match; Opus against Opus about $4) and
+    their latency load, how much of a match the player spends dialling, and whether the hybrid becomes the default
+    touch experience. Then decide what merges to master.
+  Risks: the CO re-sending holds over a manual move (the manual flag); intents feeling slow (they set goals at once);
+  double LLM spend (Haiku default for the player's side); Clairic misparses (confirm chips, raw-text fallback); the
+  wheel covering the map on a phone (it opens over the dock and closes on send). Not in the plan: a synthesised voice
+  for the CO (the squad voices could carry it later), build orders on the wheel (FOB, sandbags: the command bar keeps
+  them), multiplayer.
+
 ## Open questions
 
 None open. Answered:
