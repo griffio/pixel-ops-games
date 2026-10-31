@@ -3346,6 +3346,38 @@ Engine changes needed in the existing core:
   standing 0.43 m higher, and a screenshot of two Humvees with their wheels on the tarmac. A vehicle leaving the road
   steps down 0.4 m at the kerb, as the road itself does.
 
+- **Note: Typesafe AI's Jev and the System One family (2026-10-31), with two adjustments to make.** docs.typesafe.ai
+  describes Jev as "the first System One model": a state plus typed questions (choice, score, noul yes/no), answered in
+  one pass with calibrated probabilities ("optimized against outcomes"), no generated text; `POST
+  api.typesafe.ai/v1/systemone`, models jev-1.13.0 and jev-1.14.0 (alias jev-latest), $0.042 per million input tokens,
+  output free, 64k context (262k behind a "danger zone" header), English best, no fine-tuning, Python and JS SDKs, key
+  from console.typesafe.ai; images only behind another danger-zone header with a Box primitive. Cloudflare's Clef calls
+  its own API "an extension to the System One API" and takes images; the docs name no operator and no relation between
+  the two. github.com/jamesward/zio-typesafe-ai is James Ward's Scala 3 / ZIO client for Jev (early: 5 stars, no
+  release), with a `loop` API that asks typed questions at every step of a state machine, the pattern below. Decision:
+  keep Clef for the order parser (inside Workers AI with the gateway's logs, no second key; the question builder maps
+  one to one onto Jev's primitives if a swap is ever wanted). Uses ranked on 2026-10-31: (1) a visual tester for the
+  harness, yes/no questions over headless screenshots after a deploy (would have caught the terraced hills and the
+  wheels in the road); (2) a coach's card in the debrief, score questions on a rubric over the match's record; (3)
+  reading the player's style for the CPU; (4) a re-plan trigger between a Claude commander's plans; (5) a tip picker
+  over a library. The user chose 3 and 4 as adjustments to make:
+  - **Style read for the CPU (to do).** Every minute or so, a System One call over what the enemy side can see of the
+    player (its own digest's enemy groups, the places changing hands, the trends: a few hundred tokens) with a choice
+    question, turtle | rusher | flanker | piecemeal | balanced, and a yes/no "has the style changed since last time".
+    The built-in planner (utility.js) picks its persona from the answer: a rusher is met with patient and holds, a
+    turtle with aggressive pressure on a weakly held place, a flanker with screens on the back-row places, piecemeal
+    with ambushes at the approach. Today `counterPick` reads the player's loadout once in the lobby and never again.
+    Through the Worker (a `/style` route, Clef, gateway-logged), the answer written into the digest as `enemyStyle`
+    for a Claude commander too. Half a day with a check on the three recorded games (turtle-breaker v the Hollow games,
+    flanker in the Palm Valley win).
+  - **Re-plan trigger between plans (to do).** For a Claude commander: every 5 to 10 s a compact digest (tickets,
+    trends, places, the enemy groups, the plan's intent) and three questions: is the plan still working (noul), which
+    of our places is most threatened (choice), should the attack be called off (noul). Not acted on directly (the
+    Clairic probe showed these models do no arithmetic): a confident answer against the plan nudges the RemoteCommander
+    early (`nudge()`, as a capture does) instead of waiting 20 to 60 s, and the digest carries the three answers so the
+    LLM sees what tripped it. Costs about a tenth of a cent a call on Clef; cap it to one nudge a minute. A day, with
+    the gateway logs of a game before and after to see whether the early plans helped.
+
 ## Open questions
 
 None open. Answered:
