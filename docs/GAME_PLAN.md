@@ -3034,6 +3034,29 @@ Engine changes needed in the existing core:
   more within 35 m is a grenade target, cover or not; a lone man or a pair in the open is left to the rifles. Not done:
   the roster line (the card has the count).
 
+- **Post-release: a projections block in the digest (planned 2026-10-31).** The user asked whether a forecasting model
+  could feed the Claude commander predictions. The better version is the game's own arithmetic, exact and free: a
+  `projections` object in the digest (src/game/ai/digest.js) with tickets for both sides at the clock at the current
+  rates (bleed plus deaths over the last three minutes), minutes until each side reaches zero, the capture time of the
+  current attack with the squads assigned to it against the enemy seen there, and each place's threat index from the
+  built-in planner (utility.js already scores holds by value times threat). The Worker's prompt gains one sentence
+  saying the projections assume both sides carry on as they are. About half an hour. It helps Haiku and Sonnet most;
+  Opus did the rate arithmetic correctly in every plan of the Hollow game but spent its notes on it.
+- **Note: Cloudflare's Clairic model (looked at 2026-10-31).** `@cf/cloudflare/clairic` (Workers AI, preview, $0.10 per
+  million input tokens, no output charge, 65k context) is not a time-series forecaster: it is a typed reader. Free text
+  (`state`) plus a map of typed `fields` (text spans, numbers, dates, lists, `estimate` with min and max, `forecast`
+  with a horizon up to 64 steps) returns one value per field with a confidence and quantiles in a single forward pass,
+  0.3 to 1.3 s over REST. Probed with the Hollow game's digests at minutes 3.8 and 8.1 and seven estimate fields: it
+  put the player's tickets at 172 in three minutes (80% band 124 to 202) when they went to 113, and at minute 8.1 had
+  them rising from 93 to 138 while also putting a side at zero within four minutes; it named "Ford" as the player's next
+  target with confidence 0.85 while the digest said 17 men were massing on the Hamlet. It does no rate arithmetic, it
+  cannot be trained, and its confidences are not calibrated for this domain, so its numbers would be confident noise
+  in the commander's digest. Not to be used as a predictor. Where it fits the project, if ever: typed extraction from
+  human text, a "radio orders" box mapping "two squads hold the Mill, the rest take the Ford, quietly" onto the plan
+  schema (location names as spans, counts, a squad list) for a player-side strategist to carry out; the parsing is
+  trivial with it, the player-side strategist is the real work. Probe script: scratchpad gw/clairic.mjs (wiped daily;
+  the REST call is POST accounts/<id>/ai/run/@cf/cloudflare/clairic with { model, state, fields }).
+
 ## Open questions
 
 None open. Answered:
