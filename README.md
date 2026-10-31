@@ -104,7 +104,10 @@ your hand" until you Rejoin it or it idles 90 s. The **Command Wheel** dials the
 button left of the minimap (or **Q**) opens a ring of pills round a hub, who, then what, then
 where, tapped or dragged through; the sentence builds in the bar and the order goes the moment
 it is complete. Three chips above the bar suggest orders from the state. "Here" takes a tap on
-the ground and is your own hand.
+the ground and is your own hand. The box under the bar takes the order in words, typed or
+dictated with the Mic: the Worker's `/orders` route reads it with Cloudflare's Clef model, every
+squad, verb and place an option with a probability, and the wheel sends it, or shows its
+reading for a tap when it is unsure, a sentence names nobody, or it carries two orders.
 
 *Desert Crossing* (`?map=desert1km`) was built to be fair to both sides: the Village sits on the
 strip of land between two parallel rivers, each bridged where the road crosses

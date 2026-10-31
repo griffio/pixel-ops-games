@@ -36,7 +36,61 @@ export class Wheel {
       for (const s of this.ring.querySelectorAll('.w-seg.hot')) if (s !== b) s.classList.remove('hot'); if (b) b.classList.add('hot');
     });
     this.modsEl.addEventListener('click', (e) => { const b = e.target.closest('button'); if (!b) return; this.mods[b.dataset.m] = !this.mods[b.dataset.m]; this.renderBar(); });
-    this.chips.addEventListener('click', (e) => { const b = e.target.closest('button'); if (!b) return; const s = this.sugg[+b.dataset.i]; if (s) this.send(s.spec, s.text); });
+    this.chips.addEventListener('click', (e) => {
+      const b = e.target.closest('button'); if (!b || b.disabled) return;
+      if (b.dataset.c !== undefined) { const p = this.pending; this.pending = null; if (b.dataset.c === '1' && p) { if (this.send(p.spec, p.sentence)) this.input.value = ''; } else { this.say.textContent = this.sentence(); this.renderChips(); } return; }   // the confirm chip
+      const s = this.sugg[+b.dataset.i]; if (s) this.send(s.spec, s.text);
+    });
+    // the typed order: the Worker's /orders reads it with Clef and proposes a structured order; dictation feeds the same box
+    this.form = this.el.querySelector('.w-type'); this.input = this.el.querySelector('.w-in'); this.mic = this.el.querySelector('.w-mic');
+    this.form.addEventListener('submit', (e) => { e.preventDefault(); this.submitText(this.input.value); });
+    this.input.addEventListener('keydown', (e) => e.stopPropagation());   // the game's hotkeys stay out of the box
+    if (!(window.SpeechRecognition || window.webkitSpeechRecognition)) this.mic.hidden = true; else this.mic.addEventListener('click', () => this.dictate());
+  }
+  // "SQ-01 hold the Mill, quietly" in words: /orders -> { order } -> the same spec the pills make; under 0.7 confidence, a
+  // compound sentence or nobody named, a confirm chip shows the reading before it goes
+  async submitText(text) {
+    text = String(text || '').trim(); if (!text || this.busyText) return;
+    const squads = this.squads().map(s => s.members[0].label), places = this.places().map(l => l.name);
+    this.busyText = true; this.say.textContent = `${text} \u2026`;
+    let r; try { const res = await fetch(this.app.ordersUrl || '/orders', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ text, squads, places }) }); r = await res.json(); } catch { r = { error: 'no order service here' }; }
+    this.busyText = false; if (!this.open_) return;
+    if (r.error || !r.order) { this.app.hud.toast(`Can't read that${r.error ? ': ' + r.error : ''}`); this.say.textContent = this.sentence(); return; }
+    const o = r.order, sentence = this.sentenceFor(o), spec = this.specFor(o);
+    if (o.missing || !spec) { this.say.textContent = this.sentence(); this.app.hud.toast(o.missing === 'a place' ? `Which place? ${sentence}` : `Can't read that: ${sentence}`); return; }
+    if (o.needsConfirm) {
+      this.pending = { spec, sentence }; this.say.textContent = `${sentence}?`;
+      this.chips.innerHTML = `<button type="button" class="confirm" data-c="1">Send: ${sentence}</button><button type="button" data-c="0">No</button>${o.compound >= 0.6 ? '<button type="button" disabled>one order at a time</button>' : ''}`;
+      return;
+    }
+    if (this.send(spec, sentence)) this.input.value = '';
+  }
+  dictate() {
+    const SR = window.SpeechRecognition || window.webkitSpeechRecognition; if (!SR) return;
+    if (this.rec) { try { this.rec.stop(); } catch {} return; }
+    const rec = this.rec = new SR(); rec.lang = navigator.language || 'en-GB'; rec.interimResults = true; rec.maxAlternatives = 1;
+    this.mic.classList.add('on'); const ph = this.input.placeholder; this.input.placeholder = 'Listening\u2026';
+    rec.onresult = (e) => { const t = [...e.results].map(x => x[0].transcript).join(' ').trim(); this.input.value = t; if (e.results[e.results.length - 1].isFinal) this.submitText(t); };
+    rec.onerror = (e) => { if (e.error !== 'aborted' && e.error !== 'no-speech') this.app.hud.toast(`Dictation: ${e.error}`); };
+    rec.onend = () => { this.rec = null; this.mic.classList.remove('on'); this.input.placeholder = ph; };
+    try { rec.start(); } catch { this.rec = null; this.mic.classList.remove('on'); this.input.placeholder = ph; }
+  }
+  // the order a who, a what, a place and a how make (game/orders.js), shared by the pills and the typed path
+  specFor({ who, what, at, how }) {
+    const me = this.me;
+    if (INTENT.some(i => i.k === what)) return { team: me, intent: what, how };
+    if (what === 'rejoin') return { team: me, who: who || 'all', intent: 'rejoin' };
+    if (!who) return null; const h = what === 'ambush' ? 'quietly' : how;
+    if (what === 'take') return who === 'all' ? { team: me, intent: 'take', at, how: h } : { team: me, who, role: 'hold', at, how: h };   // a squad told to take a place takes it and holds it
+    if (what === 'hold' || what === 'ambush') return { team: me, who, role: 'hold', at, how: h };
+    if (what === 'screen') return { team: me, who, role: 'screen', at, how: h };
+    if (what === 'grab') return { team: me, who, role: 'grab', at, how: h };
+    if (what === 'fallback') return { team: me, who, role: 'reserve', at, how: h };
+    return null;
+  }
+  sentenceFor({ who, what, at, how }) {
+    const W = WHAT.find(x => x.k === what) || INTENT.find(x => x.k === what), name = Array.isArray(who) ? who.join(', ') : who === 'fresh' ? 'Fresh squads' : 'Everyone';
+    return [name, W ? W.name.toLowerCase() : what, at ? 'the ' + at : ''].filter(Boolean).join(' ') + (how && !(what === 'ambush' && how === 'quietly') ? ', ' + how : '');
   }
   get match() { return this.app.match; }
   get me() { return this.app.playerTeam ?? 0; }
@@ -44,7 +98,7 @@ export class Wheel {
   toggle() { if (this.open_) this.close(); else this.open(); }
   open() {
     if (!this.on || !this.el) return;
-    this.open_ = true; this.el.hidden = false; this.step = 0; this.what = null; this.mods = { quiet: false, costs: false };
+    this.open_ = true; this.el.hidden = false; this.step = 0; this.what = null; this.mods = { quiet: false, costs: false }; this.pending = null; this.busyText = false;
     const sel = [...new Set(this.app.input.selected.filter(u => u.squad && u.team === this.me && !u.dead).map(u => u.squad))];   // a selection is the who
     this.who = sel.length ? { k: 'sel', ids: sel.map(s => s.members[0].label), squads: sel } : null; if (this.who) this.step = 1;
     this.sugg = this.suggestions(); this.render(); this.btn.classList.add('on'); document.body.classList.add('wheel-open');
@@ -106,16 +160,7 @@ export class Wheel {
   }
   how() { return this.mods.costs ? 'at all costs' : this.mods.quiet ? 'quietly' : undefined; }
   whoSpec() { return this.who.k === 'sel' ? this.who.ids : this.who.k; }
-  // the order a what and a place make (game/orders.js)
-  spec(at) {
-    const me = this.me, who = this.whoSpec(), how = this.what === 'ambush' ? 'quietly' : this.how();
-    if (this.what === 'take') return who === 'all' ? { team: me, intent: 'take', at, how } : { team: me, who, role: 'hold', at, how };   // a squad told to take a place takes it and holds it
-    if (this.what === 'hold' || this.what === 'ambush') return { team: me, who, role: 'hold', at, how };
-    if (this.what === 'screen') return { team: me, who, role: 'screen', at, how };
-    if (this.what === 'grab') return { team: me, who, role: 'grab', at, how };
-    if (this.what === 'fallback') return { team: me, who, role: 'reserve', at, how };
-    return null;
-  }
+  spec(at) { return this.specFor({ who: this.whoSpec(), what: this.what, at, how: this.how() }); }
   send(spec, text) {
     if (!spec) return; const r = this.match.orders.add({ ...spec, text });
     if (r.error) { this.app.hud.toast(`Can't: ${r.error}`); if (this.app.audio) this.app.audio.ui('deny'); return false; }

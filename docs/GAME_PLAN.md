@@ -3154,7 +3154,7 @@ Engine changes needed in the existing core:
   - **W2, the Command Wheel (a day). Done 2026-10-31, see below.** wheel.js: the three rings, drag or tap, the sentence bar, the chips from the
     rules, order tags on the map and the roster, the desktop keys. Touch-tested over CDP on an iPad viewport (the
     touch harness exists) and by the user on the iPad.
-  - **W3, free text and dictation (half a day).** A Worker route `/orders`: text plus the known squad ids, places and
+  - **W3, free text and dictation (half a day). Done 2026-10-31 with Clef, not Clairic, see below.** A Worker route `/orders`: text plus the known squad ids, places and
     landmarks to Clairic, back a structured order with confidences (about a tenth of a cent and 0.3 s); the confirm
     chips; the mic through the browser's speech recognition on the iPad (to be verified on iPad Safari); the raw-text
     fallback to the CO.
@@ -3236,6 +3236,32 @@ Engine changes needed in the existing core:
   place under a spawned enemy APC read the hiding note; the pill and the toast carried "8 +1 veh". Not changed: Llama as
   a CO writes two-word reasons and never acknowledged an order by name; Sonnet or Opus on the player's side reads the
   Orders paragraph, at a cost.
+
+- **W3 done (2026-10-31, "If Clef is more suitable than Clairic then Go W3", branch `command-wheel`).** Clef
+  (`@cf/cloudflare/clef`, Cloudflare's 27B decision model: a state plus typed questions, back a probability for every
+  option, one forward pass, $0.24 per million input tokens, no output charge) took Clairic's place for the free-text
+  path, because an order's vocabulary is closed: every squad, verb and place is an option, so the model classifies
+  instead of extracting spans. The Worker's `/orders` (POST `{ text, squads, places }`, through the gateway with
+  metadata kind order) builds the questions in `orderQuestions`: what (a choice among take, hold, screen, ambush, grab,
+  fall back, rejoin, press, hold the line, go quiet, bleed them, pull back, each with its synonyms), where (a choice
+  among the places and none), everyone, fresh, quietly, at all costs and compound (yes/no), and one yes/no per squad
+  ("Is squad SQ-05 named, also written SQ 5 or squad 5?"); `proposeOrder` turns the answers into `{ who, what, at,
+  how, confidence, compound, missing, needsConfirm }`, the confidence being the weakest part, nobody named meaning
+  everyone with a confirm, a place order without a place missing one, and needsConfirm under 0.7, on a compound
+  sentence or an implied everyone. Probed from Node on ten sentences (230 to 660 ms): "squad 5 go dark at east
+  clearing" is SQ-05 ambush East Clearing quietly at 0.78; "SQ 2 screen the hamlet" 0.93; "SQ-04 as you were" rejoin
+  0.93; "press on" 0.95; "everyone pull back" 0.83; "fresh squads take the ford" 0.69, confirmed; "SQ-01 and SQ-03
+  hold the Mill quietly" names both squads at 0.96 and 0.98 but splits hold against ambush, so it confirms with the
+  right sentence; "two squads take the ford, the rest hold the hamlet" is flagged compound at 0.97; a bare "hold" is
+  hold the line at 0.49, confirmed. The wheel's bar gained a row: a text box (the game's hotkeys stay out of it) with
+  Send and a Mic that uses the browser's speech recognition where it exists (Chrome has it; iPad Safari to be tried),
+  interim words filling the box and the final result submitting. `submitText` posts, shows the reading in the bar, and
+  either sends through the shared `specFor` (the pills use it too now) or shows a confirm chip ("Send: SQ-01, SQ-03
+  hold the Mill, quietly" and "No", plus "one order at a time" when compound); a missing place asks "Which place?";
+  an unreadable sentence says so. Checked headless against a stubbed `/orders` with canned proposals: the confirm flow,
+  the direct send, an intent, the low-confidence chip and its No, the missing-place toast and the unknown toast; the
+  live route is checked after the deploy. Not done: splitting a compound sentence into two orders (the chip asks for
+  one at a time), landmarks as places.
 
 ## Open questions
 

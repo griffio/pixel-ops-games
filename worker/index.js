@@ -57,9 +57,52 @@ async function askClaude(env, pick, effort, digestBody, metadata) {
   return { raw, usage: msg.usage };
 }
 
+// ---- /orders: a typed order from the player's free text (the Command Wheel's bar and dictation), decided by Clef
+// (@cf/cloudflare/clef, one forward pass, no generated text): every squad, verb and place is an option, so the model answers
+// with a probability for each, and the client confirms anything under 0.7 before it sends (docs/GAME_PLAN.md "Command Wheel", W3)
+const ORDER_WHATS = {
+  take: 'capture a place and then hold it (take, capture, seize, secure, go to, move on)', hold: 'stand at a place of ours and defend it',
+  screen: 'an overwatch or picket position out from a place of ours (screen, overwatch, watch)', ambush: 'hide at a place holding fire (ambush, go quiet there, go dark, lie in wait)',
+  grab: 'take an empty place alone with a small force (grab, snatch)', fallback: 'fall back or withdraw to a named place of ours (fall back to, retreat to)',
+  rejoin: 'return to the commander\'s plan (rejoin, as you were, carry on, release)', press: 'attack harder everywhere (press, push on, all out)',
+  'hold the line': 'stop attacking and hold what we have (hold the line, stand fast, defend everything)', 'go quiet': 'everyone holds fire and stays hidden, no place named (go quiet, silence, no shooting)',
+  'bleed them': 'sit on the majority of places and let the ticket bleed work', 'pull back': 'everyone withdraws towards home, no place named',
+};
+const PLACE_WHATS = ['take', 'hold', 'screen', 'ambush', 'grab', 'fallback'], PLAN_WHATS = ['press', 'hold the line', 'go quiet', 'bleed them', 'pull back'];
+const sqKey = (s) => 'sq_' + s.replace(/\W/g, '_');
+export function orderQuestions(squads, places) {
+  const q = {
+    what: { type: 'choice', instructions: 'What does the order ask for? Pick the closest.', criteria: ORDER_WHATS },
+    where: { type: 'choice', instructions: 'Which place does the order name? "none" when it names no place.', criteria: { none: 'no place is named', ...Object.fromEntries(places.map(p => [p, `the place called ${p}`])) } },
+    everyone: { type: 'noul', instructions: 'Does the order apply to every squad, all of them, or "the rest", rather than to named squads?' },
+    fresh: { type: 'noul', instructions: 'Does the order apply to the fresh squads, the reserves, or the squads at base?' },
+    quietly: { type: 'noul', instructions: 'Does the order ask for stealth: quietly, hold fire, silent, go dark, unseen?' },
+    costs: { type: 'noul', instructions: 'Does the order ask for all-out effort: at all costs, whatever it takes, no matter what?' },
+    compound: { type: 'noul', instructions: 'Does the text give two different instructions to two different groups (for example "two squads take X, the rest hold Y")?' },
+  };
+  for (const s of squads) q[sqKey(s)] = { type: 'noul', instructions: `Is squad ${s} named in the order (also written ${s.replace(/^SQ-0?/, 'SQ ')} or squad ${+s.replace(/\D/g, '')})?` };
+  return q;
+}
+// the structured order the answers add up to, with the confidence of its weakest part
+export function proposeOrder(answers, squads) {
+  const A = answers || {}, p = (a) => (a && typeof a.noul === 'number' ? a.noul : 0);
+  const what = A.what && A.what.choice, pWhat = A.what && A.what.probabilities ? A.what.probabilities[what] || 0 : 0;
+  const named = squads.filter(s => p(A[sqKey(s)]) >= 0.5), pNamed = named.map(s => p(A[sqKey(s)]));
+  const everyone = p(A.everyone) >= 0.5, fresh = !everyone && p(A.fresh) >= 0.5;
+  const implied = !named.length && !everyone && !fresh, who = named.length ? named : everyone ? 'all' : fresh ? 'fresh' : 'all';   // nobody named: everyone, confirmed below
+  const where = A.where && A.where.choice !== 'none' ? A.where.choice : null, pWhere = A.where && A.where.probabilities ? A.where.probabilities[A.where.choice] || 0 : 0;
+  const at = PLACE_WHATS.includes(what) ? where : null;
+  const how = p(A.costs) >= 0.5 ? 'at all costs' : p(A.quietly) >= 0.5 ? 'quietly' : undefined;
+  const parts = [pWhat, ...pNamed]; if (at) parts.push(pWhere); if (!named.length && who && !PLAN_WHATS.includes(what)) parts.push(Math.max(p(A.everyone), p(A.fresh)));
+  const confidence = +Math.min(...parts).toFixed(2), compound = +p(A.compound).toFixed(2);
+  const missing = PLACE_WHATS.includes(what) && !at ? 'a place' : null;
+  return { who, what, at, how, confidence, compound, missing, needsConfirm: !!missing || confidence < 0.7 || compound >= 0.6 || (implied && !PLAN_WHATS.includes(what)) };
+}
+
 export default {
   async fetch(req, env) {
     const url = new URL(req.url);
+    if (url.pathname === '/orders') return this.orders(req, env);
     if (url.pathname !== '/commander') return env.ASSETS ? env.ASSETS.fetch(req) : new Response('not found', { status: 404 });
     if (req.method === 'OPTIONS') return new Response(null, { status: 204, headers: CORS });   // preflight: no body on a 204
     if (req.method === 'GET') return json({ ok: true, model: env.MODEL, gateway: env.GATEWAY || null, models: Object.keys(MODELS) });
@@ -92,6 +135,21 @@ export default {
       const plan = validatePlan(raw, names, ids(digest.squads), ids(digest.vehicles));
       if (!plan) return json({ error: 'no usable plan', raw: typeof raw === 'string' ? raw.slice(0, 300) : raw && typeof raw === 'object' ? JSON.stringify(raw).slice(0, 300) : null, ms: Date.now() - t0 }, 502);
       return json({ plan, model: pick.model, ms: Date.now() - t0, usage: out.usage || null });
+    } catch (e) { return json({ error: String(e && e.message || e).slice(0, 200), ms: Date.now() - t0 }, 502); }
+  },
+  // POST { text, squads, places } -> { order: { who, what, at, how, confidence, compound, missing, needsConfirm }, ms }
+  async orders(req, env) {
+    if (req.method === 'OPTIONS') return new Response(null, { status: 204, headers: CORS });
+    if (req.method !== 'POST') return json({ error: 'method' }, 405);
+    let b; try { const t = await req.text(); if (t.length > 4000) throw new Error('too large'); b = JSON.parse(t); } catch { return json({ error: 'bad order' }, 400); }
+    const text = String(b.text || '').trim().slice(0, 300), squads = (Array.isArray(b.squads) ? b.squads : []).filter(s => /^SQ-\d\d$/.test(s)).slice(0, 16), places = (Array.isArray(b.places) ? b.places : []).map(x => String(x).slice(0, 40)).filter(Boolean).slice(0, 16);
+    if (!text) return json({ error: 'say something' }, 400);
+    const t0 = Date.now(), gateway = env.GATEWAY ? { gateway: { id: env.GATEWAY, collectLog: true, metadata: { kind: 'order' } } } : undefined;
+    try {
+      const out = await env.AI.run('@cf/cloudflare/clef', { model: 'clef', state: text, questions: orderQuestions(squads, places) }, gateway);
+      const answers = out && (out.answers || (out.result && out.result.answers));
+      if (!answers) return json({ error: 'no answer', ms: Date.now() - t0 }, 502);
+      return json({ order: proposeOrder(answers, squads), ms: Date.now() - t0 });
     } catch (e) { return json({ error: String(e && e.message || e).slice(0, 200), ms: Date.now() - t0 }, 502); }
   },
 };
