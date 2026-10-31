@@ -323,6 +323,7 @@ export class Hud {
     const men = list.filter(u => u.type === 'soldier' && !u.dead && !u.mounted && u.team === me);
     if (men.length) { const on = men.every(u => u.holdFire); orders.push({ act: 'holdfire', glyph: 'holdfire', name: on ? 'Holding fire' : 'Hold fire', key: 'O', on, title: on ? 'Fire at will' : 'Hold fire: the squad stays quiet and hidden, no target and no shot, until an enemy comes within 20 m or it is fired on, then opens up; an attack-move under way becomes a plain move' }); }
     const sqs = [...new Set(list.filter(u => u.type === 'soldier' && u.squad && u.team === me).map(u => u.squad))];
+    if (this.app.match && this.app.match.hybrid && sqs.some(s => s.manual)) orders.push({ act: 'rejoin', glyph: 'follow', name: 'Rejoin', title: 'Hand the squad back to your commander: it has been in your hand since you moved it' });
     if (sqs.length && m.rallies) { const c = sqs.map(sq => m.rallies.canPlace(sq)), ok = c.some(x => x.ok), why = c.find(x => !x.ok); orders.push({ act: 'rally', glyph: 'rally', name: 'Rally', key: 'T', why: ok ? null : why.reason, title: 'Drop a rally point: the squad respawns here' }); }
     if (list.some(u => u.type === 'soldier' && !u.dead && !u.mounted && u.team === me)) {
       const room = U.some(v => v.seats && v.team === me && !v.dead && v.passengers.length < v.seats);
@@ -395,6 +396,7 @@ export class Hud {
     if (kind === 'load') { this.app.input.startLoad(); return; }
     if (kind === 'advance') { this.app.input.startAdvance(); return; }
     if (kind === 'holdfire') { this.app.input.toggleHoldFire(); return; }
+    if (kind === 'rejoin') { const sqs = [...new Set(sel.filter(u => u.squad && u.team === (this.app.playerTeam ?? 0)).map(u => u.squad))]; if (sqs.length && m.orders) m.orders.add({ team: this.app.playerTeam ?? 0, who: sqs.map(s => s.members[0].label), intent: 'rejoin' }); this.showSelection(sel); return; }
     if (kind === 'follow' || kind === 'clear') { this.touchAction(kind); return; }
     if (kind === 'cancel') { this.cancelBuild(sel.find(u => u.kit === 'engineer' && !u.dead && u.building)); return; }
     if (kind === 'refill') {   // selected supply trucks drive home, fill up and come back

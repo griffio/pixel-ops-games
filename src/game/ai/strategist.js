@@ -29,7 +29,7 @@ export class Strategist {
     sq.goal = [x, z]; sq.tag = tag; sq.zone = zone;
     const via = careful ? this.detour(sq, c, x, z) : (sq.route = null);
     if (via) sq.order(via.x, via.z); else sq.order(x, z);
-    if (sq.setHoldFire) sq.setHoldFire(this.match.app.cpuAmbush !== false && /^(hold|reserve|screen)/.test(tag) && !this.enemiesNear(x, z, 120).length);   // a quiet post is an ambush: hold fire until an enemy is at 20 m or the squad is fired on; an attack never holds
+    if (sq.setHoldFire) { const o = this.match.orders ? this.match.orders.forSquad(sq) : null; sq.setHoldFire((o && o.how === 'quietly') || (this.match.app.cpuAmbush !== false && /^(hold|reserve|screen)/.test(tag) && (this.quiet || !this.enemiesNear(x, z, 120).length))); }   // a quiet post is an ambush: hold fire until an enemy is at 20 m or the squad is fired on; an attack never holds, unless the player ordered it quietly; under "go quiet" every post does
   }
   // Known enemy fire, for routes: where we see enemies or last saw them, with the reach of their guns (a soldier in a group of
   // three or more 110 m, an APC 190, a tank 240, a machine-gun emplacement 150, an anti-tank one 220; the mortar is left out,
@@ -118,13 +118,15 @@ export class Strategist {
     // drop lifts whose carrier or troops are gone, so squads return to the pool
     // (lift keys are carriers, which are units with a type, and the squads riding them whole)
     for (const [k, v] of [...this.lifts]) if (k.type && (k.dead || (v.stage === 'park' ? false : v.sqs ? !v.sqs.some(s => s.leader) : v.sq ? !v.sq.leader : v.riders.length && !k.passengers.length && v.riders.every(m => m.dead)))) this.endLift(k);   // a parked truck carries nobody
-    const squads = this.units.squads.filter(s => s.team === this.team && s.leader && !this.lifts.has(s) && !s.members.some(m => m.building) && !(s.pinUntil > this.match.elapsed));   // pinned squads (in cover from armour, or stalking it) keep doing that
+    const squads = this.units.squads.filter(s => s.team === this.team && s.leader && !this.lifts.has(s) && !s.members.some(m => m.building) && !(s.pinUntil > this.match.elapsed) && !s.manual);   // pinned squads (in cover from armour, or stalking it) keep doing that; a squad in the player's hand is theirs
     const vehicles = this.units.units.filter(u => u.team === this.team && !u.dead && !u.squad && !u.spec.structure && !u.spec.naval && !u.afloat);   // not landing craft, nor what waits on the ship
     const myFobs = this.units.units.filter(u => u.type === 'fob' && u.team === this.team && !u.dead).map(f => ({ x: f.pos.x, z: f.pos.z, r: 18, index: 'fob' + f.id }));
     const g = this.match.mode.goals(this.team, myFobs);
     // who sets the plan: a fresh remote commander, else the utility commander, else the mode's goals as they are
     const adviser = this.remote && this.remote.fresh ? this.remote : this.utility && this.utility.decide(squads, vehicles) ? this.utility : null;
     if (adviser) this.applyPlan(g, adviser);
+    const orders = this.match.orders ? this.match.orders.active(this.team) : [];
+    this.quiet = false; if (orders.length) this.applyOrders(g, orders);   // the player's standing orders bind the goals (game/orders.js, the Command Wheel)
     this.posture = g.posture || 'balanced'; this.prefer = g.logistics || 'fob'; this.lift = g.lift !== false;
     this.exact = adviser !== null && adviser === this.remote;   // a remote commander's logistics are orders; the others' are preferences
     if (g.hunt) return this.skirmish(squads, vehicles, land);
@@ -172,6 +174,8 @@ export class Strategist {
     // a remote commander may give squads jobs by id; the rest follow the attack share
     const grabbable = this.grabsFor(attack);   // places a squad may take on its own
     const roles = new Map(); if (adviser) for (const r of adviser.plan.squads || []) roles.set(r.id, r);
+    // the player's direct orders outrank the CO's jobs: named squads, everyone, or the fresh squads at base
+    for (const o of orders) if (o.role) { const ids = Array.isArray(o.who) ? o.who : free.filter(sq => o.who === 'all' || Math.hypot(sq.centroid().x - base.x, sq.centroid().z - base.z) < base.r + 30).map(sq => sq.leader.label); for (const id of ids) roles.set(id, { id, role: o.role, at: o.at, order: o }); }
     const assigned = free.filter(sq => roles.has(sq.leader.label)), rest = free.filter(sq => !roles.has(sq.leader.label));
     // jobs a remote commander gave that are not carried out as given, with the reason (the digest tells it next time)
     const refused = this.refused = new Map(), elsewhere = (r, why) => refused.set(r.id, `${r.role}${r.at ? ' at ' + r.at : ''}: ${why}`);
@@ -179,6 +183,11 @@ export class Strategist {
     if (garrison && roles.has(garrison.leader.label)) elsewhere(roles.get(garrison.leader.label), 'it crews our FOB emplacements, so it stays on them');
     for (const sq of assigned) {
       const r = roles.get(sq.leader.label), at = r.at ? byName(r.at) : null, ours = at && at.owner === this.team ? at : null;
+      // the player's order to hold, screen, wait at or grab a place that is not ours means go and take it, then hold it
+      if (r.order && at && !ours && ['hold', 'reserve', 'screen', 'grab', 'antiair'].includes(r.role)) {
+        if (o2 && !o2.capturable(this.team, at)) { elsewhere(r, `the ${at.name} cannot be taken yet, take a place it links to first; so at ${hold ? hold.name : 'base'}`); holdAt(sq, hold); continue; }
+        const [x, z] = this.inZone(at.x, at.z, at); this.send(sq, x, z, 'cap' + at.index, at); continue;
+      }
       if (r.at && !ours && (r.role === 'hold' || r.role === 'reserve' || r.role === 'screen' || r.role === 'antiair')) elsewhere(r, `not ours, so at ${hold ? hold.name : 'base'} instead`);
       if (r.role === 'raid' && !enemyFob) elsewhere(r, 'no enemy FOB known near the attack, so with the attack instead');
       if (r.role === 'assault') attackWith(sq);
@@ -378,6 +387,20 @@ export class Strategist {
 
   // A remote commander's plan overrides the mode's goals wherever it names something legal: the attack
   // must be the next capturable location in the lattice, holds must be ours; the rest are knobs.
+  // the player's standing intents (game/orders.js) bind the goals whoever planned them: take sets the attack (the hold, when
+  // the place is already ours), press the posture and the share, hold the line and bleed them stop the attack, pull back
+  // gathers at our place nearest home, go quiet makes every post an ambush (send); how sets the posture
+  applyOrders(g, orders) {
+    const o2 = this.match.objectives, byName = (n) => o2 ? o2.list.find(l => l.name === n) || null : null, base = this.teams[this.team].base;
+    for (const o of orders) {
+      if (o.intent === 'take' && o.at) { const l = byName(o.at); if (l && l.owner !== this.team && o2.capturable(this.team, l)) { g.attack = l; g.holds = null; g.attackShare = Math.max(g.attackShare || 0, 0.6); } else if (l && l.owner === this.team) { g.hold = l; g.holds = null; } }
+      else if (o.intent === 'press') { g.posture = 'aggressive'; g.attackShare = Math.max(g.attackShare || 0, 0.8); }
+      else if (o.intent === 'hold the line' || o.intent === 'bleed them') { g.attack = null; g.attackShare = 0; }
+      else if (o.intent === 'pull back') { g.attack = null; g.attackShare = 0; g.posture = 'cautious'; const home = o2 ? o2.list.filter(l => l.owner === this.team).sort((p, q) => Math.hypot(p.x - base.x, p.z - base.z) - Math.hypot(q.x - base.x, q.z - base.z))[0] : null; if (home) { g.hold = home; g.holds = null; } }
+      else if (o.intent === 'go quiet') { this.quiet = true; if (g.posture !== 'aggressive') g.posture = 'cautious'; }
+      if (o.how === 'at all costs') g.posture = 'aggressive'; else if (o.how === 'carefully') g.posture = 'cautious';
+    }
+  }
   applyPlan(g, remote) {
     const p = remote.plan, o = this.match.objectives; if (!o) return;
     const byName = (n) => o.list.find(l => l.name === n) || null;
@@ -432,6 +455,7 @@ export class Strategist {
     for (const sq of this.units.squads) {
       if (sq.team !== this.team || !sq.leader || sq.mounted || this.lifts.has(sq) || sq.members.some(m => m.building)) continue;
       if (sq.posted) continue;                                                                               // manning sandbags: they stay, armour or not
+      if (sq.manual) continue;                                                                               // in the player's hand
       const c = sq.centroid();
       let apc = null, ad = 1e9; for (const v of apcs) { const d = Math.hypot(v.pos.x - c.x, v.pos.z - c.z); if (d < 150 && d < ad && C.canSeePoint(v, c.x, c.z)) { apc = v; ad = d; } }
       if (apc) {

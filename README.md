@@ -92,6 +92,17 @@ four seconds and none with a friend close to him, so a squad that sits behind a
 wall at rifle range pays for it. Grenades come back with a respawn, in the main
 base, or beside a stopped supply truck for 2 supplies a squad.
 
+**Your CO** (the lobby's "Your CO" row, or `?hybrid=1`; `?hybrid=haiku|sonnet|opus` for a
+Claude commander on your own side) is a hybrid commander for your side: it plans and runs
+your squads as the CPU's does, and takes your orders. An order names who (a squad, everyone,
+or the fresh squads at base), what (hold, screen, grab, join the attack; or an intent for the
+whole plan: take a place, press, hold the line, bleed them, pull back, go quiet) and where,
+with quietly for hold fire; the engine carries it out at once and the CO plans around it,
+acknowledging it over the radio. A hold at a place that is not yours means go and take it; a
+place that cannot be taken yet is refused with the reason. A squad you move by hand is "in
+your hand" until you Rejoin it or it idles 90 s. The Command Wheel that dials these on an
+iPad is the next step (docs/GAME_PLAN.md, "Command Wheel").
+
 *Desert Crossing* (`?map=desert1km`) was built to be fair to both sides: the Village sits on the
 strip of land between two parallel rivers, each bridged where the road crosses
 it and fordable further out, and the village is laid out in mirrored pairs

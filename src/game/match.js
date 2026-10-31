@@ -8,6 +8,7 @@ import { Respawn } from './respawn.js';
 import { Support } from './support.js';
 import { Fobs } from './fob.js';
 import { Strategist } from './ai/strategist.js';
+import { Orders } from './orders.js';
 import { RemoteCommander } from './ai/remote.js';
 import { UtilityCommander } from './ai/utility.js';
 import { Rallies } from './rally.js';
@@ -22,12 +23,12 @@ import { difficulty } from './difficulty.js';
 // teams, tickets, the simulation systems and the clock. Each team deploys the force
 // in its loadout; doctrines shape respawns and spawns.
 export class Match {
-  constructor(app, { cpu = [1], mode = 'aas', side = 'attack', loadouts = [preset('balanced'), preset('balanced')], difficulty: diffKey = 'normal' } = {}) {
+  constructor(app, { cpu = [1], mode = 'aas', side = 'attack', loadouts = [preset('balanced'), preset('balanced')], difficulty: diffKey = 'normal', hybrid = '' } = {}) {   // hybrid: a commander for the player's own side ('builtin', or a model key), taking the player's orders
     this.app = app; this.units = app.units; this.world = app.world;
     const map = this.world.map;
     if (!(map && map.locations && map.locations.length)) mode = 'skirmish';
     this.mode = createMode(mode, this, { side });
-    this.difficulty = difficulty(diffKey); this.cpu = cpu;
+    this.difficulty = difficulty(diffKey); this.cpu = cpu; this.hybrid = hybrid || '';
     this.teams = makeTeams(400, map && map.bases);
     this.mode.teams = this.teams;
     this.teams.forEach((t, i) => {
@@ -136,13 +137,17 @@ export class Match {
     this.deploy(); if (this.landing) this.landing.afterDeploy();
     this.mode.setup();
     this.objectives = this.mode.objectives || null;
-    this.strategists = cpu.map(t => new Strategist(t, this.units, this.teams, this));
+    this.orders = new Orders(this);   // the player's orders to a hybrid commander (game/orders.js)
+    const pt = app.playerTeam ?? 0, sides = this.hybrid && !cpu.includes(pt) ? [...cpu, pt] : [...cpu];   // hybrid: the player's side has a commander too
+    this.strategists = sides.map(t => new Strategist(t, this.units, this.teams, this));
     // the utility commander is the default; ?ai=rules gives a side the older built-in planner (per team: ?ai=utility,rules);
     // ?persona=aggressive|patient|balanced likewise
     const perTeam = (list, t) => ((list && list.length > 1 ? list[t] : list && list[0]) || '').trim();
     for (const s of this.strategists) if ((perTeam(app.aiModes, s.team) || 'utility') === 'utility') s.utility = new UtilityCommander(s, perTeam(app.personas, s.team) || 'balanced');
     // a remote commander (?commander=1 for the Worker's /commander, or a URL) advises each CPU side; its one-liners go to the feed
-    if (app.commanderUrl) for (const s of this.strategists) { s.remote = new RemoteCommander(this, s.team, app.commanderUrl, { model: app.commanderModel || null }); s.remote.onPlan = (p) => { if (p.reason) this.event({ type: 'radio', team: s.team, text: p.reason }); }; }
+    if (app.commanderUrl) for (const s of this.strategists) if (cpu.includes(s.team)) { s.remote = new RemoteCommander(this, s.team, app.commanderUrl, { model: app.commanderModel || null }); s.remote.onPlan = (p) => { if (p.reason) this.event({ type: 'radio', team: s.team, text: p.reason }); }; }
+    // the player's own CO, when it is a model: its one-liners are its acknowledgements over the radio
+    const hs = this.strategists.find(s => s.team === pt && !cpu.includes(pt)); if (hs && this.hybrid && this.hybrid !== 'builtin') { hs.remote = new RemoteCommander(this, pt, '/commander', { model: this.hybrid }); hs.remote.onPlan = (p) => { if (p.reason) this.event({ type: 'radio', team: pt, text: p.reason }); }; }
     this.spatial.rebuild(this.units.units);
   }
 
@@ -217,6 +222,7 @@ export class Match {
     this.support.tick(dt);
     this.fobs.tick(dt);
     this.mode.tick(dt);
+    if (this.orders) this.orders.tick(dt);
     for (const s of ((this.tickNo = (this.tickNo || 0) + 1) & 1) ? [...this.strategists].reverse() : this.strategists) s.tick(dt);   // neither commander plans first every tick
     if (this.voices) this.voices.tick(dt);
   }

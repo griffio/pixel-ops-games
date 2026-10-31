@@ -500,7 +500,7 @@ export class Unit {
 }
 
 export class Squad {
-  constructor(members) { this.members = members; for (const m of members) m.squad = this; this.idle = rnd(0, 4); this.grenadeAt = -Infinity; }   // grenadeAt: when the squad last threw a grenade (combat.throwGrenade spaces them)
+  constructor(members) { this.members = members; for (const m of members) m.squad = this; this.idle = rnd(0, 4); this.grenadeAt = -Infinity; this.manual = false; this.idleSince = null; }   // grenadeAt: when the squad last threw a grenade (combat.throwGrenade spaces them); manual: in the player's hand, off a hybrid commander's plan (game/orders.js)
   get leader() { return this.members.find(m => !m.dead && !m.afloat) || this.members.find(m => !m.dead) || null; }   // one ashore, if any are
   get alive() { return this.members.some(m => !m.dead); }
   get aliveCount() { return this.members.filter(m => !m.dead).length; }

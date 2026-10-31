@@ -47,6 +47,7 @@ export class Lobby {
       if (e.target.name === 'difficulty') { this.modeOpts.difficulty = e.target.value; this.render(); }
       if (e.target.name === 'hour') { this.modeOpts.hour = e.target.value; this.render(); }   // '' is the map's own hour
       if (e.target.id === 'lb-cmd-s') this.modeOpts.commander = e.target.value;
+      if (e.target.id === 'lb-hyb-s') this.modeOpts.hybrid = e.target.value;
     });
   }
 
@@ -54,8 +55,14 @@ export class Lobby {
   // gateway holds, so they are offered only while the engine panels are on (F3)
   renderOpponent() {
     const s = $('lb-cmd-s'); if (!s) return;
-    if (this.cmdLocked) { s.innerHTML = '<option>set by the link</option>'; s.disabled = true; return; }
     const paid = document.body.classList.contains('dev');
+    // the player's own commander (Command Wheel): it runs the player's squads and takes their orders; none means the player commands every squad
+    let h = $('lb-hyb-s');
+    if (!h) { const row = document.createElement('div'); row.id = 'lb-hyb'; row.className = 'row'; row.innerHTML = '<span class="lb-lbl">Your CO</span><select id="lb-hyb-s" title="A commander for your own side: it runs your squads and carries out the orders you give it; none means you command every squad yourself"></select>'; $('lb-cmd').after(row); h = $('lb-hyb-s'); }
+    h.innerHTML = [['', 'None: you command'], ['builtin', 'Built-in CO'], ['llama', 'Llama CO'], ...(paid ? [['haiku', 'Claude Haiku CO'], ['sonnet', 'Claude Sonnet CO'], ['opus', 'Claude Opus CO']] : [])].map(([v, n]) => `<option value="${v}">${n}</option>`).join('');
+    if (!paid && PAID.includes(this.modeOpts.hybrid)) this.modeOpts.hybrid = '';
+    h.value = this.modeOpts.hybrid || '';
+    if (this.cmdLocked) { s.innerHTML = '<option>set by the link</option>'; s.disabled = true; return; }
     s.innerHTML = [['', 'Built-in CPU'], ['llama', 'Llama commander'], ...(paid ? [['haiku', 'Claude Haiku commander'], ['sonnet', 'Claude Sonnet commander'], ['opus', 'Claude Opus commander']] : [])].map(([v, n]) => `<option value="${v}">${n}</option>`).join('');
     if (!paid && PAID.includes(this.modeOpts.commander)) this.modeOpts.commander = '';
     s.value = this.modeOpts.commander || '';

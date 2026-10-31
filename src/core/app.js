@@ -68,7 +68,9 @@ export function populate(app) {
       if (app.world.map && q.has('tickets')) app.world.map.tickets = +q.get('tickets') || undefined;
       // ?swap=1 plays the sides the other way round (BLUFOR from the NE base, lattice reversed): a balance check for CPU-vs-CPU runs
       if (swap && app.world.map && !app.world.map.swapped) { const mp = app.world.map; mp.bases = [...mp.bases].reverse(); mp.locations = [...mp.locations].reverse().map(l => l.home === undefined ? l : { ...l, home: [].concat(l.home).map(h => 1 - h) }); mp.swapped = true; }   // a place touching a base now touches the other team's
-      app.match = new Match(app, { cpu, mode, side, difficulty, loadouts: [playerLoadout, preset(cpuKey)] });
+      const hq = q.get('hybrid'), hybrid = hq ? (hq === '1' ? 'builtin' : hq) : (modeOpts.hybrid || '');   // ?hybrid=1 | builtin | llama | haiku | sonnet | opus: a commander for the player's side, taking the player's orders (the lobby's "Your CO" row otherwise)
+      app.hybrid = hybrid;
+      app.match = new Match(app, { cpu, mode, side, difficulty, loadouts: [playerLoadout, preset(cpuKey)], hybrid });
       if (app.audio) app.audio.ui('start');
       // the sun stands still during a match (a moving sun crawls every shadow edge at close zoom); ?hour= picks the time
       // the sun stands still during a match; the hour is the link's ?hour=, else the lobby's choice, else the map's own (9:30 without one)

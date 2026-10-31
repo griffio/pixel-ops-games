@@ -68,6 +68,6 @@ export function buildDigest(match, team, remote = null) {
     tickets: { ours: r(T.tickets), theirs: r(E.tickets) }, lost: { infantry: T.stats.losses.soldier || 0, vehicles: Object.entries(T.stats.losses).filter(([k]) => k !== 'soldier' && k !== 'fob' && k !== 'emplacement').reduce((a, [, v]) => a + v, 0), emplacements: T.stats.losses.emplacement || undefined },
     locations, next: o ? (o.nextFor(team) || {}).name || null : null, front: o ? (o.front(team) || {}).name || null : null,
     squads, vehicles, enemy, air, emplacements, fobs: { ours: fobs(team), theirs: fobs(1 - team), kitsLeft: m.fobs.kitsLeft(team) }, sandbags, traps,
-    trends, events, plans: remote ? remote.planHistory() : [], notes: remote && remote.plan ? remote.plan.notes || '' : '', waiting: remote ? remote.waitState() : null,
+    trends, events, plans: remote ? remote.planHistory() : [], notes: remote && remote.plan ? remote.plan.notes || '' : '', waiting: remote ? remote.waitState() : null, orders: m.orders && m.orders.forDigest(team).length ? m.orders.forDigest(team) : undefined,   // the player's orders to a hybrid commander (game/orders.js)
   };
 }

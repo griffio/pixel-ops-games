@@ -3145,7 +3145,7 @@ Engine changes needed in the existing core:
   the map and on its card ("Order: take the Bridge"), and a feed line with the CO's acknowledgement when it comes. On
   the desktop the same through the command bar and number keys.
   Steps:
-  - **W1, the hybrid side in the engine (a day).** `?hybrid=1` and a lobby row "Your commander: none | built-in | Haiku
+  - **W1, the hybrid side in the engine (a day). Done 2026-10-31, see below.** `?hybrid=1` and a lobby row "Your commander: none | built-in | Haiku
     | Sonnet | Opus" (the Claude ones behind the engine panels as the enemy's are); a Strategist and RemoteCommander
     for the player's team; `team.orders` with the enforcement in `applyPlan` and the squad roles (direct orders first,
     then the CO's plan, then the share); intents into goals at once; the manual flag and Rejoin; digest `orders`; the
@@ -3169,6 +3169,32 @@ Engine changes needed in the existing core:
   wheel covering the map on a phone (it opens over the dock and closes on send). Not in the plan: a synthesised voice
   for the CO (the squad voices could carry it later), build orders on the wheel (FOB, sandbags: the command bar keeps
   them), multiplayer.
+
+- **W1 done (2026-10-31, "commit and Go W1", branch `command-wheel`).** `?hybrid=1|builtin|llama|haiku|sonnet|opus`
+  and the lobby's "Your CO" row (the Claude ones behind the engine panels) give the player's side a Strategist, with the
+  utility planner, and for a model key a RemoteCommander on /commander whose reasons reach the feed as the CO's radio.
+  `src/game/orders.js`: `match.orders.add({ team, who, role | intent, at, how, text })` validates against the plan's
+  roles, the intents take, press, hold the line, bleed them, pull back, go quiet and rejoin, the known squad ids and
+  place names, and the hows quietly, carefully and at all costs; it builds the sentence ("SQ-01 hold the Ford,
+  quietly"), retires the orders it replaces (a squad's earlier order, the earlier plan intent, every squad order under
+  an "everyone" order), wakes the strategist for the next tick and toasts. The strategist reads `orders.active()` each
+  plan tick: `applyOrders` binds the goals (take sets the attack or, if ours, the hold; press the posture and share;
+  hold the line and bleed them stop the attack; pull back gathers at our place nearest home; go quiet makes every post
+  an ambush in `send`; how sets the posture), and direct orders enter the roles map over the CO's own jobs (named
+  squads, everyone, or the fresh squads within 30 m of base). A hold, screen, wait or grab at a place not ours means go
+  and take it (a `cap` send) unless the place is not capturable yet, which is refused with the reason; refusals land on
+  the order as its note and the digest shows the status refused. `Squad.manual`: a squad the player moves or boards by
+  hand is in their hand, skipped by the plan tick and by caution(), until an order names it, Rejoin (a command-bar tile,
+  or the intent) or 90 s idle; the card says "In your hand", or "Order: ..." with "quiet" when the squad holds fire. The
+  digest carries `orders` (standing and lately done, newest last); the Worker's prompt gained the Orders paragraph (the
+  player is the CO's commanding officer; carry out, never countermand, acknowledge the newest in reason, repeat a note).
+  Checked headless on the Hollow with the built-in CO: the CO moves the player's squads; "SQ-01 hold the Ford, quietly"
+  sends it to take the Ford; "take West Clearing" turns seven squads onto it; a hand-moved squad keeps its own
+  destination for the whole plan tick and Rejoin returns it; "SQ-03 hold the Mill" is refused ("cannot be taken yet,
+  take a place it links to first"); "everyone hold the Ford, quietly" takes the Ford and leaves nine squads on it
+  holding fire with the card reading the order; bad orders answer "no squad SQ-99", "hold needs a place", "no place
+  called Nowhere", "say which squads". Not yet: the wheel (W2), free text (W3), the CO's suggestions (W4). One known
+  gap: the player's CO uses the CPU difficulty's plan interval and attack-share offset.
 
 ## Open questions
 

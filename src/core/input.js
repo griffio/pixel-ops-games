@@ -168,7 +168,7 @@ export class Input {
   board(u) {
     const squads = new Set(); let want = 0, far = 0;
     for (const s of this.selected) if (s.type === 'soldier') { if (s.squad) squads.add(s.squad); else if (!s.mounted && !s.dead) { s.board(u); want++; } }
-    for (const sq of squads) { const r = sq.board(u); want += r.n; far += r.far; }   // a split squad: only the men near the vehicle go
+    for (const sq of squads) { const r = sq.board(u); want += r.n; far += r.far; sq.manual = true; sq.idleSince = null; }   // a split squad: only the men near the vehicle go; the squad is in the player's hand
     const room = u.seats - u.passengers.length;
     u.dropOnArrive = false; u.dropOnLand = false;   // aboard until Unload (U), however often it stops or lands
     this.hud.toast(`Boarding ${u.label}${want > room ? ` (${room} seat${room === 1 ? '' : 's'}; the rest stay)` : ''}${far ? ` (${far} far off stay where they are)` : ''}: ${u.spec.air ? 'fly it, land, then Unload (U)' : 'drive it, then Unload (U)'}`);
@@ -223,6 +223,7 @@ export class Input {
       const c = i % cols, rw = Math.floor(i / cols);
       const ox = g.x + (c - (cols - 1) / 2) * gap, oz = g.z + (rw - (Math.ceil(n / cols) - 1) / 2) * gap;
       if (advance) t.advanceTo(ox, oz); else t.order(ox, oz);
+      if (t.members) { t.manual = true; t.idleSince = null; }   // in the player's hand: a hybrid commander leaves the squad alone until an order names it, Rejoin, or 90 s idle (game/orders.js)
       t.dropOnArrive = false;   // the player's passengers stay aboard until Unload (U): a stop on the way is not a drop
       if (t.spec && t.spec.air) { t.dropOnLand = false; t.orbit = { x: ox, z: oz, r: 30 }; }   // a helicopter circles there, door gun firing, until Unload or Land
     });

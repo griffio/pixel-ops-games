@@ -91,9 +91,12 @@ export class Roster {
     d.alert = this.hit(d.key, sq.members, sq.members.reduce((s, u) => s + (u.dead ? 0 : u.hp), 0));
     const cx = foot.length ? foot.reduce((s, u) => s + u.pos.x, 0) / foot.length : d.anchor.x, cz = foot.length ? foot.reduce((s, u) => s + u.pos.z, 0) / foot.length : d.anchor.z;
     const eng = sq.engineer, b = eng && !eng.dead && eng.building, mv = foot.find(u => u.dest || u.target), post = foot.find(u => u.post);
+    const M = this.app.match, ord = M && M.hybrid && M.orders ? M.orders.forSquad(sq) : null;   // a hybrid commander: the squad's standing order, or that it is in the player's hand
     if (b) { const B = BUILDS[buildKind(b)]; Object.assign(d, { glyph: 'build', tone: 'y', text: `${B.name} ${mmss(b.t)}`, ring: { f: 1 - b.t / b.total, t: b.t, glyph: B.glyph } }); }
     else if (d.alert) Object.assign(d, { glyph: 'fire', tone: 'red', text: `Under fire${this.place(cx, cz) ? ' · ' + this.place(cx, cz) : ''}` });
     else if (car) Object.assign(d, { glyph: car.spec.air ? 'air' : 'ride', tone: 'go', text: car.type === 'dock' ? 'On the ship' : `${car.spec.air ? 'Flying in' : 'In'} ${car.label}` });   // the dock: waiting for a landing craft
+    else if (M && M.hybrid && sq.manual) Object.assign(d, { glyph: 'follow', tone: 'go', text: `In your hand · ${mv ? this.toward(mv, mv.dest || mv.target) : this.place(cx, cz) || 'open ground'}` });
+    else if (ord) Object.assign(d, { glyph: 'flag', tone: 'go', text: `Order: ${ord.text.replace(/^SQ-\d\d(, SQ-\d\d)* /i, '')}${foot.every(u => u.holdFire) ? ' · quiet' : ''}` });
     else if (foot.length && foot.every(u => u.holdFire)) Object.assign(d, { glyph: 'holdfire', tone: 'y', text: `Holding fire · ${mv ? this.toward(mv, mv.dest || mv.target) : post ? 'manning ' + post.post.sb.label : this.place(cx, cz) || 'open ground'}` });
     else if (post) Object.assign(d, { glyph: 'post', text: `Manning ${post.post.sb.label}` });
     else if (mv) Object.assign(d, { glyph: 'move', tone: 'go', text: this.toward(mv, mv.dest || mv.target) });
