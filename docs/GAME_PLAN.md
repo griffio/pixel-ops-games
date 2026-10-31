@@ -2974,6 +2974,45 @@ Engine changes needed in the existing core:
   `fobKits` is 0 there. Not done: bounding (fire and movement) for attack-move, which halts at hold range (32 m rifle, 45 m
   MG) in front of a defended place; the Hamlet line may have been exactly that, pending the user's word.
 
+- **Hand grenades for riflemen (plan, 2026-10-31, "go plan grenades").** The user's answer to the stand-off: battles
+  should be close quarters, and the Opus game on The Hollow showed why they are not. Rifles hold at 32 m; a man behind
+  a wall or sandbags is hit half as often, in a manned position a third, prone less again, and bursting rounds lose
+  the same share (`covered`, `dugIn`, `splashAt`); nothing a squad carries punishes a man for staying behind cover, so
+  the side that moves loses and the side that sits wins. A grenade that lands past the cover bursts on the defender's
+  side of it, where `covered` finds no wall between burst and man, and its burst suppresses everyone within 9 m by 0.4
+  (the explosive rule in `suppress`), so the rifles do better in the seconds after. Defenders throw too: the 20 to 35 m
+  band becomes lethal for both sides, so nobody sits in it, which is the point. Vehicles are untouched. Three steps:
+  - **G1, the weapon and the throw (half a day).** `WEAPONS.grenade`: range 35 (a man at his 32 m hold range has 3 m in
+    hand; the CPU's approach stands at 35 m, so its attackers throw from where they already stop), speed 18 on the
+    `arc` path (about two seconds in the air), `explosive` with `splash` 5, dmgInf 40 (a rifleman has 35: a good throw
+    kills one and wounds his neighbours, a near miss wounds), dmgVeh 5, acc 0.5, burst 1, `thrown: true` (no muzzle
+    flash, no tracer). Riflemen only (kit `rifle`; MG, anti-tank, marksman, medic and engineer carry none), two each:
+    `RULES.grenades = { count: 2, range: 35, squadGap: 4, friendly: 8 }`, `u.grenades` set on spawn and `revive`. The
+    throw rule in the combat tick's soldier branch, after the rifle: with a grenade left, the squad's last throw 4 s
+    ago or more (`squad.grenadeAt`), not holding fire, and a target within range that is covered, dug in, in a thicket
+    or a building, or stands with two or more others within 5 m, and no friendly within 8 m of the aim point, the man
+    throws through `fire(u, WEAPONS.grenade, e, 'grenade')`; `fire` keeps a second weapon's burst and reload apart by
+    kit already (`burst2`/`cooldown2`, keyed on `kit2`), generalised to any kit other than `u.kit`, so the rifle's
+    reload is untouched; the arc scatter (2 m + 6 cm a metre) stands. A new shot kind `grenade` in DustSim: a dark
+    0.2 m ball on the arc, no trail, the existing burst at 0.45 and the blast sound at 0.8. Kill feed and debrief:
+    KIT_NAME grenade, `firedKit`. Refills: on respawn, at the main base with the belt refill loop in support.js, and
+    beside a stopped supply truck within 12 m for 2 supplies a squad (the Humvee's rearm rule, `RULES.rearm`); no
+    field resupply otherwise. The roster shows a rifle squad's count ("6 grenades") in its detail line and the unit
+    card. Guide (the Infantry page) and README (the combat paragraph and the weapons table); the Worker's rules
+    sentence gains "riflemen carry two grenades: a squad standing 35 m from men in cover gets them out".
+  - **G2, the orders (an hour).** Attack-move: men stop at their own hold range from their own target, so a squad on Z
+    ends up 32 m out and in range; nothing to change unless G3 shows them short. Hold fire: a held squad throws no
+    grenade until sprung, then its grenades go first (a sprung ambush at 20 m is grenade range both ways). The CPU
+    needs nothing: the throw is part of firing, and its hold posts and approach line already stand at the right range.
+  - **G3, balance (half a day).** `tools/balance.mjs`: the Hollow mirror on 25+ seeds (`--one-side`, `--extra swap=1`),
+    reading deaths a minute, time to the end and whether matches now end by tickets before minute 10 (then the pool
+    goes to 240 or the count to one); Balanced and Light mirrors on Desert Crossing and Palm Valley for the death rates
+    on vehicle maps; a CPU Hollow match watched for the attacker/defender kill ratio at the Hamlet (was 2:1 for the
+    defence) and for sandbag lines, which grenades now reach. Expect the Light doctrine's half-price men to make a
+    grenade rush cheap: if Light passes 60% on the Hollow, its respawnCost goes to 0.6 on infantry-only maps.
+  - Not in the plan: a throw button (throws are automatic like all fire), smoke, rifle grenades, grenades for the other
+    kits, any effect on vehicles, bounding overwatch and a charge order (the other two levers, kept for after G3).
+
 ## Open questions
 
 None open. Answered:
