@@ -360,7 +360,11 @@ commander builds a FOB one hop behind its front and lifts squads toward distant
 objectives. Once a minute it has a small model (Cloudflare's Clef, through the Worker's
 `/style`) read how the enemy has fought over the last 80 s, turtle, rusher, flanker, piecemeal
 or balanced, and answers with a persona: patient against a rusher, pressure against a turtle; a
-Claude commander sees the read in its digest. It is cautious: squads close to about 35 m of a
+Claude commander sees the read in its digest. Between a remote commander's plans the same model
+watches the plan (the Worker's `/watch`, every 8 s while something changes): is it working, which
+of our places is most threatened, should the attack be called off or one begin; two reads in a
+row against the plan ask the commander for a new one within seconds instead of the usual 20 to
+60, at most once a minute, and the digest carries the read. It is cautious: squads close to about 35 m of a
 defended objective (12 m when the defenders stand in thickets, which hide a man beyond 15 m)
 and shoot from there, fall back when an enemy gets inside 22 m unless they hold
 the zone or clearly outnumber it, and its APCs keep a 70 m standoff (tanks 90 m),

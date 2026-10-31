@@ -3370,7 +3370,7 @@ Engine changes needed in the existing core:
     Through the Worker (a `/style` route, Clef, gateway-logged), the answer written into the digest as `enemyStyle`
     for a Claude commander too. Half a day with a check on the three recorded games (turtle-breaker v the Hollow games,
     flanker in the Palm Valley win).
-  - **Re-plan trigger between plans (to do).** For a Claude commander: every 5 to 10 s a compact digest (tickets,
+  - **Re-plan trigger between plans (done, see the plan watch entry below).** For a Claude commander: every 5 to 10 s a compact digest (tickets,
     trends, places, the enemy groups, the plan's intent) and three questions: is the plan still working (noul), which
     of our places is most threatened (choice), should the attack be called off (noul). Not acted on directly (the
     Clairic probe showed these models do no arithmetic): a confident answer against the plan nudges the RemoteCommander
@@ -3393,6 +3393,31 @@ Engine changes needed in the existing core:
   twentieth of a cent. Checked headless with a stubbed route: two readers, the OPFOR read at 0.42 turned its persona
   patient, the BLUFOR read at 0.2 left it alone, the digest carried both, a 404 switched the reader off, `?style=0`
   made none. Lesson: two harness runs sharing a DevTools port hang each other; one port per run.
+- **Plan watch done (2026-10-31, "Go trigger").** `src/game/ai/watch.js`: a PlanWatch per commander idles until the
+  commander is remote and has a plan, then every 8 s (first at 20 s) posts a compact state to the Worker's `/watch`:
+  minute, tickets, trends, the places (owner, men each side, contested, recent, capturing), the enemy groups, our squads
+  (id, men, near, order) and the plan (attack, hold, posture, reason, minutes old, the wait). Clef answers three typed
+  questions: working (noul, is the plan gaining or holding what it set out to), threatened (a choice among our places
+  and none), and callOff (noul, with an attack under way) or attackNow (noul, holding). Nothing is acted on directly:
+  the answers are weighed against the plan (working 0.33 or less, callOff 0.65 or more, attackNow 0.75 or more, a place
+  threatened at 0.55 or more that is neither in the hold list nor the attack) and two reads in a row against it nudge
+  the RemoteCommander (`nudge()`, as a capture does: its next plan within 4 s instead of 20 to 60), at most once a
+  minute and never inside 10 s of a plan. The digest carries the last read as `watch` (working, threatened and its
+  confidence, callOff or attackNow, `against` with the notes, `nudged` when it asked for this plan early) and the
+  Worker's prompt tells the model it judges the digest and does no arithmetic, so check its claim against the numbers.
+  A read is skipped while nothing changed (tickets, owners, contested, capturing, enemy group count, the plan), at most
+  three in a row, so a quiet minute costs two calls, not seven; a 404 or six failures in a row switch it off; `?watch=0`
+  makes none. Probed on ten of Opus's recorded Palm Valley plans (its side): the turtle phase read working 0.5 to 0.9
+  with the Bridge threatened 0.2 to 0.75 (in the hold list, so no nudge) and attackNow at most 0.5 while Opus led by
+  130 tickets; the Mine attack read callOff 0.04 to 0.14; the only read against the plan was minute 24, working 0.29,
+  once the player's flank had put Opus behind. The plan said a read at minute 7.7 of 0.31 would have fired on a single
+  read, hence the two-read rule. 160 to 420 ms a call, 1.3 to 1.5k characters of state in the first minute. Checked
+  headless with a scripted route (fetch mocked in the page, the match stepped with a yield each second so the promises
+  resolve): no read before a plan, two fine reads then two bad ones nudged at 53 s, the next bad reads did not until
+  the minute had passed (116 s), that nudge pulled the commander's next plan from 126.8 s to 120 s, the digest carried
+  `against` and `nudged`, the gate made one read of four when nothing changed. To tune after a live game from the
+  gateway logs (kind=watch rows, and `watch` in the commander digests): the thresholds, the 8 s, and whether the early
+  plans helped.
 
 ## Open questions
 

@@ -10,6 +10,7 @@ import { Fobs } from './fob.js';
 import { Strategist } from './ai/strategist.js';
 import { Orders } from './orders.js';
 import { StyleReader } from './ai/style.js';
+import { PlanWatch } from './ai/watch.js';
 import { RemoteCommander } from './ai/remote.js';
 import { UtilityCommander } from './ai/utility.js';
 import { Rallies } from './rally.js';
@@ -149,6 +150,7 @@ export class Match {
     if (app.commanderUrl) for (const s of this.strategists) if (cpu.includes(s.team)) { s.remote = new RemoteCommander(this, s.team, app.commanderUrl, { model: app.commanderModel || null }); s.remote.onPlan = (p) => { if (p.reason) this.event({ type: 'radio', team: s.team, text: p.reason }); }; }
     // the player's own CO, when it is a model: its one-liners are its acknowledgements over the radio
     this.styles = app.styleOff ? [] : this.strategists.map(s => new StyleReader(this, s));   // the enemy's way of fighting, read once a minute (ai/style.js); ?style=0 turns it off
+    this.watches = app.watchOff ? [] : this.strategists.map(s => new PlanWatch(this, s));   // a watch on each remote commander's plan between plans (ai/watch.js); it idles without a remote; ?watch=0 turns it off
     const hs = this.strategists.find(s => s.team === pt && !cpu.includes(pt)); if (hs && this.hybrid && this.hybrid !== 'builtin') { hs.remote = new RemoteCommander(this, pt, '/commander', { model: this.hybrid }); hs.remote.onPlan = (p) => { if (p.reason) this.event({ type: 'radio', team: pt, text: p.reason }); }; }
     this.spatial.rebuild(this.units.units);
   }
@@ -226,6 +228,7 @@ export class Match {
     this.mode.tick(dt);
     if (this.orders) this.orders.tick(dt);
     for (const r of this.styles || []) r.tick(dt);
+    for (const w of this.watches || []) w.tick(dt);
     for (const s of ((this.tickNo = (this.tickNo || 0) + 1) & 1) ? [...this.strategists].reverse() : this.strategists) s.tick(dt);   // neither commander plans first every tick
     if (this.voices) this.voices.tick(dt);
   }
