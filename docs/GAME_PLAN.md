@@ -3090,6 +3090,20 @@ Engine changes needed in the existing core:
   (cottage pairs turned, the church on the centre); the one asymmetry is a cottage at the Ford against a mill at the
   Mill, which the grenade rule's building test would treat differently if the mill lacks the `bld` tag. Not chased.
 
+- **The CPU's approach against thickets (2026-10-31, "Go").** Read back from the user's second Opus game on The Hollow
+  (11:50 to 12:02 UTC; Opus took Mill, East Clearing and the Hamlet by 1.9 and held to the clock, 269-161): its one
+  attack, three squads on West Clearing "seen empty", stood off at 35 m from 10 to 13 of the user's men in thickets
+  and lost eight for nothing. A man in a thicket is targeted only from inside 15 m (`combat.canSee`, no exception for a
+  firing man) while he sees out to rifle range, so `attackWith`'s 35 m stand-off was blind. Now: when at least half the
+  known defenders near the objective stand in thickets the stand-off is 12 m (inside the sight rule, inside grenade
+  range); `caution()` no longer pulls an approaching squad back from a thicket man inside 22 m, since it closed on
+  purpose; the digest's enemy groups carry `inThickets`; the Worker's rules sentence and the README say so. Staged on the
+  Hollow (eight defenders in thickets by West Clearing, a faked plan sending three squads): stand-offs 9 to 14 m, no
+  fall-backs, the digest showing the groups it could see with their thicket counts. The Hollow mirror on the same 26
+  seeds moved within noise (36.3 to 36.1 deaths a minute, median end 679 to 686 s, bases 9-18 to 10-17) and Balanced v
+  Light stayed 9-9 with more matches to the clock (15 of 18 from 7), so the change is neutral in CPU v CPU and bites
+  where it was meant to: a human garrison hidden in hedges. Not changed: the decision to attack, which was Opus's.
+
 ## Open questions
 
 None open. Answered:

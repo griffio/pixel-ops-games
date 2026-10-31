@@ -333,7 +333,8 @@ of the middle and on both flanks, off the road), preferably in a lull and after
 its FOB while it has a kit; it mans them, keeps the manning squads in place and
 still counts them toward its attack share. The CPU
 commander builds a FOB one hop behind its front and lifts squads toward distant
-objectives. It is cautious: squads close to about 35 m of a defended objective
+objectives. It is cautious: squads close to about 35 m of a defended objective (12 m
+when the defenders stand in thickets, which hide a man beyond 15 m)
 and shoot from there, fall back when an enemy gets inside 22 m unless they hold
 the zone or clearly outnumber it, and its APCs keep a 70 m standoff (tanks 90 m),
 reversing away when something gets inside 50 m. Armour sent at a place it cannot drive to (an

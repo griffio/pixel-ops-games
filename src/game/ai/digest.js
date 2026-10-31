@@ -40,8 +40,9 @@ export function buildDigest(match, team, remote = null) {
     let c = clusters.find(k => Math.hypot(k.x - u.pos.x, k.z - u.pos.z) < 40);
     if (!c) { c = { x: u.pos.x, z: u.pos.z, n: 0, types: {}, age: Infinity }; clusters.push(c); }
     c.n++; c.types[u.type] = (c.types[u.type] || 0) + 1; c.x += (u.pos.x - c.x) / c.n; c.z += (u.pos.z - c.z) / c.n; c.age = Math.min(c.age, u.ghost ? u.age : 0);
+    if (m.world.thicketAt && m.world.thicketAt(u.pos.x, u.pos.z)) c.thk = (c.thk || 0) + 1;   // men in thickets: seen and shot only from inside 15 m
   }
-  const enemy = clusters.sort((a, b) => b.n - a.n).slice(0, 8).map(c => ({ at: [r(c.x), r(c.z)], near: nearLoc(c.x, c.z), units: c.types, lastSeen: c.age ? r(c.age) : undefined }));
+  const enemy = clusters.sort((a, b) => b.n - a.n).slice(0, 8).map(c => ({ at: [r(c.x), r(c.z)], near: nearLoc(c.x, c.z), units: c.types, inThickets: c.thk || undefined, lastSeen: c.age ? r(c.age) : undefined }));
   const fobs = (t) => (t === team ? U.filter(u => u.type === 'fob' && u.team === t && !u.dead) : known.filter(u => u.type === 'fob')).map(u => nearLoc(u.pos.x, u.pos.z));
   const sandbags = U.filter(u => u.type === 'sandbags' && u.team === team && !u.dead).map(u => nearLoc(u.pos.x, u.pos.z));
   // FOB emplacements: ours with whether a gunner is on it, theirs where we have found them

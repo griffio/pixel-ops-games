@@ -144,7 +144,10 @@ export class Strategist {
       if (!attack) return holdAt(sq, hold);
       const foes = this.enemiesNear(attack.x, attack.z, attack.r + 20);
       if (foes.length > 1 && (attack.n ? attack.n[this.team] : 0) < 4) {   // stand off and shoot rather than walk into them, from behind something if an APC overlooks the spot
-        const c = this.cluster(foes), cen = sq.centroid(); let [x, z] = this.toward(cen, c, 35);
+        // defenders in thickets are seen and shot only from inside 15 m (combat.canSee) while they see out to rifle range, so a
+        // stand-off at 35 m is blind (Opus lost eight men at West Clearing that way, 2026-10-31): against them it is 12 m, grenade range
+        const W = this.match.world, hid = W.thicketAt ? foes.filter(f => W.thicketAt(f.pos.x, f.pos.z)).length : 0, keep = hid * 2 >= foes.length ? 12 : 35;
+        const c = this.cluster(foes), cen = sq.centroid(); let [x, z] = this.toward(cen, c, keep);
         const apc = this.contacts().find(f => (f.type === 'apc' || f.type === 'tank') && Math.hypot(f.pos.x - x, f.pos.z - z) < 150 && this.match.combat.canSeePoint(f, x, z));
         if (apc) { const p = this.match.combat.coverPoint(x, z, apc.pos.x, apc.pos.z, 30, this.units.nav.foot); if (p) [x, z] = p; }
         this.send(sq, x, z, 'approach', attack);
@@ -446,6 +449,7 @@ export class Strategist {
       if (sq.zone && Math.hypot(c.x - sq.zone.x, c.z - sq.zone.z) < sq.zone.r) continue;                     // stand and fight for the zone
       if (sq.tag && sq.tag.startsWith('post')) continue;                                                     // dug in: stay
       if (this.friendsNear(c.x, c.z, 25).length >= this.enemiesNear(c.x, c.z, 25).length * 2) continue;    // we clearly have the numbers
+      if (sq.tag === 'approach' && this.match.world.thicketAt && this.match.world.thicketAt(e.pos.x, e.pos.z)) continue;   // we closed on purpose (attackWith): a man in a thicket is fought from inside 15 m or not at all
       const [x, z] = away(c.x, c.z, e, 28); sq.goal = [x, z]; sq.tag = 'back'; sq.order(x, z);
     }
     // armour that threatens our squads is hunted: for each enemy APC within 150 m of one of our squads without launchers, the
