@@ -3361,7 +3361,7 @@ Engine changes needed in the existing core:
   wheels in the road); (2) a coach's card in the debrief, score questions on a rubric over the match's record; (3)
   reading the player's style for the CPU; (4) a re-plan trigger between a Claude commander's plans; (5) a tip picker
   over a library. The user chose 3 and 4 as adjustments to make:
-  - **Style read for the CPU (to do).** Every minute or so, a System One call over what the enemy side can see of the
+  - **Style read for the CPU (done 2026-10-31, see below).** Every minute or so, a System One call over what the enemy side can see of the
     player (its own digest's enemy groups, the places changing hands, the trends: a few hundred tokens) with a choice
     question, turtle | rusher | flanker | piecemeal | balanced, and a yes/no "has the style changed since last time".
     The built-in planner (utility.js) picks its persona from the answer: a rusher is met with patient and holds, a
@@ -3377,6 +3377,22 @@ Engine changes needed in the existing core:
     early (`nudge()`, as a capture does) instead of waiting 20 to 60 s, and the digest carries the three answers so the
     LLM sees what tripped it. Costs about a tenth of a cent a call on Clef; cap it to one nudge a minute. A day, with
     the gateway logs of a game before and after to see whether the early plans helped.
+
+- **Style read done (2026-10-31, "Go style").** `src/game/ai/style.js`: a StyleReader per commander samples what its
+  side sees of the enemy every 20 s (the digest's enemy groups and the places' owner, visible enemies, contested and
+  recent, the last four kept) and once a minute, first at 75 s, posts the last 80 s with the tickets and trends to the
+  Worker's `/style`, which asks Clef three questions: style, a choice among turtle, rusher, flanker, piecemeal and
+  balanced with a line each; changed, whether the way of fighting changed from the last read; massing, whether ten or
+  more stand within 150 m of one of our places. The answer lands on the strategist as `enemyStyle` (the digest carries
+  it, and the Worker's prompt tells a Claude commander to weigh it, not obey it) and, at a confidence of 0.35 or more,
+  picks the built-in planner's persona (`UtilityCommander.setPersona`): a rusher or piecemeal enemy is met patient, a
+  turtle aggressive, a flanker balanced, balanced gives the lobby's persona back. A server without the route switches a
+  reader off at the first 404; `?style=0` makes none. Probed on the recorded Palm Valley win as Opus saw it: the Bridge
+  stand-off read rusher at 47 then 72 percent with massing at 96 when 22 men stood within 60 m, the Mine window put
+  flanker second behind the pressure still on the Bridge, about 2.4k characters of state and 200 to 800 ms a call, a
+  twentieth of a cent. Checked headless with a stubbed route: two readers, the OPFOR read at 0.42 turned its persona
+  patient, the BLUFOR read at 0.2 left it alone, the digest carried both, a 404 switched the reader off, `?style=0`
+  made none. Lesson: two harness runs sharing a DevTools port hang each other; one port per run.
 
 ## Open questions
 

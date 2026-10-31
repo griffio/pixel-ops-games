@@ -69,5 +69,6 @@ export function buildDigest(match, team, remote = null) {
     locations, next: o ? (o.nextFor(team) || {}).name || null : null, front: o ? (o.front(team) || {}).name || null : null,
     squads, vehicles, enemy, air, emplacements, fobs: { ours: fobs(team), theirs: fobs(1 - team), kitsLeft: m.fobs.kitsLeft(team) }, sandbags, traps,
     trends, events, plans: remote ? remote.planHistory() : [], notes: remote && remote.plan ? remote.plan.notes || '' : '', waiting: remote ? remote.waitState() : null, orders: m.orders && m.orders.forDigest(team).length ? m.orders.forDigest(team) : undefined,   // the player's orders to a hybrid commander (game/orders.js)
+    enemyStyle: (() => { const s = (m.strategists || []).find(s => s.team === team), r = s && s.enemyStyle; return r ? { style: r.style, confidence: r.confidence, massing: r.massing, minute: r.minute } : undefined; })(),   // the enemy's way of fighting as a System One model read it (ai/style.js)
   };
 }

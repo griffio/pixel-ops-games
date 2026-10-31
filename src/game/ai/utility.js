@@ -21,6 +21,7 @@ export class UtilityCommander {
   constructor(strategist, persona = 'balanced') {
     this.s = strategist; this.match = strategist.match; this.team = strategist.team; this.units = strategist.units;
     this.persona = PERSONAS[persona] ? persona : 'balanced'; this.w = PERSONAS[this.persona];
+    this.setPersona = (p) => { if (PERSONAS[p]) { this.persona = p; this.w = PERSONAS[p]; } };   // the style reader (ai/style.js) answers the enemy's way of fighting with one
     this.noise = (strategist.diff && strategist.diff.noise !== undefined) ? strategist.diff.noise : 0.06;
     this.plan = null; this.planAt = -Infinity; this.waitSince = null; this.waitMet = false; this.waitKey = '';
     this.chosen = {}; this.roleOf = new Map(); this.logLen = 0; this.memory = {}; this.scores = {}; this.said = ''; this.saidAt = -Infinity;

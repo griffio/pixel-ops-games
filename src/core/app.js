@@ -51,6 +51,7 @@ export function populate(app) {
     app.fogOff = q.get('fog') === '0';   // ?fog=0: no fog of war for anyone, the CPU included
     app.commanderUrl = q.get('commander') === '1' ? '/commander' : (q.get('commander') || null);   // remote commander endpoint for the CPU sides
     app.commanderModel = q.get('model') || null;
+    app.styleOff = q.get('style') === '0';   // ?style=0: no style reads of the enemy (ai/style.js)
     app.aiModes = (q.get('ai') || '').split(','); app.personas = (q.get('persona') || '').split(',');   // ?ai=rules for the older planner (default utility; per team: utility,rules), ?persona=balanced|aggressive|patient   // ?model=<key> picks a model from the Worker's allow-list (llama, gpt-oss-120b, qwen3-30b, mistral-small)
     app.startMatch = (playerLoadout, modeOpts = {}) => {
       const cpuKey = q.get('cpuloadout') || (app.world.map && app.world.map.infantryOnly ? 'light' : counterPick(playerLoadout));   // on an infantry-only map the CPU brings Light Infantry: the vehicle doctrines have nothing to spend on, and Light's half-price men won every infantry pairing
