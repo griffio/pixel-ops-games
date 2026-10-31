@@ -119,7 +119,7 @@ void main() {
   if (uShadowOn > 0.5) {
     vec3 sc = vShadow.xyz / vShadow.w * 0.5 + 0.5;
     if (sc.x > 0.0 && sc.x < 1.0 && sc.y > 0.0 && sc.y < 1.0 && sc.z <= 1.0) {
-      float z = sc.z + uShadowBias;
+      float z = sc.z + uShadowBias * (1.0 + 3.0 * (1.0 - max(dot(n, uSunDir), 0.0)));   // slope-scaled: ground at a grazing angle to the sun gets up to four times the bias, so a coarse texel does not terrace it
       if (uShadowPcf > 0.5) {
         // 2x2 bilinear comparison, then a hard threshold: the edge follows the sub-texel iso-line of the
         // depth test instead of the shadow texel staircase, so it stays put as the screen grid slides over it

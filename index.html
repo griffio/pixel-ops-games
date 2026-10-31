@@ -92,6 +92,7 @@
 
   #objs { position: absolute; top: 100px; left: 50%; transform: translateX(-50%); display: flex; gap: 6px; }
   #objs .obj { position: relative; width: 78px; padding: 3px 6px 5px; background: rgba(14,14,16,0.85); border: 1px solid rgba(255,255,255,0.12);
+  #objs .obj { cursor: pointer; pointer-events: auto; } #objs .obj:hover { filter: brightness(1.2); }
     font-size: 10px; letter-spacing: 0.06em; text-transform: uppercase; color: var(--muted); text-align: center; overflow: hidden; }
   #objs .obj.t0 { border-color: #7fb2e5; color: #cfe3f7; } #objs .obj.t1 { border-color: var(--danger); color: #f3c9c3; }
   #objs .obj i { position: absolute; left: 0; bottom: 0; height: 2px; background: #7fb2e5; }
@@ -215,6 +216,7 @@
   #wheel .w-seg { position: absolute; left: 50%; top: 50%; min-width: 66px; height: 44px; padding: 0 12px; margin: -22px 0 0 -33px; border-radius: 22px; border: 1px solid #5a5a60; background: #262629; color: var(--text); font: 600 12px/1 system-ui, sans-serif; white-space: nowrap; display: flex; align-items: center; justify-content: center; gap: 5px; box-shadow: 0 2px 6px rgba(0,0,0,0.45); transform: translate(var(--dx), var(--dy)); cursor: pointer; }
   #wheel .w-seg .gi { width: 14px; height: 14px; fill: var(--text); flex: none; }
   #wheel .w-seg em { font-style: normal; font-size: 10px; font-weight: 700; color: var(--danger); margin-left: 2px; }
+  #wheel .w-seg small { font-size: 9px; color: var(--muted); letter-spacing: 0.04em; } #wheel .w-seg.veh { border-color: #4e6a8a; }
   #wheel .w-seg.ours { border-color: #6fa36f; } #wheel .w-seg.theirs { border-color: var(--danger); } #wheel .w-seg.hand { border-style: dashed; }
   #wheel .w-seg.intent { background: #1f2630; border-color: #4e6a8a; }
   #wheel .w-seg.hot, #wheel .w-seg:hover { background: #2d2716; border-color: var(--accent); color: var(--accent); } #wheel .w-seg.hot .gi, #wheel .w-seg:hover .gi { fill: var(--accent); }

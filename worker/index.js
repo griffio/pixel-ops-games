@@ -67,10 +67,11 @@ const ORDER_WHATS = {
   rejoin: 'return to the commander\'s plan (rejoin, as you were, carry on, release)', press: 'attack harder everywhere (press, push on, all out)',
   'hold the line': 'stop attacking and hold what we have (hold the line, stand fast, defend everything)', 'go quiet': 'everyone holds fire and stays hidden, no place named (go quiet, silence, no shooting)',
   'bleed them': 'sit on the majority of places and let the ticket bleed work', 'pull back': 'everyone withdraws towards home, no place named',
+  move: 'drive or fly a vehicle to a place (move, drive, send, bring, go to)', home: 'send a vehicle home to base or to refill (home, back to base, refill, resupply)',
 };
-const PLACE_WHATS = ['take', 'hold', 'screen', 'ambush', 'grab', 'fallback'], PLAN_WHATS = ['press', 'hold the line', 'go quiet', 'bleed them', 'pull back'];
-const sqKey = (s) => 'sq_' + s.replace(/\W/g, '_');
-export function orderQuestions(squads, places) {
+const PLACE_WHATS = ['take', 'hold', 'screen', 'ambush', 'grab', 'fallback', 'move'], PLAN_WHATS = ['press', 'hold the line', 'go quiet', 'bleed them', 'pull back'];
+const sqKey = (s) => 'sq_' + s.replace(/\W/g, '_'), vKey = (v) => 'v_' + v.id.replace(/\W/g, '_');
+export function orderQuestions(squads, places, vehicles = []) {
   const q = {
     what: { type: 'choice', instructions: 'What does the order ask for? Pick the closest.', criteria: ORDER_WHATS },
     where: { type: 'choice', instructions: 'Which place does the order name? "none" when it names no place.', criteria: { none: 'no place is named', ...Object.fromEntries(places.map(p => [p, `the place called ${p}`])) } },
@@ -81,13 +82,14 @@ export function orderQuestions(squads, places) {
     compound: { type: 'noul', instructions: 'Does the text give two different instructions to two different groups (for example "two squads take X, the rest hold Y")?' },
   };
   for (const s of squads) q[sqKey(s)] = { type: 'noul', instructions: `Is squad ${s} named in the order (also written ${s.replace(/^SQ-0?/, 'SQ ')} or squad ${+s.replace(/\D/g, '')})?` };
+  for (const v of vehicles) q[vKey(v)] = { type: 'noul', instructions: `Is the vehicle ${v.id}, ${/^[aeiou]/i.test(v.kind) ? 'an' : 'a'} ${v.kind}, named in the order (also "the ${v.kind}"${v.kind === 'supply truck' ? ', "the truck", "supplies"' : v.kind === 'APC' ? ', "the armour"' : ''})?` };
   return q;
 }
 // the structured order the answers add up to, with the confidence of its weakest part
-export function proposeOrder(answers, squads) {
+export function proposeOrder(answers, squads, vehicles = []) {
   const A = answers || {}, p = (a) => (a && typeof a.noul === 'number' ? a.noul : 0);
   const what = A.what && A.what.choice, pWhat = A.what && A.what.probabilities ? A.what.probabilities[what] || 0 : 0;
-  const named = squads.filter(s => p(A[sqKey(s)]) >= 0.5), pNamed = named.map(s => p(A[sqKey(s)]));
+  const namedV = vehicles.filter(v => p(A[vKey(v)]) >= 0.5).map(v => v.id), named = [...squads.filter(s => p(A[sqKey(s)]) >= 0.5), ...namedV], pNamed = [...squads.filter(s => p(A[sqKey(s)]) >= 0.5).map(s => p(A[sqKey(s)])), ...vehicles.filter(v => p(A[vKey(v)]) >= 0.5).map(v => p(A[vKey(v)]))];
   const everyone = p(A.everyone) >= 0.5, fresh = !everyone && p(A.fresh) >= 0.5;
   const implied = !named.length && !everyone && !fresh, who = named.length ? named : everyone ? 'all' : fresh ? 'fresh' : 'all';   // nobody named: everyone, confirmed below
   const where = A.where && A.where.choice !== 'none' ? A.where.choice : null, pWhere = A.where && A.where.probabilities ? A.where.probabilities[A.where.choice] || 0 : 0;
@@ -143,13 +145,14 @@ export default {
     if (req.method !== 'POST') return json({ error: 'method' }, 405);
     let b; try { const t = await req.text(); if (t.length > 4000) throw new Error('too large'); b = JSON.parse(t); } catch { return json({ error: 'bad order' }, 400); }
     const text = String(b.text || '').trim().slice(0, 300), squads = (Array.isArray(b.squads) ? b.squads : []).filter(s => /^SQ-\d\d$/.test(s)).slice(0, 16), places = (Array.isArray(b.places) ? b.places : []).map(x => String(x).slice(0, 40)).filter(Boolean).slice(0, 16);
+    const vehicles = (Array.isArray(b.vehicles) ? b.vehicles : []).filter(v => v && /^[A-Z]{2}-\d\d$/.test(String(v.id))).map(v => ({ id: String(v.id), kind: String(v.kind || 'vehicle').slice(0, 20) })).slice(0, 12);
     if (!text) return json({ error: 'say something' }, 400);
     const t0 = Date.now(), gateway = env.GATEWAY ? { gateway: { id: env.GATEWAY, collectLog: true, metadata: { kind: 'order' } } } : undefined;
     try {
-      const out = await env.AI.run('@cf/cloudflare/clef', { model: 'clef', state: text, questions: orderQuestions(squads, places) }, gateway);
+      const out = await env.AI.run('@cf/cloudflare/clef', { model: 'clef', state: text, questions: orderQuestions(squads, places, vehicles) }, gateway);
       const answers = out && (out.answers || (out.result && out.result.answers));
       if (!answers) return json({ error: 'no answer', ms: Date.now() - t0 }, 502);
-      return json({ order: proposeOrder(answers, squads), ms: Date.now() - t0 });
+      return json({ order: proposeOrder(answers, squads, vehicles), ms: Date.now() - t0 });
     } catch (e) { return json({ error: String(e && e.message || e).slice(0, 200), ms: Date.now() - t0 }, 502); }
   },
 };

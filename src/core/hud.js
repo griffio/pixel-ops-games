@@ -107,7 +107,7 @@ export class Hud {
     lines.forEach((f, i) => { const el = feed.children[i]; if (el) el.style.opacity = f.t > 7 ? ((10 - f.t) / 3).toFixed(2) : 1; });
     // objectives bar from the mode
     const objs = $('objs'), items = m.mode.bar();
-    if (objs.childElementCount !== items.length) objs.innerHTML = items.map(l => `<div class="obj"><b>${l.name}</b><span></span><i></i></div>`).join('');
+    if (objs.childElementCount !== items.length) { objs.innerHTML = items.map(l => `<div class="obj" title="Jump to ${l.name}"><b>${l.name}</b><span></span><i></i></div>`).join(''); objs.onclick = (e) => { const el = e.target.closest('.obj'); if (!el) return; const o = m.objectives && m.objectives.list.find(l => l.name === el.firstChild.textContent); if (o) { this.app.rts.fly = null; this.app.rts.follow = null; this.app.rts.target.set(o.x, 0, o.z); } }; }   // a tap on a place's box jumps the camera there
     items.forEach((l, i) => {
       const el = objs.children[i], p = l.progress;
       el.className = 'obj' + (l.owner === 0 ? ' t0' : l.owner === 1 ? ' t1' : '');

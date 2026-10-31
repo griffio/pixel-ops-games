@@ -111,7 +111,10 @@ reading for a tap when it is unsure, a sentence names nobody, or it carries two 
 answers over the radio in the feed: Roger to each order, a refusal with its reason, the place
 when it falls, and what a squad is doing instead when it hides or gathers; **Plan?** in the bar
 asks it what it is doing, and its own chips, marked CO, offer to release a squad whose order
-has it stuck or to rejoin one left idle in your hand.
+has it stuck or to rejoin one left idle in your hand. Vehicles are on the wheel too: an APC,
+truck, Humvee or helicopter can Move to a place or Here, Hold there, go Home (a supply truck
+goes to refill) or Rejoin; a vehicle you order is in your hand until Rejoin, and "move the
+supply truck to the Depot" reads the same way in words.
 
 *Desert Crossing* (`?map=desert1km`) was built to be fair to both sides: the Village sits on the
 strip of land between two parallel rivers, each bridged where the road crosses

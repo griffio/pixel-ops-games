@@ -279,9 +279,13 @@ export class GLRenderer {
     const cx = (box.minX + box.maxX) / 2, cz = (box.minZ + box.maxZ) / 2;
     const footprint = Math.hypot(cam.viewW, cam.viewH / Math.max(0.3, Math.sin(cam.pitch)));
     const R = 8 * Math.pow(2, Math.ceil(Math.log2((footprint / 2 + 70) / 8) * 4) / 4);   // 70 m: hills shift the footprint, long shadows reach in
-    const mainChunks = this.visibleChunks(box, 40), shadowChunks = this.visibleChunks(box, R);   // every chunk the light frustum can see
-    this.stats.chunks = mainChunks.length; this.stats.shadowR = R;
-    this.collect(scene, box, R * 1.8);   // the light frustum's ground footprint stretches past R along the sun's azimuth
+    // casters beyond the view matter only as far as their shadows reach into it: a 50 m thing throws 50 / sin(elevation) m,
+    // so the shadow pass takes the chunks within that of the view, not the whole light frustum (at a far zoom that was most of
+    // the map and five draw calls in six: 2,667 a frame on Palm Valley's bluff, 2026-10-31)
+    const reach = Math.min(R, 40 + 50 / Math.max(0.15, L.sunDir[1]));
+    const mainChunks = this.visibleChunks(box, 40), shadowChunks = this.visibleChunks(box, reach);
+    this.stats.chunks = mainChunks.length; this.stats.shadowR = R; this.stats.shadowChunks = shadowChunks.length;
+    this.collect(scene, box, reach * 1.2);   // dynamic meshes likewise, with a little slack for the sun's azimuth
     const target = new Vec3(cx, 0, cz), eye = new Vec3(cx + L.sunDir[0] * 400, L.sunDir[1] * 400, cz + L.sunDir[2] * 400);
     Mat4.cameraWorld(this.lightWorld, eye, target, LIGHT_UP);
     const right = Mat4.column(this.lightWorld, 0), up = Mat4.column(this.lightWorld, 1), texel = 2 * R / this.shadowSize;
@@ -309,7 +313,7 @@ export class GLRenderer {
     gl.clearColor(L.background[0], L.background[1], L.background[2], 1); gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
     const u = P.main.u; gl.useProgram(P.main.p);
     gl.uniformMatrix4fv(u.uViewProj, false, cam.viewProj); gl.uniformMatrix4fv(u.uLightVP, false, this.lightVP);
-    gl.uniform1f(u.uNormalBias, 0.6); gl.uniform1f(u.uShadowBias, -0.0006); gl.uniform1f(u.uShadowOn, this.shadows ? 1 : 0); gl.uniform1f(u.uShadowPcf, this.pcf ? 1 : 0);
+    gl.uniform1f(u.uNormalBias, Math.max(0.6, 1.2 * texel)); gl.uniform1f(u.uShadowBias, -0.0006);   // the normal offset grows with the shadow texel at a far zoom, or steep ground terraces gl.uniform1f(u.uShadowOn, this.shadows ? 1 : 0); gl.uniform1f(u.uShadowPcf, this.pcf ? 1 : 0);
     gl.uniform3f(u.uSunDir, L.sunDir[0], L.sunDir[1], L.sunDir[2]);
     gl.uniform3f(u.uSunCol, L.sunColor[0] * L.sunI, L.sunColor[1] * L.sunI, L.sunColor[2] * L.sunI);
     gl.uniform3f(u.uHemiSky, L.hemiSky[0] * L.hemiI, L.hemiSky[1] * L.hemiI, L.hemiSky[2] * L.hemiI);

@@ -17,6 +17,7 @@ const WHAT = [
   { k: 'fallback', name: 'Fall back', glyph: 'base', where: 'ours' },
   { k: 'rejoin', name: 'Rejoin', glyph: 'follow', where: null },
 ];
+const VWHAT = [{ k: 'move', name: 'Move', glyph: 'move', where: 'any' }, { k: 'hold', name: 'Hold', glyph: 'hold', where: 'any' }, { k: 'home', name: 'Home', glyph: 'base', where: null }, { k: 'rejoin', name: 'Rejoin', glyph: 'follow', where: null }];
 const INTENT = [
   { k: 'press', name: 'Press', glyph: 'fire' }, { k: 'hold the line', name: 'Hold the line', glyph: 'hold' }, { k: 'go quiet', name: 'Go quiet', glyph: 'holdfire' },
   { k: 'bleed them', name: 'Bleed them', glyph: 'clock' }, { k: 'pull back', name: 'Pull back', glyph: 'base' },
@@ -53,9 +54,9 @@ export class Wheel {
   // compound sentence or nobody named, a confirm chip shows the reading before it goes
   async submitText(text) {
     text = String(text || '').trim(); if (!text || this.busyText) return;
-    const squads = this.squads().map(s => s.members[0].label), places = this.places().map(l => l.name);
+    const squads = this.squads().map(s => s.members[0].label), places = this.places().map(l => l.name);   // the vehicles go in the body below
     this.busyText = true; this.say.textContent = `${text} \u2026`;
-    let r; try { const res = await fetch(this.app.ordersUrl || '/orders', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ text, squads, places }) }); r = await res.json(); } catch { r = { error: 'no order service here' }; }
+    let r; try { const res = await fetch(this.app.ordersUrl || '/orders', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ text, squads, places, vehicles: this.vehicles().map(v => ({ id: v.label, kind: this.match.orders.kindOf(v) })) }) }); r = await res.json(); } catch { r = { error: 'no order service here' }; }
     this.busyText = false; if (!this.open_) return;
     if (r.error || !r.order) { this.app.hud.toast(`Can't read that${r.error ? ': ' + r.error : ''}`); this.say.textContent = this.sentence(); return; }
     const o = r.order, sentence = this.sentenceFor(o), spec = this.specFor(o);
@@ -79,7 +80,9 @@ export class Wheel {
   }
   // the order a who, a what, a place and a how make (game/orders.js), shared by the pills and the typed path
   specFor({ who, what, at, how }) {
-    const me = this.me;
+    const me = this.me, vLabels = this.vehicles().map(v => v.label);
+    if (Array.isArray(who) && who.some(w => vLabels.includes(w))) return { team: me, who, role: what === 'take' ? 'move' : what, at, how };   // a vehicle named: orders.js drives it (squad verbs map onto move, hold, home)
+    if (what === 'move' || what === 'home') return who && Array.isArray(who) ? { team: me, who, role: what, at } : null;
     if (INTENT.some(i => i.k === what)) return { team: me, intent: what, how };
     if (what === 'rejoin') return { team: me, who: who || 'all', intent: 'rejoin' };
     if (!who) return null; const h = what === 'ambush' ? 'quietly' : how;
@@ -92,7 +95,8 @@ export class Wheel {
   }
   sentenceFor({ who, what, at, how }) {
     const W = WHAT.find(x => x.k === what) || INTENT.find(x => x.k === what), name = Array.isArray(who) ? who.join(', ') : who === 'fresh' ? 'Fresh squads' : 'Everyone';
-    return [name, W ? W.name.toLowerCase() : what, at ? 'the ' + at : ''].filter(Boolean).join(' ') + (how && !(what === 'ambush' && how === 'quietly') ? ', ' + how : '');
+    const verb = what === 'move' ? 'move to' : what === 'home' ? 'go home' : what === 'fallback' ? 'fall back to' : W ? W.name.toLowerCase() : what;
+    return [name, verb, at ? 'the ' + at : ''].filter(Boolean).join(' ') + (how && !(what === 'ambush' && how === 'quietly') ? ', ' + how : '');
   }
   get match() { return this.app.match; }
   get me() { return this.app.playerTeam ?? 0; }
@@ -102,21 +106,23 @@ export class Wheel {
     if (!this.on || !this.el) return;
     this.open_ = true; this.el.hidden = false; this.step = 0; this.what = null; this.mods = { quiet: false, costs: false }; this.pending = null; this.busyText = false;
     const sel = [...new Set(this.app.input.selected.filter(u => u.squad && u.team === this.me && !u.dead).map(u => u.squad))];   // a selection is the who
-    this.who = sel.length ? { k: 'sel', ids: sel.map(s => s.members[0].label), squads: sel } : null; if (this.who) this.step = 1;
+    const vsel = sel.length ? [] : this.app.input.selected.filter(u => u.team === this.me && !u.dead && !u.squad && !u.spec.structure && u.type !== 'soldier');   // vehicles selected: the who is them
+    this.who = sel.length ? { k: 'sel', ids: sel.map(s => s.members[0].label), squads: sel } : vsel.length ? { k: 'veh', ids: vsel.map(v => v.label) } : null; if (this.who) this.step = 1;
     this.sugg = this.suggestions(); this.render(); this.btn.classList.add('on'); document.body.classList.add('wheel-open');
   }
   close() { this.open_ = false; if (this.el) this.el.hidden = true; if (this.btn) this.btn.classList.remove('on'); document.body.classList.remove('wheel-open'); }
   back() { if (this.step === 2) { this.what = null; this.step = 1; } else if (this.step === 1) { this.who = null; this.step = 0; } this.render(); }
   squads() { return this.match.units.squads.filter(s => s.team === this.me && s.leader); }
+  vehicles() { return this.match.orders ? this.match.orders.vehiclesOf(this.me) : []; }
   freshSquads() { const b = this.match.teams[this.me].base; return this.squads().filter(s => { const c = s.centroid(); return Math.hypot(c.x - b.x, c.z - b.z) < b.r + 30; }); }
   places() { const o = this.match.objectives; return o ? o.list : []; }
-  subjectPos() { if (this.who && this.who.squads && this.who.squads.length) { const c = this.who.squads[0].centroid(); return { x: c.x, z: c.z }; } return this.match.teams[this.me].base; }
+  subjectPos() { if (this.who && this.who.squads && this.who.squads.length) { const c = this.who.squads[0].centroid(); return { x: c.x, z: c.z }; } if (this.who && this.who.k === 'veh') { const v = this.vehicles().find(v => v.label === this.who.ids[0]); if (v) return { x: v.pos.x, z: v.pos.z }; } return this.match.teams[this.me].base; }
   // the pills for the step
   items() {
     const me = this.me, o = this.match.objectives;
-    if (this.step === 0) return [{ k: 'all', name: 'Everyone', glyph: 'flag' }, { k: 'fresh', name: 'Fresh', glyph: 'base', title: 'the squads at base' }, ...this.squads().map(s => ({ k: s.members[0].label, name: s.members[0].label, cls: s.manual ? 'hand' : '', title: s.manual ? 'in your hand' : '' }))];
-    if (this.step === 1) { const all = this.who.k === 'all'; return [...WHAT.filter(w => !(all && w.k === 'grab')), ...(all ? INTENT.map(i => ({ ...i, cls: 'intent' })) : [])]; }
-    const w = WHAT.find(x => x.k === this.what), p = this.subjectPos(), m = this.match;
+    if (this.step === 0) return [{ k: 'all', name: 'Everyone', glyph: 'flag' }, { k: 'fresh', name: 'Fresh', glyph: 'base', title: 'the squads at base' }, ...this.squads().map(s => ({ k: s.members[0].label, name: s.members[0].label, cls: s.manual ? 'hand' : '', title: s.manual ? 'in your hand' : '' })), ...this.vehicles().map(v => ({ k: 'v:' + v.label, name: v.label, sub: this.match.orders.kindOf(v), cls: 'veh' + (v.manual ? ' hand' : ''), title: v.manual ? 'in your hand' : this.match.orders.kindOf(v) }))];
+    if (this.step === 1) { if (this.who.k === 'veh') return VWHAT; const all = this.who.k === 'all'; return [...WHAT.filter(w => !(all && w.k === 'grab')), ...(all ? INTENT.map(i => ({ ...i, cls: 'intent' })) : [])]; }
+    const w = (this.who.k === 'veh' ? VWHAT : WHAT).find(x => x.k === this.what), p = this.subjectPos(), m = this.match;
     const foes = m.vision ? m.vision.contacts(me).filter(u => !u.spec.structure && !(u.spec.air && u.alt > 2)) : [];   // what we see at each place: men, and vehicles counted as four
     const seen = (l) => { const near = foes.filter(f => Math.hypot(f.pos.x - l.x, f.pos.z - l.z) < l.r + 40), inf = near.filter(f => f.type === 'soldier').length, veh = near.length - inf; return { badge: inf + veh ? `${inf}${veh ? ' +' + veh + ' veh' : ''}` : '', weight: inf + veh * 4 }; };
     let L = this.places().map(l => ({ l, d: Math.hypot(l.x - p.x, l.z - p.z) }));
@@ -134,14 +140,14 @@ export class Wheel {
       const a = -Math.PI / 2 + i * 2 * Math.PI / n, b = document.createElement('button');
       b.type = 'button'; b.className = 'w-seg' + (it.cls ? ' ' + it.cls : ''); b.dataset.k = it.k; b.title = it.title || it.name;
       b.style.setProperty('--dx', `${Math.round(R * Math.cos(a))}px`); b.style.setProperty('--dy', `${Math.round(R * Math.sin(a))}px`);
-      b.innerHTML = `${it.glyph ? icon(it.glyph) : ''}<span>${it.name}</span>${it.badge ? `<em>${it.badge}</em>` : ''}`; this.ring.appendChild(b);
+      b.innerHTML = `${it.glyph ? icon(it.glyph) : ''}<span>${it.name}</span>${it.sub ? `<small>${it.sub}</small>` : ''}${it.badge ? `<em>${it.badge}</em>` : ''}`; this.ring.appendChild(b);
     });
     this.hub.className = 'w-hub' + (this.step ? ' back' : '');
     this.hub.innerHTML = this.step === 0 ? '<small>who</small><b>?</b>' : this.step === 1 ? `<small>what</small><b>${this.whoName()}</b>` : `<small>where</small><b>${this.whatName()}</b><small>tap: back</small>`;
     this.renderBar(); this.renderChips();
   }
   whoName() { return !this.who ? '' : this.who.k === 'all' ? 'Everyone' : this.who.k === 'fresh' ? 'Fresh squads' : this.who.ids.join(', '); }
-  whatName() { const w = WHAT.find(x => x.k === this.what) || INTENT.find(x => x.k === this.what); return w ? w.name : ''; }
+  whatName() { const w = (this.who && this.who.k === 'veh' ? VWHAT.find(x => x.k === this.what) : null) || WHAT.find(x => x.k === this.what) || INTENT.find(x => x.k === this.what); return w ? (this.who && this.who.k === 'veh' && this.what === 'move' ? 'Move to' : this.who && this.who.k === 'veh' && this.what === 'home' ? 'Go home' : w.name) : ''; }
   renderBar() { this.say.textContent = this.sentence(); this.modsEl.innerHTML = `<button type="button" data-m="quiet" class="${this.mods.quiet ? 'on' : ''}">quietly</button><button type="button" data-m="costs" class="${this.mods.costs ? 'on' : ''}">at all costs</button>`; }
   renderChips() { this.chips.innerHTML = this.sugg.map((s, i) => `<button type="button" data-i="${i}"${s.co ? ' class="co"' : ''}>${s.text}</button>`).join(''); }
   // what the CO is doing, from the strategist's last plan tick and the squads' tags, with a model CO's own notes after it
@@ -160,20 +166,21 @@ export class Wheel {
     return [who, what, at ? 'the ' + at : ''].filter(Boolean).join(' ') + (this.mods.quiet && this.what !== 'ambush' ? ', quietly' : '') + (this.mods.costs ? ', at all costs' : '');
   }
   pick(k) {
-    if (this.step === 0) { this.who = k === 'all' ? { k: 'all' } : k === 'fresh' ? { k: 'fresh' } : { k: 'sel', ids: [k], squads: this.squads().filter(s => s.members[0].label === k) }; this.step = 1; return this.render(); }
+    if (this.step === 0) { this.who = k === 'all' ? { k: 'all' } : k === 'fresh' ? { k: 'fresh' } : k.startsWith('v:') ? { k: 'veh', ids: [k.slice(2)] } : { k: 'sel', ids: [k], squads: this.squads().filter(s => s.members[0].label === k) }; this.step = 1; return this.render(); }
     if (this.step === 1) {
       this.what = k; const w = WHAT.find(x => x.k === k), it = INTENT.find(x => x.k === k);
+      if (this.who.k === 'veh') { if (k === 'home' || k === 'rejoin') return this.send({ team: this.me, who: this.who.ids, role: k }, this.sentence()); this.step = 2; return this.render(); }
       if (it) return this.send({ team: this.me, intent: it.k, how: this.how() }, this.sentence());
       if (w && w.k === 'rejoin') return this.send({ team: this.me, who: this.whoSpec(), intent: 'rejoin' }, this.sentence());
       this.step = 2; return this.render();
     }
-    if (k === 'here') { this.close(); this.app.hud.toast(`${this.app.touch ? 'Tap' : 'Click'} the ground`); this.app.input.pickGround((x, z) => this.here(x, z)); return; }
+    if (k === 'here') { this.close(); this.app.hud.toast(`${this.app.touch ? 'Tap' : 'Click'} the ground`); const veh = this.who.k === 'veh' ? { ids: this.who.ids, what: this.what } : null; this.app.input.pickGround((x, z) => veh ? this.match.orders.add({ team: this.me, who: veh.ids, role: veh.what, x, z, text: `${veh.ids.join(', ')} ${veh.what === 'hold' ? 'hold' : 'move'} here` }) : this.here(x, z)); return; }
     const at = k.slice(3), it = (this.lastItems || []).find(x => x.k === k), lone = this.who.k === 'sel' && this.who.ids.length === 1;
     if (this.send(this.spec(at), this.sentence(at)) && lone && it && it.weight >= 8) this.app.hud.toast(`${it.badge} seen at the ${at}: one squad alone? Everyone, then Take, sends the lot`);   // sent all the same: the player's call
   }
   how() { return this.mods.costs ? 'at all costs' : this.mods.quiet ? 'quietly' : undefined; }
   whoSpec() { return this.who.k === 'sel' ? this.who.ids : this.who.k; }
-  spec(at) { return this.specFor({ who: this.whoSpec(), what: this.what, at, how: this.how() }); }
+  spec(at) { return this.specFor({ who: this.who.k === 'veh' ? this.who.ids : this.whoSpec(), what: this.what, at, how: this.how() }); }
   send(spec, text) {
     if (!spec) return; const r = this.match.orders.add({ ...spec, text });
     if (r.error) { this.app.hud.toast(`Can't: ${r.error}`); if (this.app.audio) this.app.audio.ui('deny'); return false; }
@@ -193,8 +200,9 @@ export class Wheel {
     const m = this.match, me = this.me, o = m.objectives, out = []; if (!o) return out;
     // the CO's own: release a squad whose order has it hiding, refused or stuck; rejoin a squad left idle in the player's hand
     const co = [], sqAll = this.squads();
-    for (const ord of m.orders ? m.orders.active(me) : []) if (Array.isArray(ord.who) && (ord.refusedNote || (ord.note && ord.note !== 'taken, now holding' && ord.note !== 'gathering before going in'))) co.push({ co: true, text: `release ${ord.who.join(', ')} (${noteHead(ord.refusedNote || ord.note)})`, spec: { team: me, who: ord.who, intent: 'rejoin' } });
+    for (const ord of m.orders ? m.orders.active(me) : []) if (Array.isArray(ord.who) && !ord.vehicle && (ord.refusedNote || (ord.note && ord.note !== 'taken, now holding' && ord.note !== 'gathering before going in'))) co.push({ co: true, text: `release ${ord.who.join(', ')} (${noteHead(ord.refusedNote || ord.note)})`, spec: { team: me, who: ord.who, intent: 'rejoin' } });
     for (const s of sqAll) if (s.manual && s.idleSince != null && m.elapsed - s.idleSince > 20) co.push({ co: true, text: `${s.members[0].label} rejoin (idle in your hand)`, spec: { team: me, who: [s.members[0].label], intent: 'rejoin' } });
+    for (const v of this.vehicles()) if (v.manual && v.idleSince != null && m.elapsed - v.idleSince > 60) co.push({ co: true, text: `${v.label} rejoin (idle in your hand)`, spec: { team: me, who: [v.label], role: 'rejoin' } });
     out.push(...co.slice(0, 2));
     const base = m.teams[me].base, L = o.list, ours = L.filter(l => l.owner === me), fresh = this.freshSquads(), sq = this.squads(), dist = (l) => Math.hypot(l.x - base.x, l.z - base.z);
     const cap = L.filter(l => l.owner !== me && o.capturable(me, l)).sort((a, b) => dist(a) - dist(b))[0];

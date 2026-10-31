@@ -227,7 +227,7 @@ export class Input {
       const c = i % cols, rw = Math.floor(i / cols);
       const ox = g.x + (c - (cols - 1) / 2) * gap, oz = g.z + (rw - (Math.ceil(n / cols) - 1) / 2) * gap;
       if (advance) t.advanceTo(ox, oz); else t.order(ox, oz);
-      if (t.members) { t.manual = true; t.idleSince = null; }   // in the player's hand: a hybrid commander leaves the squad alone until an order names it, Rejoin, or 90 s idle (game/orders.js)
+      t.manual = true; t.idleSince = null;   // in the player's hand: a hybrid commander leaves the squad or vehicle alone until an order names it, Rejoin, or (a squad) 90 s idle (game/orders.js)
       t.dropOnArrive = false;   // the player's passengers stay aboard until Unload (U): a stop on the way is not a drop
       if (t.spec && t.spec.air) { t.dropOnLand = false; t.orbit = { x: ox, z: oz, r: 30 }; }   // a helicopter circles there, door gun firing, until Unload or Land
     });

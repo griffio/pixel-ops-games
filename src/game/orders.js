@@ -1,4 +1,5 @@
 import { ROLES } from './ai/plan.js';
+import { RULES } from './rules.js';
 
 // Orders from the player to the hybrid commander of their own side (docs/GAME_PLAN.md "Command Wheel", W1). An order
 // names who (squad ids, 'all', or 'fresh': the squads at base), what (a squad role from plan.js, or an intent for the
@@ -15,20 +16,49 @@ export const noteHead = (n) => reason(n).split(/[:;,]/)[0];
 const PLAN_INTENTS = ['take', 'press', 'hold the line', 'bleed them', 'pull back'];   // one of these stands at a time
 const NEEDS_PLACE = ['hold', 'reserve', 'screen', 'grab', 'antiair'];
 const WHAT = { assault: 'join the attack', hold: 'hold', reserve: 'wait at', screen: 'screen', grab: 'grab', raid: 'raid the enemy FOB', escort: 'escort the truck', antiair: 'watch the sky at' };
+// a vehicle named in an order is driven by the player's own hand (input.orderAt) and left alone by the CO until Rejoin: move to
+// a place or a point, hold there, home (a supply truck goes to refill), rejoin; squad verbs map onto these
+export const VEH_WHATS = ['move', 'hold', 'home', 'rejoin'];
+const VEH_FROM = { take: 'move', screen: 'move', grab: 'move', assault: 'move', reserve: 'hold', ambush: 'hold', fallback: 'home', 'pull back': 'home' };
+const KIND = { apc: 'APC', tank: 'tank', truck: 'truck', humvee: 'Humvee', heli: 'helicopter', bird: 'Little Bird' };
 
 export class Orders {
   constructor(match) { this.match = match; this.list = []; this.seq = 0; this.acc = 0; }
   squadsOf(team) { return this.match.units.squads.filter(s => s.team === team && s.leader); }
   label(sq) { return sq.members[0].label; }
+  vehiclesOf(team) { return this.match.units.units.filter(u => u.team === team && !u.dead && !u.squad && !u.spec.structure && !u.spec.naval && !u.afloat); }
+  kindOf(v) { return v.supply ? 'supply truck' : KIND[v.type] || v.type; }
+  forVehicle(v) { return this.active(v.team).find(o => o.vehicle && o.who.includes(v.label)) || null; }
   // add({ team, who, role, intent, at, how, text }) -> the order, or { error }
   add(spec) {
     const m = this.match, team = spec.team ?? (m.app.playerTeam ?? 0), o2 = m.objectives;
     const byName = (n) => (o2 ? o2.list.find(l => l.name.toLowerCase() === String(n).toLowerCase()) : null) || null;
-    const role = spec.role && ROLES.includes(spec.role) ? spec.role : null, intent = spec.intent && INTENTS.includes(spec.intent) ? spec.intent : null;
-    if (!role && !intent) return { error: `no such order${spec.role || spec.intent ? ': ' + (spec.role || spec.intent) : ''}` };
+    const vrole = VEH_WHATS.includes(spec.role) ? spec.role : null, role = spec.role && ROLES.includes(spec.role) ? spec.role : spec.role === 'move' ? 'hold' : null, intent = spec.intent && INTENTS.includes(spec.intent) ? spec.intent : null;   // move, for a squad: go there and hold
+    if (!role && !intent && !vrole) return { error: `no such order${spec.role || spec.intent ? ': ' + (spec.role || spec.intent) : ''}` };
     let who = spec.who;
-    if (Array.isArray(who)) { const known = this.squadsOf(team).map(s => this.label(s)); who = who.map(w => String(w).toUpperCase()); const bad = who.filter(w => !known.includes(w)); if (bad.length) return { error: `no squad ${bad.join(', ')}` }; if (!who.length) return { error: 'say which squads' }; }
+    if (Array.isArray(who)) {
+      const known = this.squadsOf(team).map(s => this.label(s)), vehs = this.vehiclesOf(team), vKnown = vehs.map(v => v.label); who = who.map(w => String(w).toUpperCase());
+      const bad = who.filter(w => !known.includes(w) && !vKnown.includes(w)); if (bad.length) return { error: `no squad or vehicle ${bad.join(', ')}` }; if (!who.length) return { error: 'say which squads' };
+      // the vehicles named: driven at once by the player's hand; any squads named go on below as a squad order
+      const vWho = who.filter(w => vKnown.includes(w));
+      if (vWho.length) {
+        const vwhat = VEH_WHATS.includes(spec.role) ? spec.role : VEH_FROM[spec.role] || VEH_FROM[spec.intent] || (spec.intent === 'rejoin' ? 'rejoin' : null);
+        if (!vwhat) return { error: 'a vehicle can move, hold, go home or rejoin' };
+        const vat = spec.at ? byName(spec.at) : null; if (spec.at && !vat) return { error: `no place called ${spec.at}` };
+        if ((vwhat === 'move' || vwhat === 'hold') && !vat && typeof spec.x !== 'number') return { error: `${vwhat} needs a place` };
+        for (const v of vehs) if (vWho.includes(v.label)) this.drive(v, vwhat, vat, spec);
+        const vo = { id: ++this.seq, team, who: vWho, role: vwhat, at: vat ? vat.name : undefined, since: m.elapsed, status: vwhat === 'hold' ? 'standing' : 'done', doneAt: m.elapsed, note: 'by hand', vehicle: true };
+        vo.text = spec.text || this.sentence(vo);
+        for (const p of this.list) if (p.vehicle && p.team === team && p.status === 'standing' && p.who.some(w => vWho.includes(w))) { p.who = p.who.filter(w => !vWho.includes(w)); if (!p.who.length) this.end(p, 'replaced'); }
+        this.list.push(vo); if (this.list.length > 40) this.list.shift();
+        this.say(team, vwhat === 'rejoin' ? `Roger, ${vWho.join(', ')} back under the plan` : `Roger: ${vo.text}`);
+        if (m.app && m.app.hud && m.app.hud.toast && team === (m.app.playerTeam ?? 0)) m.app.hud.toast(`Order: ${vo.text}`);
+        who = who.filter(w => !vKnown.includes(w)); if (!who.length) return vo;
+        if (!role && !intent) return { error: `${spec.role} is for vehicles: say where the squads should go` };
+      }
+    }
     else if (who !== 'all' && who !== 'fresh') who = intent ? 'all' : null;
+    if (!role && !intent) return { error: `${spec.role} is for vehicles: say which vehicle` };
     if (role && !who) return { error: 'say which squads' };
     const at = spec.at ? byName(spec.at) : null; if (spec.at && !at) return { error: `no place called ${spec.at}` };
     if (((role && NEEDS_PLACE.includes(role)) || intent === 'take') && !at) return { error: `${role || intent} needs a place` };
@@ -54,9 +84,23 @@ export class Orders {
     return o;
   }
   end(o, note) { o.status = 'done'; o.doneAt = this.match.elapsed; o.note = note; }
+  // the player's own hand on a vehicle (input.orderAt: a helicopter circles, passengers stay aboard), the CO off it until Rejoin
+  drive(v, what, at, spec = {}) {
+    const m = this.match;
+    if (what === 'rejoin') { v.manual = false; v.idleSince = null; return; }
+    if (what === 'home') { if (v.supply && v.supplies < RULES.fob.truckSupplies && m.support && m.support.startRefill) { m.support.startRefill(v); v.manual = true; v.idleSince = null; } else { const b = m.teams[v.team].base; this.steer(v, b.x, b.z, 14); } return; }   // a supply truck with room goes to refill and comes back; otherwise home is home
+    this.steer(v, at ? at.x : spec.x, at ? at.z : spec.z, at ? Math.max(6, at.r * 0.5) : 0);
+  }
+  steer(v, x, z, spread) {
+    const m = this.match, inp = m.app && m.app.input, W = m.units.world;
+    let px = x, pz = z; for (let i = 0; i < 8 && W.isBlocked && W.isBlocked(px, pz, 1); i++) { px = x + (Math.random() - 0.5) * 2 * (spread || 8); pz = z + (Math.random() - 0.5) * 2 * (spread || 8); }
+    if (inp && inp.orderAt) { const prev = inp.selected; inp.selected = [v]; inp.orderAt(px, pz); inp.selected = prev; } else v.order(px, pz);
+    v.manual = true; v.idleSince = null;
+  }
   // the CO over the radio: a feed line in the player's own team's voice (hud: who CO); a model CO adds its own words when its next plan comes
   say(team, text) { const m = this.match; if (team === (m.app.playerTeam ?? 0) && m.event) m.event({ type: 'radio', team, who: 'CO', text }); }
   sentence(o) {
+    if (o.vehicle) return `${o.who.join(', ')} ${o.role === 'move' ? 'move to' : o.role === 'hold' ? 'hold' : o.role === 'home' ? 'go home' : 'rejoin'}${o.at ? ' the ' + o.at : ''}`;
     const who = Array.isArray(o.who) ? o.who.join(', ') : o.who === 'fresh' ? 'the fresh squads' : 'everyone';
     const what = o.role ? WHAT[o.role] || o.role : o.intent, at = o.at && o.role !== 'assault' ? ` the ${o.at}` : '';
     return `${who} ${what}${at}${o.how ? ', ' + o.how : ''}`;
@@ -77,7 +121,7 @@ export class Orders {
     for (const o of this.list) {
       if (o.status !== 'standing') continue;
       if (o.intent === 'take' && o2) { const l = o2.list.find(l => l.name === o.at); if (l && l.owner === o.team) { this.end(o, 'taken'); this.say(o.team, `The ${o.at} is ours`); } }
-      if (Array.isArray(o.who)) {
+      if (Array.isArray(o.who) && !o.vehicle) {
         const s = (m.strategists || []).find(s => s.team === o.team), notes = s && s.refused ? o.who.map(w => s.refused.get(w)).filter(Boolean) : []; o.refusedNote = notes.length ? notes[0] : undefined;
         // a take-worded order reads hold once the place is ours; while it stands, what its squads are doing instead of it
         const mine = this.squadsOf(o.team).filter(sq => o.who.includes(this.label(sq))), l = o.at && o2 ? o2.list.find(l => l.name === o.at) : null;
@@ -90,6 +134,7 @@ export class Orders {
         const now = o.refusedNote || o.note || ''; if (now !== (o.said || '')) { o.said = now; if (now) this.say(o.team, o.refusedNote ? `Can't: ${o.text}: ${reason(o.refusedNote)}` : o.note === 'taken, now holding' ? `The ${o.at} is ours, ${o.who.join(', ')} holding it` : `${o.who.join(', ')}: ${o.note}`); }
       }
     }
+    for (const t of new Set((m.strategists || []).map(s => s.team))) for (const v of this.vehiclesOf(t)) if (v.manual) { const idle = !v.dest && !v.target && Math.abs(v.speed) < 0.3 && !v.refilling; if (!idle) v.idleSince = null; else if (v.idleSince == null) v.idleSince = m.elapsed; }   // a vehicle stays in the hand until Rejoin; the wheel's CO chip offers it when idle
     for (const t of new Set((m.strategists || []).map(s => s.team))) for (const sq of this.squadsOf(t)) {
       if (!sq.manual) continue;
       if (sq.busy) { sq.idleSince = null; continue; }

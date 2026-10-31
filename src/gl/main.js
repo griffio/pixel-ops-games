@@ -20,7 +20,8 @@ const q = new URLSearchParams(location.search);
 const sandbox = q.get('sandbox') === '1';
 const canvas = document.getElementById('view');
 const touch = detectTouch();
-const renderer = new GLRenderer(canvas, touch ? { shadowSize: 2048, dprCap: 1 } : {});   // tablets: smaller shadow map, no retina composite
+const shadowQ = +(new URLSearchParams(location.search).get('shadow')) || 0;   // ?shadow=2048|4096: the shadow map's size, to try a tablet's on the desktop or a bigger one on a tablet
+const renderer = new GLRenderer(canvas, { ...(touch ? { shadowSize: 2048, dprCap: 1 } : {}), ...(shadowQ ? { shadowSize: shadowQ } : {}) });   // tablets: smaller shadow map, no retina composite
 const pixel = renderer.pixel;
 registerTextures(renderer);
 if (q.get('vox') !== '0') { Object.assign(builders, await loadVoxModels(renderer, ['tank', 'apc', 'humvee', 'truck', 'supplyTruck', 'craft', 'heli', 'bird', 'soldier', 'amphib', 'amphibSupply'])); await loadVoxProps(renderer, ['lighthouse', 'radar', 'shed', 'boat', 'ship']); }   // unit models from models/vox/*.vox replace the code-built ones of the same type, and the landmarks stand as vox props; ?vox=0 keeps the code ones

@@ -118,8 +118,9 @@ export class Strategist {
     // drop lifts whose carrier or troops are gone, so squads return to the pool
     // (lift keys are carriers, which are units with a type, and the squads riding them whole)
     for (const [k, v] of [...this.lifts]) if (k.type && (k.dead || (v.stage === 'park' ? false : v.sqs ? !v.sqs.some(s => s.leader) : v.sq ? !v.sq.leader : v.riders.length && !k.passengers.length && v.riders.every(m => m.dead)))) this.endLift(k);   // a parked truck carries nobody
+    for (const [k] of [...this.lifts]) if (k.type && k.manual) this.endLift(k);   // a carrier the player took in hand: its lift is over, the squads return to the pool
     const squads = this.units.squads.filter(s => s.team === this.team && s.leader && !this.lifts.has(s) && !s.members.some(m => m.building) && !(s.pinUntil > this.match.elapsed) && !s.manual);   // pinned squads (in cover from armour, or stalking it) keep doing that; a squad in the player's hand is theirs
-    const vehicles = this.units.units.filter(u => u.team === this.team && !u.dead && !u.squad && !u.spec.structure && !u.spec.naval && !u.afloat);   // not landing craft, nor what waits on the ship
+    const vehicles = this.units.units.filter(u => u.team === this.team && !u.dead && !u.squad && !u.spec.structure && !u.spec.naval && !u.afloat && !u.manual);   // not a vehicle in the player's hand (game/orders.js)   // not landing craft, nor what waits on the ship
     const myFobs = this.units.units.filter(u => u.type === 'fob' && u.team === this.team && !u.dead).map(f => ({ x: f.pos.x, z: f.pos.z, r: 18, index: 'fob' + f.id }));
     const g = this.match.mode.goals(this.team, myFobs);
     // who sets the plan: a fresh remote commander, else the utility commander, else the mode's goals as they are
@@ -509,7 +510,7 @@ export class Strategist {
       best.pinUntil = now + 6;
     }
     for (const v of this.units.units) {
-      if (v.team !== this.team || v.dead || (v.type !== 'apc' && v.type !== 'tank' && v.type !== 'humvee')) continue;
+      if (v.team !== this.team || v.dead || v.manual || (v.type !== 'apc' && v.type !== 'tank' && v.type !== 'humvee')) continue;
       const keep = v.type === 'tank' ? 90 : v.type === 'humvee' ? 125 : 70, trigger = v.type === 'humvee' ? 95 : 50;   // the Humvee's skin is thin: it keeps outside rocket reach
       if (v.type === 'humvee') { let a = null, ad = 180 * k; for (const p of apcs) { const dd = Math.hypot(p.pos.x - v.pos.x, p.pos.z - v.pos.z); if (dd < ad) { ad = dd; a = p; } } if (a) { const [x, z] = away(v.pos.x, v.pos.z, a, 220 * k - ad); v.goal = [x, z]; v.order(x, z); continue; } }   // and well clear of armour
       const [e, d] = nearest(v.pos.x, v.pos.z); if (!e || d > trigger * k) continue;
@@ -537,7 +538,7 @@ export class Strategist {
       if (v.dead) this.lifts.delete(v); else if (this.enemiesNear(v.pos.x, v.pos.z, 40).length || this.armourNear(v.pos.x, v.pos.z, 120)) { this.lifts.delete(v); home(v); }
     }
     for (const v of this.units.units) {
-      if (v.team !== this.team || v.dead || !v.supply || Math.hypot(v.pos.x - base.x, v.pos.z - base.z) < 80) continue;
+      if (v.team !== this.team || v.dead || v.manual || !v.supply || Math.hypot(v.pos.x - base.x, v.pos.z - base.z) < 80) continue;
       if (!this.armourNear(v.pos.x, v.pos.z, 120) && !this.enemiesNear(v.pos.x, v.pos.z, 40).length) continue;
       if (this.plan && this.plan.truck === v) this.plan = null;
       if (!v.dest || Math.hypot(v.dest.x - base.x, v.dest.z - base.z) > 30) home(v);

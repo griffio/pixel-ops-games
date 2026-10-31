@@ -3279,6 +3279,42 @@ Engine changes needed in the existing core:
   sentence and the two CO chips. Not done: a spoken CO (the squad voices could carry a few lines), the CO suggesting
   attacks of its own beyond the rules' chips.
 
+- **Command Wheel: vehicles (2026-10-31, "Go vehicles").** The second wheel game's one typed order was "move supply
+  truck to depot", which the vocabulary could not hold (Clef read it as everyone falling back to the Depot, for a
+  confirm). Now a vehicle is a who: the Who ring lists the player's APCs, trucks, Humvees and helicopters after the
+  squads (label and kind, blue border, dashed when in the player's hand; a selection of vehicles opens on them), with
+  Move (to a place, or Here), Hold (there), Home and Rejoin as its verbs. A vehicle order is carried out at once by the
+  player's own hand (`Orders.drive` through `input.orderAt`, so a helicopter circles and passengers stay aboard; Home
+  sends a supply truck with room on a refill trip, anything else to base) and the vehicle stays in the player's hand
+  until Rejoin: the strategist's vehicle loop, its caution rule and its lifts leave a `manual` vehicle alone. Squad verbs
+  map onto the vehicle ones (take, screen, grab to move; reserve, ambush to hold; fall back to home), and a mixed order
+  ("SQ-02 and the truck move to the Mine") becomes a vehicle record and a squad record. The digest lists vehicle orders
+  with the note "by hand"; the CO says Roger; the CO's chips offer to rejoin a vehicle idle in the hand for a minute
+  (vehicle holds are never offered for release: they are the player's intent). Clef's questions gained one yes/no per
+  vehicle ("Is the vehicle SP-01, a supply truck, named, also the truck, supplies?") and the verbs move and home; probed
+  on six sentences: "move supply truck to depot" is SP-01 move Depot at 0.83, "AP-01 hold the bridge" 0.80, "send the APC
+  home" 0.66 confirmed, "SQ-02 and the truck move to the mine" names both at 0.83, "humvee rejoin" 0.88. Checked
+  headless on Palm Valley: the Who ring, the vehicle verbs, the move (the CO leaves the truck's destination alone for
+  300 ticks), Home for a full truck (to base) and for one with room (a refill trip), Rejoin, an APC hold that stands and
+  shows on the card, Here for a vehicle, the mixed order, and the refusals ("move needs a place", "a vehicle can move,
+  hold, go home or rejoin"). Also fixed: "fall back to the Depot" wording in the typed path's sentence. Not done: a
+  vehicle card line saying "in your hand", Unload and Land on the wheel (the command bar keeps them).
+
+- **The iPad's hills on Palm Valley, and the place bar (2026-10-31).** The user: Palm Valley's hills render as banded,
+  terraced slopes on the iPad and dragging the map stutters there; and tapping a place's box in the bar at the top should
+  jump the camera to it. Measured with the GPU bench (Metal, vsync off) on the bluff view zoomed out: 1,943 draw calls a
+  frame with shadows against 318 without, 35 ms against 32; the shadow pass took every chunk within the light frustum's
+  half-size R, which at a far zoom is most of the map. Now the shadow pass takes the chunks within the casters' reach,
+  40 m plus 50 m over the sine of the sun's elevation (a 50 m thing's shadow), capped at R, and the dynamic meshes
+  likewise: the bluff view fell to 747 calls and 15 ms, the village from 908 to 662, the portrait tablet view from
+  2,667 to 1,220. For the terraces, two bias changes in the shadow test: the normal offset grows with the shadow texel
+  (1.2 texels, 0.6 m at least), and the depth bias is slope-scaled, up to four times on ground at a grazing angle to the
+  sun. `?shadow=2048|4096` picks the shadow map size on any device, to compare. The steps still visible on a slope in
+  headless shots at 2048 are the 4 m mesh's rows with the jagged crest noise and the rock texture, not the shadow; a
+  cell-wide shading normal was tried and made no visible difference, so it was reverted. Whether the iPad's banding is
+  gone is for the user to see on the iPad. The place bar: each box jumps the camera to its place (a tap or click,
+  `#objs` click handler, the follow and flight cleared). Bench rebuilt as scratchpad t/bench.mjs, shots with t/shot.mjs.
+
 ## Open questions
 
 None open. Answered:
