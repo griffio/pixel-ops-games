@@ -2956,6 +2956,24 @@ Engine changes needed in the existing core:
   goes in the per-instance scale as the colour boxes do. A frame-time bench is back in the scratchpad
   (bench.mjs: metal, vsync off, 240 rAF intervals, the renderer's call count); it must run with no sims alongside.
 
+- **Opus on The Hollow read back (2026-10-31), and three fixes.** The gateway logs of the user's game (22 plans, 08:56 to
+  09:08 UTC): Opus as OPFOR took East Clearing and the Mill, walked onto the empty Hamlet at 2.0, sent four squads at the
+  Ford, saw 15 to 23 men there and called it off, took the neutral West Clearing at 3.1 and then held four of five with the
+  same plan fifteen times, winning 131 to 10 on the clock; the user's 17 to 30 men sat 40 to 60 m south-west of the Hamlet
+  from 3.8 to the end, dying at twice the defenders' rate. Light pays half a ticket a man (172 OPFOR dead for 69 tickets,
+  medic revives free); the user's +20 on the Ford was Entrenched's capture bonus. Fixes: (1) the user noticed attack-move
+  and hold fire could both be on at once (independent flags: the squad walked quiet until sprung, then stopped at hold
+  range): `advanceTo` now lifts hold fire and `setHoldFire(true)` drops the advance, the walk going on as a plain move; the
+  toasts, button titles, guide and README say so. (2) A remote commander's `hold` list collapsed to its first entry
+  (`applyPlan`), so when Opus stopped naming its two West Clearing squads in the last two plans the place emptied: the squads
+  given no job now split between the holds, 30% to a second place (25% and 15% to a second and third), the rest, at least
+  one, at the first; the prompt and schema say so. (3) The Worker's system prompt said 500 tickets, a 25-minute clock and a
+  page of FOB, truck and engineer rules on an infantry-only map, and the digest showed a FOB kit left: the digest's `map`
+  now carries `tickets`, `clock` and `infantryOnly`, `systemFor(digest)` writes the rules from them (no vehicle, FOB or
+  helicopter rules and logistics none on an infantry-only map; still constant through a match, so still cached), and
+  `fobKits` is 0 there. Not done: bounding (fire and movement) for attack-move, which halts at hold range (32 m rifle, 45 m
+  MG) in front of a defended place; the Hamlet line may have been exactly that, pending the user's word.
+
 ## Open questions
 
 None open. Answered:

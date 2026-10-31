@@ -62,7 +62,7 @@ export function buildDigest(match, team, remote = null) {
   const hidden = (e) => e.type === 'radio' || (V.on && e.team !== team && (e.type === 'fob' || e.type === 'sandbags' || e.type === 'traps' || e.type === 'emplacement'));   // the enemy's own news, under fog of war
   const events = m.feed.filter(f => f.kind === 'kill' || !hidden(f.e)).slice(0, 6).map(f => f.kind === 'kill' ? `${f.k ? f.k.label : '?'} killed ${f.v.label}${f.v.team === team ? ' (ours)' : ''}` : `${f.e.team === team ? 'we' : 'they'} ${said[f.e.type] || f.e.type}${f.e.loc ? ' ' + f.e.loc.name : ''}`);
   return {
-    map: m.world && m.world.map ? { name: m.world.map.name, size: m.world.map.size } : undefined, bases: { ours: [r(T.base.x), r(T.base.z)], theirs: [r(E.base.x), r(E.base.z)] },
+    map: m.world && m.world.map ? { name: m.world.map.name, size: m.world.map.size, tickets: m.mode.tickets(team), clock: Math.round(m.mode.length / 60), infantryOnly: m.world.map.infantryOnly ? true : undefined } : undefined,   // pool, clock and infantryOnly: the Worker writes its rules from them bases: { ours: [r(T.base.x), r(T.base.z)], theirs: [r(E.base.x), r(E.base.z)] },
     side: T.name, mode: m.mode.constructor.key, minute: +(m.elapsed / 60).toFixed(1), minutesLeft: +(Math.max(0, m.time) / 60).toFixed(1),
     tickets: { ours: r(T.tickets), theirs: r(E.tickets) }, lost: { infantry: T.stats.losses.soldier || 0, vehicles: Object.entries(T.stats.losses).filter(([k]) => k !== 'soldier' && k !== 'fob' && k !== 'emplacement').reduce((a, [, v]) => a + v, 0), emplacements: T.stats.losses.emplacement || undefined },
     locations, next: o ? (o.nextFor(team) || {}).name || null : null, front: o ? (o.front(team) || {}).name || null : null,

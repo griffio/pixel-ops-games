@@ -205,8 +205,9 @@ export class Input {
     const sqs = [...new Set(this.selected.filter(u => u.type === 'soldier' && !u.dead).map(u => u.squad || u))];
     if (!sqs.length) { this.hud.toast('Select soldiers'); return; }
     const on = !sqs.every(s => s.setHoldFire ? s.holdingFire : s.holdFire);
-    for (const s of sqs) { if (s.setHoldFire) s.setHoldFire(on); else s.holdFire = on; }
-    this.hud.toast(on ? `Holding fire: ${sqs.length} squad${sqs.length > 1 ? 's' : ''}, until an enemy is at 20 m or they are fired on` : 'Fire at will'); if (this.app.audio) this.app.audio.ui('order'); this.hud.showSelection(this.selected);
+    const adv = on && sqs.some(s => (s.members || [s]).some(m => !m.dead && m.advance && m.dest));   // an attack-move under way: hold fire drops it, and the toast says so
+    for (const s of sqs) { if (s.setHoldFire) s.setHoldFire(on); else { s.holdFire = on; if (on) s.advance = false; } }
+    this.hud.toast(on ? `Holding fire: ${sqs.length} squad${sqs.length > 1 ? 's' : ''}, until an enemy is at 20 m or they are fired on${adv ? ', attack-move off' : ''}` : 'Fire at will'); if (this.app.audio) this.app.audio.ui('order'); this.hud.showSelection(this.selected);
   }
   orderAt(gx, gz, advance = false) {
     if (!this.selected.length) return;
@@ -217,6 +218,7 @@ export class Input {
     for (const u of this.selected) if (!u.spec.structure) u.squad ? squads.add(u.squad) : loose.push(u);
     const all = [...squads, ...loose], n = all.length;
     const cols = Math.ceil(Math.sqrt(n)), gap = loose.some(u => u.spec.air) ? 12 : 7;
+    const quiet = advance ? all.filter(t => t.setHoldFire ? t.holdingFire : t.holdFire).length : 0;   // squads holding fire: an attack-move lifts it, and the toast says so
     all.forEach((t, i) => {
       const c = i % cols, rw = Math.floor(i / cols);
       const ox = g.x + (c - (cols - 1) / 2) * gap, oz = g.z + (rw - (Math.ceil(n / cols) - 1) / 2) * gap;
@@ -226,6 +228,6 @@ export class Input {
     });
     this.app.markers.add(g.x, g.z); if (this.app.audio) this.app.audio.ui('order');
     if (this.app.match && this.app.match.voices) this.app.match.voices.ordered(this.selected);
-    const moving = this.selected.filter(u => !u.spec.structure).length; this.hud.toast(`${advance ? 'Attack-move' : 'Move order'}: ${moving} unit${moving > 1 ? 's' : ''}`);
+    const moving = this.selected.filter(u => !u.spec.structure).length; this.hud.toast(`${advance ? 'Attack-move' : 'Move order'}: ${moving} unit${moving > 1 ? 's' : ''}${quiet ? ', fire at will' : ''}`);
   }
 }

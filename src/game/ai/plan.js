@@ -11,7 +11,7 @@ export const PLAN_SCHEMA = {
   type: 'object', additionalProperties: false,
   properties: {
     attack: { type: 'string', description: 'the location to take next, by name, or "none" to stop attacking and hold' },
-    hold: { type: 'array', items: { type: 'string' }, maxItems: 3, description: 'locations to keep squads at, by name, most important first' },
+    hold: { type: 'array', items: { type: 'string' }, maxItems: 3, description: 'locations to keep squads at, by name, most important first: the squads given no job split between them, most at the first' },
     attackShare: { type: 'number', minimum: 0, maximum: 1, description: 'fraction of the squads you give no job that join the attack (0: none of them)' },
     posture: { type: 'string', enum: POSTURES, description: 'cautious keeps more distance and falls back sooner; aggressive closes in and holds ground' },
     logistics: { type: 'string', enum: LOGISTICS, description: 'what the engineer and supply truck do, followed exactly: fob (a FOB behind the front, sandbags when no kit or site is left), sandbags (positions at the first place we hold), traps (a row of tank traps at a river crossing or bridge end on our side, off our own vehicles\' way forward), hmg / atgm / mortar (an emplacement of that kind at our FOB nearest the front, while it has room for one), none' },

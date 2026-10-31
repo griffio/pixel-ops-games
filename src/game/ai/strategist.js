@@ -208,11 +208,16 @@ export class Strategist {
     const idleEng = this.exact ? rest.find(sq => sq.engineer) : null; if (idleEng) { rest.splice(rest.indexOf(idleEng), 1); holdAt(idleEng, hold); }
     const share = this.exact ? g.attackShare : Math.min(0.95, Math.max(0.2, g.attackShare + this.diff.attackShare));
     const nAttack = attack ? Math.min(rest.length, Math.ceil((rest.length + manned.length) * share)) : 0;   // squads manning sandbags count as holders, not out of the attack
+    // a remote commander's second and third holds get holders too, or a place it listed stands empty once it stops naming
+    // squads for it (Opus on The Hollow, 2026-10-31): of the squads left to hold, 30% go to a second place (25% and 15% to a
+    // second and third), the rest, always at least one, to the first; the last holders in the list are the ones sent on
+    const holds = g.holds && g.holds.length > 1 ? g.holds : null, nHold = rest.length - nAttack, extra = [];
+    if (holds) for (let j = holds.length - 1; j >= 1; j--) { const n = Math.max(nHold >= holds.length ? 1 : 0, Math.round(nHold * (holds.length === 2 ? 0.3 : j === 1 ? 0.25 : 0.15))); for (let c = 0; c < n && extra.length < nHold - 1; c++) extra.push(holds[j]); }
     rest.forEach((sq, i) => {
       if (enemyFob && i === 0 && attack && !assigned.length) { raid(sq); return; }   // one squad raids the nearest enemy FOB unless the commander hands out jobs itself
       if (i < nAttack && attack) attackWith(sq);
       else if (reserve && hold && i >= nAttack + Math.ceil((rest.length - nAttack) * 0.7)) reserveAt(sq, reserve);
-      else holdAt(sq, hold);
+      else { const k = i - nAttack; holdAt(sq, k >= nHold - extra.length ? extra[k - (nHold - extra.length)] : hold); }
     });
     this.placeRallies(squads);
     // Air Assault: one helicopter parks behind the place we're pushing for, as a spawn point
@@ -379,13 +384,13 @@ export class Strategist {
     const taken = remote === this.remote && target && target.owner === this.team ? target : null;
     if (target && target.owner !== this.team && o.capturable(this.team, target)) { g.attack = target; g.fobAnchor = o.front(this.team, target) || g.fobAnchor; }   // the FOB goes behind the place we push from
     else if (taken || (!p.attack && p.hold.length)) g.attack = null;
-    const h = p.hold.map(byName).filter(l => l && l.owner === this.team); if (h.length) g.hold = h[0];
-    if (taken) g.hold = taken;
+    const h = p.hold.map(byName).filter(l => l && l.owner === this.team); if (h.length) { g.hold = h[0]; g.holds = remote === this.remote ? h : null; }   // a remote commander's: the squads it gives no job split between the holds, most at the first (the share in tick); the built-in planner names its own reserves and keeps the rest at the first
+    if (taken) { g.hold = taken; g.holds = remote === this.remote ? [taken, ...h.filter(l => l !== taken)] : null; }
     g.attackShare = p.attackShare; g.posture = p.posture; g.logistics = p.logistics; g.lift = p.lift;
     // a wait holds the attack back: everyone gathers at the staging location until the condition holds (two minutes at most)
     if (p.waitFor && g.attack) {
       const waited = this.match.elapsed - (remote.waitSince ?? remote.planAt), met = remote.waitMet || this.waitMet(p.waitFor, waited); remote.waitMet = met;   // once met, a wait stays met until it changes, so the attack doesn't flicker as squads leave the staging point
-      if (!met && waited < 120) { const stage = byName(p.waitFor.at); if (stage && stage.owner === this.team) g.hold = stage; g.attack = null; }
+      if (!met && waited < 120) { const stage = byName(p.waitFor.at); if (stage && stage.owner === this.team) { g.hold = stage; g.holds = null; } g.attack = null; }
     }
   }
   waitMet(w, waited) {

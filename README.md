@@ -82,7 +82,8 @@ Advancing. **Hold fire** (**O** or the button) is the ambush: the squad takes no
 target and fires no shot, so nothing gives it away, until an enemy comes within
 20 m of one of its men or it is fired on, when the whole squad opens up (a toast
 says so); press again to fire at will. A man back from a respawn holds fire with
-his squad.
+his squad. The two orders are opposites: an attack-move lifts hold fire, and hold fire
+turns an attack-move under way into a plain move.
 
 *Desert Crossing* (`?map=desert1km`) was built to be fair to both sides: the Village sits on the
 strip of land between two parallel rivers, each bridged where the road crosses
@@ -403,8 +404,8 @@ off. On a touch screen both name the buttons instead of the keys
 | Left click / drag | Select unit or squad / box-select |
 | Right click | Move order (selected squads and vehicles move in formation); on a friendly carrier, board it; on a friendly sandbag position, man it |
 | `L` | Load: the selected soldiers board the vehicle clicked next (or the one selected with them); `L` again or `Esc` cancels |
-| `Z` | Attack-move: the selection goes to the ground clicked next, infantry stopping to fight whatever comes into range on the way; `Z` again or `Esc` cancels. `Alt` + right-click does it in one |
-| `O` | Hold fire / fire at will: the selected soldiers' squads stay quiet and hidden, no target and no shot, until an enemy is within 20 m or they are fired on |
+| `Z` | Attack-move: the selection goes to the ground clicked next, infantry stopping to fight whatever comes into range on the way; `Z` again or `Esc` cancels. `Alt` + right-click does it in one. It lifts hold fire |
+| `O` | Hold fire / fire at will: the selected soldiers' squads stay quiet and hidden, no target and no shot, until an enemy is within 20 m or they are fired on; it drops an attack-move under way |
 | `U` | Unload a selected carrier, or take selected soldiers out of their sandbag position |
 | `H` | Open or close the field manual (pauses the game); its Objective page explains the mode being played and your side |
 | `F3` | Show or hide the engine panels (stats, spawning, render and world settings), hidden on a map until asked for; the Engine button does the same |
@@ -770,8 +771,10 @@ digest of 4,850 input tokens: Haiku in 3 to 5 s with 370 output tokens (about
 $0.0007 a call), Sonnet in 7 s with 880 (540 of them thinking, about $0.019),
 Opus in 12 s with 880 (about $0.037). At a call every 20 to 25 s a 20-minute
 match costs a side about 3 cents on Haiku, $1 on Sonnet and $2 on Opus. The game
-waits 60 s for an answer. The system prompt carries a prompt-caching marker: the
-fixed part of every call (the system prompt and the format prompt structured
+waits 60 s for an answer. The system prompt is written for the match from the
+digest's map (its ticket pool and clock, and on an infantry-only map no vehicle,
+FOB or helicopter rules and logistics none) and carries a prompt-caching marker:
+the fixed part of every call (the system prompt and the format prompt structured
 outputs add, 4,460 tokens) is stored for 5 minutes, every read restarting the
 clock, and read back at a twentieth of the input price, so only the digest (about
 1,600 tokens) is billed in full. Measured on Opus: about $0.029 a call, down from

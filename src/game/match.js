@@ -34,9 +34,9 @@ export class Match {
       t.tickets = this.mode.tickets(i);
       t.loadout = loadouts[i]; t.doctrine = DOCTRINES[t.loadout.doctrine] || DOCTRINES.entrenched;
       const p = Object.entries(PRESETS).find(([k, v]) => v.doctrine === t.loadout.doctrine && JSON.stringify(v.items) === JSON.stringify(t.loadout.items));
-      t.loadoutName = p ? p[1].name : 'Custom'; t.fobKits = (t.loadout.items && t.loadout.items.fob) || 0;
+      t.loadoutName = p ? p[1].name : 'Custom'; t.fobKits = map && map.infantryOnly ? 0 : (t.loadout.items && t.loadout.items.fob) || 0;   // an infantry-only map strips the kit with the vehicles (fitMap)
       t.stats = { kills: {}, losses: {}, killsBy: {}, killsByUnit: {}, buildings: 0, captures: 0, lost: 0, fobs: 0, fobsLost: 0, caches: 0 };   // kills by what they hit, and by what did it (a soldier's kit, a vehicle's type); buildings brought down
-      if (cpu.includes(i)) { const d = this.difficulty; t.acc = d.acc; t.dmg = d.dmg; t.respawnMul = d.respawn; t.fobKits += d.kits; }
+      if (cpu.includes(i)) { const d = this.difficulty; t.acc = d.acc; t.dmg = d.dmg; t.respawnMul = d.respawn; if (!(map && map.infantryOnly)) t.fobKits += d.kits; }
     });
     const nc = (map && map.nav) || {};   // grid cells: 1 m and 2 m; a 2 km map uses coarser ones (memory: 4 M cells at 1 m is 130 MB)
     this.nav = { foot: new NavGrid(this.world.size, nc.foot || 1, 0.6), vehicle: new NavGrid(this.world.size, nc.vehicle || 2, 2.2) };

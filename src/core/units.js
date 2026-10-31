@@ -138,7 +138,7 @@ export class Unit {
     return [c.pos.x - Math.sin(c.heading) * 4.5, c.pos.z - Math.cos(c.heading) * 4.5];   // the tail: the APC's ramp, the truck's tailgate
   }
   board(c) { if (this.type !== 'soldier' || this.dead || this.mounted || c.swimming) return; this.boardTarget = c; this.boardT = 0; const [x, z] = this.boardPoint(c); this.order(x, z); }
-  advanceTo(x, z) { this.order(x, z); if (this.dest) this.advance = true; }   // an attack-move: the same walk, stopping to fight whatever comes into range
+  advanceTo(x, z) { this.order(x, z); if (this.dest) { this.advance = true; this.holdFire = false; } }   // an attack-move: the same walk, stopping to fight whatever comes into range; it lifts hold fire, the two being opposites
   mount(c) {
     this.mounted = c; c.passengers.push(this); this.boardTarget = null; this.group.visible = false;
     this.target = null; this.dest = null; this.path = null; this.hold = false; this.enemy = null; this.speed = 0;
@@ -510,8 +510,8 @@ export class Squad {
     let i = 0;
     for (const m of this.members) { if (m.dead) continue; const [ox, oz] = offs[i++ % offs.length]; m.order(x + ox * c + oz * s, z - ox * s + oz * c); }
   }
-  advanceTo(x, z) { this.order(x, z); for (const m of this.members) if (!m.dead && m.dest) m.advance = true; }
-  setHoldFire(v) { for (const m of this.members) if (!m.dead) m.holdFire = v; }   // hold fire: quiet and hidden until an enemy is at 20 m or the squad is fired on (game/combat.js)
+  advanceTo(x, z) { this.order(x, z); for (const m of this.members) if (!m.dead) { if (m.dest) m.advance = true; m.holdFire = false; } }   // an attack-move lifts hold fire: a squad told to fight on the way is not lying in ambush
+  setHoldFire(v) { for (const m of this.members) if (!m.dead) { m.holdFire = v; if (v) m.advance = false; } }   // hold fire: quiet and hidden until an enemy is at 20 m or the squad is fired on (game/combat.js); it drops an attack-move, the walk going on as a plain move
   get holdingFire() { const a = this.members.filter(m => !m.dead); return a.length > 0 && a.every(m => m.holdFire); }
   get busy() { return this.members.some(m => !m.dead && (m.dest || m.boardTarget)); }
   // Into vehicle c: the men within 60 m of the member nearest it. A squad standing together all go; a man back from a
