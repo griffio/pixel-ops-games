@@ -160,7 +160,7 @@ export class Unit {
   }
   unload() {
     const n = this.passengers.length; if (!n || this.swimming) return;   // not into the sea: an amphibian unloads once it has driven ashore
-    const pts = this.exitPoints(n), y = this.spec.air ? this.pos.y : (this.mgr ? this.mgr.world.heightAt(this.pos.x, this.pos.z) : this.pos.y);
+    const pts = this.exitPoints(n), y = this.spec.air ? this.pos.y : (this.mgr ? this.mgr.world.surfaceAt(this.pos.x, this.pos.z) : this.pos.y);
     this.passengers.forEach((p, i) => { const [x, z, a] = pts[i]; p.mounted = null; p.group.visible = true; p.pos.set(x, y, z); p.heading = a; p.group.rotation.y = a; p.landedT = this.spec.air ? LANDED : 0; });
     this.passengers = []; this.dropOnArrive = false;
   }
@@ -226,7 +226,7 @@ export class Unit {
   becomeWreck() {
     this.wreck = true; this.wreckT = 0;
     if (this.mgr) { this.mgr.recolor(this.group, 'wreck'); if (this.mgr.dust) this.mgr.dust.explosion(this.pos.x, 0, this.pos.z, this.type === 'tank' ? 1.9 : this.type === 'apc' ? 1.5 : 1); }
-    if (this.spec.air) { for (const r of this.parts.rotors) { r.blades.visible = true; r.disc.visible = false; } this.alt = 0; this.pos.y = this.mgr ? this.mgr.world.heightAt(this.pos.x, this.pos.z) : 0; this.parts.body.rotation.x = 0; this.parts.body.rotation.z = 0.35; }
+    if (this.spec.air) { for (const r of this.parts.rotors) { r.blades.visible = true; r.disc.visible = false; } this.alt = 0; this.pos.y = this.mgr ? this.mgr.world.surfaceAt(this.pos.x, this.pos.z) : 0; this.parts.body.rotation.x = 0; this.parts.body.rotation.z = 0.35; }
   }
   // revive at a position (infantry respawn reuses the object so squads keep their members)
   revive(x, z, heading) { if (this.spec.ammo) this.ammo = this.spec.ammo; if (this.kit === 'rifle') this.grenades = RULES.grenades.count; this.holdFire = !!(this.squad && this.squad.members.some(m => !m.dead && m !== this && m.holdFire));   // a man back to a squad holding fire holds it too
@@ -238,7 +238,7 @@ export class Unit {
     this.deathT += dt;
     const p = this.parts;
     if (this.spec.air && this.state === 'crash') {           // falling out of the sky
-      this.alt = Math.max(0, this.alt - 9 * dt); this.pos.y = this.mgr.world.heightAt(this.pos.x, this.pos.z) + this.alt; this.heading += 2.5 * dt; this.group.rotation.y = this.heading;
+      this.alt = Math.max(0, this.alt - 9 * dt); this.pos.y = this.mgr.world.surfaceAt(this.pos.x, this.pos.z) + this.alt; this.heading += 2.5 * dt; this.group.rotation.y = this.heading;
       p.body.rotation.z = lerp(p.body.rotation.z, 0.6, 1 - Math.pow(0.1, dt)); for (const r of p.rotors) r.head.rotation.y += 10 * dt * r.dir;
       const step = this.speed * dt; this.pos.x += Math.sin(this.heading) * step; this.pos.z += Math.cos(this.heading) * step;
       if (this.alt <= 0) { this.state = 'wrecked'; this.becomeWreck(); }
@@ -328,7 +328,7 @@ export class Unit {
     }
     this.dist += Math.hypot(nx - this.pos.x, nz - this.pos.z);
     const H = this.mgr.world.half; this.pos.x = clamp(nx, -H + 2, H - 2); this.pos.z = clamp(nz, -H + 2, H - 2);
-    const h = this.mgr.world.heightAt(this.pos.x, this.pos.z);
+    const h = this.mgr.world.surfaceAt(this.pos.x, this.pos.z);   // the road's surface where there is one
     this.pos.y = this.swimming ? Math.max(h, T.water - 0.45 + Math.sin(performance.now() * 0.0014 + this.phase) * 0.06) : h;   // afloat: sat low on the water, riding the swell
     this.group.rotation.y = this.heading;
     this.animate(dt);
@@ -467,7 +467,7 @@ export class Unit {
     const step = this.speed * dt;
     const H = this.mgr.world.half; this.pos.x = clamp(this.pos.x + Math.sin(this.heading) * step, -H + 4, H - 4);
     this.pos.z = clamp(this.pos.z + Math.cos(this.heading) * step, -H + 4, H - 4);
-    const W = this.mgr.world, T = W.terrain; this.pos.y = Math.max(W.heightAt(this.pos.x, this.pos.z), T ? T.water : -Infinity) + this.alt;   // over water, height above its surface
+    const W = this.mgr.world, T = W.terrain; this.pos.y = Math.max(W.surfaceAt(this.pos.x, this.pos.z), T ? T.water : -Infinity) + this.alt;   // over water, height above its surface
     this.group.rotation.y = this.heading;
     this.tilt = lerp(this.tilt, this.speed / s.speed * 0.22, 1 - Math.pow(0.02, dt));
     p.body.rotation.x = this.tilt; p.body.rotation.z = this.bank;
@@ -479,7 +479,7 @@ export class Unit {
     if (this.dead) { this.stepDead(dt); return; }
     if (this.spec.naval) return;   // a landing craft is moved along its lane by game/landing.js
     if (this.spec.structure) {   // structures sit on the terrain; a FOB gun swings to its gunner's target, back to the front when he has none
-      this.pos.y = world.heightAt(this.pos.x, this.pos.z);
+      this.pos.y = world.surfaceAt(this.pos.x, this.pos.z);
       const t = this.parts && this.parts.turret, g = t && this.crew && this.crewAt(0), e = g && g.enemy;
       if (t) { const want = e ? wrap(Math.atan2(e.pos.x - this.pos.x, e.pos.z - this.pos.z) - this.heading) : 0; t.rotation.y += clamp(wrap(want - t.rotation.y), -1.5 * dt, 1.5 * dt); }
       return;
@@ -559,7 +559,7 @@ export class UnitManager {
     const u = this.add(new Unit(type, build, x, z, heading, team));
     if (opts.gun) u.gun = opts.gun;
     if (u.spec.ammo) u.ammo = u.spec.ammo;   // a rocket pod, full
-    u.pos.y = this.world.heightAt(x, z);
+    u.pos.y = this.world.surfaceAt ? this.world.surfaceAt(x, z) : this.world.heightAt(x, z);
     if (opts.supply) { u.supply = true; u.supplies = 100; u.label = u.label.replace('TR', 'SP'); }
     if (amphib) { u.amphib = true; u.spec = { ...u.spec, nav: 'amphib', swim: SWIM[type] || 3.5 }; if (type === 'apc') u.label = u.label.replace('AP', 'AV'); }   // its own spec: the amphibious grid, a swimming speed
     return u;

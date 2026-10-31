@@ -54,6 +54,19 @@ export class World extends WorldState {
       const mesh = new Mesh(key, { color: [1, 1, 1, 1], tex: tile(s.tex), emissive: [0, 0, 0], cast: false, cutout: !!s.cutout });
       this.scene.add(mesh);
     });
+    // units stand on a road, not in it: the strips ride 0.4 m above the ground (clear of the terrain's facets), so a mask at 2 m
+    // tells surfaceAt() how far up the surface is there (on the ground height alone a wheel of 0.5 m sank to its hub, 2026-10-31)
+    { const cell = 2, n = Math.ceil(this.size / cell) + 1, lift = new Uint8Array(n * n), half = this.half;
+      const segD = (x, z, x1, z1, x2, z2) => { const dx = x2 - x1, dz = z2 - z1, l2 = dx * dx + dz * dz || 1, t = Math.max(0, Math.min(1, ((x - x1) * dx + (z - z1) * dz) / l2)); return Math.hypot(x - x1 - dx * t, z - z1 - dz * t); };
+      for (const s of this.layout.strips) {
+        const pts = s.smooth ? smooth(s.points, s.smooth) : s.points, hw = s.width / 2 + 0.6, L = Math.min(255, Math.round(((s.y || 0) + 0.4) * 100));
+        for (let i = 1; i < pts.length; i++) {
+          const [x1, z1] = pts[i - 1], [x2, z2] = pts[i];
+          const cx0 = Math.max(0, Math.floor((Math.min(x1, x2) - hw + half) / cell)), cx1 = Math.min(n - 1, Math.ceil((Math.max(x1, x2) + hw + half) / cell)), cz0 = Math.max(0, Math.floor((Math.min(z1, z2) - hw + half) / cell)), cz1 = Math.min(n - 1, Math.ceil((Math.max(z1, z2) + hw + half) / cell));
+          for (let cz = cz0; cz <= cz1; cz++) for (let cx = cx0; cx <= cx1; cx++) if (segD(cx * cell - half, cz * cell - half, x1, z1, x2, z2) <= hw) { const k = cz * n + cx; if (lift[k] < L) lift[k] = L; }
+        }
+      }
+      this.roadLift = { cell, n, lift }; }
     for (const d of this.layout.decals) {
       const key = r.registerGeometry(`decal:${d.w},${d.d}`, decalGeometry(d.w, d.d));
       const mesh = new Mesh(key, { color: [1, 1, 1, 1], tex: this.tex(d.tex, { nearest: true, repeat: false, mips: false }), emissive: [0, 0, 0], cast: false, cutout: true });
@@ -61,6 +74,12 @@ export class World extends WorldState {
     }
   }
 
+  // the height a unit stands at: the ground, plus the road where one runs (roadLift, built with the strips)
+  surfaceAt(x, z) {
+    const h = this.heightAt(x, z), R = this.roadLift; if (!R) return h;
+    const cx = Math.round((x + this.half) / R.cell), cz = Math.round((z + this.half) / R.cell); if (cx < 0 || cz < 0 || cx >= R.n || cz >= R.n) return h;
+    return h + R.lift[cz * R.n + cx] / 100;
+  }
   // terrain as one static ground-mode mesh per 64 m chunk (16 x 16 cells of 4 m), culled with the chunk
   buildTerrainChunks() {
     const T = this.terrain, cs = this.renderer.chunkSize, cells = cs / T.cell, mat = { color: [1, 1, 1, 1], tex: null, emissive: [0, 0, 0], cast: true, ground: true };

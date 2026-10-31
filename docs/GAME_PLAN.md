@@ -3336,6 +3336,16 @@ Engine changes needed in the existing core:
   base view. (A `//` comment written into the style block on the way would have eaten the next rule; CSS has only block
   comments, and the style block was checked for others.)
 
+- **Wheels in the road (2026-10-31).** The user: a vehicle's wheels are clipped behind the road texture. The road strips
+  are built 0.4 m above the ground (clear of the terrain's facets along the way), and every unit stood at the ground
+  height, so a wheel of 0.5 m radius sank to its hub on a road and a soldier's feet with it. Now gl/world.js rasterises
+  the strips into a 2 m road mask as it builds them (the lift per cell, the strip's y plus 0.4, a 0.6 m margin past the
+  edge) and `surfaceAt(x, z)` is the ground plus that lift; units take `surfaceAt` where they stood on `heightAt`
+  (walking, parked, spawning, a structure, a helicopter landing and the exit points of a vehicle), the water test keeps
+  the ground height. Checked on Desert Crossing: 0.43 m on the road, 0 off it, a Humvee and a squad spawned on the road
+  standing 0.43 m higher, and a screenshot of two Humvees with their wheels on the tarmac. A vehicle leaving the road
+  steps down 0.4 m at the kerb, as the road itself does.
+
 ## Open questions
 
 None open. Answered:
