@@ -3315,6 +3315,21 @@ Engine changes needed in the existing core:
   gone is for the user to see on the iPad. The place bar: each box jumps the camera to its place (a tap or click,
   `#objs` click handler, the follow and flight cleared). Bench rebuilt as scratchpad t/bench.mjs, shots with t/shot.mjs.
 
+- **Twelve squads a side (2026-10-31, "12 is fine").** The user asked how many more squads the game could take; measured
+  on the Hollow with three times the force (27 squads a side): the simulation tick went from 0.45 ms to 2.3 ms once the
+  fights were joined, the village frame from 20 to 33 ms on the Mac mini's GPU with 144 more men in view (draw calls
+  only 662 to 776, soldiers being instanced), the digest from about 2.5k to 4k tokens; the caps were the force builder
+  (8 squads, 1,200 points), the wheel's single ring and the roster. Twelve was the user's choice, a few more to fill the
+  2 and 3 km maps. `MAX_SQUADS` 12 (Light 13), `BUDGET` 1,500, and every preset three rifle squads richer (Balanced 10
+  squads at 1,460, Light 11 at 1,500, Mechanized 8, Armoured 7); `counterPick`'s squad threshold 7 to 10 so it answers
+  the same forces as before. Infantry-only maps keep `FORCE.footSquads` 9: `fitMap` now trims rifles down to the map's
+  count as well as filling up to it (the presets carry more squads than the Hollow takes), checked at 9 v 9 there. The
+  wheel's Who ring goes to two rings past eleven pills: the squads outside at 168 px, Everyone, Fresh and the vehicles
+  inside at 114 px as short pills (the vehicle's kind in the title), the ring box 420 px and lifted clear of the CO
+  button; the chips row sits above the two-row bar. Checked headless: every preset under budget, a Palm Valley match at
+  10 v 8 squads at 0.69 ms a tick, the Hollow at 9 v 9, fourteen pills with no overlap and none over the button, and a
+  screenshot of the two rings on an iPad-sized view. README: 1,500 points.
+
 ## Open questions
 
 None open. Answered:

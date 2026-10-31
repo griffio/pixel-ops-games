@@ -1,6 +1,6 @@
 // Force builder data: items, doctrines, presets, validation, CPU counter-picks and
 // saved loadouts. A loadout is { doctrine, items: { key: count } }.
-export const BUDGET = 1200, MAX_SQUADS = 8, MAX_VEHICLES = 9;
+export const BUDGET = 1500, MAX_SQUADS = 12, MAX_VEHICLES = 9;   // 1,500 and 12 since 2026-10-31: three more rifle squads a side to fill the 2 and 3 km maps (was 1,200 and 8)
 export const FORCE = { footSquads: 9 };   // squads a side on an infantry-only map, every doctrine alike: with nothing but men to buy, Light's ninth squad alone won 15 of 18 against Balanced on The Hollow (G3, 2026-10-31), its price and respawn making no difference
 
 export const ITEMS = {
@@ -28,14 +28,14 @@ export const DOCTRINES = {
 };
 
 export const PRESETS = {
-  balanced:   { name: 'Balanced', doctrine: 'entrenched', items: { rifle: 3, support: 1, at: 1, medic: 1, engineer: 1, apc: 1, supply: 1, fob: 1 } },
-  mechanized: { name: 'Mechanized', doctrine: 'mechanized', items: { rifle: 2, support: 1, at: 1, engineer: 1, apc: 2, supply: 1, fob: 1 } },
-  air:        { name: 'Air Assault', doctrine: 'air', items: { rifle: 3, at: 1, medic: 1, engineer: 1, heli: 2, supply: 1, fob: 1 } },
-  light:      { name: 'Light Infantry', doctrine: 'light', items: { rifle: 4, support: 1, at: 1, medic: 1, engineer: 1, humvee: 1, supply: 1, fob: 1 } },   // the Humvee took the truck's place on 2026-10-30: it carries three and, parked, is the doctrine's forward spawn
-  armoured:   { name: 'Armoured', doctrine: 'mechanized', items: { rifle: 2, at: 1, engineer: 1, tank: 1, apc: 1, supply: 1, fob: 1 } },
-  defensive:  { name: 'Defensive', doctrine: 'entrenched', items: { rifle: 2, support: 1, at: 2, engineer: 1, apc: 1, supply: 1, fob: 1 } },
-  gunship:    { name: 'Gunships', doctrine: 'air', items: { rifle: 3, at: 1, medic: 1, engineer: 1, bird: 2, supply: 1, fob: 1 } },
-  motorised:  { name: 'Motorised', doctrine: 'light', items: { rifle: 3, support: 1, at: 1, medic: 1, humvee: 2, supply: 1, fob: 1 } },
+  balanced:   { name: 'Balanced', doctrine: 'entrenched', items: { rifle: 6, support: 1, at: 1, medic: 1, engineer: 1, apc: 1, supply: 1, fob: 1 } },
+  mechanized: { name: 'Mechanized', doctrine: 'mechanized', items: { rifle: 5, support: 1, at: 1, engineer: 1, apc: 2, supply: 1, fob: 1 } },
+  air:        { name: 'Air Assault', doctrine: 'air', items: { rifle: 6, at: 1, medic: 1, engineer: 1, heli: 2, supply: 1, fob: 1 } },
+  light:      { name: 'Light Infantry', doctrine: 'light', items: { rifle: 7, support: 1, at: 1, medic: 1, engineer: 1, humvee: 1, supply: 1, fob: 1 } },   // the Humvee took the truck's place on 2026-10-30: it carries three and, parked, is the doctrine's forward spawn
+  armoured:   { name: 'Armoured', doctrine: 'mechanized', items: { rifle: 5, at: 1, engineer: 1, tank: 1, apc: 1, supply: 1, fob: 1 } },
+  defensive:  { name: 'Defensive', doctrine: 'entrenched', items: { rifle: 5, support: 1, at: 2, engineer: 1, apc: 1, supply: 1, fob: 1 } },
+  gunship:    { name: 'Gunships', doctrine: 'air', items: { rifle: 6, at: 1, medic: 1, engineer: 1, bird: 2, supply: 1, fob: 1 } },
+  motorised:  { name: 'Motorised', doctrine: 'light', items: { rifle: 6, support: 1, at: 1, medic: 1, humvee: 2, supply: 1, fob: 1 } },
 };
 
 export function itemCost(key, doctrine) { const it = ITEMS[key], mul = (DOCTRINES[doctrine] && DOCTRINES[doctrine].costMul[key]) || 1; return Math.round(it.cost * mul); }
@@ -68,6 +68,7 @@ export function fitMap(l, map) {
   const out = clone(l); for (const k of Object.keys(out.items)) if (!ITEMS[k] || ITEMS[k].kind !== 'squad') delete out.items[k];
   for (const k of ['at', 'engineer']) if (out.items[k]) { out.items.rifle = (out.items.rifle || 0) + out.items[k]; delete out.items[k]; }   // nothing to shoot rockets at or to build: rifles instead
   let s = summarize(out, true); while (s.cost + itemCost('rifle', out.doctrine) <= BUDGET && s.squads < s.slots) { out.items.rifle = (out.items.rifle || 0) + 1; s = summarize(out, true); }   // up to the map's squad count (FORCE.footSquads)
+  while (s.squads > s.slots && out.items.rifle > 0) { out.items.rifle--; s = summarize(out, true); }   // and down to it: the presets carry more squads than a small map takes
   return out;
 }
 export const preset = (key) => clone(PRESETS[key] || PRESETS.balanced);
@@ -79,7 +80,7 @@ export function counterPick(player, rnd = Math.random) {
   const squads = Object.keys(ITEMS).filter(k => ITEMS[k].kind === 'squad').reduce((s, k) => s + n(k), 0);
   if (n('apc') >= 2 || n('tank') >= 1 || n('bird') >= 1 || n('humvee') >= 2) return 'defensive';   // two anti-tank squads: their launchers also answer gunships and Humvees
   if (n('heli') >= 2) return 'light';
-  if (player.doctrine === 'light' || squads >= 7) return 'mechanized';
+  if (player.doctrine === 'light' || squads >= 10) return 'mechanized';   // 10: three above the old 7, as every preset grew by three rifle squads
   if (player.doctrine === 'entrenched') return 'armoured';   // a tank against dug-in positions
   const pool = ['balanced', 'mechanized', 'armoured'];
   return pool[Math.floor(rnd() * pool.length)];

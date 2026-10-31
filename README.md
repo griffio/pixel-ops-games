@@ -58,7 +58,7 @@ switch to Desert Crossing, Narva or Peninsula: the page reloads on the chosen ma
 keeps your loadout and remembers the map. Its Opponent row has the built-in CPU or a
 Llama commander. The Claude commanders are listed only while the engine panels are on,
 because they spend the API key the gateway holds. Then spend
-1,200 points on squads (rifle, support, anti-tank, medic, marksman, engineer),
+1,500 points on squads (rifle, support, anti-tank, medic, marksman, engineer),
 vehicles (trucks, supply trucks, Humvees with Mk 19 grenade launchers, 8x8 APCs, M1 Abrams
 tanks, Chinook helicopters, AH-6M Little Bird gunships) and one doctrine
 (Mechanized, Air Assault, Light Infantry, Entrenched), or pick a preset. Your

@@ -134,14 +134,18 @@ export class Wheel {
     return items;
   }
   render() {
-    const items = this.items(), n = items.length, R = n > 8 ? 144 : 118; this.lastItems = items;
+    const items = this.items(), n = items.length; this.lastItems = items;
     for (const e of this.ring.querySelectorAll('.w-seg')) e.remove();
-    items.forEach((it, i) => {
-      const a = -Math.PI / 2 + i * 2 * Math.PI / n, b = document.createElement('button');
-      b.type = 'button'; b.className = 'w-seg' + (it.cls ? ' ' + it.cls : ''); b.dataset.k = it.k; b.title = it.title || it.name;
+    // past eleven pills (twelve squads and the vehicles) two rings: the squads outside, Everyone, Fresh and the vehicles inside
+    const two = n > 11, inner = two ? items.filter(it => it.k === 'all' || it.k === 'fresh' || it.k.startsWith('v:')) : [], outer = two ? items.filter(it => !inner.includes(it)) : items;
+    this.ring.classList.toggle('two', two);
+    const place = (list, R, tight) => list.forEach((it, i) => {
+      const a = -Math.PI / 2 + i * 2 * Math.PI / list.length, b = document.createElement('button');
+      b.type = 'button'; b.className = 'w-seg' + (it.cls ? ' ' + it.cls : '') + (tight ? ' tight' : ''); b.dataset.k = it.k; b.title = it.title || it.name;
       b.style.setProperty('--dx', `${Math.round(R * Math.cos(a))}px`); b.style.setProperty('--dy', `${Math.round(R * Math.sin(a))}px`);
       b.innerHTML = `${it.glyph ? icon(it.glyph) : ''}<span>${it.name}</span>${it.sub ? `<small>${it.sub}</small>` : ''}${it.badge ? `<em>${it.badge}</em>` : ''}`; this.ring.appendChild(b);
     });
+    if (two) { place(outer, 168, false); place(inner, 114, true); } else place(outer, n > 8 ? 144 : 118, false);   // the inner pills short (the kind in the title), clear of the 48 px hub
     this.hub.className = 'w-hub' + (this.step ? ' back' : '');
     this.hub.innerHTML = this.step === 0 ? '<small>who</small><b>?</b>' : this.step === 1 ? `<small>what</small><b>${this.whoName()}</b>` : `<small>where</small><b>${this.whatName()}</b><small>tap: back</small>`;
     this.renderBar(); this.renderChips();

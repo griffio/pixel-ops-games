@@ -217,6 +217,8 @@
   #wheel .w-seg .gi { width: 14px; height: 14px; fill: var(--text); flex: none; }
   #wheel .w-seg em { font-style: normal; font-size: 10px; font-weight: 700; color: var(--danger); margin-left: 2px; }
   #wheel .w-seg small { font-size: 9px; color: var(--muted); letter-spacing: 0.04em; } #wheel .w-seg.veh { border-color: #4e6a8a; }
+  #wheel .w-ring.two { width: 420px; height: 420px; right: calc(62px + env(safe-area-inset-right)); bottom: calc(var(--strip-h) + 60px + env(safe-area-inset-bottom)); }
+  #wheel .w-seg.tight { min-width: 48px; padding: 0 8px; margin-left: -24px; } #wheel .w-seg.tight small { display: none; }
   #wheel .w-seg.ours { border-color: #6fa36f; } #wheel .w-seg.theirs { border-color: var(--danger); } #wheel .w-seg.hand { border-style: dashed; }
   #wheel .w-seg.intent { background: #1f2630; border-color: #4e6a8a; }
   #wheel .w-seg.hot, #wheel .w-seg:hover { background: #2d2716; border-color: var(--accent); color: var(--accent); } #wheel .w-seg.hot .gi, #wheel .w-seg:hover .gi { fill: var(--accent); }
@@ -230,7 +232,7 @@
   #wheel .w-x { width: 28px; height: 28px; border-radius: 50%; border: 1px solid #5a5a60; background: #262629; color: var(--text); font-size: 16px; line-height: 1; }
   #wheel .w-plan { height: 26px; padding: 0 9px; border-radius: 13px; border: 1px solid #8a6d2a; background: #2a2416; color: #f4dca0; font-size: 11px; font-weight: 600; }
   #wheel .w-chips button.co { border-color: #8a6d2a; color: #f4dca0; background: #2a2416; } #wheel .w-chips button.co::before { content: 'CO \\203A '; color: #c9a35a; }
-  #wheel .w-chips { position: absolute; left: calc(10px + env(safe-area-inset-left)); bottom: calc(var(--strip-h) + 72px + env(safe-area-inset-bottom)); width: min(520px, calc(100% - 470px)); display: flex; gap: 6px; flex-wrap: wrap; }
+  #wheel .w-chips { position: absolute; left: calc(10px + env(safe-area-inset-left)); bottom: calc(var(--strip-h) + 118px + env(safe-area-inset-bottom)); width: min(520px, calc(100% - 470px)); display: flex; gap: 6px; flex-wrap: wrap; }
   #wheel .w-chips button { height: 30px; padding: 0 10px; border-radius: 15px; border: 1px solid #4e6a8a; background: #1f2630; color: #cfe0f2; font-size: 12px; white-space: nowrap; }
   #wheel .w-chips button::before { content: '\203A '; color: #7fa6cc; }
   /* what a busy engineer is doing, with Cancel: in place of "already building" */
