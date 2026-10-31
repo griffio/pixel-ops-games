@@ -3151,7 +3151,7 @@ Engine changes needed in the existing core:
     then the CO's plan, then the share); intents into goals at once; the manual flag and Rejoin; digest `orders`; the
     prompt paragraph; metadata side BLUFOR; the CO's reason to the feed. Checked with sim-test: orders added through
     `match.orders.add(...)` and the squads' tags read back; a Worker probe with orders in the digest.
-  - **W2, the Command Wheel (a day).** wheel.js: the three rings, drag or tap, the sentence bar, the chips from the
+  - **W2, the Command Wheel (a day). Done 2026-10-31, see below.** wheel.js: the three rings, drag or tap, the sentence bar, the chips from the
     rules, order tags on the map and the roster, the desktop keys. Touch-tested over CDP on an iPad viewport (the
     touch harness exists) and by the user on the iPad.
   - **W3, free text and dictation (half a day).** A Worker route `/orders`: text plus the known squad ids, places and
@@ -3195,6 +3195,28 @@ Engine changes needed in the existing core:
   holding fire with the card reading the order; bad orders answer "no squad SQ-99", "hold needs a place", "no place
   called Nowhere", "say which squads". Not yet: the wheel (W2), free text (W3), the CO's suggestions (W4). One known
   gap: the player's CO uses the CPU difficulty's plan interval and attack-share offset.
+
+- **W2 done (2026-10-31, "commit Go W2", branch `command-wheel`).** `src/core/wheel.js`, markup and styles in index.html:
+  a round CO button (56 px) left of the minimap in right-thumb reach, shown with a hybrid commander (body.hybrid, set
+  when the match starts; Q on the desktop), opening a dimmed overlay with a ring of pills (44 px high, 66 px wide at
+  least) round a 96 px hub, in three steps. Who: Everyone, Fresh (the squads at base), each squad by id (a squad in the
+  player's hand dashed); a selection skips the step. What: Take, Hold, Screen, Ambush (hold, quietly), Grab, Fall back
+  (reserve), Rejoin, and for Everyone the intents Press, Hold the line, Go quiet, Bleed them, Pull back (blue pills).
+  Where: the places nearest the subject first (green border ours, red theirs; screen and fall back list ours, grab the
+  places we can take), and Here, which closes the wheel and takes the next tap on the ground (input.pickGround): the
+  squads go there by the player's hand, an ambush there holding fire. The hub shows the step and the choice so far and
+  taps back a step; a drag lights the pill under the finger and the release picks it; the sentence builds in the bar
+  ("SQ-01 ambush the Ford") with quietly and at all costs toggles; the order goes to match.orders the moment it is
+  complete, a refusal toasts the reason, and the wheel closes. Three chips above the bar from the rules: the nearest
+  place we can take (fresh squads, or everyone), a place of ours with enemies round it and few of ours, the idle squad
+  nearest to screen our farthest place, else hold the line or press; a chip sends at once. While open, the hint, help,
+  touch bar and feed hide. A squad told to take a place gets a hold there, which the strategist carries out as take then
+  hold; Everyone take is the plan intent. Checked headless on the Hollow (DOM level): the three steps list the right
+  pills, "SQ-01 ambush the Ford" lands as hold at Ford quietly, "Everyone press" as the intent, "Everyone take the West
+  Clearing" as the take intent, Here moves the squad by hand (an ambush there holds fire), Rejoin and a chip send; on
+  an iPad-sized viewport the pills stay inside the view and clear of the CO button at eleven items (one adjacent pair
+  touches). Screenshots in the scratchpad (t/wheel2-who.png, t/wheel2-where.png). Not done: landmarks as places (no
+  named landmark list in the engine yet), order tags on the map (the card carries the order), number keys on the desktop.
 
 ## Open questions
 

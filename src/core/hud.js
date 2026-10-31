@@ -97,7 +97,7 @@ export class Hud {
       this.modeShown = true; document.querySelector('#match .small').textContent = m.mode.constructor.name + (m.mode.constructor.sides ? (m.mode.attacker === (this.app.playerTeam ?? 0) ? ' · attacking' : ' · defending') : '') + (m.cpu && m.cpu.length === 1 ? ` · ${m.difficulty.name} CPU` : '');
       document.querySelector('#match .t0 .nm').innerHTML = `BLUFOR<br><em>${t0.doctrine.name}</em>`; document.querySelector('#match .t1 .nm').innerHTML = `OPFOR<br><em>${t1.doctrine.name}</em>`;
       for (const id of ['minimap', 'objs', 'match', 'reinf-h', 'reinf']) $(id).style.display = ''; this.mmHidden = false;
-      this.roster.setupSpawnPref(m.teams[this.app.playerTeam ?? 0]); document.body.classList.add('match');   // the respawn choice lives on the unit strip
+      this.roster.setupSpawnPref(m.teams[this.app.playerTeam ?? 0]); document.body.classList.add('match'); document.body.classList.toggle('hybrid', !!m.hybrid);   // the respawn choice lives on the unit strip; hybrid: the CO button
     }
 
     // under fog of war the enemy's own news stays theirs: its commander's radio, its FOB going up, its digging in

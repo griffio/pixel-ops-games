@@ -7,7 +7,7 @@ import { TouchInput } from './touch.js';
 export class Input {
   constructor(app) {
     this.app = app; this.canvas = app.canvas; this.rts = app.rts; this.units = app.units; this.hud = app.hud;
-    this.selected = []; this.down = null; this.loading = false; this.advancing = false;   // loading: Load was pressed, the next pick is the vehicle to board; advancing: Z was pressed, the next click on the ground is an attack-move
+    this.selected = []; this.down = null; this.loading = false; this.advancing = false; this.picking = null;   // picking: a callback waiting for the next tap on the ground (the wheel's "Here")   // loading: Load was pressed, the next pick is the vehicle to board; advancing: Z was pressed, the next click on the ground is an attack-move
     this.box = document.getElementById('selbox');
     this.touch = new TouchInput(this);
     const c = this.canvas, rts = this.rts, mouse = (e) => e.pointerType === 'mouse';
@@ -77,7 +77,7 @@ export class Input {
     if (down) {
       if (e.code === 'Space') { e.preventDefault(); this.hud.togglePause(); return; }
       if (e.code === 'KeyF') { this.rts.follow = this.selected[0] || null; if (this.rts.follow) this.hud.toast('Following ' + this.rts.follow.label); return; }
-      if (e.code === 'Escape') { if (this.app.guide && this.app.guide.isOpen) this.app.guide.close(); else if (this.loading) this.startLoad(); else if (this.advancing) this.startAdvance(); else this.select([]); return; }
+      if (e.code === 'Escape') { if (this.app.guide && this.app.guide.isOpen) this.app.guide.close(); else if (this.app.wheel && this.app.wheel.open_) this.app.wheel.close(); else if (this.picking) { this.picking = null; this.hud.toast('Cancelled'); } else if (this.loading) this.startLoad(); else if (this.advancing) this.startAdvance(); else this.select([]); return; }
       if (e.code === 'KeyH') { if (this.app.guide) this.app.guide.toggle(); return; }
       if (e.code === 'F3') { e.preventDefault(); this.hud.toggleDev(); return; }   // the engine panels
       if (e.code === 'KeyR') { this.rts.reset(); return; }
@@ -88,6 +88,7 @@ export class Input {
       if (e.code === 'KeyU') { this.hud.action('unload'); return; }
       if (e.code === 'KeyL') { this.hud.action('load'); return; }
       if (e.code === 'KeyZ') { this.hud.action('advance'); return; }
+      if (e.code === 'KeyQ') { if (this.app.wheel) this.app.wheel.toggle(); return; }   // the command wheel, with a CO
       if (e.code === 'KeyO') { this.hud.action('holdfire'); return; }
       if (e.code === 'KeyG') { this.hud.action('emp_hmg'); return; }
       if (e.code === 'KeyJ') { this.hud.action('emp_atgm'); return; }
@@ -102,6 +103,7 @@ export class Input {
   }
 
   clickSelect(nx, ny, add, radiusPx = 0) {
+    if (this.picking) { const cb = this.picking; this.picking = null; const g = this.rts.screenToGround(nx, ny); cb(g.x, g.z); return; }   // the wheel's "Here"
     const u = this.app.pick(nx, ny, radiusPx), me = this.app.playerTeam ?? 0;
     if (this.loading) { this.loadInto(u); return; }   // after Load the click picks the vehicle
     if (this.advancing) { this.advancing = false; const g = u && u.team !== me ? u.pos : this.rts.screenToGround(nx, ny); if (this.selected.length) this.orderAt(g.x, g.z, true); else this.hud.showSelection(this.selected); return; }   // after Z the click is the attack-move's goal
@@ -140,6 +142,7 @@ export class Input {
   }
 
   issueOrder(nx, ny, radiusPx = 0, advance = false) {
+    if (this.picking) { const cb = this.picking; this.picking = null; const g = this.rts.screenToGround(nx, ny); cb(g.x, g.z); return; }
     // right-click (or a hold) on a friendly helicopter, truck or APC with infantry selected: board it; on a sandbag position: man it
     this.loading = false; advance = advance || this.advancing; this.advancing = false;
     const me = this.app.playerTeam ?? 0, hit = this.app.pick(nx, ny, radiusPx);
@@ -159,6 +162,7 @@ export class Input {
   // Attack-move (Z or the Advance button): the next click or tap on the ground sends the selection there with infantry
   // stopping to fight whatever comes into their hold range on the way, instead of only what is at close quarters (a plain
   // move walks through fire). Pressing again, or Esc, cancels; Alt + right-click does it in one
+  pickGround(cb) { this.picking = cb; this.loading = false; this.advancing = false; }
   startAdvance() {
     if (!this.selected.some(u => !u.spec.structure)) { this.hud.toast('Select units first'); return; }
     this.advancing = !this.advancing; this.loading = false;

@@ -201,6 +201,29 @@
   #sel-actions .tile .fill { position: absolute; left: 0; bottom: 0; height: 3px; background: var(--accent); }
   #sel-actions .tile.cancel { border-color: rgba(232,106,90,0.6); color: #f3c9c3; } #sel-actions .tile.cancel .gi { fill: var(--danger); }
   #sel-actions .tile.on { border-color: var(--accent); color: var(--accent); } #sel-actions .tile.on .gi { fill: var(--accent); }
+  /* ---- the Command Wheel (core/wheel.js): a round CO button in thumb reach left of the minimap, opening a ring of pills in three steps */
+  #wheel-btn { display: none; position: absolute; right: calc(244px + env(safe-area-inset-right)); bottom: calc(var(--strip-h) + 14px + env(safe-area-inset-bottom)); width: 56px; height: 56px; border-radius: 50%; border: 2px solid var(--accent); background: radial-gradient(circle at 50% 40%, #3a3320, #1b1a16); color: var(--accent); font: 700 12px/1 system-ui, sans-serif; letter-spacing: 0.1em; box-shadow: 0 2px 10px rgba(0,0,0,0.5); cursor: pointer; z-index: 30; }
+  #wheel-btn::after { content: 'CO'; } #wheel-btn.on { background: #2d2716; }
+  body.hybrid.match #wheel-btn { display: block; }
+  #wheel { position: absolute; inset: 0; z-index: 40; background: rgba(0,0,0,0.28); touch-action: none; }
+  #wheel[hidden] { display: none; }
+  #wheel .w-ring { position: absolute; width: 340px; height: 340px; right: calc(102px + env(safe-area-inset-right)); bottom: calc(var(--strip-h) + 84px + env(safe-area-inset-bottom)); }
+  body.wheel-open #hint, body.wheel-open #help, body.wheel-open #touchbar, body.wheel-open #feed { visibility: hidden; }
+  #wheel .w-hub { position: absolute; left: 50%; top: 50%; width: 96px; height: 96px; margin: -48px 0 0 -48px; border-radius: 50%; background: var(--panel); border: 2px solid var(--accent); display: flex; flex-direction: column; align-items: center; justify-content: center; text-align: center; color: var(--text); font-size: 12px; line-height: 1.2; padding: 6px; box-sizing: border-box; }
+  #wheel .w-hub small { display: block; color: var(--muted); font-size: 9px; letter-spacing: 0.12em; text-transform: uppercase; } #wheel .w-hub b { display: block; max-width: 80px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  #wheel .w-hub.back { cursor: pointer; border-style: dashed; }
+  #wheel .w-seg { position: absolute; left: 50%; top: 50%; min-width: 66px; height: 44px; padding: 0 12px; margin: -22px 0 0 -33px; border-radius: 22px; border: 1px solid #5a5a60; background: #262629; color: var(--text); font: 600 12px/1 system-ui, sans-serif; white-space: nowrap; display: flex; align-items: center; justify-content: center; gap: 5px; box-shadow: 0 2px 6px rgba(0,0,0,0.45); transform: translate(var(--dx), var(--dy)); cursor: pointer; }
+  #wheel .w-seg .gi { width: 14px; height: 14px; fill: var(--text); flex: none; }
+  #wheel .w-seg.ours { border-color: #6fa36f; } #wheel .w-seg.theirs { border-color: var(--danger); } #wheel .w-seg.hand { border-style: dashed; }
+  #wheel .w-seg.intent { background: #1f2630; border-color: #4e6a8a; }
+  #wheel .w-seg.hot, #wheel .w-seg:hover { background: #2d2716; border-color: var(--accent); color: var(--accent); } #wheel .w-seg.hot .gi, #wheel .w-seg:hover .gi { fill: var(--accent); }
+  #wheel .w-bar { position: absolute; left: calc(10px + env(safe-area-inset-left)); bottom: calc(var(--strip-h) + 20px + env(safe-area-inset-bottom)); width: min(520px, calc(100% - 470px)); display: flex; align-items: center; gap: 8px; padding: 8px 10px; background: var(--panel); border: 1px solid var(--panel-border); border-radius: 8px; color: var(--text); font-size: 13px; box-sizing: border-box; }
+  #wheel .w-say { flex: 1; min-width: 0; color: var(--accent); font-weight: 600; } #wheel .w-say:empty::before { content: 'An order: who, what, where'; color: var(--muted); font-weight: 400; }
+  #wheel .w-mods { display: flex; gap: 5px; } #wheel .w-mods button { height: 26px; padding: 0 8px; border-radius: 13px; border: 1px solid #5a5a60; background: #262629; color: var(--muted); font-size: 11px; } #wheel .w-mods button.on { border-color: var(--accent); color: var(--accent); }
+  #wheel .w-x { width: 28px; height: 28px; border-radius: 50%; border: 1px solid #5a5a60; background: #262629; color: var(--text); font-size: 16px; line-height: 1; }
+  #wheel .w-chips { position: absolute; left: calc(10px + env(safe-area-inset-left)); bottom: calc(var(--strip-h) + 72px + env(safe-area-inset-bottom)); width: min(520px, calc(100% - 470px)); display: flex; gap: 6px; flex-wrap: wrap; }
+  #wheel .w-chips button { height: 30px; padding: 0 10px; border-radius: 15px; border: 1px solid #4e6a8a; background: #1f2630; color: #cfe0f2; font-size: 12px; white-space: nowrap; }
+  #wheel .w-chips button::before { content: '\203A '; color: #7fa6cc; }
   /* what a busy engineer is doing, with Cancel: in place of "already building" */
   #btoast { display: none; align-items: center; gap: 8px; max-width: 100%; padding: 6px 8px; background: rgba(16,16,18,0.94); border: 1px solid rgba(242,193,78,0.6); border-radius: 8px; font-size: 12px; pointer-events: auto; }
   #btoast b { color: var(--accent); font-weight: 600; } #btoast em { font-style: normal; font-family: "SF Mono", Menlo, monospace; }
@@ -447,6 +470,8 @@
 
   <div id="roster" class="panel"></div>
   <div id="dock"><div id="toast"></div><div id="btoast"></div><div id="selinfo" class="panel"><div class="who"><div class="th" id="sel-th"></div><div class="wt"><div class="n" id="sel-n"></div><div class="d" id="sel-d"></div><div class="b" id="sel-b"></div></div></div><div id="sel-actions"></div></div></div>
+  <button id="wheel-btn" type="button" title="Command wheel: an order for your CO (Q)" aria-label="Command wheel"></button>
+  <div id="wheel" hidden><div class="w-bar"><span class="w-say"></span><span class="w-mods"></span><button class="w-x" type="button" aria-label="Close">&times;</button></div><div class="w-chips"></div><div class="w-ring"><div class="w-hub"></div></div></div>
 </div>
 
 <script type="importmap">

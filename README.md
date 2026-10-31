@@ -100,8 +100,11 @@ whole plan: take a place, press, hold the line, bleed them, pull back, go quiet)
 with quietly for hold fire; the engine carries it out at once and the CO plans around it,
 acknowledging it over the radio. A hold at a place that is not yours means go and take it; a
 place that cannot be taken yet is refused with the reason. A squad you move by hand is "in
-your hand" until you Rejoin it or it idles 90 s. The Command Wheel that dials these on an
-iPad is the next step (docs/GAME_PLAN.md, "Command Wheel").
+your hand" until you Rejoin it or it idles 90 s. The **Command Wheel** dials them: the CO
+button left of the minimap (or **Q**) opens a ring of pills round a hub, who, then what, then
+where, tapped or dragged through; the sentence builds in the bar and the order goes the moment
+it is complete. Three chips above the bar suggest orders from the state. "Here" takes a tap on
+the ground and is your own hand.
 
 *Desert Crossing* (`?map=desert1km`) was built to be fair to both sides: the Village sits on the
 strip of land between two parallel rivers, each bridged where the road crosses

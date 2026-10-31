@@ -12,6 +12,7 @@ import { UnitManager } from '../core/units.js';
 import { DustSim } from '../core/dust.js';
 import { Input } from '../core/input.js';
 import { Hud } from '../core/hud.js';
+import { Wheel } from '../core/wheel.js';
 import { applyUrlParams, populate, runLoop, detectTouch } from '../core/app.js';
 import { mapFor } from '../game/maps/index.js';
 
@@ -48,6 +49,7 @@ app.fog = new FogView(app);   // before the HUD, which wires the Fog shading set
 app.guide = new Guide(app);   // the field manual and hints, before the HUD too
 app.hud = new Hud(app);
 app.input = new Input(app);
+app.wheel = new Wheel(app);   // the Command Wheel, shown with a hybrid commander
 populate(app);
 runLoop(app);
 window.app = app;
