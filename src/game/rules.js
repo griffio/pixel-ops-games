@@ -18,6 +18,7 @@ export const RULES = {
   // tank traps (a row of hedgehogs, 15 m): an engineer by a supply truck lays them; any engineer standing at a row clears it
   traps: { buildTime: 10, supplyCost: 20, max: 6, minSpacing: 18, enemyBaseDistance: 100, clearTime: 8, clearRange: 8 },
   rearm: { supplyCost: 10, range: 12 },   // a belt for a vehicle with one (the Humvee) from a supply truck stopped beside it
+  grenades: { count: 2, range: 35, squadGap: 4, friendly: 8, supplyCost: 2 },   // a rifleman's hand grenades (weapons.js grenade, combat.throwGrenade): count each, one throw a squad every squadGap s, none with a friend within `friendly` m of the target; back on respawn, in the main base, or beside a stopped supply truck for supplyCost a squad
   sandbags: { buildTime: 12, supplyCost: 12, max: 8, minSpacing: 12, enemyBaseDistance: 60, roadClear: 10, clearTime: 8, clearRange: 8 },   // any engineer standing at a position clears it, like traps
   // FOB emplacements: an engineer by a supply truck, within fobRange of one of his side's FOBs, builds a gun the soldier
   // manning it fires (weapons.js hmg / atgm / mortar); perFob to a FOB, spaced from each other, sandbags and the FOB itself

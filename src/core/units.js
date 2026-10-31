@@ -1,4 +1,5 @@
 import { Vec3, lerp, clamp, wrapAngle as wrap, rng } from './math.js';
+import { RULES } from '../game/rules.js';
 
 const rnd = (a, b) => a + rng() * (b - a);
 
@@ -78,7 +79,8 @@ export class Unit {
     this.selected = false; this.squad = null; this.mgr = null;
     this.idle = rnd(0, 3); this.phase = rng() * 6;
     this.hp = this.maxHp = spec.hp; this.kit = spec.kit || null; this.enemy = null; this.cooldown = 0; this.retarget = 0;
-    this.kit2 = spec.kit2 || null; this.cooldown2 = 0; this.burst2 = 0;   // a second weapon on the same turret (the tank's coax MG)
+    this.kit2 = spec.kit2 || null; this.cooldown2 = 0; this.burst2 = 0;   // a second weapon on the same turret (the tank's coax MG); a rifleman's grenades use the same reload slot
+    this.grenades = 0;   // a rifleman's hand grenades (RULES.grenades.count, given with the rifle kit in spawnSquad and back on revive)
     this.stance = 'stand'; this.supp = 0; this.kneelK = 0; this.proneK = 0; this.aimK = 0;   // infantry: suppression 0..1 and the pose blends it drives
     this.dead = false; this.deathT = 0; this.wreck = false; this.remove = false;
     this.mounted = null; this.passengers = []; this.boardTarget = null; this.turnT = 0; this.supplies = 0; this.landedT = 0; this.hover = false;
@@ -227,7 +229,7 @@ export class Unit {
     if (this.spec.air) { for (const r of this.parts.rotors) { r.blades.visible = true; r.disc.visible = false; } this.alt = 0; this.pos.y = this.mgr ? this.mgr.world.heightAt(this.pos.x, this.pos.z) : 0; this.parts.body.rotation.x = 0; this.parts.body.rotation.z = 0.35; }
   }
   // revive at a position (infantry respawn reuses the object so squads keep their members)
-  revive(x, z, heading) { if (this.spec.ammo) this.ammo = this.spec.ammo; this.holdFire = !!(this.squad && this.squad.members.some(m => !m.dead && m !== this && m.holdFire));   // a man back to a squad holding fire holds it too
+  revive(x, z, heading) { if (this.spec.ammo) this.ammo = this.spec.ammo; if (this.kit === 'rifle') this.grenades = RULES.grenades.count; this.holdFire = !!(this.squad && this.squad.members.some(m => !m.dead && m !== this && m.holdFire));   // a man back to a squad holding fire holds it too
     this.dead = false; this.hp = this.maxHp; this.pos.set(x, 0, z); this.heading = heading; this.group.rotation.set(0, heading, 0);
     this.group.visible = true; this.speed = 0; this.enemy = null; this.target = null; this.path = null; this.dest = null; this.deathT = 0; this.reviveT = 0; this.hold = false; this.boardTarget = null; this.mounted = null; this.landedT = 0;
   }
@@ -498,7 +500,7 @@ export class Unit {
 }
 
 export class Squad {
-  constructor(members) { this.members = members; for (const m of members) m.squad = this; this.idle = rnd(0, 4); }
+  constructor(members) { this.members = members; for (const m of members) m.squad = this; this.idle = rnd(0, 4); this.grenadeAt = -Infinity; }   // grenadeAt: when the squad last threw a grenade (combat.throwGrenade spaces them)
   get leader() { return this.members.find(m => !m.dead && !m.afloat) || this.members.find(m => !m.dead) || null; }   // one ashore, if any are
   get alive() { return this.members.some(m => !m.dead); }
   get aliveCount() { return this.members.filter(m => !m.dead).length; }
@@ -565,7 +567,7 @@ export class UnitManager {
   spawnSquad(x, z, team = 0, kits = KITS) {
     if (x === undefined) [x, z] = this.freePoint(3);
     const members = []; const h = rng() * Math.PI * 2;
-    for (let i = 0; i < 4; i++) { const m = this.spawn('soldier', x + (i % 2) * 1.4 - 0.7, z + Math.floor(i / 2) * 1.4 - 0.7, h, team); m.kit = kits[i] || 'rifle'; members.push(m); }
+    for (let i = 0; i < 4; i++) { const m = this.spawn('soldier', x + (i % 2) * 1.4 - 0.7, z + Math.floor(i / 2) * 1.4 - 0.7, h, team); m.kit = kits[i] || 'rifle'; if (m.kit === 'rifle') m.grenades = RULES.grenades.count; members.push(m); }
     const sq = new Squad(members); sq.id = (this.squadCount = (this.squadCount || 0) + 1);
     for (const m of members) m.label = `SQ-${String(sq.id).padStart(2, '0')}`;
     this.squads.push(sq); return sq;

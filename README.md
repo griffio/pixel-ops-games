@@ -85,6 +85,13 @@ says so); press again to fire at will. A man back from a respawn holds fire with
 his squad. The two orders are opposites: an attack-move lifts hold fire, and hold fire
 turns an attack-move under way into a plain move.
 
+Riflemen carry two **hand grenades** each. A man within 35 m who is behind cover,
+dug in, in a thicket, against a building or standing with two others gets one
+lobbed at him, bursting over 5 m on his side of the wall, one throw a squad every
+four seconds and none with a friend close to him, so a squad that sits behind a
+wall at rifle range pays for it. Grenades come back with a respawn, in the main
+base, or beside a stopped supply truck for 2 supplies a squad.
+
 *Desert Crossing* (`?map=desert1km`) was built to be fair to both sides: the Village sits on the
 strip of land between two parallel rivers, each bridged where the road crosses
 it and fordable further out, and the village is laid out in mirrored pairs

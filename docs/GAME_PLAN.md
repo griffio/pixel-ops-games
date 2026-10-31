@@ -2982,7 +2982,7 @@ Engine changes needed in the existing core:
   side of it, where `covered` finds no wall between burst and man, and its burst suppresses everyone within 9 m by 0.4
   (the explosive rule in `suppress`), so the rifles do better in the seconds after. Defenders throw too: the 20 to 35 m
   band becomes lethal for both sides, so nobody sits in it, which is the point. Vehicles are untouched. Three steps:
-  - **G1, the weapon and the throw (half a day).** `WEAPONS.grenade`: range 35 (a man at his 32 m hold range has 3 m in
+  - **G1, the weapon and the throw (half a day). Done 2026-10-31, see below.** `WEAPONS.grenade`: range 35 (a man at his 32 m hold range has 3 m in
     hand; the CPU's approach stands at 35 m, so its attackers throw from where they already stop), speed 18 on the
     `arc` path (about two seconds in the air), `explosive` with `splash` 5, dmgInf 40 (a rifleman has 35: a good throw
     kills one and wounds his neighbours, a near miss wounds), dmgVeh 5, acc 0.5, burst 1, `thrown: true` (no muzzle
@@ -3012,6 +3012,27 @@ Engine changes needed in the existing core:
     grenade rush cheap: if Light passes 60% on the Hollow, its respawnCost goes to 0.6 on infantry-only maps.
   - Not in the plan: a throw button (throws are automatic like all fire), smoke, rifle grenades, grenades for the other
     kits, any effect on vehicles, bounding overwatch and a charge order (the other two levers, kept for after G3).
+
+- **G1 done (2026-10-31, "commit and Go G1").** `WEAPONS.grenade` (range 35, speed 20 on the arc, about two seconds in the
+  air, explosive, splash 5, dmgInf 40, acc 0.5, `thrown`), `RULES.grenades` (count 2, squadGap 4, friendly 8, supplyCost
+  2). `Combat.throwGrenade` runs for every soldier with a grenade left after his rifle: a target within 35 m and past 8 m
+  he can see that is dug in, behind low cover (`covered`), in a thicket, within 2 m of a building box (`nearBuilding`,
+  the kit's `bld` tag) or standing with two others within 5 m, no friend within 8 m of him, his own target first, one
+  throw a squad every 4 s (`Squad.grenadeAt` against a combat clock) and none from a man pinned flat; nothing worth one
+  and he looks again in half a second. `fire` treats a thrown weapon as the second slot (`burst2`/`cooldown2`, as the
+  coax), skips the cover and stance factors on the throw, the muzzle flash and the report; the round is a `grenade` kind
+  in projectiles.js (a dark ball, no streak) and bursts at 0.45 with the blast at 0.8. Riflemen get two in `spawnSquad`
+  and on `revive`; support.js refills them standing still in the main base, or beside a stopped supply truck within 12 m
+  for 2 supplies a squad. KIT_NAME grenade for the kill feed and debrief; the selection card counts a squad's grenades;
+  the guide's kits line, the README's combat paragraph and the Worker's rules sentence say so. Checked headless on the
+  Hollow (scenes placed in the open: the first placement put squads in hedgerow boxes and nobody saw anyone): no throw at
+  a lone man or a pair in the open, two throws at a bunched squad at 23 m with a grenade kill, none with a friend 5 m
+  from the target, one into a thicket at 11 m that killed the man; base refill, truck refill (2 supplies, a truck with
+  1 refuses). A four-minute CPU match (Light v Light): 97 throws, grenades 57 of 108 kills, deaths 27 a minute against
+  about 12 at that point of the Opus game, so G3 will almost surely cut it (dmgInf 30, splash 4 or one grenade a man are
+  the levers). A squad in formation always has "two others within 5 m", so the cluster rule means any squad of three or
+  more within 35 m is a grenade target, cover or not; a lone man or a pair in the open is left to the rifles. Not done:
+  the roster line (the card has the count).
 
 ## Open questions
 

@@ -55,6 +55,17 @@ export class Support {
       const t = all.find(t => t.supply && !t.dead && t.team === v.team && t.supplies >= RULES.rearm.supplyCost && !t.dest && Math.abs(t.speed) < 0.3 && Math.hypot(t.pos.x - v.pos.x, t.pos.z - v.pos.z) < RULES.rearm.range);
       if (t) { t.supplies -= RULES.rearm.supplyCost; v.ammo = v.spec.ammo; if (this.onRearm) this.onRearm(v, t); }
     }
+    // riflemen get their grenades back standing still in their own main base, or beside a stopped supply truck in the field
+    // for a few supplies a squad (RULES.grenades)
+    const GR = RULES.grenades;
+    for (const sq of this.units.squads) {
+      const men = sq.members.filter(m => !m.dead && !m.mounted && m.kit === 'rifle' && m.grenades < GR.count); if (!men.length) continue;
+      const b = this.teams[sq.team].base, home = men.filter(m => !m.dest && Math.abs(m.speed) < 0.3 && Math.hypot(m.pos.x - b.x, m.pos.z - b.z) < b.r);
+      for (const m of home) m.grenades = GR.count;
+      const out = men.filter(m => !home.includes(m)); if (!out.length) continue;
+      const t = all.find(t => t.supply && !t.dead && t.team === sq.team && t.supplies >= GR.supplyCost && !t.dest && Math.abs(t.speed) < 0.3 && out.some(m => Math.hypot(t.pos.x - m.pos.x, t.pos.z - m.pos.z) < RULES.rearm.range));
+      if (t) { t.supplies -= GR.supplyCost; for (const m of out) if (Math.hypot(t.pos.x - m.pos.x, t.pos.z - m.pos.z) < RULES.rearm.range) m.grenades = GR.count; }
+    }
     for (const u of all) {
       if (u.dead || (u.kit !== 'medic' && u.kit !== 'engineer')) continue;
       if (u.kit === 'medic') {

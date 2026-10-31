@@ -27,7 +27,7 @@ const short = (why) => { for (const [re, out] of SHORT) { const r = why.match(re
 const esc = (t) => String(t).replace(/&/g, '&amp;').replace(/"/g, '&quot;').replace(/</g, '&lt;');
 const BUILD_ACTS = ['fob', 'sandbags', 'traps', 'emp_hmg', 'emp_atgm', 'emp_mortar'];
 const FOOT = { sandbags: 2.8, fob: 6, hmg: 2.4, atgm: 2.4, mortar: 2.4 };   // the ground a build takes, for its outline
-const KIT_NAME = { rifle: 'rifle', mg: 'MG', at: 'AT', marksman: 'marksman', medic: 'rifle', engineer: 'rifle', autocannon: 'autocannon', doorgun: 'door gun', tankgun: '120 mm', coax: 'coax MG', hmg: 'HMG', atgm: 'ATGM', mortar: 'mortar', hydra: 'rockets', mk19: 'Mk 19', gau19: 'gatling' };
+const KIT_NAME = { rifle: 'rifle', grenade: 'grenade', mg: 'MG', at: 'AT', marksman: 'marksman', medic: 'rifle', engineer: 'rifle', autocannon: 'autocannon', doorgun: 'door gun', tankgun: '120 mm', coax: 'coax MG', hmg: 'HMG', atgm: 'ATGM', mortar: 'mortar', hydra: 'rockets', mk19: 'Mk 19', gau19: 'gatling' };
 const TYPE_NAME = { apc: 'APC', humvee: 'Humvee', tank: 'tank', heli: 'Chinook', bird: 'Little Bird', truck: 'truck', craft: 'landing craft', emplacement: 'FOB gun' };   // vehicles in the debrief's weapon list
 
 
@@ -292,7 +292,8 @@ export class Hud {
     $('sel-n').textContent = one ? `${list[0].label} · ${SQUAD_NAME[squadKind(list[0].squad.members.map(u => u.kit))[0]]}` : list.length === 1 ? list[0].label : `${list.length} UNITS`;
     const how = this.app.touch ? 'tap the ground to move · tap an enemy to attack' : 'right-click to move · F to follow';
     const GUN = { hmg: 'heavy machine gun', atgm: 'anti-tank launcher', mortar: 'mortar' };
-    $('sel-d').textContent = one ? `${list.length}/${list[0].squad.members.length} men${list.some(u => u.post) ? ` · manning ${list.find(u => u.post).post.sb.label}` : ''} · ${this.app.touch ? 'tap the ground to move' : 'right-click to move'}`
+    const grenadesOf = (sq) => { const r = sq.members.filter(m => !m.dead && m.kit === 'rifle'); return r.length ? ` · ${r.reduce((s, m) => s + (m.grenades || 0), 0)} grenades` : ''; };   // the riflemen's grenades left (RULES.grenades)
+    $('sel-d').textContent = one ? `${list.length}/${list[0].squad.members.length} men${grenadesOf(list[0].squad)}${list.some(u => u.post) ? ` · manning ${list.find(u => u.post).post.sb.label}` : ''} · ${this.app.touch ? 'tap the ground to move' : 'right-click to move'}`
       : list.length === 1 && list[0].spec.structure && list[0].type !== 'emplacement' ? this.structureText(list[0])
       : list.length === 1 && list[0].type === 'emplacement'
       ? `${GUN[list[0].gun] || 'emplacement'} · ${list[0].crewAt(0) ? 'manned' : `no gunner: ${this.app.touch ? 'tap' : 'right-click'} it with soldiers selected`} · ${Math.round(100 * list[0].hp / list[0].maxHp)}%`

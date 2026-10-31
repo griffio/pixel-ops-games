@@ -4,7 +4,7 @@ import { hexToLinear } from './math.js';
 // trail. A shot is launched so that it arrives at a chosen point; the game resolves what it
 // does there through `onArrive` once it gets there. Renderers draw `segs` (tracer streaks,
 // two vertices of x,y,z,r,g,b,intensity each) every frame.
-const C = { tracer: hexToLinear(0xffe9a0), rifle: hexToLinear(0xffd98a), shell: hexToLinear(0xffb060), sabot: hexToLinear(0xf2f6ff), rocket: hexToLinear(0xffc080), smoke: hexToLinear(0x8a8a8a), flame: hexToLinear(0xffc240) };
+const C = { tracer: hexToLinear(0xffe9a0), rifle: hexToLinear(0xffd98a), shell: hexToLinear(0xffb060), sabot: hexToLinear(0xf2f6ff), rocket: hexToLinear(0xffc080), smoke: hexToLinear(0x8a8a8a), flame: hexToLinear(0xffc240), dark: hexToLinear(0x23261e) };
 const G = 9.8;
 
 export class ProjectileSim {
@@ -36,6 +36,7 @@ export class ProjectileSim {
       const wall = p.stray && this.walls && this.walls(x0, y0, z0, p.x, p.y, p.z);   // a miss stops at a wall; a hit was settled at the trigger and lands as it did
       if (wall) { p.x = wall.x; p.y = wall.y; p.z = wall.z; p.wall = wall; L.splice(i, 1); if (p.onArrive) p.onArrive(p); continue; }
       if (p.kind === 'shell') { d.emit(p.x, p.y, p.z, 0, 0, 0, 0.5, 0.06, C.shell, 0, 3, 1); d.emit(p.x, p.y, p.z, (r() - 0.5) * 0.4, 0.3, (r() - 0.5) * 0.4, 0.3, 0.6 + r() * 0.3, C.smoke, 1, 0.35, 0.95); }
+      else if (p.kind === 'grenade') d.emit(p.x, p.y, p.z, 0, 0, 0, 0.3, 0.07, C.dark, 0, 0.95, 1);   // a hand grenade: a dark ball on its arc, no trail (trail 0 draws no streak)
       else if (p.kind === 'rocket') { d.emit(p.x, p.y, p.z, 0, 0, 0, 0.35, 0.05, C.flame, 0, 3, 1); d.emit(p.x, p.y, p.z, (r() - 0.5) * 0.6, 0.4 + r() * 0.4, (r() - 0.5) * 0.6, 0.4 + r() * 0.3, 0.9 + r() * 0.6, C.smoke, 1, 0.5, 0.96); }
       if (p.t >= p.T - 1e-6) { L.splice(i, 1); if (p.onArrive) p.onArrive(p); }
     }
