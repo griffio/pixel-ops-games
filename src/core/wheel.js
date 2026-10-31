@@ -1,4 +1,5 @@
 import { icon } from './icons.js';
+import { noteHead } from '../game/orders.js';
 
 const $ = (id) => document.getElementById(id);
 // The Command Wheel (docs/GAME_PLAN.md "Command Wheel", W2): the player's orders to their hybrid CO, dialled in three
@@ -28,6 +29,7 @@ export class Wheel {
     this.ring = this.el.querySelector('.w-ring'); this.hub = this.el.querySelector('.w-hub'); this.say = this.el.querySelector('.w-say'); this.modsEl = this.el.querySelector('.w-mods'); this.chips = this.el.querySelector('.w-chips');
     this.btn.addEventListener('click', () => this.toggle());
     this.el.querySelector('.w-x').addEventListener('click', () => this.close());
+    this.el.querySelector('.w-plan').addEventListener('click', () => this.showPlan());
     this.el.addEventListener('pointerdown', (e) => { if (e.target === this.el) this.close(); });   // a tap on the dimmed map closes it
     this.ring.addEventListener('pointerup', (e) => { const b = e.target.closest('.w-seg'); if (b) this.pick(b.dataset.k); else if (e.target.closest('.w-hub') && this.step > 0) this.back(); });
     this.ring.addEventListener('pointermove', (e) => {   // a drag lights the pill under the finger; release picks it (pointerup lands on it)
@@ -141,7 +143,18 @@ export class Wheel {
   whoName() { return !this.who ? '' : this.who.k === 'all' ? 'Everyone' : this.who.k === 'fresh' ? 'Fresh squads' : this.who.ids.join(', '); }
   whatName() { const w = WHAT.find(x => x.k === this.what) || INTENT.find(x => x.k === this.what); return w ? w.name : ''; }
   renderBar() { this.say.textContent = this.sentence(); this.modsEl.innerHTML = `<button type="button" data-m="quiet" class="${this.mods.quiet ? 'on' : ''}">quietly</button><button type="button" data-m="costs" class="${this.mods.costs ? 'on' : ''}">at all costs</button>`; }
-  renderChips() { this.chips.innerHTML = this.sugg.map((s, i) => `<button type="button" data-i="${i}">${s.text}</button>`).join(''); }
+  renderChips() { this.chips.innerHTML = this.sugg.map((s, i) => `<button type="button" data-i="${i}"${s.co ? ' class="co"' : ''}>${s.text}</button>`).join(''); }
+  // what the CO is doing, from the strategist's last plan tick and the squads' tags, with a model CO's own notes after it
+  planText() {
+    const m = this.match, s = (m.strategists || []).find(x => x.team === this.me); if (!s) return 'No CO on our side.';
+    const P = s.lastPlan, sq = this.squads(), n = (re) => sq.filter(x => x.tag && re.test(x.tag)).length, attacking = n(/^(cap|approach|stage)/), holding = n(/^(hold|post|reserve|screen|aa)/), hand = sq.filter(x => x.manual).length;
+    const notes = s.remote && s.remote.plan ? (s.remote.plan.notes || s.remote.plan.reason || '') : '';
+    if (!P) return notes || 'Planning.';
+    const holds = P.hold ? [P.hold, ...(P.holds || []).filter(h => h !== P.hold)] : [];
+    const head = `${P.attack ? `Taking the ${P.attack} with ${attacking} squad${attacking === 1 ? '' : 's'}` : 'No attack'}${holds.length ? `, holding the ${holds.join(' and the ')} with ${holding}` : ''}${hand ? `, ${hand} in your hand` : ''}, ${P.posture}.`;
+    return notes ? `${head} ${notes}` : head;
+  }
+  showPlan() { const t = this.planText(); this.say.textContent = t; if (this.match.event) this.match.event({ type: 'radio', team: this.me, who: 'CO', text: t }); }
   sentence(at) {
     const who = this.whoName(), what = this.whatName().toLowerCase();
     return [who, what, at ? 'the ' + at : ''].filter(Boolean).join(' ') + (this.mods.quiet && this.what !== 'ambush' ? ', quietly' : '') + (this.mods.costs ? ', at all costs' : '');
@@ -178,6 +191,11 @@ export class Wheel {
   // round it and few of ours; the idle squad nearest to screen our farthest place; else hold the line or press
   suggestions() {
     const m = this.match, me = this.me, o = m.objectives, out = []; if (!o) return out;
+    // the CO's own: release a squad whose order has it hiding, refused or stuck; rejoin a squad left idle in the player's hand
+    const co = [], sqAll = this.squads();
+    for (const ord of m.orders ? m.orders.active(me) : []) if (Array.isArray(ord.who) && (ord.refusedNote || (ord.note && ord.note !== 'taken, now holding' && ord.note !== 'gathering before going in'))) co.push({ co: true, text: `release ${ord.who.join(', ')} (${noteHead(ord.refusedNote || ord.note)})`, spec: { team: me, who: ord.who, intent: 'rejoin' } });
+    for (const s of sqAll) if (s.manual && s.idleSince != null && m.elapsed - s.idleSince > 20) co.push({ co: true, text: `${s.members[0].label} rejoin (idle in your hand)`, spec: { team: me, who: [s.members[0].label], intent: 'rejoin' } });
+    out.push(...co.slice(0, 2));
     const base = m.teams[me].base, L = o.list, ours = L.filter(l => l.owner === me), fresh = this.freshSquads(), sq = this.squads(), dist = (l) => Math.hypot(l.x - base.x, l.z - base.z);
     const cap = L.filter(l => l.owner !== me && o.capturable(me, l)).sort((a, b) => dist(a) - dist(b))[0];
     if (cap) out.push(fresh.length ? { text: `Fresh squads take the ${cap.name}`, spec: { team: me, who: 'fresh', role: 'hold', at: cap.name } } : { text: `Everyone take the ${cap.name}`, spec: { team: me, intent: 'take', at: cap.name } });
@@ -187,6 +205,6 @@ export class Wheel {
     const idle = sq.find(s => !s.busy && !s.manual && !s.members.some(u => u.enemy)), front = ours.slice().sort((a, b) => dist(b) - dist(a))[0];
     if (idle && front && out.length < 3) out.push({ text: `${idle.members[0].label} screen the ${front.name}`, spec: { team: me, who: [idle.members[0].label], role: 'screen', at: front.name } });
     if (out.length < 3) out.push(o.owned(me) * 2 > L.length ? { text: 'Everyone hold the line', spec: { team: me, intent: 'hold the line' } } : { text: 'Everyone press', spec: { team: me, intent: 'press' } });
-    return out.slice(0, 3);
+    return out.slice(0, 4);
   }
 }

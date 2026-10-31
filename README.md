@@ -107,7 +107,11 @@ it is complete. Three chips above the bar suggest orders from the state. "Here" 
 the ground and is your own hand. The box under the bar takes the order in words, typed or
 dictated with the Mic: the Worker's `/orders` route reads it with Cloudflare's Clef model, every
 squad, verb and place an option with a probability, and the wheel sends it, or shows its
-reading for a tap when it is unsure, a sentence names nobody, or it carries two orders.
+reading for a tap when it is unsure, a sentence names nobody, or it carries two orders. The CO
+answers over the radio in the feed: Roger to each order, a refusal with its reason, the place
+when it falls, and what a squad is doing instead when it hides or gathers; **Plan?** in the bar
+asks it what it is doing, and its own chips, marked CO, offer to release a squad whose order
+has it stuck or to rejoin one left idle in your hand.
 
 *Desert Crossing* (`?map=desert1km`) was built to be fair to both sides: the Village sits on the
 strip of land between two parallel rivers, each bridged where the road crosses

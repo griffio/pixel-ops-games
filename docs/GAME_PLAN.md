@@ -3158,7 +3158,7 @@ Engine changes needed in the existing core:
     landmarks to Clairic, back a structured order with confidences (about a tenth of a cent and 0.3 s); the confirm
     chips; the mic through the browser's speech recognition on the iPad (to be verified on iPad Safari); the raw-text
     fallback to the CO.
-  - **W4, the CO's voice (half a day).** Acknowledgements and refusals with the reason ("Can't take the Mill: it links
+  - **W4, the CO's voice (half a day). Done 2026-10-31, see below.** Acknowledgements and refusals with the reason ("Can't take the Mill: it links
     only to the Hamlet"), a "What's the plan?" prompt that shows the CO's notes, the CO's suggested prompts as chips.
   - **W5, playtest (half a day).** On the Hollow and Palm Valley: how an order feels (engine-immediate), what two LLM
     commanders cost (Haiku for the player's side by default, about 3 cents a match; Opus against Opus about $4) and
@@ -3262,6 +3262,22 @@ Engine changes needed in the existing core:
   the direct send, an intent, the low-confidence chip and its No, the missing-place toast and the unknown toast; the
   live route is checked after the deploy. Not done: splitting a compound sentence into two orders (the chip asks for
   one at a time), landmarks as places.
+
+- **W4 done (2026-10-31, "Go W4", branch `command-wheel`).** The CO speaks on the feed in its own voice (radio events
+  with `who: CO`, the feed naming the speaker): "Roger: SQ-01 take the Ford" the moment an order lands, "Roger, SQ-02
+  back under the plan" for a rejoin, a refusal with its reason as it is found ("Can't: SQ-03 hold the Mill: the Mill
+  cannot be taken yet, take a place it links to first; so at base"), the place when it falls ("The Ford is ours, SQ-01
+  holding it", or "The Ford is ours" for a take intent) and what a squad is doing instead when a note changes ("SQ-04:
+  hiding from enemy armour: needs a launcher or an APC"), each note said once as it changes. A model CO's own reason
+  still follows when its next plan comes. `Plan?` in the wheel's bar asks the CO what it is doing: the strategist keeps
+  its last plan tick (`lastPlan`: attack, holds, posture) and the wheel counts the squads' tags, "Taking the Ford with 3
+  squads, 1 in your hand, aggressive.", with a model CO's notes after it; the answer shows in the bar and goes to the
+  feed. The CO's own chips, marked CO, come first in the chips row: release a squad whose order has it hiding, refused or
+  falling back (a rejoin that ends the order), and rejoin a squad left idle in the player's hand for 20 s. `reason()`
+  and `noteHead()` in orders.js trim the strategist's "hold at Mill:" prefix for the radio, the card and the chips.
+  Checked headless on the Hollow: the Roger line, the refusal line, the hiding line, the Ford-is-ours line, the plan
+  sentence and the two CO chips. Not done: a spoken CO (the squad voices could carry a few lines), the CO suggesting
+  attacks of its own beyond the rules' chips.
 
 ## Open questions
 

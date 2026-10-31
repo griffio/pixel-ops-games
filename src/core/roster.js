@@ -4,6 +4,7 @@
 // the camera there, a hold follows it. Units out of view get a pointer on the screen edge that takes the camera to them.
 import { RULES } from '../game/rules.js';
 import { icon, ring, mmss, BUILDS, buildKind, portrait } from './icons.js';
+import { noteHead } from '../game/orders.js';
 
 const ALERT = 6;           // seconds a card stays red after its unit was hit
 const PLACE_PAD = 30;      // a squad this far outside a location still holds it
@@ -96,7 +97,7 @@ export class Roster {
     else if (d.alert) Object.assign(d, { glyph: 'fire', tone: 'red', text: `Under fire${this.place(cx, cz) ? ' · ' + this.place(cx, cz) : ''}` });
     else if (car) Object.assign(d, { glyph: car.spec.air ? 'air' : 'ride', tone: 'go', text: car.type === 'dock' ? 'On the ship' : `${car.spec.air ? 'Flying in' : 'In'} ${car.label}` });   // the dock: waiting for a landing craft
     else if (M && M.hybrid && sq.manual) Object.assign(d, { glyph: 'follow', tone: 'go', text: `In your hand · ${mv ? this.toward(mv, mv.dest || mv.target) : this.place(cx, cz) || 'open ground'}` });
-    else if (ord) Object.assign(d, { glyph: 'flag', tone: 'go', text: `Order: ${ord.text.replace(/^SQ-\d\d(, SQ-\d\d)* /i, '')}${foot.every(u => u.holdFire) ? ' · quiet' : ''}${ord.refusedNote || ord.note ? ' · ' + (ord.refusedNote || ord.note).split(':')[0] : ''}` });
+    else if (ord) Object.assign(d, { glyph: 'flag', tone: 'go', text: `Order: ${ord.text.replace(/^SQ-\d\d(, SQ-\d\d)* /i, '')}${foot.every(u => u.holdFire) ? ' · quiet' : ''}${ord.refusedNote || ord.note ? ' · ' + noteHead(ord.refusedNote || ord.note) : ''}` });
     else if (foot.length && foot.every(u => u.holdFire)) Object.assign(d, { glyph: 'holdfire', tone: 'y', text: `Holding fire · ${mv ? this.toward(mv, mv.dest || mv.target) : post ? 'manning ' + post.post.sb.label : this.place(cx, cz) || 'open ground'}` });
     else if (post) Object.assign(d, { glyph: 'post', text: `Manning ${post.post.sb.label}` });
     else if (mv) Object.assign(d, { glyph: 'move', tone: 'go', text: this.toward(mv, mv.dest || mv.target) });

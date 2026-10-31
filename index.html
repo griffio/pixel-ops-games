@@ -226,6 +226,8 @@
   #wheel .w-say { flex: 1; min-width: 0; color: var(--accent); font-weight: 600; } #wheel .w-say:empty::before { content: 'An order: who, what, where'; color: var(--muted); font-weight: 400; }
   #wheel .w-mods { display: flex; gap: 5px; } #wheel .w-mods button { height: 26px; padding: 0 8px; border-radius: 13px; border: 1px solid #5a5a60; background: #262629; color: var(--muted); font-size: 11px; } #wheel .w-mods button.on { border-color: var(--accent); color: var(--accent); }
   #wheel .w-x { width: 28px; height: 28px; border-radius: 50%; border: 1px solid #5a5a60; background: #262629; color: var(--text); font-size: 16px; line-height: 1; }
+  #wheel .w-plan { height: 26px; padding: 0 9px; border-radius: 13px; border: 1px solid #8a6d2a; background: #2a2416; color: #f4dca0; font-size: 11px; font-weight: 600; }
+  #wheel .w-chips button.co { border-color: #8a6d2a; color: #f4dca0; background: #2a2416; } #wheel .w-chips button.co::before { content: 'CO \\203A '; color: #c9a35a; }
   #wheel .w-chips { position: absolute; left: calc(10px + env(safe-area-inset-left)); bottom: calc(var(--strip-h) + 72px + env(safe-area-inset-bottom)); width: min(520px, calc(100% - 470px)); display: flex; gap: 6px; flex-wrap: wrap; }
   #wheel .w-chips button { height: 30px; padding: 0 10px; border-radius: 15px; border: 1px solid #4e6a8a; background: #1f2630; color: #cfe0f2; font-size: 12px; white-space: nowrap; }
   #wheel .w-chips button::before { content: '\203A '; color: #7fa6cc; }
@@ -476,7 +478,7 @@
   <div id="roster" class="panel"></div>
   <div id="dock"><div id="toast"></div><div id="btoast"></div><div id="selinfo" class="panel"><div class="who"><div class="th" id="sel-th"></div><div class="wt"><div class="n" id="sel-n"></div><div class="d" id="sel-d"></div><div class="b" id="sel-b"></div></div></div><div id="sel-actions"></div></div></div>
   <button id="wheel-btn" type="button" title="Command wheel: an order for your CO (Q)" aria-label="Command wheel"></button>
-  <div id="wheel" hidden><div class="w-bar"><div class="w-row"><span class="w-say"></span><span class="w-mods"></span><button class="w-x" type="button" aria-label="Close">&times;</button></div><form class="w-type"><input class="w-in" type="text" autocomplete="off" autocapitalize="off" autocorrect="off" enterkeyhint="send" placeholder="or say it: SQ-01 hold the Mill, quietly"><button class="w-mic" type="button" title="Dictate the order">Mic</button><button class="w-go" type="submit" title="Read the order and send it">Send</button></form></div><div class="w-chips"></div><div class="w-ring"><div class="w-hub"></div></div></div>
+  <div id="wheel" hidden><div class="w-bar"><div class="w-row"><span class="w-say"></span><span class="w-mods"></span><button class="w-plan" type="button" title="What is the CO's plan?">Plan?</button><button class="w-x" type="button" aria-label="Close">&times;</button></div><form class="w-type"><input class="w-in" type="text" autocomplete="off" autocapitalize="off" autocorrect="off" enterkeyhint="send" placeholder="or say it: SQ-01 hold the Mill, quietly"><button class="w-mic" type="button" title="Dictate the order">Mic</button><button class="w-go" type="submit" title="Read the order and send it">Send</button></form></div><div class="w-chips"></div><div class="w-ring"><div class="w-hub"></div></div></div>
 </div>
 
 <script type="importmap">

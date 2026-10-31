@@ -243,6 +243,7 @@ export class Strategist {
       else if (reserve && hold && i >= nAttack + Math.ceil((rest.length - nAttack) * 0.7)) reserveAt(sq, reserve);
       else { const k = i - nAttack; holdAt(sq, k >= nHold - extra.length ? extra[k - (nHold - extra.length)] : hold); }
     });
+    this.goals = g; this.lastPlan = { attack: attack ? attack.name : null, hold: hold ? hold.name : null, holds: (g.holds || []).map(l => l.name), posture: this.posture, nAttack };   // for the wheel's "Plan?"
     this.placeRallies(squads);
     // Air Assault: one helicopter parks behind the place we're pushing for, as a spawn point
     if (this.percher && (this.percher.dead || (this.lifts.get(this.percher) || {}).stage !== 'perch')) this.percher = null;

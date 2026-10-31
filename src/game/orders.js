@@ -9,6 +9,9 @@ import { ROLES } from './ai/plan.js';
 // it, Rejoin, or 90 s idle at its destination.
 export const INTENTS = ['take', 'press', 'hold the line', 'bleed them', 'pull back', 'go quiet', 'rejoin'];
 export const HOWS = ['quietly', 'carefully', 'at all costs'];
+// a note without the strategist's "hold at Mill: " prefix (reason), and its first clause for a card or a chip (noteHead)
+export const reason = (n) => String(n || '').replace(/^[a-z ]+? at [^:]+: /, '');
+export const noteHead = (n) => reason(n).split(/[:;,]/)[0];
 const PLAN_INTENTS = ['take', 'press', 'hold the line', 'bleed them', 'pull back'];   // one of these stands at a time
 const NEEDS_PLACE = ['hold', 'reserve', 'screen', 'grab', 'antiair'];
 const WHAT = { assault: 'join the attack', hold: 'hold', reserve: 'wait at', screen: 'screen', grab: 'grab', raid: 'raid the enemy FOB', escort: 'escort the truck', antiair: 'watch the sky at' };
@@ -46,10 +49,13 @@ export class Orders {
     else if (Array.isArray(who)) for (const sq of this.squadsOf(team)) if (named(sq)) { sq.manual = false; sq.idleSince = null; }   // an order takes the squad out of the player's hand
     this.list.push(o); if (this.list.length > 40) this.list.shift();
     for (const s of m.strategists || []) if (s.team === team) s.timer = Math.min(s.timer, 0.2);   // carried out on the next plan tick
+    this.say(team, intent === 'rejoin' ? `Roger, ${Array.isArray(who) ? who.join(', ') : 'everyone'} back under the plan` : `Roger: ${o.text}`);
     if (m.app && m.app.hud && m.app.hud.toast && team === (m.app.playerTeam ?? 0)) m.app.hud.toast(`Order: ${o.text}`);
     return o;
   }
   end(o, note) { o.status = 'done'; o.doneAt = this.match.elapsed; o.note = note; }
+  // the CO over the radio: a feed line in the player's own team's voice (hud: who CO); a model CO adds its own words when its next plan comes
+  say(team, text) { const m = this.match; if (team === (m.app.playerTeam ?? 0) && m.event) m.event({ type: 'radio', team, who: 'CO', text }); }
   sentence(o) {
     const who = Array.isArray(o.who) ? o.who.join(', ') : o.who === 'fresh' ? 'the fresh squads' : 'everyone';
     const what = o.role ? WHAT[o.role] || o.role : o.intent, at = o.at && o.role !== 'assault' ? ` the ${o.at}` : '';
@@ -70,7 +76,7 @@ export class Orders {
     const m = this.match, o2 = m.objectives;
     for (const o of this.list) {
       if (o.status !== 'standing') continue;
-      if (o.intent === 'take' && o2) { const l = o2.list.find(l => l.name === o.at); if (l && l.owner === o.team) this.end(o, 'taken'); }
+      if (o.intent === 'take' && o2) { const l = o2.list.find(l => l.name === o.at); if (l && l.owner === o.team) { this.end(o, 'taken'); this.say(o.team, `The ${o.at} is ours`); } }
       if (Array.isArray(o.who)) {
         const s = (m.strategists || []).find(s => s.team === o.team), notes = s && s.refused ? o.who.map(w => s.refused.get(w)).filter(Boolean) : []; o.refusedNote = notes.length ? notes[0] : undefined;
         // a take-worded order reads hold once the place is ours; while it stands, what its squads are doing instead of it
@@ -80,6 +86,8 @@ export class Orders {
         else if (mine.some(sq => sq.tag === 'back')) o.note = 'falling back, outnumbered';
         else if (mine.some(sq => sq.tag && sq.tag.startsWith('stage'))) o.note = 'gathering before going in';
         else if (o.note !== 'taken, now holding') o.note = undefined;
+        // say a note once, as it changes: a refusal with its reason, the place taken, the squads hiding or gathering
+        const now = o.refusedNote || o.note || ''; if (now !== (o.said || '')) { o.said = now; if (now) this.say(o.team, o.refusedNote ? `Can't: ${o.text}: ${reason(o.refusedNote)}` : o.note === 'taken, now holding' ? `The ${o.at} is ours, ${o.who.join(', ')} holding it` : `${o.who.join(', ')}: ${o.note}`); }
       }
     }
     for (const t of new Set((m.strategists || []).map(s => s.team))) for (const sq of this.squadsOf(t)) {
