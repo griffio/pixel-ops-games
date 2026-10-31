@@ -2,7 +2,9 @@ import { seedRng } from './math.js';
 import { Match } from '../game/match.js';
 import { Lobby } from '../game/ui/lobby.js';
 import { MAPS } from '../game/maps/index.js';
-import { preset, counterPick } from '../game/loadout.js';
+import { preset, counterPick, DOCTRINES, FORCE } from '../game/loadout.js';
+import { RULES } from '../game/rules.js';
+import { WEAPONS } from '../game/weapons.js';
 import { AudioEngine } from './audio.js';
 
 // Shared bootstrap: URL view parameters, the initial population and the frame loop.
@@ -58,6 +60,10 @@ export function populate(app) {
       let side = q.get('side') || modeOpts.side || 'attack', swap = q.get('swap') === '1';
       if (fixed) { if (side === 'defend') swap = !swap; side = swap ? 'defend' : 'attack'; }   // its first base always attacks: defending, or ?swap=1, plays from the other base
       app.cpuAmbush = q.get('cpuambush') !== '0';   // ?cpuambush=0: the CPU's posts never hold fire (a balance check)
+      if (q.has('lightcost')) DOCTRINES.light.respawnCostInfantryOnly = +q.get('lightcost');   // ?lightcost=0.75: Light's man on an infantry-only map, for balance runs
+      if (q.has('footslots')) FORCE.footSquads = +q.get('footslots') || 8;   // ?footslots=8: squads a side on an infantry-only map, for balance runs
+      if (q.has('lightrespawn')) DOCTRINES.light.infantryRespawnInfantryOnly = +q.get('lightrespawn');   // ?lightrespawn=0.75: Light's respawn timer there
+      if (q.has('gren')) { const [n, d, sp] = q.get('gren').split(':').map(Number); RULES.grenades.count = n || 0; if (d) WEAPONS.grenade.dmgInf = d; if (sp) WEAPONS.grenade.splash = sp; }   // ?gren=count[:dmgInf[:splash]]: grenade tuning for balance runs (gren=0: none)
       if (app.world.map && q.get('infantry') === '1') app.world.map.infantryOnly = true;   // ?infantry=1: any map for infantry only; ?tickets=N: the pool
       if (app.world.map && q.has('tickets')) app.world.map.tickets = +q.get('tickets') || undefined;
       // ?swap=1 plays the sides the other way round (BLUFOR from the NE base, lattice reversed): a balance check for CPU-vs-CPU runs

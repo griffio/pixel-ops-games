@@ -33,6 +33,9 @@ export class Match {
     this.teams.forEach((t, i) => {
       t.tickets = this.mode.tickets(i);
       t.loadout = loadouts[i]; t.doctrine = DOCTRINES[t.loadout.doctrine] || DOCTRINES.entrenched;
+      const onFoot = map && map.infantryOnly;   // a doctrine may price and time its men differently where there are no vehicles (respawn.js reads these)
+      t.respawnCost = onFoot && t.doctrine.respawnCostInfantryOnly !== undefined ? t.doctrine.respawnCostInfantryOnly : t.doctrine.respawnCost;
+      t.infantryRespawn = onFoot && t.doctrine.infantryRespawnInfantryOnly !== undefined ? t.doctrine.infantryRespawnInfantryOnly : t.doctrine.infantryRespawn;
       const p = Object.entries(PRESETS).find(([k, v]) => v.doctrine === t.loadout.doctrine && JSON.stringify(v.items) === JSON.stringify(t.loadout.items));
       t.loadoutName = p ? p[1].name : 'Custom'; t.fobKits = map && map.infantryOnly ? 0 : (t.loadout.items && t.loadout.items.fob) || 0;   // an infantry-only map strips the kit with the vehicles (fitMap)
       t.stats = { kills: {}, losses: {}, killsBy: {}, killsByUnit: {}, buildings: 0, captures: 0, lost: 0, fobs: 0, fobsLost: 0, caches: 0 };   // kills by what they hit, and by what did it (a soldier's kit, a vehicle's type); buildings brought down

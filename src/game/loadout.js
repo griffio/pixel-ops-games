@@ -1,6 +1,7 @@
 // Force builder data: items, doctrines, presets, validation, CPU counter-picks and
 // saved loadouts. A loadout is { doctrine, items: { key: count } }.
 export const BUDGET = 1200, MAX_SQUADS = 8, MAX_VEHICLES = 9;
+export const FORCE = { footSquads: 9 };   // squads a side on an infantry-only map, every doctrine alike: with nothing but men to buy, Light's ninth squad alone won 15 of 18 against Balanced on The Hollow (G3, 2026-10-31), its price and respawn making no difference
 
 export const ITEMS = {
   rifle:    { kind: 'squad', name: 'Rifle squad', cost: 100, kits: ['rifle', 'rifle', 'mg', 'rifle'], desc: 'All-round infantry' },
@@ -22,7 +23,7 @@ export const ITEMS = {
 export const DOCTRINES = {
   mechanized: { name: 'Mechanized', desc: 'APCs 25% and tanks 15% cheaper, vehicles respawn 30% faster', costMul: { apc: 0.75, tank: 0.85 }, vehicleRespawn: 0.7, infantryRespawn: 1 },
   air:        { name: 'Air Assault', desc: 'Helicopters 35% cheaper and back in half the time; troops a helicopter lands capture twice as fast for 90 s; +10 tickets for every location captured; infantry may respawn beside an idle helicopter', costMul: { heli: 0.65, bird: 0.65 }, vehicleRespawn: 1, heliRespawn: 0.5, infantryRespawn: 1, heliSpawn: true, airCapture: 2, captureBonus: 10 },
-  light:      { name: 'Light Infantry', desc: 'Infantry respawn halved and a fallen soldier costs half a ticket, one extra squad slot; infantry may respawn beside a parked truck', costMul: {}, vehicleRespawn: 1, infantryRespawn: 0.5, respawnCost: 0.5, squadSlots: 1, truckSpawn: true },
+  light:      { name: 'Light Infantry', desc: 'Infantry respawn halved and a fallen soldier costs half a ticket (three quarters and 11 s on an infantry-only map, where every doctrine fields nine squads), one extra squad slot; infantry may respawn beside a parked truck', costMul: {}, vehicleRespawn: 1, infantryRespawn: 0.5, respawnCost: 0.5, respawnCostInfantryOnly: 0.75, infantryRespawnInfantryOnly: 0.75, squadSlots: 1, truckSpawn: true },   // respawnCostInfantryOnly, infantryRespawnInfantryOnly: with nothing but men to lose, half-price men won 17 of 18 against Balanced on The Hollow (G3, 2026-10-31)
   entrenched: { name: 'Entrenched', desc: '+20 tickets for every location captured; FOBs build twice as fast', costMul: {}, vehicleRespawn: 1, infantryRespawn: 1, captureBonus: 20, fobBuild: 0.5 },
 };
 
@@ -41,7 +42,7 @@ export function itemCost(key, doctrine) { const it = ITEMS[key], mul = (DOCTRINE
 export function summarize(l, infantryOnly = false) {
   let cost = 0, squads = 0, vehicles = 0;
   for (const [k, n] of Object.entries(l.items || {})) { if (!ITEMS[k] || !n) continue; cost += itemCost(k, l.doctrine) * n; if (ITEMS[k].kind === 'squad') squads += n; else if (ITEMS[k].kind === 'vehicle') vehicles += n; }
-  const slots = MAX_SQUADS + ((DOCTRINES[l.doctrine] && DOCTRINES[l.doctrine].squadSlots) || 0);
+  const slots = infantryOnly ? FORCE.footSquads : MAX_SQUADS + ((DOCTRINES[l.doctrine] && DOCTRINES[l.doctrine].squadSlots) || 0);
   const errors = [];
   if (cost > BUDGET) errors.push(`over budget by ${cost - BUDGET}`);
   if (squads > slots) errors.push(`too many squads (${squads}/${slots})`);
@@ -66,7 +67,7 @@ export function fitMap(l, map) {
   if (!map || !map.infantryOnly) return l;
   const out = clone(l); for (const k of Object.keys(out.items)) if (!ITEMS[k] || ITEMS[k].kind !== 'squad') delete out.items[k];
   for (const k of ['at', 'engineer']) if (out.items[k]) { out.items.rifle = (out.items.rifle || 0) + out.items[k]; delete out.items[k]; }   // nothing to shoot rockets at or to build: rifles instead
-  let s = summarize(out); while (s.cost + itemCost('rifle', out.doctrine) <= BUDGET && s.squads < s.slots) { out.items.rifle = (out.items.rifle || 0) + 1; s = summarize(out); }
+  let s = summarize(out, true); while (s.cost + itemCost('rifle', out.doctrine) <= BUDGET && s.squads < s.slots) { out.items.rifle = (out.items.rifle || 0) + 1; s = summarize(out, true); }   // up to the map's squad count (FORCE.footSquads)
   return out;
 }
 export const preset = (key) => clone(PRESETS[key] || PRESETS.balanced);

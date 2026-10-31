@@ -92,8 +92,9 @@ export class Lobby {
   }
 
   deploy() {
-    if (!summarize(this.loadout).ok) return;
-    saveLoadout(this.loadout); this.saveMode();
+    const card = this.maps.find(m => m.key === this.mapKey), inf = !!(card && card.infantryOnly);
+    if (!summarize(this.loadout, inf).ok) return;
+    if (!inf) saveLoadout(this.loadout); this.saveMode();   // an infantry-only map's fitted force (nine rifle squads, no vehicles) is not what to come back to on the next map
     this.root.style.display = 'none';
     this.onDeploy(clone(this.loadout), { ...this.modeOpts });
   }

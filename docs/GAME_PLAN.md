@@ -3004,7 +3004,7 @@ Engine changes needed in the existing core:
     ends up 32 m out and in range; nothing to change unless G3 shows them short. Hold fire: a held squad throws no
     grenade until sprung, then its grenades go first (a sprung ambush at 20 m is grenade range both ways). The CPU
     needs nothing: the throw is part of firing, and its hold posts and approach line already stand at the right range.
-  - **G3, balance (half a day).** `tools/balance.mjs`: the Hollow mirror on 25+ seeds (`--one-side`, `--extra swap=1`),
+  - **G3, balance (half a day). Done 2026-10-31, see below.** `tools/balance.mjs`: the Hollow mirror on 25+ seeds (`--one-side`, `--extra swap=1`),
     reading deaths a minute, time to the end and whether matches now end by tickets before minute 10 (then the pool
     goes to 240 or the count to one); Balanced and Light mirrors on Desert Crossing and Palm Valley for the death rates
     on vehicle maps; a CPU Hollow match watched for the attacker/defender kill ratio at the Hamlet (was 2:1 for the
@@ -3056,6 +3056,39 @@ Engine changes needed in the existing core:
   schema (location names as spans, counts, a squad list) for a player-side strategist to carry out; the parsing is
   trivial with it, the player-side strategist is the real work. Probe script: scratchpad gw/clairic.mjs (wiped daily;
   the REST call is POST accounts/<id>/ai/run/@cf/cloudflare/clairic with { model, state, fields }).
+
+- **G3 done (2026-10-31, "commit then G3").** Every variant replayed the same seeds, so the differences are the change
+  alone (`?gren=count[:dmgInf[:splash]]`, `?lightcost=`, `?lightrespawn=`, `?footslots=` are the knobs, in app.js).
+  The Hollow mirror, Light v Light, 26 seeds, one side:
+    | grenades | deaths a minute | median end | by tickets | of them before minute 10 | SW-NE |
+    | none | 26.8 | 720 s (clock) | 6 of 27 | 0 | 18-9 |
+    | two a man, 40 over 5 m | 39.7 | 597 s | 22 | 14 | 15-12 |
+    | one a man, 40 over 5 m | 35.9 | 587 s | 20 | 14 | 11-16 |
+    | two a man, 30 over 4 m | 34.9 | 628 s | 23 | 6 | 10-17 |
+    | the same, pool 240, Light's man at 0.75 and 11 s | 35.7 | 605 s | 21 | 10 | 8-19 |
+  Kept: two a man, 30 over 4 m (one a man did not shorten the early endings; the softer burst did). The pool: 240 did
+  not move the end because Light's dearer men offset it; projecting each ticket ending in proportion to the pool put
+  280 at a median of 699 s, 11 of 27 by tickets and none before minute 10, so the pool is 280. Measured at 280: median
+  679 s, 11 of 27 by tickets, 1 before minute 10, 16 to the clock with a median margin of 56, 36.3 deaths a minute,
+  SW-NE 9-18.
+  Vehicle maps, Balanced and Light mirrors, seeds 101 to 103: Palm Valley 15.4 deaths a minute without grenades, 17.8
+  at 40 over 5 m, 19.2 at 30 over 4 m; Desert Crossing 18.0, 21.5, 22.5; every match to the clock. The Hamlet watch
+  (seeds 3 and 4, CPU v CPU): defender and attacker kills round the Hamlet at parity with or without grenades (68-65,
+  99-105 against 34-34, 42-62), grenades about half the kills there, so the two-to-one was the human game, not the
+  engine. Balanced v Light on the Hollow, 8 seeds both ways, with grenades: Light 16 of 18 at half price, 14 of 18 at
+  three quarters, 14 of 18 at full price, 16 of 18 with its respawn at 0.75 and 15 of 18 at full-length respawns: the
+  price and the timer were not the lever. What Light kept on an infantry-only map was its ninth squad (`fitMap` filled
+  to each doctrine's slots: Balanced eight, Light nine) while every other doctrine's perks are vehicle perks and go.
+  `FORCE.footSquads = 9`: on an infantry-only map `summarize` gives every doctrine nine slots and `fitMap` fills to
+  them (Balanced, Light, Air and Mechanized all fit to the same men: 7 rifle, 1 support, 1 medic for the first two),
+  and Balanced v Light went 9-9 (at eight squads each it was Light 12 of 18). Kept with it: Light's man at three
+  quarters of a ticket and back in 11 s there (`respawnCostInfantryOnly`, `infantryRespawnInfantryOnly` on the
+  doctrine, `team.respawnCost` and `team.infantryRespawn` set in match.js and read by respawn.js); the lobby's Light
+  text says so, and the lobby no longer saves an infantry-only map's fitted force as the player's loadout. Watch: the
+  side lean. Without grenades the south-west base won 18 of 27 today and 25 of 42 at H4; with them the five runs
+  pooled are 52-83 the other way (the runs share seeds, so they are not independent). The hamlet is point-symmetric
+  (cottage pairs turned, the church on the centre); the one asymmetry is a cottage at the Ford against a mill at the
+  Mill, which the grenade rule's building test would treat differently if the mill lacks the `bld` tag. Not chased.
 
 ## Open questions
 

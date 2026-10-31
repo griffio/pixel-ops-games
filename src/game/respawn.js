@@ -8,7 +8,7 @@ export class Respawn {
   sea(team) { return this.landing && this.landing.team === team.id ? this.landing : null; }   // the landing craft, for a side based on a ship
 
   cost(u) { return u.supply ? RULES.ticketCost.supply : (RULES.ticketCost[u.type] || 0); }   // fob: 40; caches are charged by the mode
-  timer(u) { const t = this.teams[u.team], d = t.doctrine || {}; return RULES.respawnTime[u.type] * (u.type === 'soldier' ? (d.infantryRespawn || 1) : (d.vehicleRespawn || 1)) * (u.spec.air ? d.heliRespawn || 1 : 1) * (t.respawnMul || 1); }
+  timer(u) { const t = this.teams[u.team], d = t.doctrine || {}; return RULES.respawnTime[u.type] * (u.type === 'soldier' ? (t.infantryRespawn ?? d.infantryRespawn ?? 1) : (d.vehicleRespawn || 1)) * (u.spec.air ? d.heliRespawn || 1 : 1) * (t.respawnMul || 1); }
 
   onDeath(victim, killer) {
     const team = this.teams[victim.team]; team.losses++;
@@ -86,7 +86,7 @@ export class Respawn {
       if (rally ? !(rally.waveNow && this.clock - q.died >= RULES.rally.cutoff) : q.t > 0) continue;
       if (u.type === 'soldier') {
         // a doctrine may make men cheaper (Light Infantry: half a ticket); the fraction carries over, so every second man is free
-        const cost = RULES.ticketCost.soldier * ((team.doctrine && team.doctrine.respawnCost) ?? 1), due = Math.floor((team.respawnDebt || 0) + cost + 1e-9);
+        const cost = RULES.ticketCost.soldier * (team.respawnCost ?? (team.doctrine && team.doctrine.respawnCost) ?? 1), due = Math.floor((team.respawnDebt || 0) + cost + 1e-9);
         if (team.tickets < due) continue;            // can't afford it yet
         team.respawnDebt = (team.respawnDebt || 0) + cost - due; team.tickets -= due;
         const [x, z] = rally ? this.atRally(rally) : this.spawnPoint(u, team);

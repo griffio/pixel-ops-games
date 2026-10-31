@@ -87,7 +87,7 @@ turns an attack-move under way into a plain move.
 
 Riflemen carry two **hand grenades** each. A man within 35 m who is behind cover,
 dug in, in a thicket, against a building or standing with two others gets one
-lobbed at him, bursting over 5 m on his side of the wall, one throw a squad every
+lobbed at him, bursting over 4 m on his side of the wall, one throw a squad every
 four seconds and none with a friend close to him, so a squad that sits behind a
 wall at rifle range pays for it. Grenades come back with a respawn, in the main
 base, or beside a stopped supply truck for 2 supplies a squad.
@@ -149,7 +149,7 @@ whose place the attacker holds refills supply trucks. With none held, a truck wa
 the beach rides a craft back to the ship and comes out full. The defender's base is on the
 mainland, so everything it sends crosses the bridge.
 
-`?map=hollow` plays *The Hollow*, 500 m, infantry only, Advance and Secure only, 200
+`?map=hollow` plays *The Hollow*, 500 m, infantry only, Advance and Secure only, 280
 tickets and a 12-minute clock. Two wooded ridges run north to south with a gully between
 them: a hamlet on the floor, a clearing on each crest, a ford and a mill on the floor
 near either end. The woods are thickets: they block sight like a wall and infantry push
@@ -161,9 +161,10 @@ places under their base. The map is point-symmetric through its centre: every wo
 wall on one side is the other's turned round, and the walk from either base to the
 Hamlet is 308 m. Hold fire and attack-move are the orders here, and the CPU's holding
 squads hold fire too. No vehicles: the force builder hides them and turns anti-tank and
-engineer squads into rifles, and the CPU brings Light Infantry. In 42 seeded CPU mirror
-matches the two bases split 25 to 17, four matches in five ran to the clock, and the
-median margin was 86 of 200 tickets.
+engineer squads into rifles, every doctrine fields nine squads, and the CPU brings Light
+Infantry. Since grenades the pool is 280: in 27 seeded CPU mirror matches 16 ran to the
+clock with a median margin of 56, the rest ended by tickets after minute 10, and the bases
+split 9 to 18, a lean still being watched.
 
 Cliffs ring the coast except at three landings:
 - West Beach: sand, open to vehicles.

@@ -24,7 +24,7 @@ const DRAWS = sym([
 ]);
 
 export const hollow = {
-  name: 'The Hollow', size: 500, mode: 'aas', infantryOnly: true, tickets: 200, clock: 12,
+  name: 'The Hollow', size: 500, mode: 'aas', infantryOnly: true, tickets: 280, clock: 12,   // 280 since grenades (G3, 2026-10-31): at 200 half the CPU mirrors ended by tickets before minute 10
   hour: 8.4, wind: [0.5, 0.8],   // a low morning sun, mist in the gully
   blurb: 'Infantry only: two wooded ridges and the gully between, a hamlet on the floor, a clearing on each crest. Ambush, or be ambushed.',
   nav: { foot: 1, vehicle: 2 },
