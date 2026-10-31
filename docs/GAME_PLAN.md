@@ -3418,6 +3418,16 @@ Engine changes needed in the existing core:
   `against` and `nudged`, the gate made one read of four when nothing changed. To tune after a live game from the
   gateway logs (kind=watch rows, and `watch` in the commander digests): the thresholds, the 8 s, and whether the early
   plans helped.
+  First live run (2026-10-31, the user v Opus on Palm Valley, Opus 369-208): 166 reads in 25 minutes, 8.5 s apart, a
+  median 1.6k characters of state, about a thousand Clef tokens a read; the change gate never skipped after minute 1.5
+  because the tickets moved every read. Two nudges (minutes 6.4 and 8.5, both on "plan working" 0.17 to 0.29 around
+  Opus's two Quarry attempts); 23 reads against the plan in all, every one on working, none on callOff (at most 0.18),
+  attackNow (at most 0.57) or a threatened place outside the plan (the Bridge, always in the hold list, read 0.6 to
+  0.77 when 13 of the player's men stood 100 m south of it, so the question tracks a massing well). The early plans
+  changed nothing: each nudged plan kept its attack and the next regular one called it off. Two fixes from the run: the
+  first three reads failed with a 422 because Clef's choice needs two options and Opus owned no place yet (the
+  threatened question is now left out while we own nothing), and `nudged` now stays on the digest until the plan it
+  asked for arrives rather than being overwritten by the next read.
 
 ## Open questions
 

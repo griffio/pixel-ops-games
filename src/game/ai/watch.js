@@ -10,7 +10,7 @@ import { buildDigest } from './digest.js';
 export class PlanWatch {
   constructor(match, strategist, url = '/watch', { interval = 8, nudgeGap = 60, first = 20, maxSkips = 3 } = {}) {
     this.match = match; this.s = strategist; this.team = strategist.team; this.url = url; this.interval = interval; this.nudgeGap = nudgeGap; this.maxSkips = maxSkips;
-    this.acc = interval - first; this.pending = false; this.off = false; this.lastNudge = -Infinity; this.strikes = 0; this.fails = 0; this.lastFp = null; this.skipped = 0;
+    this.acc = interval - first; this.pending = false; this.off = false; this.lastNudge = -Infinity; this.nudgedAt = -Infinity; this.strikes = 0; this.fails = 0; this.lastFp = null; this.skipped = 0;
     this.stats = { calls: 0, ok: 0, skipped: 0, nudges: 0, lastMs: 0 };
   }
   tick(dt) {
@@ -53,8 +53,9 @@ export class PlanWatch {
     const R = this.s.remote, now = this.match.elapsed, reasons = this.against(w, st);
     this.strikes = reasons.length ? this.strikes + 1 : 0;
     const nudge = this.strikes >= 2 && now - this.lastNudge >= this.nudgeGap && now - R.planAt > 10;
+    if (nudge) { this.lastNudge = this.nudgedAt = now; this.strikes = 0; this.stats.nudges++; R.nudge(); }
+    // nudged stays on the digest until the plan it asked for arrives, even when another read lands first
     R.watch = { minute: +(now / 60).toFixed(1), working: w.working, threatened: w.threatened && w.threatened.place !== 'none' ? w.threatened.place : undefined, threatenedConfidence: w.threatened && w.threatened.place !== 'none' ? w.threatened.confidence : undefined,
-      callOff: st.attack ? w.callOff : undefined, attackNow: st.attack ? undefined : w.attackNow, against: reasons.length ? reasons : undefined, nudged: nudge ? 'yes: this plan was asked for early on the read above' : undefined };
-    if (nudge) { this.lastNudge = now; this.strikes = 0; this.stats.nudges++; R.nudge(); }
+      callOff: st.attack ? w.callOff : undefined, attackNow: st.attack ? undefined : w.attackNow, against: reasons.length ? reasons : undefined, nudged: this.nudgedAt > R.planAt ? (nudge ? 'yes: this plan was asked for early on the read above' : 'yes: this plan was asked for early on an earlier read against the last one') : undefined };
   }
 }

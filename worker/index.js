@@ -117,8 +117,9 @@ export function readStyle(answers) { const A = answers || {}, s = A.style || {};
 export function watchQuestions(ours, attack) {
   const q = {
     working: { type: 'noul', instructions: 'Given the trends (tickets now and over the last minutes, deaths a minute), the places and what the enemy is doing, is the current plan working: are we gaining or holding what it set out to?' },
-    threatened: { type: 'choice', instructions: 'Which of our places is most at risk of being taken in the next minute or two, from the enemy groups near it and the men we have there? "none" when none is.', criteria: { none: 'no place of ours is at real risk now', ...Object.fromEntries(ours.map(n => [n, `our place called ${n}`])) } },
   };
+  // a choice needs two options: with no place of ours yet there is nothing to threaten (the live game's first three reads failed on "none" alone)
+  if (ours.length) q.threatened = { type: 'choice', instructions: 'Which of our places is most at risk of being taken in the next minute or two, from the enemy groups near it and the men we have there? "none" when none is.', criteria: { none: 'no place of ours is at real risk now', ...Object.fromEntries(ours.map(n => [n, `our place called ${n}`])) } };
   if (attack) q.callOff = { type: 'noul', instructions: `Should the attack on ${attack} be called off now, because it is too costly or hopeless against what is seen there, rather than pressed?` };
   else q.attackNow = { type: 'noul', instructions: 'With no attack under way, should we start one now rather than keep holding: is a place of theirs lightly held or empty, and can we spare the squads?' };
   return q;
