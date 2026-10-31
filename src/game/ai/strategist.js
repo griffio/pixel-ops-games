@@ -181,11 +181,23 @@ export class Strategist {
     const refused = this.refused = new Map(), elsewhere = (r, why) => refused.set(r.id, `${r.role}${r.at ? ' at ' + r.at : ''}: ${why}`);
     for (const sq of squads) sq.aaPost = null;   // set again below for the squads still on anti-air duty
     if (garrison && roles.has(garrison.leader.label)) elsewhere(roles.get(garrison.leader.label), 'it crews our FOB emplacements, so it stays on them');
+    // squads the player ordered at the same place go in together (the wheel's one-squad-at-a-time orders fed a held Village
+    // piecemeal, 2026-10-31): they gather 60 m short of it and move when all are within 25 m of each other, or after a minute's
+    // wait, so a respawned squad walking from base does not hold the others for ever
+    const TAKE = ['hold', 'reserve', 'screen', 'grab', 'antiair'], takeGroups = new Map(), now = this.match.elapsed;
+    for (const sq of assigned) { const r = roles.get(sq.leader.label), at = r.at ? byName(r.at) : null; if (r.order && at && at.owner !== this.team && TAKE.includes(r.role)) { if (!takeGroups.has(at.name)) takeGroups.set(at.name, []); takeGroups.get(at.name).push(sq); } }
+    const centre = (grp) => { const cs = grp.map(s => s.centroid()); return { x: cs.reduce((a, c) => a + c.x, 0) / cs.length, z: cs.reduce((a, c) => a + c.z, 0) / cs.length }; };
     for (const sq of assigned) {
       const r = roles.get(sq.leader.label), at = r.at ? byName(r.at) : null, ours = at && at.owner === this.team ? at : null;
       // the player's order to hold, screen, wait at or grab a place that is not ours means go and take it, then hold it
-      if (r.order && at && !ours && ['hold', 'reserve', 'screen', 'grab', 'antiair'].includes(r.role)) {
+      if (r.order && at && !ours && TAKE.includes(r.role)) {
         if (o2 && !o2.capturable(this.team, at)) { elsewhere(r, `the ${at.name} cannot be taken yet, take a place it links to first; so at ${hold ? hold.name : 'base'}`); holdAt(sq, hold); continue; }
+        const grp = takeGroups.get(at.name);
+        if (grp && grp.length > 1) {
+          const c = centre(grp), together = grp.every(s => { const q = s.centroid(); return Math.hypot(q.x - c.x, q.z - c.z) < 25; }) || grp.some(s => s.stagedAt && now - s.stagedAt > 60);
+          if (!together) { const [x, z] = this.toward(c, at, 60); if (!sq.stagedAt) sq.stagedAt = now; this.send(sq, x, z, 'stage' + at.index, at, true); continue; }
+        }
+        sq.stagedAt = 0;
         const [x, z] = this.inZone(at.x, at.z, at); this.send(sq, x, z, 'cap' + at.index, at); continue;
       }
       if (r.at && !ours && (r.role === 'hold' || r.role === 'reserve' || r.role === 'screen' || r.role === 'antiair')) elsewhere(r, `not ours, so at ${hold ? hold.name : 'base'} instead`);

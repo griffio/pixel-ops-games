@@ -60,23 +60,25 @@ export class Wheel {
     const me = this.me, o = this.match.objectives;
     if (this.step === 0) return [{ k: 'all', name: 'Everyone', glyph: 'flag' }, { k: 'fresh', name: 'Fresh', glyph: 'base', title: 'the squads at base' }, ...this.squads().map(s => ({ k: s.members[0].label, name: s.members[0].label, cls: s.manual ? 'hand' : '', title: s.manual ? 'in your hand' : '' }))];
     if (this.step === 1) { const all = this.who.k === 'all'; return [...WHAT.filter(w => !(all && w.k === 'grab')), ...(all ? INTENT.map(i => ({ ...i, cls: 'intent' })) : [])]; }
-    const w = WHAT.find(x => x.k === this.what), p = this.subjectPos();
+    const w = WHAT.find(x => x.k === this.what), p = this.subjectPos(), m = this.match;
+    const foes = m.vision ? m.vision.contacts(me).filter(u => !u.spec.structure && !(u.spec.air && u.alt > 2)) : [];   // what we see at each place: men, and vehicles counted as four
+    const seen = (l) => { const near = foes.filter(f => Math.hypot(f.pos.x - l.x, f.pos.z - l.z) < l.r + 40), inf = near.filter(f => f.type === 'soldier').length, veh = near.length - inf; return { badge: inf + veh ? `${inf}${veh ? ' +' + veh + ' veh' : ''}` : '', weight: inf + veh * 4 }; };
     let L = this.places().map(l => ({ l, d: Math.hypot(l.x - p.x, l.z - p.z) }));
     if (w.where === 'ours') L = L.filter(x => x.l.owner === me);
     if (w.where === 'free') L = L.filter(x => x.l.owner !== me && o && o.capturable(me, x.l));
     L.sort((a, b) => a.d - b.d);
-    const items = L.slice(0, 8).map(x => ({ k: 'at:' + x.l.name, name: x.l.name, cls: x.l.owner === me ? 'ours' : x.l.owner >= 0 ? 'theirs' : '', title: `${Math.round(x.d)} m` }));
+    const items = L.slice(0, 8).map(x => { const s = seen(x.l); return { k: 'at:' + x.l.name, name: x.l.name, cls: x.l.owner === me ? 'ours' : x.l.owner >= 0 ? 'theirs' : '', title: `${Math.round(x.d)} m${s.badge ? ', ' + s.badge + ' seen' : ''}`, badge: s.badge, weight: s.weight }; });
     if (w.k !== 'take' && w.k !== 'grab') items.push({ k: 'here', name: 'Here', glyph: 'move', title: 'then tap the ground' });
     return items;
   }
   render() {
-    const items = this.items(), n = items.length, R = n > 8 ? 144 : 118;
+    const items = this.items(), n = items.length, R = n > 8 ? 144 : 118; this.lastItems = items;
     for (const e of this.ring.querySelectorAll('.w-seg')) e.remove();
     items.forEach((it, i) => {
       const a = -Math.PI / 2 + i * 2 * Math.PI / n, b = document.createElement('button');
       b.type = 'button'; b.className = 'w-seg' + (it.cls ? ' ' + it.cls : ''); b.dataset.k = it.k; b.title = it.title || it.name;
       b.style.setProperty('--dx', `${Math.round(R * Math.cos(a))}px`); b.style.setProperty('--dy', `${Math.round(R * Math.sin(a))}px`);
-      b.innerHTML = `${it.glyph ? icon(it.glyph) : ''}<span>${it.name}</span>`; this.ring.appendChild(b);
+      b.innerHTML = `${it.glyph ? icon(it.glyph) : ''}<span>${it.name}</span>${it.badge ? `<em>${it.badge}</em>` : ''}`; this.ring.appendChild(b);
     });
     this.hub.className = 'w-hub' + (this.step ? ' back' : '');
     this.hub.innerHTML = this.step === 0 ? '<small>who</small><b>?</b>' : this.step === 1 ? `<small>what</small><b>${this.whoName()}</b>` : `<small>where</small><b>${this.whatName()}</b><small>tap: back</small>`;
@@ -99,7 +101,8 @@ export class Wheel {
       this.step = 2; return this.render();
     }
     if (k === 'here') { this.close(); this.app.hud.toast(`${this.app.touch ? 'Tap' : 'Click'} the ground`); this.app.input.pickGround((x, z) => this.here(x, z)); return; }
-    const at = k.slice(3); this.send(this.spec(at), this.sentence(at));
+    const at = k.slice(3), it = (this.lastItems || []).find(x => x.k === k), lone = this.who.k === 'sel' && this.who.ids.length === 1;
+    if (this.send(this.spec(at), this.sentence(at)) && lone && it && it.weight >= 8) this.app.hud.toast(`${it.badge} seen at the ${at}: one squad alone? Everyone, then Take, sends the lot`);   // sent all the same: the player's call
   }
   how() { return this.mods.costs ? 'at all costs' : this.mods.quiet ? 'quietly' : undefined; }
   whoSpec() { return this.who.k === 'sel' ? this.who.ids : this.who.k; }
@@ -115,8 +118,8 @@ export class Wheel {
   }
   send(spec, text) {
     if (!spec) return; const r = this.match.orders.add({ ...spec, text });
-    if (r.error) { this.app.hud.toast(`Can't: ${r.error}`); if (this.app.audio) this.app.audio.ui('deny'); return; }
-    if (this.app.audio) this.app.audio.ui('order'); this.close();
+    if (r.error) { this.app.hud.toast(`Can't: ${r.error}`); if (this.app.audio) this.app.audio.ui('deny'); return false; }
+    if (this.app.audio) this.app.audio.ui('order'); this.close(); return true;
   }
   // "Here": the squads go to the point by the player's own hand (an ambush there holds fire)
   here(x, z) {

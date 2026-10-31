@@ -3218,6 +3218,25 @@ Engine changes needed in the existing core:
   touches). Screenshots in the scratchpad (t/wheel2-who.png, t/wheel2-where.png). Not done: landmarks as places (no
   named landmark list in the engine yet), order tags on the map (the card carries the order), number keys on the desktop.
 
+- **Command Wheel, after the first game (2026-10-31, "Go all four").** The user's first wheel game, Llama as their CO
+  against Opus on Desert Crossing, read back from the gateway: single-squad "take the Village" orders dialled one at a
+  time fed a Village held by 12 men and two APCs piecemeal (each squad hid from the armour, having no launcher), the
+  first order "SQ-05 take the Airfield" kept the only anti-tank squad in a sandbag post for eleven minutes after the
+  Airfield fell, and the cards read "Order: take the Village" while the squads hid; Opus took the Village at 5:42 and
+  bled the player 15 to 19 a minute (393 to 490 at minute 12 of 25). Four fixes: (1) squads whose orders name the same
+  place not ours gather 60 m short of it (`stage<index>`, careful) and go in together once all are within 25 m of
+  each other, or after a minute's wait; a lone order goes at once. (2) A take-worded order reads "hold the ..." once the
+  place is ours, with the note "taken, now holding"; while it stands the note says what its squads do instead: hiding
+  from enemy armour (the `cover` tag, needs a launcher or an APC), falling back, gathering; the card shows the note's
+  first clause, the digest the whole, and the prompt tells the CO to say in reason when a standing order is costing us,
+  and still obey. (3) The wheel's Where pills carry what we see there in red ("Bridge 8 +1 veh", vehicles counted as
+  four), and a single squad sent at eight or more gets a toast after the order: "one squad alone? Everyone, then Take,
+  sends the lot". (4) The same badge sits in the pill's title with the distance. Checked headless: two squads 80 m apart
+  ordered at the Ford both staged, went in together at 46 m apart, held it with the rewritten text; a squad ordered at a
+  place under a spawned enemy APC read the hiding note; the pill and the toast carried "8 +1 veh". Not changed: Llama as
+  a CO writes two-word reasons and never acknowledged an order by name; Sonnet or Opus on the player's side reads the
+  Orders paragraph, at a cost.
+
 ## Open questions
 
 None open. Answered:

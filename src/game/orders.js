@@ -71,7 +71,16 @@ export class Orders {
     for (const o of this.list) {
       if (o.status !== 'standing') continue;
       if (o.intent === 'take' && o2) { const l = o2.list.find(l => l.name === o.at); if (l && l.owner === o.team) this.end(o, 'taken'); }
-      if (Array.isArray(o.who)) { const s = (m.strategists || []).find(s => s.team === o.team), notes = s && s.refused ? o.who.map(w => s.refused.get(w)).filter(Boolean) : []; o.refusedNote = notes.length ? notes[0] : undefined; }
+      if (Array.isArray(o.who)) {
+        const s = (m.strategists || []).find(s => s.team === o.team), notes = s && s.refused ? o.who.map(w => s.refused.get(w)).filter(Boolean) : []; o.refusedNote = notes.length ? notes[0] : undefined;
+        // a take-worded order reads hold once the place is ours; while it stands, what its squads are doing instead of it
+        const mine = this.squadsOf(o.team).filter(sq => o.who.includes(this.label(sq))), l = o.at && o2 ? o2.list.find(l => l.name === o.at) : null;
+        if (l && l.owner === o.team && !o.taken && /\btake the\b/.test(o.text)) { o.taken = true; o.text = o.text.replace(/\btake the\b/, 'hold the'); o.note = 'taken, now holding'; }
+        else if (mine.some(sq => sq.tag === 'cover')) o.note = 'hiding from enemy armour: needs a launcher or an APC';
+        else if (mine.some(sq => sq.tag === 'back')) o.note = 'falling back, outnumbered';
+        else if (mine.some(sq => sq.tag && sq.tag.startsWith('stage'))) o.note = 'gathering before going in';
+        else if (o.note !== 'taken, now holding') o.note = undefined;
+      }
     }
     for (const t of new Set((m.strategists || []).map(s => s.team))) for (const sq of this.squadsOf(t)) {
       if (!sq.manual) continue;
