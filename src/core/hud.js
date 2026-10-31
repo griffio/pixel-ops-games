@@ -475,7 +475,7 @@ export class Hud {
         tag = document.createElement('div'); tag.className = 'tag';
         const segs = u.squad ? u.squad.members.length : 1;
         tag.innerHTML = `<i class="tick"></i><svg class="ico" viewBox="0 0 16 10">${ICON[u.type] || ''}</svg><span>${u.label}</span><b class="bar">${'<i></i>'.repeat(segs)}</b>`;
-        tag.classList.toggle('enemy', u.team !== me);
+        tag.classList.toggle('enemy', u.team !== me); tag.classList.toggle('own', u.team === me);   // blue for ours, red for theirs
         this.labelRoot.appendChild(tag); this.tags.set(u, tag);
       }
       const bar = tag.lastChild;

@@ -3330,6 +3330,12 @@ Engine changes needed in the existing core:
   10 v 8 squads at 0.69 ms a tick, the Hollow at 9 v 9, fourteen pills with no overlap and none over the button, and a
   screenshot of the two rings on an iPad-sized view. README: 1,500 points.
 
+- **Blue borders on our own unit labels (2026-10-31).** The user: BLUFOR labels on the map should carry a blue border as
+  OPFOR's carry red. The map tags had `.tag.enemy` in red and nothing for ours; now `.tag.own` gives the player's units a
+  border and tick in the BLUFOR blue (#7fb2e5), the selection's gold still overriding. Checked in a headless shot of the
+  base view. (A `//` comment written into the style block on the way would have eaten the next rule; CSS has only block
+  comments, and the style block was checked for others.)
+
 ## Open questions
 
 None open. Answered:
