@@ -27,7 +27,8 @@ export class GLRenderer {
       viewSize(w, h) { return [w / this.pixelScale / this.texelsPerUnit, h / this.pixelScale / this.texelsPerUnit]; },
     };
     this.geos = new Map(); this.batches = new Map(); this.textures = new Map();
-    this.chunkSize = 64; this.chunks = new Map(); this.ground = null;
+    this.chunkSize = 64; this.chunks = new Map(); this.coarseSize = 256; this.coarse = new Map(); this.useCoarse = false; this.ground = null;   // static props at two chunk sizes: 64 m chunks, and 256 m ones the ?coarse=1 knob draws (render() below)
+    this.bakedBatches = new Map(); this.bakedList = []; this.bakedKey = ''; this.bakeGen = 0; this.texIds = new Map();   // baked groups (structures): instanced once, merged again only when the set on show changes
     this.lightVP = Mat4.create(); this.lightView = Mat4.create(); this.lightProj = Mat4.create(); this.lightWorld = Mat4.create();
     this.progs = {
       main: this.program(S.MAIN_VS, S.MAIN_FS), shadow: this.program(S.SHADOW_VS, S.SHADOW_FS),
@@ -145,6 +146,7 @@ export class GLRenderer {
   makeBatch(geoKey, m, cap) {
     const gl = this.gl, geo = this.geometry(geoKey);
     const b = { geo, tex: m.tex, unlit: !!m.unlit, cast: !!m.cast, cutout: !!m.cutout, ground: !!m.ground, water: !!m.water, sway: !!m.sway, overlay: !!m.overlay, vao: gl.createVertexArray(), ibo: gl.createBuffer(), cap, n: 0, data: new Float32Array(cap * STRIDE) };
+    b.sortKey = ((b.ground ? 8 : 0) | (b.cutout ? 4 : 0) | (b.sway ? 2 : 0) | (b.unlit ? 1 : 0)) * 4096 + this.texId(m.tex);   // a pass draws its batches in this order, so consecutive draws share their uniforms and texture
     gl.bindVertexArray(b.vao);
     gl.bindBuffer(gl.ARRAY_BUFFER, geo.vbo);
     [[0, 3, 0], [1, 3, 12], [2, 2, 24]].forEach(([loc, n, off]) => { gl.enableVertexAttribArray(loc); gl.vertexAttribPointer(loc, n, gl.FLOAT, false, 32, off); });
@@ -154,6 +156,7 @@ export class GLRenderer {
     gl.bindVertexArray(null);
     return b;
   }
+  texId(name) { if (!name) return 0; let i = this.texIds.get(name); if (i === undefined) { i = this.texIds.size + 1; this.texIds.set(name, i); } return i; }
   pushInstance(b, world, m, id) {
     if (b.n === b.cap) { b.cap *= 2; const d = new Float32Array(b.cap * STRIDE); d.set(b.data); b.data = d; }
     const o = b.n * STRIDE, d = b.data, ei = m.emissiveI === undefined ? 1 : m.emissiveI;
@@ -163,35 +166,80 @@ export class GLRenderer {
     b.n++;
   }
 
-  // static props: baked once into per-chunk batches, culled per chunk
+  // static props: baked once into per-chunk batches, culled per chunk. Every mesh goes into a 64 m chunk and a 256 m one:
+  // the main pass draws the small chunks at play zoom and the big ones zoomed out, the shadow pass always the big ones
   addStatic(mesh) {
-    const p = mesh.position, cs = this.chunkSize;
-    const cx = Math.floor(p.x / cs), cz = Math.floor(p.z / cs), key = cx + ',' + cz;
-    let c = this.chunks.get(key);
-    if (!c) { c = { minX: cx * cs, maxX: (cx + 1) * cs, minZ: cz * cs, maxZ: (cz + 1) * cs, batches: new Map(), meshes: [], r: cs }; this.chunks.set(key, c); }
+    Mat4.fromTRS(mesh.world, mesh.position, mesh.rotation, mesh.scale);
+    this.addToLevel(this.chunks, this.chunkSize, mesh); this.addToLevel(this.coarse, this.coarseSize, mesh);
+  }
+  addToLevel(level, cs, mesh) {
+    const p = mesh.position, cx = Math.floor(p.x / cs), cz = Math.floor(p.z / cs), key = cx + ',' + cz;
+    let c = level.get(key);
+    if (!c) { c = { minX: cx * cs, maxX: (cx + 1) * cs, minZ: cz * cs, maxZ: (cz + 1) * cs, batches: new Map(), meshes: [], r: cs }; level.set(key, c); }
     c.meshes.push(mesh);   // kept so the chunk can be rebuilt without them when a building comes down
     const bk = this.batchKey(mesh.geo, mesh.mat);
     let b = c.batches.get(bk); if (!b) { b = this.makeBatch(mesh.geo, mesh.mat, 16); c.batches.set(bk, b); }
-    Mat4.fromTRS(mesh.world, mesh.position, mesh.rotation, mesh.scale);
     this.pushInstance(b, mesh.world, mesh.mat, 0);
     if (mesh.mat.ground) c.ground = true;
   }
-  finalizeStatic() {
-    const gl = this.gl;
-    for (const c of this.chunks.values()) for (const b of c.batches.values()) { gl.bindBuffer(gl.ARRAY_BUFFER, b.ibo); gl.bufferData(gl.ARRAY_BUFFER, b.data.subarray(0, b.n * STRIDE), gl.STATIC_DRAW); }
-  }
-  clearStatic() {
-    const gl = this.gl;
-    for (const c of this.chunks.values()) for (const b of c.batches.values()) { gl.deleteVertexArray(b.vao); gl.deleteBuffer(b.ibo); }
-    this.chunks.clear();
-  }
+  uploadChunk(c) { const gl = this.gl; for (const b of c.batches.values()) { gl.bindBuffer(gl.ARRAY_BUFFER, b.ibo); gl.bufferData(gl.ARRAY_BUFFER, b.data.subarray(0, b.n * STRIDE), gl.STATIC_DRAW); } }
+  deleteChunk(c) { const gl = this.gl; for (const b of c.batches.values()) { gl.deleteVertexArray(b.vao); gl.deleteBuffer(b.ibo); } }
+  finalizeStatic() { for (const c of this.chunks.values()) this.uploadChunk(c); for (const c of this.coarse.values()) this.uploadChunk(c); }
+  clearStatic() { for (const c of this.chunks.values()) this.deleteChunk(c); for (const c of this.coarse.values()) this.deleteChunk(c); this.chunks.clear(); this.coarse.clear(); }
   // one chunk rebuilt (a building came down): everything it held, less the meshes gone and plus the ones added, baked and
-  // uploaded again; the ground tiles, roads and tufts in it stay as they were
+  // uploaded again at both sizes; the ground tiles, roads and tufts in it stay as they were
   rebuildChunk(key, gone, added = []) {
-    const gl = this.gl, c = this.chunks.get(key), keep = c ? c.meshes.filter(m => !gone.has(m)) : [];
-    if (c) { for (const b of c.batches.values()) { gl.deleteVertexArray(b.vao); gl.deleteBuffer(b.ibo); } this.chunks.delete(key); }
-    for (const m of keep) this.addStatic(m); for (const m of added) this.addStatic(m);
-    const n = this.chunks.get(key); if (n) for (const b of n.batches.values()) { gl.bindBuffer(gl.ARRAY_BUFFER, b.ibo); gl.bufferData(gl.ARRAY_BUFFER, b.data.subarray(0, b.n * STRIDE), gl.STATIC_DRAW); }
+    for (const m of added) Mat4.fromTRS(m.world, m.position, m.rotation, m.scale);
+    const [cx, cz] = key.split(',').map(Number), cs = this.chunkSize, ccs = this.coarseSize, ckey = Math.floor(cx * cs / ccs) + ',' + Math.floor(cz * cs / ccs);
+    for (const [level, k, size] of [[this.chunks, key, cs], [this.coarse, ckey, ccs]]) {
+      const c = level.get(k), keep = c ? c.meshes.filter(m => !gone.has(m)) : [];
+      if (c) { this.deleteChunk(c); level.delete(k); }
+      for (const m of keep) this.addToLevel(level, size, m); for (const m of added) this.addToLevel(level, size, m);
+      const n = level.get(k); if (n) this.uploadChunk(n);
+    }
+  }
+
+  // ---- baked groups ------------------------------------------------------------
+  // A structure never moves, so its parts need not be instanced every frame: bakeGroup(node) writes the world matrices and
+  // instance records of a top-level node's subtree once, less any part marked `dynamic` (the selection ring, a gun that
+  // swings to its target), which collect() keeps visiting under the baked transform. The baked groups on show are merged
+  // into their own batches, rebuilt only when that set changes (one built, one destroyed, one hidden by the fog of war),
+  // and they are not culled, so the merge stays put while the camera moves. Picking keeps working: the records carry the
+  // group's pick id.
+  bakeGroup(node) {
+    const recs = new Map(), dyn = [], id = node.pickId !== undefined ? node.pickId : 0;
+    Mat4.fromTRS(node.local, node.position, node.rotation, node.scale); node.world.set(node.local);
+    const walk = (n, parentWorld) => {
+      for (const c of n.children) {
+        if (c.dynamic) { dyn.push(c); continue; }
+        if (!c.visible || c.hidden) continue;
+        Mat4.fromTRS(c.local, c.position, c.rotation, c.scale); Mat4.multiply(c.world, parentWorld, c.local);
+        if (c.geo) {
+          const bk = this.batchKey(c.geo, c.mat);
+          let r = recs.get(bk); if (!r) { r = { bk, geoKey: c.geo, mat: c.mat, cap: 16, n: 0, data: new Float32Array(16 * STRIDE) }; recs.set(bk, r); }
+          this.pushInstance(r, c.world, c.mat, id);
+        }
+        walk(c, c.world);
+      }
+    };
+    walk(node, node.world);
+    node.baked = { recs: [...recs.values()], dynamic: dyn, world: node.world, n: [...recs.values()].reduce((a, r) => a + r.n, 0) }; this.bakeGen++;
+    return node.baked;
+  }
+  unbakeGroup(node) { if (node.baked) { node.baked = null; this.bakeGen++; } }
+  // the baked groups on show this frame merged into batches, when the set differs from the last merge
+  mergeBaked(list) {
+    const key = this.bakeGen + ':' + list.map(n => n.pickId).join(',');
+    if (key === this.bakedKey) return; this.bakedKey = key;
+    for (const b of this.bakedBatches.values()) b.n = 0;
+    let total = 0;
+    for (const node of list) for (const r of node.baked.recs) {
+      let b = this.bakedBatches.get(r.bk); if (!b) { b = this.makeBatch(r.geoKey, r.mat, 256); this.bakedBatches.set(r.bk, b); }
+      while (b.n + r.n > b.cap) { b.cap *= 2; const d = new Float32Array(b.cap * STRIDE); d.set(b.data); b.data = d; }
+      b.data.set(r.data.subarray(0, r.n * STRIDE), b.n * STRIDE); b.n += r.n; total += r.n;
+    }
+    const gl = this.gl; for (const b of this.bakedBatches.values()) if (b.n) { gl.bindBuffer(gl.ARRAY_BUFFER, b.ibo); gl.bufferData(gl.ARRAY_BUFFER, b.data.subarray(0, b.n * STRIDE), gl.STATIC_DRAW); }
+    this.stats.baked = total; this.stats.bakedMerges = (this.stats.bakedMerges || 0) + 1;
   }
   chunkKey(x, z) { const cs = this.chunkSize; return Math.floor(x / cs) + ',' + Math.floor(z / cs); }
   setGround(g) { this.ground = g; }
@@ -224,9 +272,10 @@ export class GLRenderer {
 
   // the dynamic meshes, instanced afresh each frame. A top-level node with a bound (a unit's group, a lamp head) outside the
   // view by more than the light frustum's reach is skipped: it is off screen and casts no shadow into it. On a 3 km map that
-  // is most of the units most of the time.
+  // is most of the units most of the time. A baked group (a structure) is listed whole and its moving parts visited.
   collect(scene, box = null, reach = 0) {
     for (const b of this.batches.values()) b.n = 0;
+    const baked = this.bakedList; baked.length = 0;
     const visit = (node, parentWorld, pid) => {
       if (!node.visible || node.hidden) return;   // hidden: an enemy the player's side cannot see (fog of war)
       if (box && !parentWorld && node.bound !== undefined) { const p = node.position, r = node.bound + reach; if (p.x + r < box.minX || p.x - r > box.maxX || p.z + r < box.minZ || p.z - r > box.maxZ) return; }
@@ -240,7 +289,13 @@ export class GLRenderer {
       }
       for (const c of node.children) visit(c, node.world, id);
     };
-    for (const c of scene.children) visit(c, null, 0);
+    for (const c of scene.children) {
+      if (!c.baked) { visit(c, null, 0); continue; }
+      if (!c.visible || c.hidden) continue;
+      baked.push(c); const id = c.pickId !== undefined ? c.pickId : 0;
+      for (const d of c.baked.dynamic) visit(d, c.baked.world, id);
+    }
+    this.mergeBaked(baked);
     const gl = this.gl;
     for (const b of this.batches.values()) if (b.n) { gl.bindBuffer(gl.ARRAY_BUFFER, b.ibo); gl.bufferData(gl.ARRAY_BUFFER, b.data.subarray(0, b.n * STRIDE), gl.DYNAMIC_DRAW); }
   }
@@ -251,9 +306,19 @@ export class GLRenderer {
     for (const [sx, sy] of [[0, 0], [1, 0], [1, 1], [0, 1]]) { const p = cam.screenToGround(sx, sy); minX = Math.min(minX, p.x); maxX = Math.max(maxX, p.x); minZ = Math.min(minZ, p.z); maxZ = Math.max(maxZ, p.z); }
     return { minX, maxX, minZ, maxZ };
   }
-  visibleChunks(box, margin) {
+  visibleChunks(level, box, margin) {
     const out = [];
-    for (const c of this.chunks.values()) if (c.maxX + margin > box.minX && c.minX - margin < box.maxX && c.maxZ + margin > box.minZ && c.minZ - margin < box.maxZ) out.push(c);
+    for (const c of level.values()) if (c.maxX + margin > box.minX && c.minX - margin < box.maxX && c.maxZ + margin > box.minZ && c.minZ - margin < box.maxZ) out.push(c);
+    return out;
+  }
+  // the batches a pass draws: the chunks', the baked groups' and the dynamic ones, sorted by state (texture, cutout, sway,
+  // mode) so consecutive draws share their binds and uniforms
+  listBatches(chunks) {
+    const out = [];
+    for (const c of chunks) for (const b of c.batches.values()) if (b.n) out.push(b);
+    for (const b of this.bakedBatches.values()) if (b.n) out.push(b);
+    for (const b of this.batches.values()) if (b.n) out.push(b);
+    out.sort((a, b) => a.sortKey - b.sortKey);
     return out;
   }
 
@@ -262,10 +327,6 @@ export class GLRenderer {
     gl.bindVertexArray(b.vao);
     gl.drawElementsInstanced(gl.TRIANGLES, b.geo.count, gl.UNSIGNED_SHORT, 0, b.n);
     this.stats.calls++;
-  }
-  *eachBatch(chunks) {
-    for (const c of chunks) for (const b of c.batches.values()) if (b.n) yield b;
-    for (const b of this.batches.values()) if (b.n) yield b;
   }
 
   // ---- frame -----------------------------------------------------------------
@@ -283,9 +344,14 @@ export class GLRenderer {
     // so the shadow pass takes the chunks within that of the view, not the whole light frustum (at a far zoom that was most of
     // the map and five draw calls in six: 2,667 a frame on Palm Valley's bluff, 2026-10-31)
     const reach = Math.min(R, 40 + 50 / Math.max(0.15, L.sunDir[1]));
-    const mainChunks = this.visibleChunks(box, 40), shadowChunks = this.visibleChunks(box, reach);
-    this.stats.chunks = mainChunks.length; this.stats.shadowR = R; this.stats.shadowChunks = shadowChunks.length;
+    // ?coarse=1: the 256 m chunks for the shadow pass, and for the main pass zoomed out (a third fewer draw calls for the same ground). Off by
+    // default: on the Mac mini's Intel GPU it measured neutral to a little slower, the GPU being fill-bound, not call-bound; a tablet's Safari
+    // pays more per call, so it stays as a knob to judge there (2026-11-01)
+    const fine = this.visibleChunks(this.chunks, box, 40), wide = this.useCoarse === true && fine.length > 16;
+    const mainChunks = wide ? this.visibleChunks(this.coarse, box, 40) : fine, shadowChunks = this.useCoarse === true ? this.visibleChunks(this.coarse, box, reach) : this.visibleChunks(this.chunks, box, reach);
+    this.stats.chunks = mainChunks.length; this.stats.shadowR = R; this.stats.shadowChunks = shadowChunks.length; this.stats.wide = wide;
     this.collect(scene, box, reach * 1.2);   // dynamic meshes likewise, with a little slack for the sun's azimuth
+    const mainList = this.listBatches(mainChunks), shadowList = this.listBatches(shadowChunks);
     const target = new Vec3(cx, 0, cz), eye = new Vec3(cx + L.sunDir[0] * 400, L.sunDir[1] * 400, cz + L.sunDir[2] * 400);
     Mat4.cameraWorld(this.lightWorld, eye, target, LIGHT_UP);
     const right = Mat4.column(this.lightWorld, 0), up = Mat4.column(this.lightWorld, 1), texel = 2 * R / this.shadowSize;
@@ -301,8 +367,11 @@ export class GLRenderer {
       gl.bindFramebuffer(gl.FRAMEBUFFER, this.shadowFb); gl.viewport(0, 0, this.shadowSize, this.shadowSize);
       gl.clear(gl.DEPTH_BUFFER_BIT);
       gl.useProgram(P.shadow.p); gl.uniformMatrix4fv(P.shadow.u.uLightVP, false, this.lightVP); gl.uniform1i(P.shadow.u.uTex, 0); gl.uniform1f(P.shadow.u.uTime, (performance.now() / 1000) % 3600); gl.activeTexture(gl.TEXTURE0);
-      for (const b of this.eachBatch(shadowChunks)) if (b.cast) {
-        gl.uniform1f(P.shadow.u.uCutout, b.cutout ? 1 : 0); gl.uniform1f(P.shadow.u.uSway, b.sway ? 1 : 0); if (b.cutout) gl.bindTexture(gl.TEXTURE_2D, this.textures.get(b.tex));
+      let lc = -1, ls = -1, lt = false;
+      for (const b of shadowList) if (b.cast) {
+        const cut = b.cutout ? 1 : 0, sw = b.sway ? 1 : 0;
+        if (cut !== lc) { gl.uniform1f(P.shadow.u.uCutout, cut); lc = cut; } if (sw !== ls) { gl.uniform1f(P.shadow.u.uSway, sw); ls = sw; }
+        if (b.cutout && b.tex !== lt) { gl.bindTexture(gl.TEXTURE_2D, this.textures.get(b.tex)); lt = b.tex; }
         this.drawBatch(b);
       }
     }
@@ -341,19 +410,21 @@ export class GLRenderer {
     if (this.fog) { gl.activeTexture(gl.TEXTURE8); gl.bindTexture(gl.TEXTURE_2D, this.fogTex); gl.uniform2f(u.uFogMap, this.fog.inv, this.fog.off); }
     gl.activeTexture(gl.TEXTURE0);
     gl.uniform1f(u.uUnlit, 0); gl.depthMask(true); gl.disable(gl.BLEND);
-    for (const b of this.eachBatch(mainChunks)) if (!b.unlit && !b.water) {
-      gl.uniform1i(u.uMode, b.ground ? 1 : 0); gl.uniform1f(u.uCutout, b.cutout ? 1 : 0); gl.uniform1f(u.uSway, b.sway ? 1 : 0);
-      gl.bindTexture(gl.TEXTURE_2D, b.tex ? this.textures.get(b.tex) : this.white); this.drawBatch(b);
+    let lm = -1, lc = -1, ls = -1, lt = false; const bindTex = (t) => { if (t !== lt) { gl.bindTexture(gl.TEXTURE_2D, t ? this.textures.get(t) : this.white); lt = t; } };   // the lists are sorted by state: set a uniform or a texture only when it changes
+    for (const b of mainList) if (!b.unlit && !b.water) {
+      const mode = b.ground ? 1 : 0, cut = b.cutout ? 1 : 0, sw = b.sway ? 1 : 0;
+      if (mode !== lm) { gl.uniform1i(u.uMode, mode); lm = mode; } if (cut !== lc) { gl.uniform1f(u.uCutout, cut); lc = cut; } if (sw !== ls) { gl.uniform1f(u.uSway, sw); ls = sw; }
+      bindTex(b.tex); this.drawBatch(b);
     }
     // water: lit like the ground (shadows, the night, fog of war) but blended over the bed, without writing depth
-    gl.uniform1i(u.uMode, 2); gl.uniform1f(u.uCutout, 0); gl.enable(gl.BLEND); gl.blendFunc(gl.SRC_ALPHA, gl.ONE_MINUS_SRC_ALPHA); gl.depthMask(false);
-    for (const b of this.eachBatch(mainChunks)) if (b.water) { gl.bindTexture(gl.TEXTURE_2D, this.white); this.drawBatch(b); }
+    gl.uniform1i(u.uMode, 2); gl.uniform1f(u.uCutout, 0); gl.uniform1f(u.uSway, 0); gl.enable(gl.BLEND); gl.blendFunc(gl.SRC_ALPHA, gl.ONE_MINUS_SRC_ALPHA); gl.depthMask(false); gl.bindTexture(gl.TEXTURE_2D, this.white);
+    for (const b of mainList) if (b.water) this.drawBatch(b);
     gl.depthMask(true); gl.disable(gl.BLEND);
     gl.uniform1i(u.uMode, 0); gl.uniform1f(u.uUnlit, 1); gl.uniform1f(u.uCutout, 0); gl.depthMask(false); gl.enable(gl.BLEND); gl.blendFunc(gl.SRC_ALPHA, gl.ONE_MINUS_SRC_ALPHA); gl.disable(gl.CULL_FACE);
-    for (const b of this.eachBatch(mainChunks)) if (b.unlit && !b.overlay) { gl.bindTexture(gl.TEXTURE_2D, b.tex ? this.textures.get(b.tex) : this.white); this.drawBatch(b); }
+    lt = false; for (const b of mainList) if (b.unlit && !b.overlay) { bindTex(b.tex); this.drawBatch(b); }
     // overlays (capture rings): unlit and drawn over whatever stands in the way, so a ring on a castle's courtyard shows through its walls
     gl.disable(gl.DEPTH_TEST);
-    for (const b of this.eachBatch(mainChunks)) if (b.unlit && b.overlay) { gl.bindTexture(gl.TEXTURE_2D, b.tex ? this.textures.get(b.tex) : this.white); this.drawBatch(b); }
+    for (const b of mainList) if (b.unlit && b.overlay) { bindTex(b.tex); this.drawBatch(b); }
     gl.enable(gl.DEPTH_TEST);
 
     // 3. particles (one draw call)
@@ -396,7 +467,7 @@ export class GLRenderer {
     gl.bindFramebuffer(gl.FRAMEBUFFER, this.pickFb.fb); gl.viewport(0, 0, w, h);
     gl.clearColor(0, 0, 0, 0); gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
     const p = this.progs.pick; gl.useProgram(p.p); gl.uniformMatrix4fv(p.u.uViewProj, false, this.lastViewProj);
-    for (const b of this.batches.values()) if (b.n && !b.unlit && !b.water) this.drawBatch(b);
+    for (const list of [this.bakedBatches, this.batches]) for (const b of list.values()) if (b.n && !b.unlit && !b.water) this.drawBatch(b);   // baked structures carry their unit's pick id too
     const cx = Math.min(w - 1, Math.floor(nx * w)), cy = Math.min(h - 1, Math.floor((1 - ny) * h));
     const r = Math.min(24, Math.round(radiusPx * w / (this.canvas.clientWidth || w)));
     const x0 = Math.max(0, cx - r), y0 = Math.max(0, cy - r), bw = Math.min(w - 1, cx + r) - x0 + 1, bh = Math.min(h - 1, cy + r) - y0 + 1;

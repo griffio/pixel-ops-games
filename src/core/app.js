@@ -53,6 +53,7 @@ export function populate(app) {
     app.commanderModel = q.get('model') || null;
     app.styleOff = q.get('style') === '0';   // ?style=0: no style reads of the enemy (ai/style.js)
     app.watchOff = q.get('watch') === '0';   // ?watch=0: no watch between a remote commander's plans (ai/watch.js)
+    if (app.renderer) app.renderer.useCoarse = q.get('coarse') === '1';   // ?coarse=1: 256 m static chunks for the shadow pass and the zoomed-out main pass (gl/renderer.js), to judge on a tablet
     app.aiModes = (q.get('ai') || '').split(','); app.personas = (q.get('persona') || '').split(',');   // ?ai=rules for the older planner (default utility; per team: utility,rules), ?persona=balanced|aggressive|patient   // ?model=<key> picks a model from the Worker's allow-list (llama, gpt-oss-120b, qwen3-30b, mistral-small)
     app.startMatch = (playerLoadout, modeOpts = {}) => {
       const cpuKey = q.get('cpuloadout') || (app.world.map && app.world.map.infantryOnly ? 'light' : counterPick(playerLoadout));   // on an infantry-only map the CPU brings Light Infantry: the vehicle doctrines have nothing to spend on, and Light's half-price men won every infantry pairing

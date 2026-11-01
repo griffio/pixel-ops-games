@@ -658,7 +658,14 @@ src/gl/             WebGL2 back end
   scales back to world units from the instance's size, so a material is one batch
   rather than one per size: the units on screen cost about 20 batches a pass, a map
   chunk a dozen or two. Units and lamp heads outside the view by more than the light
-  frustum's reach are not instanced at all.
+  frustum's reach are not instanced at all. Structures (FOBs, sandbag positions,
+  emplacements, tank traps, rally points) are baked when built: their world matrices
+  and instance records are written once, merged into their own batches only when the
+  set on show changes, with the selection ring and an emplacement's gun still live.
+  A pass draws its batches sorted by state, so a uniform or texture is set only when
+  it changes; tufts cast no shadow. `?coarse=1` draws 256 m static chunks for the
+  shadow pass and the zoomed-out main pass (a third fewer draw calls; neutral on an
+  Intel GPU, for a tablet to judge).
 - Unit models come from MagicaVoxel files (`models/vox/<type>.vox` with a
   `.json` beside it; `?vox=0` falls back to the code-built ones). `src/core/vox.js`
   reads the file, and each named shape in its scene graph (`hull`, `turret`,

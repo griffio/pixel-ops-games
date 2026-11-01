@@ -211,6 +211,7 @@ export class Unit {
   die(from) {
     this.dead = true; this.deathT = 0; this.enemy = null; this.target = null; this.path = null; this.dest = null; this.hold = false; this.boardTarget = null; this.building = null; this.leavePost();
     this.killer = from || null; this.parts.ring.visible = false;
+    if (this.group.baked && this.mgr && this.mgr.world.renderer) this.mgr.world.renderer.unbakeGroup(this.group);   // a dead structure is drawn live again, so a wreck recolour or a fall shows
     // passengers: out of a ground vehicle (or a landed helicopter) shaken and hurt, lost with a helicopter shot down in the
     // air; the match applies the damage (Match: ejected) so a death is counted and respawned like any other
     if (this.passengers.length) {
@@ -478,8 +479,8 @@ export class Unit {
   step(dt, world) {
     if (this.dead) { this.stepDead(dt); return; }
     if (this.spec.naval) return;   // a landing craft is moved along its lane by game/landing.js
-    if (this.spec.structure) {   // structures sit on the terrain; a FOB gun swings to its gunner's target, back to the front when he has none
-      this.pos.y = world.surfaceAt(this.pos.x, this.pos.z);
+    if (this.spec.structure) {   // structures sit on the terrain, set once; a FOB gun swings to its gunner's target, back to the front when he has none
+      if (!this.placed) { this.pos.y = world.surfaceAt(this.pos.x, this.pos.z); this.placed = true; }
       const t = this.parts && this.parts.turret, g = t && this.crew && this.crewAt(0), e = g && g.enemy;
       if (t) { const want = e ? wrap(Math.atan2(e.pos.x - this.pos.x, e.pos.z - this.pos.z) - this.heading) : 0; t.rotation.y += clamp(wrap(want - t.rotation.y), -1.5 * dt, 1.5 * dt); }
       return;
@@ -560,6 +561,7 @@ export class UnitManager {
     if (opts.gun) u.gun = opts.gun;
     if (u.spec.ammo) u.ammo = u.spec.ammo;   // a rocket pod, full
     u.pos.y = this.world.surfaceAt ? this.world.surfaceAt(x, z) : this.world.heightAt(x, z);
+    if (u.spec.structure) { u.placed = true; const r = this.world.renderer; if (r && r.bakeGroup) { u.parts.ring.dynamic = true; if (u.parts.turret) u.parts.turret.dynamic = true; r.bakeGroup(u.group); } }   // a structure never moves: its parts are instanced once (gl/renderer.js bakeGroup), the selection ring and a gun staying live
     if (opts.supply) { u.supply = true; u.supplies = 100; u.label = u.label.replace('TR', 'SP'); }
     if (amphib) { u.amphib = true; u.spec = { ...u.spec, nav: 'amphib', swim: SWIM[type] || 3.5 }; if (type === 'apc') u.label = u.label.replace('AP', 'AV'); }   // its own spec: the amphibious grid, a swimming speed
     return u;

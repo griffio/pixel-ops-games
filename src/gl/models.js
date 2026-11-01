@@ -12,7 +12,7 @@ const lam = (hex, extra = {}) => ({ color: [...hexToLinear(hex), 1], tex: null, 
 export const MAT = {};
 for (const [k, hex] of Object.entries(COLORS)) MAT[k] = lam(hex);
 for (const k of TEXTURED) MAT[k] = { color: [1, 1, 1, 1], tex: k, emissive: [0, 0, 0], unlit: false, cast: true };
-MAT.tuft = { color: [1, 1, 1, 1], tex: 'tuft', emissive: [0, 0, 0], unlit: false, cast: true, cutout: true };
+MAT.tuft = { color: [1, 1, 1, 1], tex: 'tuft', emissive: [0, 0, 0], unlit: false, cast: false, cutout: true };   // cast: false since 2026-11-01: ten thousand tufts' shadows were a pass of cutout draws for a few dark pixels
 MAT.ring = { color: [...hexToLinear(0xf2c14e), 0.9], tex: null, emissive: [0, 0, 0], unlit: true, cast: false };
 MAT.rotorBlur = { color: [...hexToLinear(0x15171a), 0.3], tex: null, emissive: [0, 0, 0], unlit: true, cast: false };
 MAT.navRed = lam(0x200000, { emissive: hexToLinear(0xff2020) });

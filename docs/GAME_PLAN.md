@@ -3480,6 +3480,26 @@ shadows are on, and flat with them off, says the judder is the shadow pass and i
   7. **Panels' backdrop-filter blur** over a canvas that changes every frame (iOS re-blurs each frame): off on touch.
   8. **Adaptive quality:** drop the shadow map a step (4096 to 2048, 2048 to 1024) when the median frame stays over
      20 ms for a few seconds, and back when it recovers.
+- **Items 1 and 2 done (2026-11-01, "Go 1 and 2"), with a finding that changes item 1.** Structures (FOBs, sandbag
+  positions, emplacements, tank traps, rally points) are baked: `GLRenderer.bakeGroup` writes a unit group's world
+  matrices and instance records once at spawn (units.js spawn), the selection ring and an emplacement's gun marked
+  `dynamic` and still visited each frame under the baked transform; the baked groups on show are merged into their own
+  batches only when the set changes (built, destroyed, hidden by the fog), not culled, and carry the unit's pick id so
+  tapping one still selects it; die() unbakes, so a wreck recolour shows. A structure's height is set once (`placed`).
+  Checked headless: 25 structures and 1,100 instances baked at minute 5, one merge, a FOB picked at its screen position,
+  a hidden one dropped from the merge, a dying sandbag position's 128 boxes back in the dynamic batch, a building
+  collapse rebuilding the chunk. For item 1: a pass now draws its batches sorted by state (texture, cutout, sway, mode)
+  and sets a uniform or binds a texture only when it changes, and tufts cast no shadow (ten thousand cutout draws for a
+  few dark pixels). The 256 m chunk level is built but sits behind `?coarse=1`: an A/B in one frozen scene on the Mac
+  mini's Intel GPU (coarse on/off/on, two repeats) read 12.7 / 12.9 / 16.6 / 15.1 ms zoomed out and 9.2 / 8.7 / 9.4 /
+  8.8 at play zoom, so neutral to a little worse for a third fewer calls: this GPU is fill-bound, not call-bound. The
+  calls hypothesis stands for Safari on the iPad, where each call costs more, so the knob is there to judge with the
+  FPS readout. Sorted lists measured the same as unsorted here and stay (fewer GL calls can only help the tablet).
+  Overall, zoomed out with the desktop's 4096 map: 16.0 ms median in the morning, 12.9 after (run-to-run noise about 2
+  ms; a stray headless Chrome and a warm machine spoiled two intermediate runs, so bench on a quiet, cool machine). The
+  shadow pass is the next lever: at play zoom shadows on 8.7 ms against 3.3 off, zoomed out 12.9 against 8.7, on this
+  GPU; candidates are a static-caster depth cache reused while the camera is still (the sun is fixed in a match), the
+  pass every other frame, a 1024 map on tablets zoomed out, and one PCF tap on touch.
 
 
 None open. Answered:
