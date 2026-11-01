@@ -84,6 +84,7 @@ export class GLRenderer {
     gl.texStorage2D(gl.TEXTURE_2D, 1, gl.DEPTH_COMPONENT24, w, h);
     gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.NEAREST); gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.NEAREST);
     gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE); gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
+    gl.bindTexture(gl.TEXTURE_2D, null);   // left bound on unit 0 it would be sampled by the shadow pass that writes it (a feedback loop: every draw of that frame refused)
     return t;
   }
   colorTexture(w, h) {
@@ -101,6 +102,12 @@ export class GLRenderer {
     gl.framebufferTexture2D(gl.FRAMEBUFFER, gl.DEPTH_ATTACHMENT, gl.TEXTURE_2D, this.shadowTex, 0);
     gl.drawBuffers([gl.NONE]); gl.readBuffer(gl.NONE);
     this.checkFb('shadow'); gl.bindFramebuffer(gl.FRAMEBUFFER, null);
+  }
+  // the shadow map at another size (adaptive quality, core/quality.js; ?shadow=N sets the start)
+  setShadowSize(n) {
+    if (n === this.shadowSize || !(n >= 256)) return;
+    const gl = this.gl; if (this.shadowFb) gl.deleteFramebuffer(this.shadowFb); if (this.shadowTex) gl.deleteTexture(this.shadowTex);
+    this.shadowSize = n; this.buildShadowTarget();
   }
   ensureMainTarget(w, h) {
     if (this.main && this.main.w === w && this.main.h === h) return;
@@ -367,7 +374,7 @@ export class GLRenderer {
     if (this.shadows) {
       gl.bindFramebuffer(gl.FRAMEBUFFER, this.shadowFb); gl.viewport(0, 0, this.shadowSize, this.shadowSize);
       gl.clear(gl.DEPTH_BUFFER_BIT);
-      gl.useProgram(P.shadow.p); gl.uniformMatrix4fv(P.shadow.u.uLightVP, false, this.lightVP); gl.uniform1i(P.shadow.u.uTex, 0); gl.uniform1f(P.shadow.u.uTime, (performance.now() / 1000) % 3600); gl.activeTexture(gl.TEXTURE0);
+      gl.useProgram(P.shadow.p); gl.uniformMatrix4fv(P.shadow.u.uLightVP, false, this.lightVP); gl.uniform1i(P.shadow.u.uTex, 0); gl.uniform1f(P.shadow.u.uTime, (performance.now() / 1000) % 3600); gl.activeTexture(gl.TEXTURE0); gl.bindTexture(gl.TEXTURE_2D, this.white);   // unit 0 never the shadow map itself
       let lc = -1, ls = -1, lt = false;
       for (const b of shadowList) if (b.cast) {
         const cut = b.cutout ? 1 : 0, sw = b.sway ? 1 : 0;

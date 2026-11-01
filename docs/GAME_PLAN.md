@@ -3557,6 +3557,19 @@ shadows are on, and flat with them off, says the judder is the shadow pass and i
   at minute 2.5 and 0.52 to 0.44 at minute 7; combat.tick 0.06 to 0.05; every simulation maximum under 7 ms; the
   minute-2.5 fingerprint (tickets, captures, places) unchanged. Remaining maxima are the roster's 4 Hz card refresh
   (up to 9 ms) and the first plan's long searches.
+- **Items 7 and 8 done (2026-11-01, "Go 7 and 8").** Item 7: on a touch device the panels and the touch bar's buttons
+  lose their 4 px backdrop blur (iOS re-blurs a panel's backdrop every frame the canvas under it changes) and go from
+  0.88 to 0.96 opaque instead (`body.touch .panel`). Item 8: `src/core/quality.js`, on unless `?adapt=0`: the median
+  rAF frame over the last two seconds, checked every two; over 20 ms at three checks in a row drops the shadow map a
+  step (4096 to 2048 to 1024, `GLRenderer.setShadowSize`), under 12 ms for twenty seconds restores one, at most one
+  change every 20 s, never in a match's first ten seconds, paused or hidden, and after two drops straight after a
+  restore it stops restoring. A toast names the change; the settings panel's buffer line shows the size. On the Mac
+  mini's Intel GPU at play zoom the map costs 8.9 / 6.7 / 5.1 ms a frame at 4096 / 2048 / 1024. Found on the way: a
+  depth texture made mid-match stayed bound on texture unit 0, which the shadow pass samples for cutouts while writing
+  that same texture, so every draw of the first frame after a resize was refused (a shadowless frame); the texture is
+  unbound after creation and the shadow pass binds the white texture first. Checked headless: 4096 to 2048 at 6 s of
+  30 ms frames, 1024 at 26 s, back to 2048 and 4096 after 20 s spells under 12 ms, no GL error at any size, no change
+  while paused, the touch panel reading no blur and 0.96, the desktop one unchanged.
 
 
 None open. Answered:

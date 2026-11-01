@@ -465,7 +465,7 @@ export class Hud {
 
     this.fpsAcc += dt; this.fpsN++; if (this.fpsAcc > 0.5) { this.fps = Math.round(this.fpsN / this.fpsAcc); this.fpsAcc = 0; this.fpsN = 0; }
     txt('s-fps', String(this.fps)); txt('s-units', String(a.units.units.length)); txt('s-calls', String(a.drawCalls()));
-    txt('s-buf', `${a.pixel.rtW}×${a.pixel.rtH}`); txt('s-zoom', a.pixel.pixelScale.toFixed(1) + '×'); txt('s-cam', `${deg(a.rts.yaw) % 360}° / ${deg(a.rts.pitch)}°`);
+    txt('s-buf', `${a.pixel.rtW}×${a.pixel.rtH} · shadows ${a.renderer.shadowSize}`); txt('s-zoom', a.pixel.pixelScale.toFixed(1) + '×'); txt('s-cam', `${deg(a.rts.yaw) % 360}° / ${deg(a.rts.pitch)}°`);
     const wd = a.world; txt('day', `DAY ${wd.day}`); txt('time', fmtTime(wd.time)); txt('phase', wd.phase());
     const [n, hrs] = wd.nextPhase(); txt('next', `${n} in ${fmtDur(hrs)}`);
     if (!this.draggingHour) { const hv = wd.time.toFixed(1); if ($('c-hour').value !== hv) $('c-hour').value = hv; txt('v-hour', fmtTime(wd.time)); }

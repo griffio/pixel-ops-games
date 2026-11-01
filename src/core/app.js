@@ -111,6 +111,7 @@ export function runLoop(app) {
     if (q.get('hud') === '0') for (const el of document.body.children) if (el.id !== 'view') el.style.visibility = 'hidden'; }
   app.audio = new AudioEngine(app); if (app.match) app.match.attachAudio(app.audio);
   if (new URLSearchParams(location.search).get('prof')) import('./prof.js').then(({ Profiler }) => { app.prof = new Profiler(app); });   // ?prof=1: the in-page profiler (core/prof.js), posting to the Worker's /perf
+  if (new URLSearchParams(location.search).get('adapt') !== '0') import('./quality.js').then(({ Quality }) => { app.quality = new Quality(app); });   // the shadow map steps down when frames stay slow (core/quality.js); ?adapt=0 keeps it fixed
 
   let W = 0, H = 0;
   const resize = () => { W = window.innerWidth; H = window.innerHeight; app.resize(W, H); };
@@ -119,7 +120,7 @@ export function runLoop(app) {
   const frame = (now) => {
     requestAnimationFrame(frame);
     if (window.innerWidth !== W || window.innerHeight !== H) resize();   // catches missed resize events (emulation, zoom)
-    const dt = Math.max(0, Math.min(0.05, (now - last) / 1000)); last = now;   // the first rAF stamp can precede performance.now(); never step backwards
+    const rawMs = now - last, dt = Math.max(0, Math.min(0.05, rawMs / 1000)); last = now;   // the first rAF stamp can precede performance.now(); never step backwards
     const simDt = app.hud.paused ? 0 : dt;
     app.world.update(simDt);
     app.units.update(simDt);
@@ -132,6 +133,7 @@ export function runLoop(app) {
     app.render(dt, W, H);
     app.hud.update(dt, W, H);
     if (app.prof) app.prof.frame(now);
+    if (app.quality) app.quality.frame(rawMs);
   };
   requestAnimationFrame(frame);
 }

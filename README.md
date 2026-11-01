@@ -518,7 +518,7 @@ Touch and pen pointers go to a gesture layer; a mouse or trackpad keeps the tabl
 | Unit strip | Tap a card to select, tap again to go there, hold to follow; **+** groups the selection |
 
 Tablets and phones (a coarse primary pointer with multi-touch) get the mobile
-profile: device pixel ratio 1, a 2048 shadow map, no edge panning, keyboard hints
+profile: device pixel ratio 1, a 2048 shadow map, no backdrop blur on the panels, no edge panning, keyboard hints
 and engine panels hidden, larger tap targets, and the force builder as a scrolling
 sheet. `?mobile=1` or `?mobile=0` forces the profile either way. The page ships a
 web app manifest and icons, so "Add to Home Screen" installs it full-screen in
@@ -668,7 +668,10 @@ src/gl/             WebGL2 back end
   minimap's map, fog, ghosts and units are painted to a layer at 10 Hz under a camera
   footprint drawn every frame; the fog of war eases at 20 Hz and uploads only when a
   cell changed; the roster cards and the minimap are built when the match starts,
-  not in its first frame. `?coarse=1` draws 256 m static chunks for the
+  not in its first frame. When frames stay slow (a median over 20 ms for six
+  seconds) the shadow map drops a step, 4096 to 2048 to 1024, and comes back after
+  twenty seconds under 12 ms; `?adapt=0` keeps it fixed, and the settings panel's
+  buffer line shows the size. `?coarse=1` draws 256 m static chunks for the
   shadow pass and the zoomed-out main pass (a third fewer draw calls; neutral on an
   Intel GPU, for a tablet to judge).
 - Unit models come from MagicaVoxel files (`models/vox/<type>.vox` with a
