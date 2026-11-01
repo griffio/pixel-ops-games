@@ -108,6 +108,7 @@ export function runLoop(app) {
     if (u) { app.rts.fly = null; app.rts.follow = u; app.rts.target.set(u.pos.x, 0, u.pos.z); }
     if (q.get('hud') === '0') for (const el of document.body.children) if (el.id !== 'view') el.style.visibility = 'hidden'; }
   app.audio = new AudioEngine(app); if (app.match) app.match.attachAudio(app.audio);
+  if (new URLSearchParams(location.search).get('prof')) import('./prof.js').then(({ Profiler }) => { app.prof = new Profiler(app); });   // ?prof=1: the in-page profiler (core/prof.js), posting to the Worker's /perf
 
   let W = 0, H = 0;
   const resize = () => { W = window.innerWidth; H = window.innerHeight; app.resize(W, H); };
@@ -128,6 +129,7 @@ export function runLoop(app) {
     app.rts.update(dt, W, H);
     app.render(dt, W, H);
     app.hud.update(dt, W, H);
+    if (app.prof) app.prof.frame(now);
   };
   requestAnimationFrame(frame);
 }

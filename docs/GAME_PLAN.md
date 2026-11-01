@@ -3500,6 +3500,15 @@ shadows are on, and flat with them off, says the judder is the shadow pass and i
   shadow pass is the next lever: at play zoom shadows on 8.7 ms against 3.3 off, zoomed out 12.9 against 8.7, on this
   GPU; candidates are a static-caster depth cache reused while the camera is still (the sun is fixed in a match), the
   pass every other frame, a 1024 map on tablets zoomed out, and one PCF tap on touch.
+- **In-page profiler (2026-11-01).** `?prof=1` (src/core/prof.js): every system the frame runs is wrapped in a timer
+  (world, units, the match and its tick systems, dust, markers, rings, audio, input, camera, render with its GL and fog
+  parts, the HUD with its roster and minimap); the rAF frame times, the worst frames with what ran in them, the
+  renderer's stats, the scene (zoom, metres panned, units, minute) and the device go out every 15 s as a summary to
+  the Worker's `/perf`, which writes it to its log in 3,500-character pieces; `wrangler tail pixel-ops --format json`
+  reads them live and the scratchpad's gw/perf.mjs prints them as a table. A corner readout shows the live numbers with
+  Send, Copy (the summaries so far, for pasting) and Hide. Frame time less the systems' time is "other": the browser,
+  the compositor, a GC pause or the GPU holding the frame back. Made to profile the iPad, which cannot be inspected
+  from the Mac mini.
 
 
 None open. Answered:

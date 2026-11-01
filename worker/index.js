@@ -132,6 +132,7 @@ export default {
     if (url.pathname === '/orders') return this.orders(req, env);
     if (url.pathname === '/style') return this.style(req, env);
     if (url.pathname === '/watch') return this.watch(req, env);
+    if (url.pathname === '/perf') return this.perf(req);
     if (url.pathname !== '/commander') return env.ASSETS ? env.ASSETS.fetch(req) : new Response('not found', { status: 404 });
     if (req.method === 'OPTIONS') return new Response(null, { status: 204, headers: CORS });   // preflight: no body on a 204
     if (req.method === 'GET') return json({ ok: true, model: env.MODEL, gateway: env.GATEWAY || null, models: Object.keys(MODELS) });
@@ -165,6 +166,16 @@ export default {
       if (!plan) return json({ error: 'no usable plan', raw: typeof raw === 'string' ? raw.slice(0, 300) : raw && typeof raw === 'object' ? JSON.stringify(raw).slice(0, 300) : null, ms: Date.now() - t0 }, 502);
       return json({ plan, model: pick.model, ms: Date.now() - t0, usage: out.usage || null });
     } catch (e) { return json({ error: String(e && e.message || e).slice(0, 200), ms: Date.now() - t0 }, 502); }
+  },
+  // POST <a profiler summary from core/prof.js> -> 204; the summary goes to the Worker's log in 3,500-character pieces
+  // ("perf <id> <k>/<n> ..."), read live with `wrangler tail pixel-ops --format json` and put back together there
+  async perf(req) {
+    if (req.method === 'OPTIONS') return new Response(null, { status: 204, headers: CORS });
+    if (req.method !== 'POST') return json({ error: 'method' }, 405);
+    const t = await req.text(); if (t.length > 40000) return json({ error: 'too large' }, 413);
+    const id = Math.random().toString(36).slice(2, 8), n = Math.ceil(t.length / 3500);
+    for (let i = 0, k = 1; i < t.length; i += 3500, k++) console.log(`perf ${id} ${k}/${n} ${t.slice(i, i + 3500)}`);
+    return new Response(null, { status: 204, headers: CORS });
   },
   // POST { state, ours, attack, side } -> { watch: { working, threatened: { place, confidence }, callOff | attackNow }, ms }
   async watch(req, env) {
