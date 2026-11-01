@@ -65,7 +65,7 @@ export class Profiler {
     const s = this.summary(final); this.log.push(s);
     const body = JSON.stringify(s);
     try { if (!(navigator.sendBeacon && navigator.sendBeacon('/perf', new Blob([body], { type: 'application/json' })))) fetch('/perf', { method: 'POST', headers: { 'content-type': 'application/json' }, body, keepalive: true }).catch(() => {}); this.sent++; } catch {}
-    this.frames = []; this.worst = []; for (const k in this.T) this.T[k] = 0; this.prevT = {}; this.MX = {}; this.acc = 0; this.moved = 0; this.zoomMoved = 0;
+    this.frames = []; this.worst = []; for (const k in this.T) this.T[k] = 0; for (const k in this.MX) this.MX[k] = 0; this.prevT = {}; this.acc = 0; this.moved = 0; this.zoomMoved = 0;   // reset in place: the wrappers hold these objects
     this.paint();
   }
   overlay() {

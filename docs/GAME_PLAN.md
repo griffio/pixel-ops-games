@@ -3509,6 +3509,13 @@ shadows are on, and flat with them off, says the judder is the shadow pass and i
   Send, Copy (the summaries so far, for pasting) and Hide. Frame time less the systems' time is "other": the browser,
   the compositor, a GC pause or the GPU holding the frame back. Made to profile the iPad, which cannot be inspected
   from the Mac mini.
+  First iPad run (2026-11-01, Safari 26.6, Apple GPU, 1024x1280 at 2x, Palm Valley, shadows on with the 2048 map,
+  pixel scale 1): a flat 60 fps with coarse off and on (median and p90 17 ms over 12,359 and 8,628 frames), JavaScript
+  3.4 to 3.6 ms a frame (render 2.1 to 2.6, hud 0.7 to 1, units 0.3, match 0.2), up to 2,600 draw calls and 4 km of
+  panning in a window without a frame over 33 ms. Draw calls do not cost on this iPad: `?coarse=1` stays off. The only
+  hitches were the match start (350 ms building the roster and minimap, 61 ms for the first plan tick) and one or two
+  50 to 170 ms frames a minute with no JavaScript in them (Safari's side). The profiler's per-system maxima read zero
+  after the first window (the reset replaced the object the timers held); fixed.
 
 
 None open. Answered:
