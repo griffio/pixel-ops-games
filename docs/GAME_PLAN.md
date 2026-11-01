@@ -3429,7 +3429,58 @@ Engine changes needed in the existing core:
   threatened question is now left out while we own nothing), and `nudged` now stays on the digest until the plan it
   asked for arrives rather than being overwritten by the next read.
 
-## Open questions
+## Performance review (2026-11-01, after the command-wheel series)
+
+Measured on the Mac mini's Intel UHD 630 through ANGLE Metal (vsync off, 1280x720, Palm Valley, twelve squads a side,
+minute 7 of a CPU v CPU battle, five-second samples) and headless with per-system timers and a CPU profile. The GPU is
+of the iPad's class, so these are the numbers that matter for the tablet.
+
+| view, shadows | median ms | p90 ms | draw calls |
+|---|---|---|---|
+| play zoom at the Bridge, 4096 map (desktop) | 16.0 | 46 | 686 |
+| play zoom at the Bridge, 2048 map (tablet) | 12.7 | 32 | 709 |
+| play zoom at the Bridge, shadows off | 8.7 | 27 | 284 |
+| mid zoom, 2048 map | 6.7 | 24 | 377 |
+| mid zoom, shadows off | 3.1 to 4.3 | 5 to 9 | 89 to 133 |
+
+JavaScript per frame: units.update 0.6 to 0.8 ms, match.update 0.1 to 0.4, hud.update 0.6 to 1.0, the render call 5 to
+19 ms (the CPU blocked in GL calls: the frame is GPU and draw-call bound). Headless maxima: a strategist plan tick 25 ms
+(pathfinding), hud.update 100 ms once (the first roster and minimap build). The p90 three times the median wherever
+shadows are on, and flat with them off, says the judder is the shadow pass and its draw calls, not the simulation.
+
+- **Regression found and fixed (uncommitted): no shadows since 2026-10-31.** The shadow-reach commit (286bedf) left
+  `uShadowOn` and `uShadowPcf` inside a trailing `//` comment in renderer.js, so the main pass sampled no shadows while
+  the shadow pass still rendered every frame. Restored on its own line; the bench above is with the fix. The iPad's
+  terraces disappearing after that deploy was this, not the bias.
+- Candidates, most gain first:
+  1. **Draw calls at play zoom (700, about 400 in the shadow pass).** Static props bake into 64 m chunks with one batch
+     per material (4 to 12 a chunk); the main pass takes a 40 m margin, the shadow pass the casters' reach, so 24 and 48
+     chunks at play zoom. (a) Skip redundant binds and uniforms between consecutive batches; (b) bake a second, coarser
+     chunk level (256 m) for the shadow pass, or draw the shadow pass every other frame; (c) leave tufts and sub-metre
+     cutouts out of the shadow pass. Expect 700 to about 300 calls; the biggest lever for the tablet.
+  2. **Structures are dynamic.** Sandbags, FOBs, emplacements and traps are unit groups: at minute 7 that was 1,460 box
+     instances re-matrixed and re-uploaded every frame, growing all game as positions are dug, and a surfaceAt per
+     structure per frame. Bake them into the chunks when built (addStatic, rebuildChunk when destroyed), the gun turret
+     staying dynamic.
+  3. **Plan-tick pathfinding spike.** Squad.order runs an A* per member (four near-identical searches a squad); a plan
+     can re-target twelve squads in one tick, 48 searches, 25 ms measured, 400 ms before the heuristic weight (nav.js).
+     Path once per squad, the members following with their offsets; spread squad orders over consecutive ticks; hand
+     detour()'s direct path to the order instead of searching again.
+  4. **Per-frame UI work.** The reinforcements panel innerHTML every frame; the minimap fully redrawn every frame with
+     the fog overlay rebuilt from the n² grid (putImageData); the fog ease over n² cells and a full texSubImage2D every
+     frame (140k cells on Narva); roster edges() forcing a layout per frame while something is selected; label class and
+     style writes per frame. Throttle to 10 Hz or on change: one to three ms a frame on an iPad plus a layout a frame.
+  5. **Soldier animation for all soldiers every frame**, on screen or not (two IK reaches, about 40 trig calls and ten
+     allocations each). Skip outside the renderer's view box, which already culls them.
+  6. **Smaller simulation items:** the target search walks every 8 m cell in weapon range (2.6k Map.get at 200 m) for
+     each unit without a target every half second; line-of-sight tests allocate three arrays per obstacle; heightAt loops
+     every bridge with cos/sin per call, twice per unit per frame; respawn evaluates rallyFor per queued soldier per
+     tick; grenade resupply filters all units per squad per tick; the spatial hash rebuilds per frame; the dust buffers
+     upload to the high-water mark; audio bookkeeping runs at frame rate.
+  7. **Panels' backdrop-filter blur** over a canvas that changes every frame (iOS re-blurs each frame): off on touch.
+  8. **Adaptive quality:** drop the shadow map a step (4096 to 2048, 2048 to 1024) when the median frame stays over
+     20 ms for a few seconds, and back when it recovers.
+
 
 None open. Answered:
 

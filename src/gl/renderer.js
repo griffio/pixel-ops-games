@@ -313,7 +313,8 @@ export class GLRenderer {
     gl.clearColor(L.background[0], L.background[1], L.background[2], 1); gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
     const u = P.main.u; gl.useProgram(P.main.p);
     gl.uniformMatrix4fv(u.uViewProj, false, cam.viewProj); gl.uniformMatrix4fv(u.uLightVP, false, this.lightVP);
-    gl.uniform1f(u.uNormalBias, Math.max(0.6, 1.2 * texel)); gl.uniform1f(u.uShadowBias, -0.0006);   // the normal offset grows with the shadow texel at a far zoom, or steep ground terraces gl.uniform1f(u.uShadowOn, this.shadows ? 1 : 0); gl.uniform1f(u.uShadowPcf, this.pcf ? 1 : 0);
+    gl.uniform1f(u.uNormalBias, Math.max(0.6, 1.2 * texel)); gl.uniform1f(u.uShadowBias, -0.0006);   // the normal offset grows with the shadow texel at a far zoom, or steep ground terraces
+    gl.uniform1f(u.uShadowOn, this.shadows ? 1 : 0); gl.uniform1f(u.uShadowPcf, this.pcf ? 1 : 0);   // (these two sat inside the comment above from 2026-10-31 to 2026-11-01: no shadows were sampled while the shadow pass still ran)
     gl.uniform3f(u.uSunDir, L.sunDir[0], L.sunDir[1], L.sunDir[2]);
     gl.uniform3f(u.uSunCol, L.sunColor[0] * L.sunI, L.sunColor[1] * L.sunI, L.sunColor[2] * L.sunI);
     gl.uniform3f(u.uHemiSky, L.hemiSky[0] * L.hemiI, L.hemiSky[1] * L.hemiI, L.hemiSky[2] * L.hemiI);
