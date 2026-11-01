@@ -3516,6 +3516,29 @@ shadows are on, and flat with them off, says the judder is the shadow pass and i
   hitches were the match start (350 ms building the roster and minimap, 61 ms for the first plan tick) and one or two
   50 to 170 ms frames a minute with no JavaScript in them (Safari's side). The profiler's per-system maxima read zero
   after the first window (the reset replaced the object the timers held); fixed.
+- **Items 3 and 4 done (2026-11-01, "Go 3 and 4").** Item 3, the plan-tick spike: `Squad.order` searches one route, the
+  leader's (or the one the strategist's detour check already found: `send` hands it over), and the members adopt it with
+  their own formation place as its last point (a straggler over 8 m away, or a blocked place, searches alone); when a
+  route is not found the way out of a pocket (`escapeRoute`) is searched once for the squad too, and that scan now stops
+  at 12 cells, steps a metre beyond 6 m and remembers a failure from the same spot for 2 s (a full scan of nothing ran
+  48 ms, at every re-order from caution). A* searches run on a budget of four a frame (`UnitManager.pathSearch`,
+  `?paths=N`); a unit whose search did not fit walks straight at its goal and takes the route up a frame or two later
+  (`resolvePath`); the detour's exploratory searches run on a 60k cap. The deeper spike turned out to be the nav grid:
+  after every build it dropped its region labels and the next order relabelled 1.8M cells in one go (36 ms); the old
+  labels now stay readable and a relabel runs in the background, 80k cells a frame (`NavGrid.invalidate`/`labelStep`,
+  stepped from `UnitManager.update`), finishing in about 23 frames with the same result as one go. Measured headless on
+  Palm Valley, seed 11: the worst strategist tick 51 to 65 ms before, 7 to 20 ms after (the match's first plan, four
+  long searches of 5 to 9 ms each); match.update's worst frame 26.6 ms to 8.6; squads' outcomes at minute 2.5
+  unchanged. Item 4, per-frame UI work: the HUD's debug stats, clocks, tickets, feed opacity, objectives bar and
+  reinforcements panel write only when their text changed; unit labels cache display, position, selection and the dead
+  pips per tag; the minimap paints its map, fog, ghosts and units to a layer at 10 Hz and only the footprint each frame;
+  the fog of war eases at 20 Hz and uploads the texture only when a cell changed (the minimap overlay rebuilt only
+  then); the roster measures the dock when the selection changes and at its 4 Hz refresh, not every frame, and its
+  edge pointers write on change; the roster cards and the minimap background are built at the click that starts the
+  match (`startMatch` calls hud.update once), which was the iPad's 350 ms first frame. hud.update 1.42 ms mean / 100 ms
+  max before, 0.78 / 7.5 after (headless); on the player's side with fog 0.28 ms a frame, the fog 0.06. Checked: the
+  fog texture still bound and easing, labels and panels updating, pointers placed, the prewarm present before the first
+  frame, no errors on Palm Valley, the Hollow or Narva.
 
 
 None open. Answered:

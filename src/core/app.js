@@ -53,7 +53,8 @@ export function populate(app) {
     app.commanderModel = q.get('model') || null;
     app.styleOff = q.get('style') === '0';   // ?style=0: no style reads of the enemy (ai/style.js)
     app.watchOff = q.get('watch') === '0';   // ?watch=0: no watch between a remote commander's plans (ai/watch.js)
-    if (app.renderer) app.renderer.useCoarse = q.get('coarse') === '1';   // ?coarse=1: 256 m static chunks for the shadow pass and the zoomed-out main pass (gl/renderer.js), to judge on a tablet
+    if (app.renderer) app.renderer.useCoarse = q.get('coarse') === '1';
+    if (q.has('paths')) app.units.pathBudgetMax = +q.get('paths') || 4;   // ?paths=N: A* searches a frame (core/units.js)   // ?coarse=1: 256 m static chunks for the shadow pass and the zoomed-out main pass (gl/renderer.js), to judge on a tablet
     app.aiModes = (q.get('ai') || '').split(','); app.personas = (q.get('persona') || '').split(',');   // ?ai=rules for the older planner (default utility; per team: utility,rules), ?persona=balanced|aggressive|patient   // ?model=<key> picks a model from the Worker's allow-list (llama, gpt-oss-120b, qwen3-30b, mistral-small)
     app.startMatch = (playerLoadout, modeOpts = {}) => {
       const cpuKey = q.get('cpuloadout') || (app.world.map && app.world.map.infantryOnly ? 'light' : counterPick(playerLoadout));   // on an infantry-only map the CPU brings Light Infantry: the vehicle doctrines have nothing to spend on, and Light's half-price men won every infantry pairing
@@ -74,6 +75,7 @@ export function populate(app) {
       const hq = q.get('hybrid'), hybrid = hq ? (hq === '1' ? 'builtin' : hq) : (modeOpts.hybrid || '');   // ?hybrid=1 | builtin | llama | haiku | sonnet | opus: a commander for the player's side, taking the player's orders (the lobby's "Your CO" row otherwise)
       app.hybrid = hybrid;
       app.match = new Match(app, { cpu, mode, side, difficulty, loadouts: [playerLoadout, preset(cpuKey)], hybrid });
+      if (app.hud && app.input) app.hud.update(0, window.innerWidth, window.innerHeight);   // the roster cards and the minimap built now, at the click, not in the match's first frame (a 350 ms frame on the iPad)
       if (app.audio) app.audio.ui('start');
       // the sun stands still during a match (a moving sun crawls every shadow edge at close zoom); ?hour= picks the time
       // the sun stands still during a match; the hour is the link's ?hour=, else the lobby's choice, else the map's own (9:30 without one)

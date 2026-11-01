@@ -27,8 +27,9 @@ export class Strategist {
     if (sq.busy && sq.tag === tag && sq.goal && Math.hypot(sq.goal[0] - x, sq.goal[1] - z) < 12) return;
     const c = sq.centroid(); if (!sq.busy && Math.hypot(c.x - x, c.z - z) < 10 && sq.tag === tag) return;
     sq.goal = [x, z]; sq.tag = tag; sq.zone = zone;
-    const via = careful ? this.detour(sq, c, x, z) : (sq.route = null);
-    if (via) sq.order(via.x, via.z); else sq.order(x, z);
+    this.detourDirect = null; const via = careful ? this.detour(sq, c, x, z) : (sq.route = null);
+    if (via) sq.order(via.x, via.z); else sq.order(x, z, this.detourDirect || undefined);
+    this.detourDirect = null;
     if (sq.setHoldFire) { const o = this.match.orders ? this.match.orders.forSquad(sq) : null; sq.setHoldFire((o && o.how === 'quietly') || (this.match.app.cpuAmbush !== false && /^(hold|reserve|screen)/.test(tag) && (this.quiet || !this.enemiesNear(x, z, 120).length))); }   // a quiet post is an ambush: hold fire until an enemy is at 20 m or the squad is fired on; an attack never holds, unless the player ordered it quietly; under "go quiet" every post does
   }
   // Known enemy fire, for routes: where we see enemies or last saw them, with the reach of their guns (a soldier in a group of
@@ -86,6 +87,7 @@ export class Strategist {
     const now = this.match.elapsed, k = sq.routeMemo;
     if (k && now - k.t < 8 && Math.hypot(k.x - x, k.z - z) < 40 && Math.hypot(k.cx - c.x, k.cz - c.z) < 30 && !(k.via && Math.hypot(k.via.x - c.x, k.via.z - c.z) < 40)) { sq.route = k.route; return k.via; }
     const D = this.dangers(), direct = D.length ? nav.findPath(c.x, c.z, x, z) : null, hit = direct && this.underFire(D, c.x, c.z, direct);
+    this.detourDirect = direct || null;   // handed to the squad's order when no way round is taken, so it is not searched again
     let via = null, route = null;
     if (hit) {
       route = { past: [hit.x, hit.z], tag: sq.tag };
@@ -93,7 +95,7 @@ export class Strategist {
       const ways = o.list.filter(l => l.owner !== 1 - this.team && Math.hypot(l.x - c.x, l.z - c.z) > 60 && Math.hypot(l.x - x, l.z - z) > 60 && far(l) < 2.5 * L0
         && !D.some(d => Math.hypot(l.x - d.x, l.z - d.z) < d.r)).sort((a, b) => far(a) - far(b)).slice(0, 3);
       for (const l of ways) {
-        const p1 = nav.findPath(c.x, c.z, l.x, l.z), p2 = p1 && nav.findPath(l.x, l.z, x, z); if (!p2) continue;
+        const p1 = nav.findPath(c.x, c.z, l.x, l.z, 60000), p2 = p1 && nav.findPath(l.x, l.z, x, z, 60000); if (!p2) continue;   // a short cap: a way round not found cheaply is not taken (one such search ran 33 ms at the full cap)
         const L = this.pathLen(c.x, c.z, p1) + this.pathLen(l.x, l.z, p2);
         if (L > 2.5 * L0 || this.underFire(D, c.x, c.z, p1) || this.underFire(D, l.x, l.z, p2)) continue;
         via = { x: l.x, z: l.z }; route = { ...route, via: l.name, m: Math.round(L) }; break;

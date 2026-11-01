@@ -162,7 +162,7 @@ export class Roster {
   // ---- drawing
   update(dt) {
     if (!this.app.match) return;
-    this.acc += dt; if (this.acc >= 0.25) { this.acc = 0; this.refresh(); }
+    this.acc += dt; if (this.acc >= 0.25) { this.acc = 0; this.refresh(); this.measureDock = true; }
   }
   refresh() {
     if (!this.app.match) return;
@@ -270,7 +270,9 @@ export class Roster {
   // ---- pointers on the screen edge for units out of view, merged where they would overlap
   edges(w, h) {
     const E = this.edgesEl; if (!this.app.match || !this.list.length) { E.innerHTML = ''; return; }
-    const rts = this.app.rts, dock = document.getElementById('dock'), bottom = Math.min(h - (this.stripH || 0) - 16, document.body.classList.contains('sel') ? dock.getBoundingClientRect().top - 6 : h);
+    const rts = this.app.rts, sel = document.body.classList.contains('sel');
+    if (sel !== this.selWas || this.measureDock) { this.selWas = sel; this.measureDock = false; this.dockTop = sel ? document.getElementById('dock').getBoundingClientRect().top : h; }   // a layout read when the selection changes and at the 4 Hz refresh, not every frame
+    const bottom = Math.min(h - (this.stripH || 0) - 16, sel ? this.dockTop - 6 : h);
     const box = { l: 10, r: w - 10, t: this.app.touch && h > w ? 340 : 150, b: bottom - 14 }, cx = w / 2, cy = (box.t + box.b) / 2, out = [];
     for (const d of this.list) {
       if (d.kind === 'built' || d.down) continue;
@@ -288,7 +290,8 @@ export class Roster {
       const o = out[i]; p.el.style.display = o ? '' : 'none'; if (!o) return;
       const html = `<span class="dir" style="transform:rotate(${Math.round(o.ang / 10) * 10}deg)">${icon('arrow')}</span>${o.label}${o.more ? ` <small>+${o.more}</small>` : ''} <small>${o.dist} m</small>`;
       if (p.html !== html) { p.html = html; p.el.innerHTML = html; }
-      p.el.dataset.k = o.k; p.el.classList.toggle('red', !!o.alert); p.el.style.transform = `translate(${Math.round(o.x)}px, ${Math.round(o.y)}px) translate(-50%, -50%)`;
+      if (p.k !== o.k) { p.k = o.k; p.el.dataset.k = o.k; } if (p.red !== !!o.alert) { p.red = !!o.alert; p.el.classList.toggle('red', p.red); }
+      const tr = `translate(${Math.round(o.x)}px, ${Math.round(o.y)}px) translate(-50%, -50%)`; if (p.tr !== tr) { p.tr = tr; p.el.style.transform = tr; }
     });
   }
 }

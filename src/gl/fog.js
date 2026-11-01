@@ -27,13 +27,16 @@ export class FogView {
     for (const u of a.units.units) u.group.hidden = on && !V.sees(me, u);
     // shading: each cell eases toward seen (255) or not (0) over about a quarter of a second
     if (on && this.shade) {
-      const n = V.n, N = n * n, st = V.stamp[me], gen = V.gen, k = Math.max(1, Math.round(dt * 1000));
+      const n = V.n, N = n * n;
       if (!this.vals || this.vals.length !== N) { this.vals = new Uint8Array(N); this.fresh = true; }
-      const v = this.vals;
-      for (let i = 0; i < N; i++) { const t = st[i] === gen ? 255 : 0; v[i] = this.fresh ? t : v[i] < t ? Math.min(t, v[i] + k) : Math.max(t, v[i] - k); }
-      this.fresh = false;
-      a.renderer.setFog(v, n, V.cell, V.half);
-    } else { a.renderer.setFog(null); this.fresh = true; }
+      // the ease runs at 20 Hz over the whole grid (140k cells on Narva), and the texture goes up only when a cell changed
+      if ((this.easeAcc = (this.easeAcc || 0) + dt) >= 0.05 || this.fresh) {
+        const st = V.stamp[me], gen = V.gen, k = Math.max(1, Math.round(this.easeAcc * 1000)), v = this.vals; let changed = this.fresh; this.easeAcc = 0;
+        for (let i = 0; i < N; i++) { const t = st[i] === gen ? 255 : 0, o = v[i]; if (o === t) continue; v[i] = this.fresh ? t : o < t ? Math.min(t, o + k) : Math.max(t, o - k); changed = true; }
+        this.fresh = false;
+        if (changed || !this.uploaded) { a.renderer.setFog(v, n, V.cell, V.half); this.uploaded = true; this.gen = (this.gen || 0) + 1; }
+      }
+    } else { a.renderer.setFog(null); this.fresh = true; this.uploaded = false; }
     // last-known positions
     const G = on ? V.ghosts[me] : null;
     for (const [e, mk] of this.marks) if (!G || G.get(e) !== mk.g) { a.units.scene.remove(mk.mesh); this.marks.delete(e); }
@@ -52,6 +55,8 @@ export class FogView {
   minimap() {
     if (!this.on || !this.shade || !this.vals) return null;
     const n = this.app.match.vision.n;
+    if (this.overlay && this.overlay.width === n && this.overlayGen === this.gen) return this.overlay;   // nothing changed since the last build
+    this.overlayGen = this.gen;
     if (!this.overlay || this.overlay.width !== n) { this.overlay = document.createElement('canvas'); this.overlay.width = this.overlay.height = n; this.img = this.overlay.getContext('2d').createImageData(n, n); }
     const d = this.img.data, v = this.vals;
     for (let cz = 0; cz < n; cz++) for (let cx = 0; cx < n; cx++) { const o = ((n - 1 - cz) * n + cx) * 4; d[o] = 18; d[o + 1] = 16; d[o + 2] = 14; d[o + 3] = Math.round((255 - v[cz * n + cx]) * 0.5); }

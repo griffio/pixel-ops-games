@@ -611,7 +611,7 @@ src/core/           renderer-agnostic engine
   geometry.js       box, cylinder, wedge, frustum, frond, ring, plane and grass-tuft generators with world-unit UVs
   textures.js       procedural tarmac (slabs, taxi lines, asphalt road, grass strip), camo and grass-tuft canvases
   camera.js         orthographic RTS camera (orbit, zoom-as-pixel-scale, texel snapping, follow)
-  units.js          steering, obstacle sliding, separation, squads, helicopter state machine
+  units.js          steering, obstacle sliding, separation, squads (one route a squad, the members following it to their places), helicopter state machine; A* searches on a per-frame budget (?paths=N), the rest taken up a frame or two later
   dust.js           particle simulation: dust, smoke, fire, tracers, muzzle flashes and brief flash lights for the renderer
   projectiles.js    rounds in flight: straight bullets, cannon shells on a gravity arc, rockets; tracer streaks for the renderer
   input.js, hud.js  RTS input / selection and the HUD (command bar, build markers); picking delegated to the back end
@@ -622,7 +622,7 @@ src/game/           milestone 1 game layer (renderer-agnostic)
   rules.js          tickets, costs, respawn timers, fixed M1 force
   weapons.js        weapon tables: range, bursts, accuracy, round speed, arcing shells
   teams.js          team state and base spawn points
-  nav.js            A* grid (1 to 2 m cells by map) with foot / vehicle layers, a 1.15-weighted heuristic and string pulling; connected regions labelled up front and after each build
+  nav.js            A* grid (1 to 2 m cells by map) with foot / vehicle layers, a 1.15-weighted heuristic and string pulling; connected regions labelled up front and, after each build, again in the background a slice a frame
   spatial.js        hash grid for targeting and separation
   combat.js         targeting, line of sight (gridded obstacle test), burst fire, rounds in flight and the damage they land
   respawn.js        ticket charges and respawns at main base
@@ -663,7 +663,12 @@ src/gl/             WebGL2 back end
   and instance records are written once, merged into their own batches only when the
   set on show changes, with the selection ring and an emplacement's gun still live.
   A pass draws its batches sorted by state, so a uniform or texture is set only when
-  it changes; tufts cast no shadow. `?coarse=1` draws 256 m static chunks for the
+  it changes; tufts cast no shadow. The HUD writes to the DOM only when a value
+  changed (labels, the match panel, the objectives bar, the edge pointers); the
+  minimap's map, fog, ghosts and units are painted to a layer at 10 Hz under a camera
+  footprint drawn every frame; the fog of war eases at 20 Hz and uploads only when a
+  cell changed; the roster cards and the minimap are built when the match starts,
+  not in its first frame. `?coarse=1` draws 256 m static chunks for the
   shadow pass and the zoomed-out main pass (a third fewer draw calls; neutral on an
   Intel GPU, for a tablet to judge).
 - Unit models come from MagicaVoxel files (`models/vox/<type>.vox` with a

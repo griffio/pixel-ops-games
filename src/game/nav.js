@@ -37,7 +37,33 @@ export class NavGrid {
   blocked(x, z) { return !this.passable(this.cellOf(x), this.cellOf(z)); }
   // connected regions of passable cells (8-neighbour without corner cutting is the same as 4-neighbour), labelled lazily
   region(ix, iz) { if (!this.passable(ix, iz)) return 0; if (!this.labels) this.labelRegions(); return this.labels[iz * this.n + ix]; }
+  // A build changes the grid (sandbags, a FOB, a building down): the old labels stay readable and a relabel runs in the background,
+  // a slice of cells a frame (labelStep, from UnitManager.update), then the new labels take over. Done in one go it took a
+  // strategist's tick 30 to 65 ms on Palm Valley's 1.8M cells, at the first order after every dig (2026-11-01).
+  invalidate() {
+    if (!this.labels) return;   // not labelled yet: the first region() labels in one go
+    const n = this.n; this.workBuf = this.workBuf || new Int32Array(n * n); this.workBuf.fill(0);
+    this.relabel = { i: 0, next: 0, sizes: [0], sp: 0 };
+  }
+  labelStep(budget = 80000) {   // about 3 ms a frame on Palm Valley's grid, 23 frames to finish
+    const R = this.relabel; if (!R) return;
+    const n = this.n, N = n * n, L = this.L, lab = this.workBuf, stack = this.stackBuf || (this.stackBuf = new Int32Array(N)), sizes = R.sizes; let { i, next, sp } = R, done = 0;
+    while (done < budget) {
+      if (!sp) { while (i < N && (L[i] || lab[i])) i++; if (i >= N) break; lab[i] = ++next; sizes[next] = 0; stack[sp++] = i; }
+      const c = stack[--sp], cx = c % n; sizes[next]++; done++;
+      if (cx > 0 && !L[c - 1] && !lab[c - 1]) { lab[c - 1] = next; stack[sp++] = c - 1; }
+      if (cx < n - 1 && !L[c + 1] && !lab[c + 1]) { lab[c + 1] = next; stack[sp++] = c + 1; }
+      if (c >= n && !L[c - n] && !lab[c - n]) { lab[c - n] = next; stack[sp++] = c - n; }
+      if (c < N - n && !L[c + n] && !lab[c + n]) { lab[c + n] = next; stack[sp++] = c + n; }
+    }
+    R.i = i; R.next = next; R.sp = sp;
+    if (i >= N && !sp) {   // finished: the work buffer becomes the labels, the old one the next work buffer
+      let big = 0; for (let k = 1; k < sizes.length; k++) if (sizes[k] > sizes[big]) big = k;
+      const old = this.labels; this.labels = this.labelBuf = lab; this.workBuf = old; this.sizes = sizes; this.main = big; this.relabel = null;
+    }
+  }
   labelRegions() {
+    this.relabel = null;
     const n = this.n, L = this.L, lab = this.labels = (this.labelBuf || (this.labelBuf = new Int32Array(n * n))).fill(0), stack = this.stackBuf || (this.stackBuf = new Int32Array(n * n)); let next = 0; const sizes = this.sizes = [0];   // buffers kept: a relabel (after every build) no longer allocates 18 MB
     for (let i = 0; i < n * n; i++) {
       if (L[i] || lab[i]) continue;
@@ -63,7 +89,7 @@ export class NavGrid {
   }
   // mark one obstacle box placed after the build (sandbags)
   block(o, pad = this.pad) {
-    this.labels = null;
+    this.invalidate();
     const L = this.L, x0 = Math.max(0, this.cellOf(o.minX - pad)), x1 = Math.min(this.n - 1, this.cellOf(o.maxX + pad)), z0 = Math.max(0, this.cellOf(o.minZ - pad)), z1 = Math.min(this.n - 1, this.cellOf(o.maxZ + pad));
     for (let iz = z0; iz <= z1; iz++) for (let ix = x0; ix <= x1; ix++) L[iz * this.n + ix] = 1;
   }
@@ -84,7 +110,7 @@ export class NavGrid {
       const ax = Math.max(x0, this.cellOf(o.minX - pad)), bx = Math.min(x1, this.cellOf(o.maxX + pad)), az = Math.max(z0, this.cellOf(o.minZ - pad)), bz = Math.min(z1, this.cellOf(o.maxZ + pad));
       for (let iz = az; iz <= bz; iz++) for (let ix = ax; ix <= bx; ix++) L[iz * n + ix] = 1;
     }
-    this.labels = null;
+    this.invalidate();
   }
 
   nearest(ix, iz, r = 8) {

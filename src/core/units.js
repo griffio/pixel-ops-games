@@ -95,32 +95,55 @@ export class Unit {
   setSelected(s) { this.selected = s; this.parts.ring.visible = s && !this.dead; }
 
   // Move order: path through the nav grid when one is available, otherwise straight line.
-  order(x, z, keepPost = false) {   // any order takes a soldier out of his sandbag position, unless it is his way into it
+  // shared: the squad's route (Squad.order), adopted in place of a search of this unit's own. A search beyond the frame's budget
+  // (UnitManager.pathSearch) is taken up on a later frame (resolvePath), the unit walking straight at its goal until then.
+  order(x, z, keepPost = false, shared = null) {   // any order takes a soldier out of his sandbag position, unless it is his way into it
     if (this.dead || this.afloat) return;   // afloat: waiting on the ship or aboard a landing craft (game/landing.js)
     if (!keepPost) this.leavePost();
     const nav = this.mgr && this.mgr.nav && this.spec.nav ? this.mgr.nav[this.spec.nav] : null;
     if (nav && nav.inPocket(x, z)) { const c = nav.nearestMain(nav.cellOf(x), nav.cellOf(z)); if (c) { x = nav.world(c[0]); z = nav.world(c[1]); } }   // a goal inside a building, or in a pocket between buildings, becomes the nearest open ground
     this.dest = new Vec3(x, 0, z); this.idle = 0; this.hold = false; this.advance = false; this.bestDist = Infinity; this.noProgress = 0; this.turnT = 0; this.orbit = null;
-    this.path = nav ? nav.findPath(this.pos.x, this.pos.z, x, z) : null;
-    if (nav && !this.path) this.path = this.escapeRoute(nav, x, z);
+    this.path = null; this.pathWanted = null;
+    if (nav && shared) { if (shared.path === undefined) this.pathWanted = { nav, x, z, shared }; else this.adoptRoute(nav, shared.path, x, z); }
+    else if (nav) { const p = this.mgr.pathSearch(nav, this.pos.x, this.pos.z, x, z); if (p === undefined) this.pathWanted = { nav, x, z }; else this.path = p || this.escapeRoute(nav, x, z); }
     const first = this.path && this.path.length ? this.path[0] : [x, z];
     this.target = new Vec3(first[0], 0, first[1]);
     if (this.spec.air && (this.state === 'parked' || this.state === 'spooldown')) this.state = 'spool';
     if (this.spec.air && this.hoverNoRoom) { this.hover = false; this.hoverNoRoom = false; }   // a hover for want of a landing spot ends with the next order
     if (!this.spec.air && this.seats) this.dropOnArrive = true;   // passengers get out where it stops
   }
+  // the squad's route made this unit's own: its last point becomes this unit's place in the formation, unless that place is blocked
+  adoptRoute(nav, p, x, z) {
+    if (!p) { this.path = null; return; }   // the squad found no route and no way out (Squad.order searched both once): straight at the goal
+    const last = nav.blocked(x, z) ? p[p.length - 1] : [x, z];
+    this.path = p.length > 1 ? [...p.slice(0, -1), last] : [last];
+  }
+  // a route asked for when the frame's search budget was spent: taken up when there is budget again
+  resolvePath() {
+    const w = this.pathWanted; if (!this.dest) { this.pathWanted = null; return; }
+    if (w.shared) {
+      if (w.shared.path === undefined) { let r = this.mgr.pathSearch(w.nav, w.shared.from[0], w.shared.from[1], w.shared.to[0], w.shared.to[1]); if (r === undefined) return; if (r === null) r = this.escapeRoute(w.nav, w.shared.to[0], w.shared.to[1]) || null; w.shared.path = r; }
+      this.pathWanted = null; this.adoptRoute(w.nav, w.shared.path, w.x, w.z);
+    } else { const p = this.mgr.pathSearch(w.nav, this.pos.x, this.pos.z, w.x, w.z); if (p === undefined) return; this.pathWanted = null; this.path = p || this.escapeRoute(w.nav, w.x, w.z); }
+    const first = this.path && this.path.length ? this.path[0] : [w.x, w.z]; this.target = new Vec3(first[0], 0, first[1]); this.bestDist = Infinity; this.noProgress = 0;
+  }
   // No route from here (a vehicle shoved into a pocket between buildings): drive straight to the nearest cell from which the goal
   // can be reached, along a line that clears buildings by half the usual margin, then follow the route from there.
+  // A full scan that finds nothing is the dear case (every ring cell line-tested: 48 ms in a strategist tick, 2026-11-01), so the
+  // rings stop at 12 cells, the line test steps a metre beyond 6 m, and a failure from the same spot is remembered for 2 s
   escapeRoute(nav, x, z) {
-    const want = nav.region(nav.cellOf(x), nav.cellOf(z)) || nav.main, w = this.mgr.world, half = this.radius * 0.45, x0 = this.pos.x, z0 = this.pos.z, cx0 = nav.cellOf(x0), cz0 = nav.cellOf(z0);
+    const w = this.mgr.world, x0 = this.pos.x, z0 = this.pos.z, now = this.mgr.match ? this.mgr.match.elapsed : 0, memo = this.escapeFail;
+    if (memo && now - memo.t < 2 && Math.hypot(memo.x - x0, memo.z - z0) < 2) return null;
+    const want = nav.region(nav.cellOf(x), nav.cellOf(z)) || nav.main, half = this.radius * 0.45, cx0 = nav.cellOf(x0), cz0 = nav.cellOf(z0);
     const deep0 = w.penetration(x0, z0, half) + 1e-3;   // like movement: the line may start inside a clearance but never go deeper
-    const clear = (px, pz) => { const steps = Math.ceil(Math.hypot(px - x0, pz - z0) * 2); for (let i = 1; i <= steps; i++) { const t = i / steps, sx = x0 + (px - x0) * t, sz = z0 + (pz - z0) * t; if (w.isBlocked(sx, sz, half) && w.penetration(sx, sz, half) > deep0) return false; } return true; };
-    for (let r = 1; r <= 20; r++) for (let dz = -r; dz <= r; dz++) for (let dx = -r; dx <= r; dx++) {
+    const clear = (px, pz) => { const d = Math.hypot(px - x0, pz - z0), steps = Math.ceil(d > 6 ? d : d * 2); for (let i = 1; i <= steps; i++) { const t = i / steps, sx = x0 + (px - x0) * t, sz = z0 + (pz - z0) * t; if (w.isBlocked(sx, sz, half) && w.penetration(sx, sz, half) > deep0) return false; } return true; };
+    for (let r = 1; r <= 12; r++) for (let dz = -r; dz <= r; dz++) for (let dx = -r; dx <= r; dx++) {
       if (Math.abs(dx) !== r && Math.abs(dz) !== r) continue;
       const ix = cx0 + dx, iz = cz0 + dz; if (nav.region(ix, iz) !== want) continue;
       const px = nav.world(ix), pz = nav.world(iz); if (!clear(px, pz)) continue;
       const rest = nav.findPath(px, pz, x, z); return [[px, pz], ...(rest || [[x, z]])];
     }
+    this.escapeFail = { t: now, x: x0, z: z0 };
     return null;
   }
   nextWaypoint() {
@@ -485,6 +508,7 @@ export class Unit {
       if (t) { const want = e ? wrap(Math.atan2(e.pos.x - this.pos.x, e.pos.z - this.pos.z) - this.heading) : 0; t.rotation.y += clamp(wrap(want - t.rotation.y), -1.5 * dt, 1.5 * dt); }
       return;
     }
+    if (this.pathWanted) this.resolvePath();
     if (this.mounted) { this.pos.copy(this.mounted.pos); return; }
     if (this.landedT > 0) this.landedT -= dt;   // fresh off a helicopter: counts double in a capture zone under Air Assault (Objectives)
     if (this.boardTarget) {
@@ -506,12 +530,23 @@ export class Squad {
   get alive() { return this.members.some(m => !m.dead); }
   get aliveCount() { return this.members.filter(m => !m.dead).length; }
   get team() { return this.members[0].team; }
-  order(x, z) {
+  // one route for the squad, the leader's (or one handed in: the strategist's detour check already searched it), the members
+  // following it to their own places in the formation; a straggler more than 8 m from the leader finds his own way. Four
+  // near-identical searches a squad, twelve squads in one plan tick, used to stall a frame (nav.js)
+  order(x, z, path) {
     const L = this.leader; if (!L) return;
     const h = Math.atan2(x - L.pos.x, z - L.pos.z), c = Math.cos(h), s = Math.sin(h);
     const offs = [[0, 0], [-1.3, -1.3], [1.3, -1.3], [-2.6, -2.6], [2.6, -2.6], [0, -2.6], [-1.3, -3.9], [1.3, -3.9]];
+    const nav = L.mgr && L.mgr.nav && L.spec.nav ? L.mgr.nav[L.spec.nav] : null;
+    let shared = null;
+    if (nav) {
+      let gx = x, gz = z; if (nav.inPocket(gx, gz)) { const q = nav.nearestMain(nav.cellOf(gx), nav.cellOf(gz)); if (q) { gx = nav.world(q[0]); gz = nav.world(q[1]); } }
+      let p = path !== undefined ? path : L.mgr.pathSearch(nav, L.pos.x, L.pos.z, gx, gz);   // undefined: no budget this frame, the first member to step with budget searches it
+      if (p === null) p = L.escapeRoute(nav, gx, gz) || null;   // no route: the way out of a pocket searched once for the squad, not once a member (a 40 ms tick when it was four)
+      shared = { from: [L.pos.x, L.pos.z], to: [gx, gz], path: p };
+    }
     let i = 0;
-    for (const m of this.members) { if (m.dead) continue; const [ox, oz] = offs[i++ % offs.length]; m.order(x + ox * c + oz * s, z - ox * s + oz * c); }
+    for (const m of this.members) { if (m.dead) continue; const [ox, oz] = offs[i++ % offs.length]; const near = shared && Math.hypot(m.pos.x - L.pos.x, m.pos.z - L.pos.z) < 8; m.order(x + ox * c + oz * s, z - ox * s + oz * c, false, near ? shared : null); }
   }
   advanceTo(x, z) { this.order(x, z); for (const m of this.members) if (!m.dead) { if (m.dest) m.advance = true; m.holdFire = false; } }   // an attack-move lifts hold fire: a squad told to fight on the way is not lying in ambush
   setHoldFire(v) { for (const m of this.members) if (!m.dead) { m.holdFire = v; if (v) m.advance = false; } }   // hold fire: quiet and hidden until an enemy is at 20 m or the squad is fired on (game/combat.js); it drops an attack-move, the walk going on as a plain move
@@ -539,6 +574,7 @@ export class UnitManager {
   constructor(scene, world, builders, recolor) {
     this.scene = scene; this.world = world; this.builders = builders; this.recolorFn = recolor || (() => {});
     this.units = []; this.squads = []; this.auto = true; this.nav = null; this.spatial = null; this.dust = null;
+    this.pathBudgetMax = 4; this.pathBudget = 4;   // A* searches a frame (?paths=N); the rest wait a frame or two (Unit.resolvePath)
   }
   recolor(group, mat) { this.recolorFn(group, mat); }
   byPickId(id) { return this.units.find(u => u.pickId === id) || null; }
@@ -577,8 +613,12 @@ export class UnitManager {
   removeUnit(u) { this.scene.remove(u.group); const i = this.units.indexOf(u); if (i >= 0) this.units.splice(i, 1); }
   clear() { for (const u of this.units) this.scene.remove(u.group); this.units = []; this.squads = []; }
 
+  // one A* now if the frame's budget allows: undefined when it does not (ask again next frame), null when there is no route
+  pathSearch(nav, sx, sz, tx, tz) { if (this.pathBudget <= 0) return undefined; this.pathBudget--; return nav.findPath(sx, sz, tx, tz); }
   update(dt) {
     const w = this.world, U = this.units, n = U.length, back = (this.tickNo = (this.tickNo || 0) + 1) & 1;   // forward one tick, backward the next: no side moves first every time
+    this.pathBudget = this.pathBudgetMax;
+    if (this.nav) for (const k in this.nav) if (this.nav[k] && this.nav[k].relabel) this.nav[k].labelStep();   // a grid relabelling after a build, a slice a frame (game/nav.js)
     for (let i = 0; i < n; i++) {
       const u = U[back ? n - 1 - i : i];
       u.step(dt, w);

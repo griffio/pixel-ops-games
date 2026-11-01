@@ -33,6 +33,8 @@ const TYPE_NAME = { apc: 'APC', humvee: 'Humvee', tank: 'tank', heli: 'Chinook',
 
 // HUD + control panel. Back-end hooks on app: pixel (settings), setShadows(on),
 // drawCalls(), markers.add(x, z), rendererName, otherRenderer {name, param}.
+const txt = (id, v) => { const el = $(id); if (el && el._t !== v) { el._t = v; el.textContent = v; } };   // a write only when the text changed: these run every frame
+
 export class Hud {
   constructor(app) {
     this.app = app; this.labelRoot = $('labels'); this.tags = new Map();
@@ -91,8 +93,8 @@ export class Hud {
 
   updateMatch(m) {
     const [t0, t1] = m.teams;
-    $('m-t0').textContent = Math.max(0, Math.round(t0.tickets)); $('m-t1').textContent = Math.max(0, Math.round(t1.tickets));
-    const s = Math.max(0, Math.ceil(m.time)); $('m-time').textContent = `${Math.floor(s / 60)}:${String(s % 60).padStart(2, '0')}`;
+    txt('m-t0', String(Math.max(0, Math.round(t0.tickets)))); txt('m-t1', String(Math.max(0, Math.round(t1.tickets))));
+    const s = Math.max(0, Math.ceil(m.time)); txt('m-time', `${Math.floor(s / 60)}:${String(s % 60).padStart(2, '0')}`);
     if (!this.modeShown) {
       this.modeShown = true; document.querySelector('#match .small').textContent = m.mode.constructor.name + (m.mode.constructor.sides ? (m.mode.attacker === (this.app.playerTeam ?? 0) ? ' · attacking' : ' · defending') : '') + (m.cpu && m.cpu.length === 1 ? ` · ${m.difficulty.name} CPU` : '');
       document.querySelector('#match .t0 .nm').innerHTML = `BLUFOR<br><em>${t0.doctrine.name}</em>`; document.querySelector('#match .t1 .nm').innerHTML = `OPFOR<br><em>${t1.doctrine.name}</em>`;
@@ -104,21 +106,22 @@ export class Hud {
     const a = this.app, hush = a.fog && a.fog.on ? (f) => f.kind === 'event' && f.e.team !== (a.playerTeam ?? 0) && (f.e.type === 'radio' || f.e.type === 'fob' || f.e.type === 'sandbags' || f.e.type === 'traps' || f.e.type === 'emplacement') : () => false;
     const feed = $('feed'), lines = m.feed.filter(f => f.t < 10 && !hush(f)), key = lines.map(f => f.id).join(',');
     if (key !== this.feedKey) { this.feedKey = key; feed.innerHTML = lines.map(f => this.feedLine(f)).join(''); }
-    lines.forEach((f, i) => { const el = feed.children[i]; if (el) el.style.opacity = f.t > 7 ? ((10 - f.t) / 3).toFixed(2) : 1; });
+    lines.forEach((f, i) => { const el = feed.children[i]; if (!el) return; const op = f.t > 7 ? ((10 - f.t) / 3).toFixed(2) : '1'; if (el._op !== op) { el._op = op; el.style.opacity = op; } });
     // objectives bar from the mode
     const objs = $('objs'), items = m.mode.bar();
     if (objs.childElementCount !== items.length) { objs.innerHTML = items.map(l => `<div class="obj" title="Jump to ${l.name}"><b>${l.name}</b><span></span><i></i></div>`).join(''); objs.onclick = (e) => { const el = e.target.closest('.obj'); if (!el) return; const o = m.objectives && m.objectives.list.find(l => l.name === el.firstChild.textContent); if (o) { this.app.rts.fly = null; this.app.rts.follow = null; this.app.rts.target.set(o.x, 0, o.z); } }; }   // a tap on a place's box jumps the camera there
     items.forEach((l, i) => {
-      const el = objs.children[i], p = l.progress;
-      el.className = 'obj' + (l.owner === 0 ? ' t0' : l.owner === 1 ? ' t1' : '');
-      el.children[1].textContent = l.note;
-      const bar = el.children[2]; bar.style.width = Math.abs(p) + '%'; bar.className = p < 0 ? 't1' : '';
+      const el = objs.children[i], p = l.progress, c = el._c || (el._c = {});
+      const cls = 'obj' + (l.owner === 0 ? ' t0' : l.owner === 1 ? ' t1' : ''); if (c.cls !== cls) { c.cls = cls; el.className = cls; }
+      if (c.note !== l.note) { c.note = l.note; el.children[1].textContent = l.note; }
+      const bar = el.children[2], wd = Math.abs(p) + '%', bc = p < 0 ? 't1' : ''; if (c.w !== wd) { c.w = wd; bar.style.width = wd; } if (c.bc !== bc) { c.bc = bc; bar.className = bc; }
     });
     // reinforcements for the player's team
     const me = this.app.playerTeam ?? 0, q = m.respawn.queue.filter(x => x.unit.team === me).sort((a, b) => a.t - b.t).slice(0, 6);
     const fobs = m.fobs.active(me).length, kits = m.fobs.kitsLeft(me), build = m.fobs.builds.find(b => b.team === me);
     const L = m.teams[me].landing, ls = L && L.status();   // a side on a ship: what waits in its well dock, how many craft are out
-    $('reinf').innerHTML = (ls ? `<div>Ship: ${ls.waiting} men${ls.vehicles ? `, ${ls.vehicles} vehicles` : ''} waiting · craft ${ls.out}/${ls.craft} out</div>` : '') + `<div>FOBs ${fobs} · kits ${kits}${build ? ` · building ${Math.ceil(build.t)}s` : ''}</div>` + (q.length ? q.map(x => { const r = m.rallies && m.respawn.rallyFor(x.unit, m.teams[me]); return `<div><b>${x.unit.label}</b> ${x.unit.type} ${r ? 'rally ' + Math.ceil(m.rallies.nextWaveIn(r)) : Math.max(0, Math.ceil(x.t))}s</div>`; }).join('') : '<div>all units deployed</div>');
+    const reinfHtml = (ls ? `<div>Ship: ${ls.waiting} men${ls.vehicles ? `, ${ls.vehicles} vehicles` : ''} waiting · craft ${ls.out}/${ls.craft} out</div>` : '') + `<div>FOBs ${fobs} · kits ${kits}${build ? ` · building ${Math.ceil(build.t)}s` : ''}</div>` + (q.length ? q.map(x => { const r = m.rallies && m.respawn.rallyFor(x.unit, m.teams[me]); return `<div><b>${x.unit.label}</b> ${x.unit.type} ${r ? 'rally ' + Math.ceil(m.rallies.nextWaveIn(r)) : Math.max(0, Math.ceil(x.t))}s</div>`; }).join('') : '<div>all units deployed</div>');
+    if (reinfHtml !== this.reinfKey) { this.reinfKey = reinfHtml; $('reinf').innerHTML = reinfHtml; }   // rebuilt only when it reads differently
     this.drawMinimap(m);
   }
 
@@ -179,7 +182,18 @@ export class Hud {
       cv.addEventListener('pointerdown', e => { down = true; const [x, z] = toWorld(e); a.rts.target.set(x, 0, z); a.rts.follow = null; e.preventDefault(); });
       window.addEventListener('pointermove', e => { if (down) { const [x, z] = toWorld(e); a.rts.target.set(x, 0, z); } });
       window.addEventListener('pointerup', () => down = false);
+      this.mmLayer = document.createElement('canvas'); this.mmLayer.width = cv.width; this.mmLayer.height = cv.height; this.mmAcc = 1;
     }
+    // the map, zones, fog, ghosts and units go to a layer at 10 Hz; the camera footprint is drawn over it every frame
+    if ((this.mmAcc += this.mmDt || 0) >= 0.1) { this.mmAcc = 0; this.paintMinimapLayer(m, this.mmLayer.getContext('2d')); }
+    g.drawImage(this.mmLayer, 0, 0);
+    const X = this.mmX, Z = this.mmZ;
+    g.strokeStyle = 'rgba(242,193,78,0.9)'; g.lineWidth = 1; g.beginPath();
+    [[0, 0], [1, 0], [1, 1], [0, 1]].forEach(([sx, sy], i) => { const p = a.rts.screenToGround(sx, sy); i ? g.lineTo(X(p.x), Z(p.z)) : g.moveTo(X(p.x), Z(p.z)); });
+    g.closePath(); g.stroke();
+  }
+  paintMinimapLayer(m, g) {
+    const a = this.app;
     g.drawImage(this.mmBg, 0, 0);
     const X = this.mmX, Z = this.mmZ, k = this.mmK, me = a.playerTeam ?? 0;
     for (const b of m.teams) { g.strokeStyle = b.id === 0 ? '#7fb2e5' : '#e86a5a'; g.lineWidth = 1; g.beginPath(); g.arc(X(b.base.x), Z(b.base.z), b.base.r * k, 0, Math.PI * 2); g.stroke(); }
@@ -197,10 +211,6 @@ export class Hud {
       if (u.type === 'sandbags') continue;
       const s = u.type === 'soldier' ? 2 : 3; g.fillRect(X(u.pos.x) - s / 2, Z(u.pos.z) - s / 2, s, s);
     }
-    // camera footprint
-    g.strokeStyle = 'rgba(242,193,78,0.9)'; g.lineWidth = 1; g.beginPath();
-    [[0, 0], [1, 0], [1, 1], [0, 1]].forEach(([sx, sy], i) => { const p = a.rts.screenToGround(sx, sy); i ? g.lineTo(X(p.x), Z(p.z)) : g.moveTo(X(p.x), Z(p.z)); });
-    g.closePath(); g.stroke();
   }
   // ---- debrief: ticket graph and a stats table per team
   showEnd(m) {
@@ -449,21 +459,19 @@ export class Hud {
 
   update(dt, w, h) {
     const a = this.app;
-    if (a.match) this.updateMatch(a.match);
+    this.mmDt = dt; if (a.match) this.updateMatch(a.match);
     if (a.guide) a.guide.tick(dt);
     if (!a.match && !this.mmHidden) { this.mmHidden = true; for (const id of ['minimap', 'objs', 'match', 'reinf-h', 'reinf']) $(id).style.display = 'none'; }
 
     this.fpsAcc += dt; this.fpsN++; if (this.fpsAcc > 0.5) { this.fps = Math.round(this.fpsN / this.fpsAcc); this.fpsAcc = 0; this.fpsN = 0; }
-    $('s-fps').textContent = this.fps; $('s-units').textContent = a.units.units.length;
-    $('s-calls').textContent = a.drawCalls();
-    $('s-buf').textContent = `${a.pixel.rtW}×${a.pixel.rtH}`;
-    $('s-zoom').textContent = a.pixel.pixelScale.toFixed(1) + '×';
-    $('s-cam').textContent = `${deg(a.rts.yaw) % 360}° / ${deg(a.rts.pitch)}°`;
-    const wd = a.world; $('day').textContent = `DAY ${wd.day}`; $('time').textContent = fmtTime(wd.time); $('phase').textContent = wd.phase();
-    const [n, hrs] = wd.nextPhase(); $('next').textContent = `${n} in ${fmtDur(hrs)}`;
-    if (!this.draggingHour) { $('c-hour').value = wd.time.toFixed(1); $('v-hour').textContent = fmtTime(wd.time); }
-    $('sunfill').style.transform = `translateY(${(wd.light.night * 100).toFixed(0)}%)`;
-    // labels: vehicles, helis and squad leaders; any selected unit
+    txt('s-fps', String(this.fps)); txt('s-units', String(a.units.units.length)); txt('s-calls', String(a.drawCalls()));
+    txt('s-buf', `${a.pixel.rtW}×${a.pixel.rtH}`); txt('s-zoom', a.pixel.pixelScale.toFixed(1) + '×'); txt('s-cam', `${deg(a.rts.yaw) % 360}° / ${deg(a.rts.pitch)}°`);
+    const wd = a.world; txt('day', `DAY ${wd.day}`); txt('time', fmtTime(wd.time)); txt('phase', wd.phase());
+    const [n, hrs] = wd.nextPhase(); txt('next', `${n} in ${fmtDur(hrs)}`);
+    if (!this.draggingHour) { const hv = wd.time.toFixed(1); if ($('c-hour').value !== hv) $('c-hour').value = hv; txt('v-hour', fmtTime(wd.time)); }
+    const sun = `translateY(${(wd.light.night * 100).toFixed(0)}%)`; if (this.sunT !== sun) { this.sunT = sun; $('sunfill').style.transform = sun; }
+    // labels: vehicles, helis and squad leaders; any selected unit. Each write is made only when its value changed (a hundred
+    // tags a frame on a big map)
     const want = new Set(), me = a.playerTeam ?? 0;
     for (const u of a.units.units) {
       if (u.dead || u.mounted || (a.fog && !a.fog.sees(u))) continue;   // no tag on an enemy out of sight
@@ -476,18 +484,16 @@ export class Hud {
         const segs = u.squad ? u.squad.members.length : 1;
         tag.innerHTML = `<i class="tick"></i><svg class="ico" viewBox="0 0 16 10">${ICON[u.type] || ''}</svg><span>${u.label}</span><b class="bar">${'<i></i>'.repeat(segs)}</b>`;
         tag.classList.toggle('enemy', u.team !== me); tag.classList.toggle('own', u.team === me);   // blue for ours, red for theirs
-        this.labelRoot.appendChild(tag); this.tags.set(u, tag);
+        this.labelRoot.appendChild(tag); this.tags.set(u, tag); tag._c = {};
       }
-      const bar = tag.lastChild;
-      if (u.squad) u.squad.members.forEach((m, i) => bar.children[i].classList.toggle('dead', m.dead));
-      else bar.firstChild.style.transform = `scaleX(${(u.hp / u.maxHp).toFixed(2)})`;
-
-
+      const c = tag._c, bar = tag.lastChild;
+      if (u.squad) { let dead = 0; u.squad.members.forEach((m, i) => { if (m.dead) dead |= 1 << i; }); if (c.dead !== dead) { c.dead = dead; u.squad.members.forEach((m, i) => bar.children[i].classList.toggle('dead', m.dead)); } }
+      else { const hp = (u.hp / u.maxHp).toFixed(2); if (c.hp !== hp) { c.hp = hp; bar.firstChild.style.transform = `scaleX(${hp})`; } }
       const [sx, sy] = a.rts.worldToScreen(u.pos.x, u.pos.y + u.height + 0.3, u.pos.z, w, h);
-      const vis = sx > -40 && sx < w + 40 && sy > -20 && sy < h + 20;
-      tag.style.display = vis && !(u.building && u.team === me) ? 'block' : 'none';   // an engineer at work wears the build's marker instead
-      if (vis) tag.style.transform = `translate(${Math.round(sx)}px, ${Math.round(sy)}px) translate(-50%, -100%)`;
-      tag.classList.toggle('sel', u.selected);
+      const vis = sx > -40 && sx < w + 40 && sy > -20 && sy < h + 20, show = vis && !(u.building && u.team === me) ? 'block' : 'none';   // an engineer at work wears the build's marker instead
+      if (c.show !== show) { c.show = show; tag.style.display = show; }
+      if (vis) { const x = Math.round(sx), y = Math.round(sy); if (c.x !== x || c.y !== y) { c.x = x; c.y = y; tag.style.transform = `translate(${x}px, ${y}px) translate(-50%, -100%)`; } }
+      if (c.sel !== u.selected) { c.sel = u.selected; tag.classList.toggle('sel', u.selected); }
     }
     for (const [u, tag] of this.tags) if (!want.has(u)) { tag.remove(); this.tags.delete(u); }
     if (!a.match) return;
