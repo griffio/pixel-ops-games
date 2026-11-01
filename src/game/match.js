@@ -72,7 +72,7 @@ export class Match {
     // a finished sandbag position becomes low cover: obstacles for movement, cover for combat; anyone caught inside a bag steps out
     this.fobs.onSandbags = (u, boxes) => {
       u.sbBoxes = boxes;
-      for (const o of boxes) { this.world.obstacles.push(o); this.nav.foot.block(o, 0.3); this.nav.vehicle.block(o); if (this.nav.amphib) this.nav.amphib.block(o); this.combat.addLow(o); }   // a tighter foot pad keeps the inside of the U open
+      for (const o of boxes) { this.world.addObstacle(o); this.nav.foot.block(o, 0.3); this.nav.vehicle.block(o); if (this.nav.amphib) this.nav.amphib.block(o); this.combat.addLow(o); }   // a tighter foot pad keeps the inside of the U open
       for (const v of this.units.units) {
         if (v.dead || v === u || v.spec.structure || !v.spec.nav || Math.hypot(v.pos.x - u.pos.x, v.pos.z - u.pos.z) > 7) continue;
         const nav = this.nav[v.spec.nav]; if (!nav.blocked(v.pos.x, v.pos.z)) continue;
@@ -82,7 +82,7 @@ export class Match {
     };
     // an emplacement's ring of bags is low cover and an obstacle like a sandbag position's
     this.fobs.onEmplacement = (u, boxes) => {
-      for (const o of boxes) { this.world.obstacles.push(o); this.nav.foot.block(o, 0.3); this.nav.vehicle.block(o); if (this.nav.amphib) this.nav.amphib.block(o); this.combat.addLow(o); }
+      for (const o of boxes) { this.world.addObstacle(o); this.nav.foot.block(o, 0.3); this.nav.vehicle.block(o); if (this.nav.amphib) this.nav.amphib.block(o); this.combat.addLow(o); }
       for (const v of this.units.units) {
         if (v.dead || v === u || v.spec.structure || !v.spec.nav || Math.hypot(v.pos.x - u.pos.x, v.pos.z - u.pos.z) > 5) continue;
         const nav = this.nav[v.spec.nav]; if (!nav.blocked(v.pos.x, v.pos.z)) continue;

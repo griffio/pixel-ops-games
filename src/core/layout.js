@@ -118,10 +118,12 @@ export class WorldState {
     // o.walk of their speed; never in `obstacles`, so the foot grid, isBlocked and penetration ignore them
     this.thickets = this.layout.thickets || []; this.vehicleObstacles = [...this.thickets];
     // height including bridge decks (local-frame rectangle test)
+    for (const b of this.bridges) { b.cosA = Math.cos(b.angle); b.sinA = Math.sin(b.angle); b.reach = Math.hypot(b.len / 2, b.w / 2); }   // once: heightAt runs twice per unit per frame
     this.heightAt = (x, z) => {
       let h = this.terrain ? this.terrain.height(x, z) : 0;
       for (const b of this.bridges) {
-        const dx = x - b.x, dz = z - b.z, c = Math.cos(b.angle), s = Math.sin(b.angle), along = dx * s + dz * c, across = dx * c - dz * s;
+        const dx = x - b.x, dz = z - b.z; if (dx > b.reach || dx < -b.reach || dz > b.reach || dz < -b.reach) continue;
+        const along = dx * b.sinA + dz * b.cosA, across = dx * b.cosA - dz * b.sinA;
         if (Math.abs(along) <= b.len / 2 && Math.abs(across) <= b.w / 2) h = Math.max(h, b.y);
       }
       return h;
@@ -155,6 +157,12 @@ export class WorldState {
     for (const o of this.obstacles) for (let cz = Math.floor(o.minZ / 8); cz <= Math.floor(o.maxZ / 8); cz++) for (let cx = Math.floor(o.minX / 8); cx <= Math.floor(o.maxX / 8); cx++) { const k = cx * 4096 + cz; let a = g.get(k); if (!a) g.set(k, a = []); a.push(o); }
     this._grid = g; this._gridN = this.obstacles.length; return g;
   }
+  // an obstacle placed during the match (sandbags, a FOB's bags): into the list and straight into the grid's buckets, instead of
+  // the whole grid rebuilt on the next query (8 ms for Palm Valley's five thousand boxes, once a build)
+  addObstacle(o) {
+    this.obstacles.push(o);
+    if (this._grid && this._gridN === this.obstacles.length - 1) { const g = this._grid; for (let cz = Math.floor(o.minZ / 8); cz <= Math.floor(o.maxZ / 8); cz++) for (let cx = Math.floor(o.minX / 8); cx <= Math.floor(o.maxX / 8); cx++) { const k = cx * 4096 + cz; let a = g.get(k); if (!a) g.set(k, a = []); a.push(o); } this._gridN++; }
+  }
   obstaclesNear(x, z, pad, fn) {
     const g = this.obstacleGrid();
     for (let cz = Math.floor((z - pad) / 8); cz <= Math.floor((z + pad) / 8); cz++) for (let cx = Math.floor((x - pad) / 8); cx <= Math.floor((x + pad) / 8); cx++) { const a = g.get(cx * 4096 + cz); if (a) for (const o of a) if (fn(o)) return true; }
@@ -169,15 +177,19 @@ export class WorldState {
     for (const o of a) if (x >= o.minX && x <= o.maxX && z >= o.minZ && z <= o.maxZ) return o;
     return null;
   }
-  isBlocked(x, z, pad = 0, vehicle = false) {
-    const hit = (o) => x > o.minX - pad && x < o.maxX + pad && z > o.minZ - pad && z < o.maxZ + pad;
-    return this.obstaclesNear(x, z, pad, hit) || (vehicle && this.vehicleObstacles.some(hit));
+  isBlocked(x, z, pad = 0, vehicle = false) {   // the bucket walk inline: a closure a call was a few per unit per frame
+    const g = this.obstacleGrid();
+    for (let cz = Math.floor((z - pad) / 8); cz <= Math.floor((z + pad) / 8); cz++) for (let cx = Math.floor((x - pad) / 8); cx <= Math.floor((x + pad) / 8); cx++) { const a = g.get(cx * 4096 + cz); if (a) for (const o of a) if (x > o.minX - pad && x < o.maxX + pad && z > o.minZ - pad && z < o.maxZ + pad) return true; }
+    if (vehicle) for (const o of this.vehicleObstacles) if (x > o.minX - pad && x < o.maxX + pad && z > o.minZ - pad && z < o.maxZ + pad) return true;
+    return false;
   }
   // how deep a point sits inside the padded obstacles (0 when clear): lets a unit that ended up too close to a wall back out
   penetration(x, z, pad = 0, vehicle = false) {
     let deepest = 0;
-    const depth = (o) => { if (x > o.minX - pad && x < o.maxX + pad && z > o.minZ - pad && z < o.maxZ + pad) deepest = Math.max(deepest, Math.min(x - (o.minX - pad), o.maxX + pad - x, z - (o.minZ - pad), o.maxZ + pad - z)); return false; };
-    this.obstaclesNear(x, z, pad, depth); if (vehicle) this.vehicleObstacles.forEach(depth);
+    const depth = (o) => { const d = Math.min(x - (o.minX - pad), o.maxX + pad - x, z - (o.minZ - pad), o.maxZ + pad - z); if (d > deepest) deepest = d; };
+    const g = this.obstacleGrid();
+    for (let cz = Math.floor((z - pad) / 8); cz <= Math.floor((z + pad) / 8); cz++) for (let cx = Math.floor((x - pad) / 8); cx <= Math.floor((x + pad) / 8); cx++) { const a = g.get(cx * 4096 + cz); if (a) for (const o of a) if (x > o.minX - pad && x < o.maxX + pad && z > o.minZ - pad && z < o.maxZ + pad) depth(o); }
+    if (vehicle) for (const o of this.vehicleObstacles) if (x > o.minX - pad && x < o.maxX + pad && z > o.minZ - pad && z < o.maxZ + pad) depth(o);
     return deepest;
   }
 }

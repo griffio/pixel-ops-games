@@ -37,15 +37,10 @@ export class Combat {
       const a = G.cells.get(cz * this.nx + cx); if (!a) continue;
       for (const i of a) {
         if (st[i] === gen) continue; st[i] = gen;
-        const o = B[i]; let t0 = 0, t1 = 1, inside = true;
-        for (const [p, d, lo, hi] of [[ax, dx, o.minX, o.maxX], [az, dz, o.minZ, o.maxZ]]) {
-          if (Math.abs(d) < 1e-9) { if (p < lo || p > hi) { t0 = 2; break; } continue; }
-          let ta = (lo - p) / d, tb = (hi - p) / d; if (ta > tb) [ta, tb] = [tb, ta];
-          if (ta > 0) inside = false;
-          t0 = Math.max(t0, ta); t1 = Math.min(t1, tb);
-          if (t0 > t1) break;
-        }
-        if (t0 > t1 || inside) continue;
+        const o = B[i]; let t0 = 0, t1 = 1, inside = true;   // the two slab tests written out: the array literals were three allocations an obstacle
+        if (Math.abs(dx) < 1e-9) { if (ax < o.minX || ax > o.maxX) continue; } else { let ta = (o.minX - ax) / dx, tb = (o.maxX - ax) / dx; if (ta > tb) { const q = ta; ta = tb; tb = q; } if (ta > 0) inside = false; if (ta > t0) t0 = ta; if (tb < t1) t1 = tb; if (t0 > t1) continue; }
+        if (Math.abs(dz) < 1e-9) { if (az < o.minZ || az > o.maxZ) continue; } else { let ta = (o.minZ - az) / dz, tb = (o.maxZ - az) / dz; if (ta > tb) { const q = ta; ta = tb; tb = q; } if (ta > 0) inside = false; if (ta > t0) t0 = ta; if (tb < t1) t1 = tb; if (t0 > t1) continue; }
+        if (inside) continue;
         if (o.top === undefined) o.top = this.groundAt((o.minX + o.maxX) / 2, (o.minZ + o.maxZ) / 2) + (o.h === undefined ? 2 : o.h);
         let t = -1;
         if (ay + (by - ay) * t0 < o.top) t = t0;                                                      // into the wall
@@ -70,13 +65,8 @@ export class Combat {
       for (const i of a) {
         if (st[i] === gen) continue; st[i] = gen;
         const o = B[i]; if (o === skipA || o === skipB) continue; let t0 = 0, t1 = 1;
-        for (const [p, d, lo, hi] of [[ax, dx, o.minX, o.maxX], [az, dz, o.minZ, o.maxZ]]) {
-          if (Math.abs(d) < 1e-9) { if (p < lo || p > hi) { t0 = 2; break; } continue; }
-          let ta = (lo - p) / d, tb = (hi - p) / d; if (ta > tb) [ta, tb] = [tb, ta];
-          t0 = Math.max(t0, ta); t1 = Math.min(t1, tb);
-          if (t0 > t1) break;
-        }
-        if (t0 > t1) continue;
+        if (Math.abs(dx) < 1e-9) { if (ax < o.minX || ax > o.maxX) continue; } else { let ta = (o.minX - ax) / dx, tb = (o.maxX - ax) / dx; if (ta > tb) { const q = ta; ta = tb; tb = q; } if (ta > t0) t0 = ta; if (tb < t1) t1 = tb; if (t0 > t1) continue; }
+        if (Math.abs(dz) < 1e-9) { if (az < o.minZ || az > o.maxZ) continue; } else { let ta = (o.minZ - az) / dz, tb = (o.maxZ - az) / dz; if (ta > tb) { const q = ta; ta = tb; tb = q; } if (ta > t0) t0 = ta; if (tb < t1) t1 = tb; if (t0 > t1) continue; }
         if (ya === undefined) return true;
         if (o.top === undefined) o.top = this.groundAt((o.minX + o.maxX) / 2, (o.minZ + o.maxZ) / 2) + (o.h === undefined ? 2 : o.h);
         if (Math.min(ya + (yb - ya) * t0, ya + (yb - ya) * t1) < o.top) return true;   // the line dips below the box's top inside it
@@ -160,9 +150,11 @@ export class Combat {
   }
   findTarget(u, w) {
     if (w.indirect) return this.findIndirect(u, w);
-    const list = this.spatial.query(u.pos.x, u.pos.z, w.range, this.scratch);
+    // beyond 40 m the enemy's own list (a hundred entries) is cheaper than the 8 m cells in range (2,600 at a tank gun's 200 m)
+    const far = w.range > 40 && this.cand && u.team >= 0 && u.team <= 1, list = far ? this.cand[1 - u.team] : this.spatial.query(u.pos.x, u.pos.z, w.range, this.scratch), r2 = w.range * w.range;
     let best = null, bestScore = -Infinity;
     for (const e of list) {
+      if (far) { const ex = e.pos.x - u.pos.x, ez = e.pos.z - u.pos.z; if (ex * ex + ez * ez > r2) continue; }
       if (e.team === u.team || e.dead || e.mounted || e.spec.untargetable) continue;
       if (e.spec.air && e.alt > 2 && !w.air) continue;
       const d = Math.hypot(e.pos.x - u.pos.x, e.pos.z - u.pos.z);
@@ -182,6 +174,8 @@ export class Combat {
   tick(dt) {
     this.clock = (this.clock || 0) + dt;
     const U = this.units.units, n = U.length, back = (this.tickNo = (this.tickNo || 0) + 1) & 1;   // forward one tick, backward the next: no side aims and fires first every time
+    const C = this.cand || (this.cand = [[], []]); C[0].length = C[1].length = 0;   // each side's live, unmounted, targetable units, for the long-range searches
+    for (const u of U) if (!u.dead && !u.mounted && !u.spec.untargetable && (u.team === 0 || u.team === 1)) C[u.team].push(u);
     for (let i = 0; i < n; i++) {
       const u = U[back ? n - 1 - i : i];
       if (u.dead || !u.kit || u.mounted) continue;

@@ -351,6 +351,7 @@ export class GLRenderer {
     const mainChunks = wide ? this.visibleChunks(this.coarse, box, 40) : fine, shadowChunks = this.useCoarse === true ? this.visibleChunks(this.coarse, box, reach) : this.visibleChunks(this.chunks, box, reach);
     this.stats.chunks = mainChunks.length; this.stats.shadowR = R; this.stats.shadowChunks = shadowChunks.length; this.stats.wide = wide;
     this.collect(scene, box, reach * 1.2);   // dynamic meshes likewise, with a little slack for the sun's azimuth
+    { const m = reach * 1.2 + 14; this.lastCull = { minX: box.minX - m, maxX: box.maxX + m, minZ: box.minZ - m, maxZ: box.maxZ + m }; }   // what collect() kept: units.js skips the animation of soldiers outside it
     const mainList = this.listBatches(mainChunks), shadowList = this.listBatches(shadowChunks);
     const target = new Vec3(cx, 0, cz), eye = new Vec3(cx + L.sunDir[0] * 400, L.sunDir[1] * 400, cz + L.sunDir[2] * 400);
     Mat4.cameraWorld(this.lightWorld, eye, target, LIGHT_UP);
@@ -428,13 +429,14 @@ export class GLRenderer {
     gl.enable(gl.DEPTH_TEST);
 
     // 3. particles (one draw call)
-    if (dust && dust.n) {
+    if (dust && (dust.top ?? dust.n)) {
+      const dn = dust.top ?? dust.n;   // up to the highest live slot, not the pool's high-water mark
       const d = P.dust; gl.useProgram(d.p); gl.blendFunc(gl.ONE, gl.ONE_MINUS_SRC_ALPHA);   // premultiplied: additive glow and covering smoke in one pass
       gl.uniformMatrix4fv(d.u.uViewProj, false, cam.viewProj);
       gl.uniform1f(d.u.uTpu, this.pixel.enabled ? this.pixel.texelsPerUnit : this.pixel.texelsPerUnit * this.pixel.pixelScale * this.pixel.dpr);
       gl.bindVertexArray(this.dustVao);
-      [dust.pos.subarray(0, dust.n * 3), dust.life.subarray(0, dust.n), dust.size.subarray(0, dust.n), dust.color.subarray(0, dust.n * 3), dust.params.subarray(0, dust.n * 2)].forEach((arr, i) => { gl.bindBuffer(gl.ARRAY_BUFFER, this.dustBufs[i]); gl.bufferData(gl.ARRAY_BUFFER, arr, gl.DYNAMIC_DRAW); });
-      gl.drawArrays(gl.POINTS, 0, dust.n); this.stats.calls++;
+      [dust.pos.subarray(0, dn * 3), dust.life.subarray(0, dn), dust.size.subarray(0, dn), dust.color.subarray(0, dn * 3), dust.params.subarray(0, dn * 2)].forEach((arr, i) => { gl.bindBuffer(gl.ARRAY_BUFFER, this.dustBufs[i]); gl.bufferData(gl.ARRAY_BUFFER, arr, gl.DYNAMIC_DRAW); });
+      gl.drawArrays(gl.POINTS, 0, dn); this.stats.calls++;
     }
     // 3b. tracer streaks (one draw call of additive lines)
     if (dust && dust.shots && dust.shots.segCount) {

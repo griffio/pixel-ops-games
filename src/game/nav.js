@@ -40,14 +40,15 @@ export class NavGrid {
   // A build changes the grid (sandbags, a FOB, a building down): the old labels stay readable and a relabel runs in the background,
   // a slice of cells a frame (labelStep, from UnitManager.update), then the new labels take over. Done in one go it took a
   // strategist's tick 30 to 65 ms on Palm Valley's 1.8M cells, at the first order after every dig (2026-11-01).
-  invalidate() {
+  invalidate() {   // cheap, and called once per box placed: the work buffer is cleared in slices by labelStep, not here (a 7 MB fill a box)
     if (!this.labels) return;   // not labelled yet: the first region() labels in one go
-    const n = this.n; this.workBuf = this.workBuf || new Int32Array(n * n); this.workBuf.fill(0);
-    this.relabel = { i: 0, next: 0, sizes: [0], sp: 0 };
+    const n = this.n; this.workBuf = this.workBuf || new Int32Array(n * n);
+    this.relabel = { clear: 0, i: 0, next: 0, sizes: [0], sp: 0 };
   }
-  labelStep(budget = 80000) {   // about 3 ms a frame on Palm Valley's grid, 23 frames to finish
+  labelStep(budget = 40000) {   // a slice a frame: about 3 ms on Palm Valley's 1.8M cells (the flood jumps about the buffer), 45 frames to finish
     const R = this.relabel; if (!R) return;
     const n = this.n, N = n * n, L = this.L, lab = this.workBuf, stack = this.stackBuf || (this.stackBuf = new Int32Array(N)), sizes = R.sizes; let { i, next, sp } = R, done = 0;
+    if (R.clear < N) { const to = Math.min(N, R.clear + budget * 4); lab.fill(0, R.clear, to); R.clear = to; return; }   // phase one: the clear, 160k cells a frame
     while (done < budget) {
       if (!sp) { while (i < N && (L[i] || lab[i])) i++; if (i >= N) break; lab[i] = ++next; sizes[next] = 0; stack[sp++] = i; }
       const c = stack[--sp], cx = c % n; sizes[next]++; done++;

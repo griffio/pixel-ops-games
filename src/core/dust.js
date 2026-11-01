@@ -161,9 +161,10 @@ export class DustSim {
   }
 
   update(dt) {
-    const p = this.pos, v = this.vel, L = this.life, D = this.damp;
+    const p = this.pos, v = this.vel, L = this.life, D = this.damp; let top = 0;
     for (let i = 0; i < this.n; i++) {
       if (L[i] <= 0) continue;
+      top = i + 1;
       L[i] -= dt / this.maxLife[i];
       p[i * 3] += v[i * 3] * dt; p[i * 3 + 1] += v[i * 3 + 1] * dt; p[i * 3 + 2] += v[i * 3 + 2] * dt;
       const k = Math.pow(D[i], dt * 60);
@@ -171,6 +172,7 @@ export class DustSim {
       if (this.grav[i] > 0 && p[i * 3 + 1] < 0.05 && v[i * 3 + 1] < 0) { v[i * 3 + 1] = 0; v[i * 3] *= 0.3; v[i * 3 + 2] *= 0.3; this.grav[i] = 0; }   // debris comes to rest on the ground
       if (L[i] <= 0) { p[i * 3 + 1] = -5; this.free.push(i); }
     }
+    this.top = top;   // the renderer uploads and draws this many slots: after a big fight the pool's n stays high while few live
     for (let i = this.lights.length - 1; i >= 0; i--) { const l = this.lights[i]; l.life -= dt; if (l.life <= 0) this.lights.splice(i, 1); }
     this.shots.update(dt);
   }

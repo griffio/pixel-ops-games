@@ -12,7 +12,8 @@ export class Rallies {
   cooldownLeft(sq) { return Math.max(0, (sq.rallyReadyAt || 0) - this.match.elapsed); }
   nextWaveIn(r) { return Math.max(0, r.nextWave - this.match.elapsed); }
   enemyWithin(team, x, z, r) {
-    for (const u of this.units.units) if (!u.dead && !u.mounted && u.team !== team && !u.spec.structure && !(u.spec.air && u.alt > 2) && Math.hypot(u.pos.x - x, u.pos.z - z) < r) return true;
+    const S = this.match.spatial; if (!S) { for (const u of this.units.units) if (!u.dead && !u.mounted && u.team !== team && !u.spec.structure && !(u.spec.air && u.alt > 2) && Math.hypot(u.pos.x - x, u.pos.z - z) < r) return true; return false; }
+    for (const u of S.query(x, z, r, this.scratch || (this.scratch = []))) if (u.team !== team && !u.spec.structure && !(u.spec.air && u.alt > 2)) return true;   // the hash holds the live, unmounted units, rebuilt before the tick
     return false;
   }
   // an enemy APC or tank within r: a rally it overlooks would bring men back under its gun

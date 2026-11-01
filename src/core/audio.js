@@ -185,6 +185,7 @@ export class AudioEngine {
     if (this.radioQueue.length && now >= this.radioUntil) this.voice(this.radioQueue.shift(), true);
     this.heat *= Math.exp(-dt / 6);
     if (!this.amb && this.app.match && this.clips.has('amb_wind')) this.amb = { wind: this.loopVoice('amb_wind', 0), battle: this.loopVoice('amb_battle', 0) };
+    if ((this.loopAcc = (this.loopAcc || 0) + dt) < 0.05) return; this.loopAcc = 0;   // the loops' gains and pitches ease over 80 to 200 ms: 20 Hz is plenty, and a frame's worth of unit scans and timeline events less
     if (this.amb) { this.amb.wind.gain.gain.setTargetAtTime(0.1, now, 1); this.amb.battle.gain.gain.setTargetAtTime(Math.min(0.28, 0.03 + this.heat * 0.012), now, 1.5); }
     const vehicles = this.app.units.units.filter(u => !u.dead && u.type !== 'soldier' && !u.spec.structure && (u.spec.air ? u.rotor > 0.03 : Math.abs(u.speed) > 0.3))
       .map(u => ({ u, s: this.spatial(u.pos.x, u.pos.z) })).filter(v => v.s.gain > 0.015).sort((a, b) => b.s.gain - a.s.gain).slice(0, 6);

@@ -3539,6 +3539,24 @@ shadows are on, and flat with them off, says the judder is the shadow pass and i
   max before, 0.78 / 7.5 after (headless); on the player's side with fog 0.28 ms a frame, the fog 0.06. Checked: the
   fog texture still bound and easing, labels and panels updating, pointers placed, the prewarm present before the first
   frame, no errors on Palm Valley, the Hollow or Narva.
+- **Items 5 and 6 done (2026-11-01, "Go 5 and 6").** Item 5: the renderer publishes its cull box each frame
+  (`lastCull`, the view plus the casters' reach plus a unit's bound) and a soldier outside it, or hidden by the fog,
+  skips `animate()`: his pose holds until he is back in view, which the renderer would not have drawn anyway; the arm
+  maths (`rotXYZ`, the hand targets) is allocation-free. Checked with the camera on a squad: 16 soldiers in view
+  animated, 56 out of it did not. Item 6, the small per-tick costs: target searches beyond 40 m walk the enemy's own
+  per-tick candidate list instead of every 8 m cell in range; the two slab tests in `wallHit`/`segHits` are written out
+  (three array literals an obstacle before); a bridge's cos and sin are computed once with a quick reject in `heightAt`;
+  `isBlocked`/`penetration` walk their buckets inline without a closure; the spatial hash keeps its buckets across
+  rebuilds and prunes empties every 600; `rallyFor` is answered once per squad per tick; the rally burn check queries
+  the hash; grenade resupply finds the stopped, stocked trucks once a tick; vision recasts are capped at 16 a tick, a
+  unit past the cap keeping its viewshed one more tick; the dust buffers upload and draw up to the highest live slot
+  (`dust.top`), not the pool's high-water mark; the audio loops' bookkeeping runs at 20 Hz. Found on the way: a FOB or
+  sandbag position going up rebuilt the obstacle grid from scratch (8 ms) and cleared a 7 MB relabel buffer per box; an
+  obstacle now goes straight into the grid's buckets (`addObstacle`) and the relabel clears its buffer in slices as its
+  first phase (`fobs.tick` worst 23.7 ms to 2.5). Headless, Palm Valley seed 11: units.update 0.50 ms a frame to 0.31
+  at minute 2.5 and 0.52 to 0.44 at minute 7; combat.tick 0.06 to 0.05; every simulation maximum under 7 ms; the
+  minute-2.5 fingerprint (tickets, captures, places) unchanged. Remaining maxima are the roster's 4 Hz card refresh
+  (up to 9 ms) and the first plan's long searches.
 
 
 None open. Answered:

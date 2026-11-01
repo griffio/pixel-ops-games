@@ -22,6 +22,7 @@ export class Respawn {
   // The squad's rally, when it is the spawn this soldier would use: the squad has no one left standing, or the rally is
   // nearer the squad than main, any FOB or any doctrine spawn. Forcing main or a helicopter or truck spawn skips it, and so
   // does enemy armour within RULES.rally.armourRadius of it (the men would come back under its gun).
+  rallyOf(u, team) { const M = this.rallyMemo || (this.rallyMemo = new Map()); if (this.rallyMemoAt !== this.clock) { M.clear(); this.rallyMemoAt = this.clock; } const k = u.squad || u; if (!M.has(k)) M.set(k, this.rallyFor(u, team)); return M.get(k); }
   rallyFor(u, team) {
     if (u.type !== 'soldier' || !u.squad || !this.rallies || team.spawnPref === 'base' || team.spawnPref === 'heli' || team.spawnPref === 'truck') return null;
     const r = this.rallies.of(u.squad); if (!r || this.rallies.covered(r)) return null;
@@ -82,7 +83,7 @@ export class Respawn {
     for (let i = this.queue.length - 1; i >= 0; i--) {
       const q = this.queue[i], u = q.unit, team = this.teams[u.team];
       // a soldier whose spawn is the squad's rally ignores his own timer and comes back on the rally's wave, if he has been down long enough
-      const rally = this.rallyFor(u, team);
+      const rally = this.rallyOf(u, team);   // once per squad per tick: every queued man of a squad gets the same answer
       if (rally ? !(rally.waveNow && this.clock - q.died >= RULES.rally.cutoff) : q.t > 0) continue;
       if (u.type === 'soldier') {
         // a doctrine may make men cheaper (Light Infantry: half a ticket); the fraction carries over, so every second man is free

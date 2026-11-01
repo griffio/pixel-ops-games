@@ -611,7 +611,7 @@ src/core/           renderer-agnostic engine
   geometry.js       box, cylinder, wedge, frustum, frond, ring, plane and grass-tuft generators with world-unit UVs
   textures.js       procedural tarmac (slabs, taxi lines, asphalt road, grass strip), camo and grass-tuft canvases
   camera.js         orthographic RTS camera (orbit, zoom-as-pixel-scale, texel snapping, follow)
-  units.js          steering, obstacle sliding, separation, squads (one route a squad, the members following it to their places), helicopter state machine; A* searches on a per-frame budget (?paths=N), the rest taken up a frame or two later
+  units.js          steering, obstacle sliding, separation, squads (one route a squad, the members following it to their places), helicopter state machine; A* searches on a per-frame budget (?paths=N), the rest taken up a frame or two later; a soldier outside the renderer's cull box keeps his pose
   dust.js           particle simulation: dust, smoke, fire, tracers, muzzle flashes and brief flash lights for the renderer
   projectiles.js    rounds in flight: straight bullets, cannon shells on a gravity arc, rockets; tracer streaks for the renderer
   input.js, hud.js  RTS input / selection and the HUD (command bar, build markers); picking delegated to the back end
@@ -623,8 +623,8 @@ src/game/           milestone 1 game layer (renderer-agnostic)
   weapons.js        weapon tables: range, bursts, accuracy, round speed, arcing shells
   teams.js          team state and base spawn points
   nav.js            A* grid (1 to 2 m cells by map) with foot / vehicle layers, a 1.15-weighted heuristic and string pulling; connected regions labelled up front and, after each build, again in the background a slice a frame
-  spatial.js        hash grid for targeting and separation
-  combat.js         targeting, line of sight (gridded obstacle test), burst fire, rounds in flight and the damage they land
+  spatial.js        hash grid for targeting and separation, its buckets kept across the per-frame rebuilds
+  combat.js         targeting (searches beyond 40 m over the enemy's own per-tick list), line of sight (gridded obstacle test, allocation-free), burst fire, rounds in flight and the damage they land
   respawn.js        ticket charges and respawns at main base
   landing.js        landing craft for a side based on a ship (Peninsula): the well dock, lanes to the beaches, beach choice, held beaches as supply dumps
   ai/strategist.js  CPU commander: objectives, logistics (FOBs), air lifts, FOB raids

@@ -57,13 +57,13 @@ export class Support {
     }
     // riflemen get their grenades back standing still in their own main base, or beside a stopped supply truck in the field
     // for a few supplies a squad (RULES.grenades)
-    const GR = RULES.grenades;
+    const GR = RULES.grenades, trucks = all.filter(t => t.supply && !t.dead && t.supplies >= GR.supplyCost && !t.dest && Math.abs(t.speed) < 0.3);   // once a tick, not once a squad
     for (const sq of this.units.squads) {
       const men = sq.members.filter(m => !m.dead && !m.mounted && m.kit === 'rifle' && m.grenades < GR.count); if (!men.length) continue;
       const b = this.teams[sq.team].base, home = men.filter(m => !m.dest && Math.abs(m.speed) < 0.3 && Math.hypot(m.pos.x - b.x, m.pos.z - b.z) < b.r);
       for (const m of home) m.grenades = GR.count;
-      const out = men.filter(m => !home.includes(m)); if (!out.length) continue;
-      const t = all.find(t => t.supply && !t.dead && t.team === sq.team && t.supplies >= GR.supplyCost && !t.dest && Math.abs(t.speed) < 0.3 && out.some(m => Math.hypot(t.pos.x - m.pos.x, t.pos.z - m.pos.z) < RULES.rearm.range));
+      const out = men.filter(m => !home.includes(m)); if (!out.length || !trucks.length) continue;
+      const t = trucks.find(t => t.team === sq.team && out.some(m => Math.hypot(t.pos.x - m.pos.x, t.pos.z - m.pos.z) < RULES.rearm.range));
       if (t) { t.supplies -= GR.supplyCost; for (const m of out) if (Math.hypot(t.pos.x - m.pos.x, t.pos.z - m.pos.z) < RULES.rearm.range) m.grenades = GR.count; }
     }
     for (const u of all) {

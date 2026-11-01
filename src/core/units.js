@@ -29,11 +29,12 @@ const LANDED = 90;   // seconds a soldier a helicopter set down counts as freshl
 
 // ---- soldier arms -------------------------------------------------------------
 // Euler XYZ rotation of a vector, in the order Mat4.fromTRS and three.js compose it (z, then y, then x).
+const RV = { x: 0, y: 0, z: 0 }, AT = { x: 0, y: 0, z: 0 };   // scratch: the arm maths runs for every soldier every frame, allocation-free
 function rotXYZ(v, r) {
-  let { x, y, z } = v, c = Math.cos(r.z), s = Math.sin(r.z); [x, y] = [x * c - y * s, x * s + y * c];
-  c = Math.cos(r.y); s = Math.sin(r.y); [x, z] = [x * c + z * s, -x * s + z * c];
-  c = Math.cos(r.x); s = Math.sin(r.x); [y, z] = [y * c - z * s, y * s + z * c];
-  return { x, y, z };
+  let x = v.x, y = v.y, z = v.z, c = Math.cos(r.z), s = Math.sin(r.z), t = x * c - y * s; y = x * s + y * c; x = t;
+  c = Math.cos(r.y); s = Math.sin(r.y); t = x * c + z * s; z = -x * s + z * c; x = t;
+  c = Math.cos(r.x); s = Math.sin(r.x); t = y * c - z * s; z = y * s + z * c; y = t;
+  RV.x = x; RV.y = y; RV.z = z; return RV;
 }
 const UPPER = 0.38, FORE = 0.39;   // shoulder to elbow, elbow to the middle of the hand (models.js soldier)
 // Two-bone reach in the torso's frame: turn the shoulder joint `arm` (the arm hangs along its -y) and bend the elbow
@@ -112,6 +113,8 @@ export class Unit {
     if (this.spec.air && this.hoverNoRoom) { this.hover = false; this.hoverNoRoom = false; }   // a hover for want of a landing spot ends with the next order
     if (!this.spec.air && this.seats) this.dropOnArrive = true;   // passengers get out where it stops
   }
+  // near enough the view to be drawn this frame (the renderer's cull box, set each render; headless or before the first frame: yes)
+  drawn() { const R = this.mgr && this.mgr.world.renderer, B = R && R.lastCull; if (!B) return true; if (this.group.hidden) return false; const p = this.pos; return p.x >= B.minX && p.x <= B.maxX && p.z >= B.minZ && p.z <= B.maxZ; }
   // the squad's route made this unit's own: its last point becomes this unit's place in the formation, unless that place is blocked
   adoptRoute(nav, p, x, z) {
     if (!p) { this.path = null; return; }   // the squad found no route and no way out (Squad.order searched both once): straight at the goal
@@ -355,7 +358,7 @@ export class Unit {
     const h = this.mgr.world.surfaceAt(this.pos.x, this.pos.z);   // the road's surface where there is one
     this.pos.y = this.swimming ? Math.max(h, T.water - 0.45 + Math.sin(performance.now() * 0.0014 + this.phase) * 0.06) : h;   // afloat: sat low on the water, riding the swell
     this.group.rotation.y = this.heading;
-    this.animate(dt);
+    if (this.type !== 'soldier' || this.drawn()) this.animate(dt);   // a soldier off screen (or out of sight under the fog) keeps his pose: the renderer skips him anyway
   }
 
   animate(dt) {
@@ -392,7 +395,7 @@ export class Unit {
       else R.rotation.set((CARRY[3] * c - tp * ak) * up - tp * pr, (CARRY[4] * c - ty * ak) * up - ty * pr, CARRY[5] * c * up);
       if (kit === 'at') { const B = tube ? p.rifle : p.launcher, P = tube ? SLUNG_RIFLE : SLUNG_TUBE; B.position.set(P[0], P[1], P[2]); B.rotation.set(P[3], P[4], P[5]); }
       if (kit === 'mg') p.bipod.rotation.x = -Math.PI / 2 * clamp((pr - 0.5) * 3, 0, 1);   // bipod down when prone
-      const at = (h) => { const v = rotXYZ(h, R.rotation); return { x: R.position.x + v.x, y: R.position.y + v.y, z: R.position.z + v.z }; };
+      const at = (h) => { const v = rotXYZ(h, R.rotation); AT.x = R.position.x + v.x; AT.y = R.position.y + v.y; AT.z = R.position.z + v.z; return AT; };   // reach() reads it before the next at()
       const [grip, guard] = HOLD[tube ? 'launcher' : kit === 'mg' ? 'mg' : 'rifle'];
       reach(p.armL, p.elbowL, at(grip), POLE_TRIGGER); reach(p.armR, p.elbowR, at(guard), POLE_SUPPORT);
       p.head.rotation.set(0.15 * ak * up - 1.2 * pr, -ty * 0.8, 0.12 * ak * up);

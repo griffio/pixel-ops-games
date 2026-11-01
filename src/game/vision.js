@@ -88,13 +88,14 @@ export class Vision {
   tick(dt) {
     const V = RULES.vision; this.t += dt; this.acc += dt;
     if (!this.on || this.acc < V.every - 1e-6) return; this.acc = 0;
-    const gen = ++this.gen, U = this.units.units, viewers = [[], []];
+    const gen = ++this.gen, U = this.units.units, viewers = [[], []]; let casts = 0;
     for (const u of U) {
       if (u.dead || u.mounted || u.team < 0 || u.team > 1) continue;
       const R = this.sight(u); if (!R) continue;
       const eye = this.combat.eyeY(u), air = u.spec.air && u.alt > 2;
       let c = this.cache.get(u);
-      if (!c || c.r !== R || Math.abs(c.eye - eye) > 0.4 || Math.hypot(c.x - u.pos.x, c.z - u.pos.z) > 4) this.cache.set(u, c = { x: u.pos.x, z: u.pos.z, eye, r: R, cells: this.cast(u.pos.x, u.pos.z, eye, R, air) });
+      // a recast budget a tick (a plan starting twelve squads walking asked for 48 at once): past it a unit keeps its last viewshed one more tick
+      if (!c || ((c.r !== R || Math.abs(c.eye - eye) > 0.4 || Math.hypot(c.x - u.pos.x, c.z - u.pos.z) > 4) && casts < 16)) { casts++; this.cache.set(u, c = { x: u.pos.x, z: u.pos.z, eye, r: R, cells: this.cast(u.pos.x, u.pos.z, eye, R, air) }); }
       const st = this.stamp[u.team]; for (const k of c.cells) st[k] = gen;
       viewers[u.team].push(u);
     }
