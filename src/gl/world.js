@@ -151,7 +151,7 @@ export class World extends WorldState {
   collapse(b) {
     const r = this.renderer, added = new Map(), gone = new Set(b.props.flatMap(p => p.meshes || (p.mesh ? [p.mesh] : [])));
     for (const m of gone) { const k = r.chunkKey(m.position.x, m.position.z); if (!added.has(k)) added.set(k, []); }
-    const main = b.props.find(p => p.tex) || b.props[0], tex = main && main.tex, col = main && main.color !== undefined && main.color !== null ? main.color : 0x8b8378;
+    const main = b.props.find(p => p.tex) || b.props[0], tex = b.color !== undefined ? null : main && main.tex, col = b.color !== undefined ? b.color : main && main.color !== undefined && main.color !== null ? main.color : 0x8b8378;   // b.color: a built wall's own colour (it has no props)
     const dark = (c, k) => ((Math.round((c >> 16) * k) << 16) | (Math.round(((c >> 8) & 255) * k) << 8) | Math.round((c & 255) * k));
     const plain = (c) => ({ color: [...hexToLinear(c), 1], tex: null, emissive: [0, 0, 0], cast: true });
     const mats = [tex ? MAT[tex] : plain(dark(col, 0.9)), plain(dark(col, 0.72)), plain(dark(col, 0.5)), plain(0x4a4440)];   // its own face and two shades under the dust, and sooted

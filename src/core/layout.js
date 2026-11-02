@@ -129,6 +129,9 @@ export class WorldState {
       return h;
     };
     // on a bridge deck; for vehicles (vehicles = true) footbridges (`foot: true`) do not count: only infantry cross them
+    // a platform's deck (game/fob.js, B3): a bridge the match adds and takes away; it lifts whoever stands on it like any deck
+    this.addDeck = (b) => { b.cosA = Math.cos(b.angle); b.sinA = Math.sin(b.angle); b.reach = Math.hypot(b.len / 2, b.w / 2); this.bridges.push(b); };
+    this.removeDeck = (b) => { const i = this.bridges.indexOf(b); if (i >= 0) this.bridges.splice(i, 1); };
     this.onBridge = (x, z, vehicles = false) => this.bridges.some(b => { if (vehicles && b.foot) return false; const dx = x - b.x, dz = z - b.z, c = Math.cos(b.angle), s = Math.sin(b.angle); return Math.abs(dx * s + dz * c) <= b.len / 2 && Math.abs(dx * c - dz * s) <= b.w / 2; });
 
     this.time = 14; this.timeSpeed = 60; this.day = 1;

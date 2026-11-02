@@ -11,7 +11,12 @@ export const KINDS = {
   atgm: { name: 'AT gun', gun: 'atgm', cost: () => RULES.emplacement.atgm.supplyCost, time: () => RULES.emplacement.atgm.buildTime },
   mortar: { name: 'Mortar', gun: 'mortar', cost: () => RULES.emplacement.mortar.supplyCost, time: () => RULES.emplacement.mortar.buildTime },
   traps: { name: 'Tank traps', cost: () => RULES.traps.supplyCost, time: () => RULES.traps.buildTime },
+  wall: { name: 'Wall', cost: () => RULES.wall.supplyCost, time: () => RULES.wall.buildTime },
+  platform: { name: 'Platform', cost: () => RULES.platform.supplyCost, time: () => RULES.platform.buildTime },
 };
+// how far apart two planned builds must be (a built one is in the ground and its boxes speak for it): wall runs may touch end to
+// end, a platform wants a little clearance, bags and guns keep their 12 m from each other
+const GAP = (a, b) => (a === 'traps' || b === 'traps' ? 0 : a === 'wall' && b === 'wall' ? 5.8 : a === 'wall' || b === 'wall' ? 5 : a === 'platform' && b === 'platform' ? 7.5 : a === 'platform' || b === 'platform' ? 6 : RULES.sandbags.minSpacing);
 export class BuildPlan {
   constructor(match, team = 0) { this.m = match; this.team = team; this.list = []; this.seq = 0; this.acc = 0; }
   get fobs() { return this.m.fobs; }
@@ -21,8 +26,10 @@ export class BuildPlan {
     let site, at = [x, z], hh = h;
     if (kind === 'traps') { const [rx, rz, rh] = F.trapRow(x, z, team, h); at = [rx, rz]; hh = rh; site = F.trapSite(team, rx, rz); }
     else if (K.gun) site = F.emplacementSite(team, x, z);
+    else if (kind === 'wall') site = F.wallSite(team, x, z, h);
+    else if (kind === 'platform') site = F.platformSite(team, x, z, h);
     else site = F.sandbagSite(team, x, z);
-    if (!site.reason && this.list.some(e => e.kind !== 'traps' && kind !== 'traps' && Math.hypot(e.x - at[0], e.z - at[1]) < RULES.sandbags.minSpacing)) site = { reason: `too close to another planned build (${RULES.sandbags.minSpacing} m)` };
+    if (!site.reason && this.list.some(e => { const g = GAP(e.kind, kind); return g && Math.hypot(e.x - at[0], e.z - at[1]) < g; })) site = { reason: 'too close to another planned build' };
     if (!site.reason && kind === 'traps' && this.list.some(e => e.kind === 'traps' && Math.hypot(e.x - at[0], e.z - at[1]) < RULES.traps.minSpacing)) site = { reason: `too close to planned traps (${RULES.traps.minSpacing} m)` };
     const pool = this.pool(), cost = K.cost(), planned = this.list.reduce((s, e) => s + KINDS[e.kind].cost(), 0);
     if (!site.reason && pool < planned + cost) site = { reason: `not enough supplies: ${pool} left, ${planned} already planned` };
@@ -45,7 +52,7 @@ export class BuildPlan {
   free() { return this.engineers().filter(u => !u.building && !u.planFor); }
   start(e) {
     const F = this.fobs, at = [e.x, e.z];
-    const r = e.kind === 'traps' ? F.startTraps(e.eng, at, e.h) : e.gun ? F.startEmplacement(e.eng, e.gun, at, e.h) : F.startSandbags(e.eng, at, e.h);
+    const r = e.kind === 'traps' ? F.startTraps(e.eng, at, e.h) : e.gun ? F.startEmplacement(e.eng, e.gun, at, e.h) : e.kind === 'wall' ? F.startWall(e.eng, at, e.h) : e.kind === 'platform' ? F.startPlatform(e.eng, at, e.h) : F.startSandbags(e.eng, at, e.h);
     if (r.ok) { e.build = r.build; e.state = 'building'; e.why = null; if (this.onStart) this.onStart(e); } else e.why = r.reason;
     return r.ok;
   }
@@ -56,7 +63,7 @@ export class BuildPlan {
       if (e.state === 'building') {
         if (eng && eng.building === e.build) continue;
         // the build is over: done when the structure stands there, otherwise (the engineer walked, died, was cancelled) back to the queue
-        const done = this.m.units.units.some(u => !u.dead && u.team === this.team && u.spec.structure && Math.hypot(u.pos.x - e.x, u.pos.z - e.z) < 4 && (e.kind === 'traps' ? u.type === 'traps' : e.gun ? u.type === 'emplacement' : u.type === 'sandbags'));
+        const want = e.gun ? 'emplacement' : e.kind, done = this.m.units.units.some(u => !u.dead && u.team === this.team && u.type === want && Math.hypot(u.pos.x - e.x, u.pos.z - e.z) < 4);
         if (eng) eng.planFor = null;
         if (done) { this.list.splice(i, 1); if (this.onDone) this.onDone(e); } else { e.state = 'queued'; e.eng = null; e.build = null; }
         continue;
@@ -64,14 +71,14 @@ export class BuildPlan {
       if (e.state === 'walking') {
         if (!eng || eng.dead || eng.mounted || eng.building) { if (eng && !eng.building) eng.planFor = null; e.state = 'queued'; e.eng = null; continue; }
         const d = Math.hypot(eng.pos.x - e.x, eng.pos.z - e.z);
-        if (d <= 2.6) { if (slow || !e.triedAt) { e.triedAt = this.m.elapsed; if (!this.start(e)) { /* waits where he is: a truck out of range, supplies short */ } } continue; }
+        if (d <= (e.kind === 'platform' ? 4.2 : 2.6)) { if (slow || !e.triedAt) { e.triedAt = this.m.elapsed; if (!this.start(e)) { /* waits where he is: a truck out of range, supplies short */ } } continue; }
         if (!eng.dest && slow) this.walk(e);   // his order was lost (an attack-move, a hold): sent again
         continue;
       }
       if (slow) { const f = this.free().sort((a, b) => Math.hypot(a.pos.x - e.x, a.pos.z - e.z) - Math.hypot(b.pos.x - e.x, b.pos.z - e.z))[0]; if (f) { e.eng = f; f.planFor = e; e.state = 'walking'; this.walk(e); } }
     }
   }
-  // the engineer stands a step to the rear of the spot (the open side), clear of what he builds
-  walk(e) { const eng = e.eng, s = Math.sin(e.h), c = Math.cos(e.h); eng.leavePost && eng.leavePost(); eng.order(e.x - s * 1.6, e.z - c * 1.6); eng.manual = true; }
+  // the engineer stands a step to the rear of the spot (the open side), clear of what he builds; a platform's ladder foot is further back
+  walk(e) { const eng = e.eng, s = Math.sin(e.h), c = Math.cos(e.h), back = e.kind === 'platform' ? 3.4 : 1.6; eng.leavePost && eng.leavePost(); eng.order(e.x - s * back, e.z - c * back); eng.manual = true; }
   forDigest() { return this.list.map(e => ({ kind: e.kind, at: [Math.round(e.x), Math.round(e.z)], state: e.state })); }
 }

@@ -9,7 +9,7 @@ import { RULES } from './rules.js';
 // positions and rally points stay known once seen; weapon caches are objectives and always show. An enemy that drops out of
 // sight leaves a last-known position (a ghost) for RULES.vision.ghost seconds. The CPU plans with contacts(): what its side sees
 // plus those last-known positions. Switched off (?fog=0), every side sees everything, as before fog of war.
-const STICKY = new Set(['fob', 'sandbags', 'rally', 'traps', 'emplacement']);
+const STICKY = new Set(['fob', 'sandbags', 'rally', 'traps', 'emplacement', 'wall', 'platform']);
 
 export class Vision {
   constructor(units, world, combat, on = true) {
@@ -31,18 +31,20 @@ export class Vision {
     const n = this.n, c = this.cell, ground = this.ground = new Float32Array(n * n), sea = world.terrain ? world.terrain.water : -Infinity;   // over water, its surface: a boat floats on it
     for (let cz = 0; cz < n; cz++) for (let cx = 0; cx < n; cx++) ground[cz * n + cx] = Math.max(sea, combat.groundAt((cx + 0.5) * c - this.half, (cz + 0.5) * c - this.half));
     const top = this.top = new Float32Array(n * n).fill(-Infinity), cover = new Float32Array(n * n), ci = (v) => Math.max(0, Math.min(n - 1, Math.floor((v + this.half) / c)));
-    const highest = new Float32Array(n * n).fill(-Infinity), thick = this.thick = new Uint8Array(n * n);
+    const highest = new Float32Array(n * n).fill(-Infinity), thick = this.thick = new Uint8Array(n * n), solid = new Uint8Array(n * n);   // solid: a cell with a built wall run in it counts whatever share of it the run covers
     for (const o of [...world.obstacles, ...(world.thickets || [])]) {
       const h = o.h === undefined ? 2 : o.h; if (h < 1.5) continue;
       const y = combat.groundAt((o.minX + o.maxX) / 2, (o.minZ + o.maxZ) / 2) + h;
       for (let cz = ci(o.minZ); cz <= ci(o.maxZ); cz++) for (let cx = ci(o.minX); cx <= ci(o.maxX); cx++) {
         const x0 = cx * c - this.half, z0 = cz * c - this.half, k = cz * n + cx;
-        cover[k] += Math.max(0, Math.min(o.maxX, x0 + c) - Math.max(o.minX, x0)) * Math.max(0, Math.min(o.maxZ, z0 + c) - Math.max(o.minZ, z0)); if (o.thicket) thick[k] = 1;
+        cover[k] += Math.max(0, Math.min(o.maxX, x0 + c) - Math.max(o.minX, x0)) * Math.max(0, Math.min(o.maxZ, z0 + c) - Math.max(o.minZ, z0)); if (o.thicket) thick[k] = 1; if (o.solid) solid[k] = 1;
         if (y > highest[k]) highest[k] = y;
       }
     }
-    for (let k = 0; k < n * n; k++) if (cover[k] >= c * c / 8) top[k] = highest[k];
+    for (let k = 0; k < n * n; k++) if (cover[k] >= c * c / 8 || solid[k]) top[k] = highest[k];
   }
+  // the walls changed (a run went up or came down): the sight grid again, and every viewshed recast at the next look
+  refresh() { this.buildTops(); this.cache.clear(); }
   cellOf(x, z) { const n = this.n, cx = Math.floor((x + this.half) / this.cell), cz = Math.floor((z + this.half) / this.cell); return cx < 0 || cz < 0 || cx >= n || cz >= n ? -1 : cz * n + cx; }
   sight(u) { const S = RULES.vision.sight; return u.spec.air && u.alt > 2 ? S.air : S[u.type] || 0; }
 

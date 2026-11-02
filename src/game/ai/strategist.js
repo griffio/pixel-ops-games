@@ -4,6 +4,8 @@ import { roadDist } from '../../core/math.js';
 // the engineer's jobs each logistics order of a remote commander allows (a FOB falls back to sandbags when no kit or site is left)
 const JOBS = { fob: ['clear', 'fob', 'sandbags'], sandbags: ['clear', 'sandbags'], traps: ['clear', 'traps'], hmg: ['clear', 'emplacement'], atgm: ['clear', 'emplacement'], mortar: ['clear', 'emplacement'], none: [] };
 const GUNS = ['hmg', 'atgm', 'mortar'];   // FOB emplacements (game/fob.js)
+const pathLen = (pts) => { let L = 0; for (let i = 1; i < pts.length; i++) L += Math.hypot(pts[i][0] - pts[i - 1][0], pts[i][1] - pts[i - 1][1]); return L; };
+const segDist = (px, pz, ax, az, bx, bz) => { const vx = bx - ax, vz = bz - az, L = vx * vx + vz * vz, t = L ? Math.max(0, Math.min(1, ((px - ax) * vx + (pz - az) * vz) / L)) : 0; return Math.hypot(ax + vx * t - px, az + vz * t - pz); };
 
 // CPU commander v2: objective-aware manoeuvre, logistics (FOB one hop behind the
 // front) and lifts (helicopters, trucks and APCs carry squads far from the fight).
@@ -114,7 +116,7 @@ export class Strategist {
 
   tick(dt) {
     if (this.remote) this.remote.tick(dt);
-    if ((this.reflex -= dt) <= 0) { this.reflex = 1; this.note(); this.caution(); }
+    if ((this.reflex -= dt) <= 0) { this.reflex = 1; this.note(); this.caution(); this.breach(); }
     this.timer -= dt; if (this.timer > 0) return; this.timer = this.diff.plan + Math.random() * 2;
     const base = this.teams[this.team].base, land = this.teams[this.team].home;   // home on land: the main base, or the beach a ship's landing craft use
     // drop lifts whose carrier or troops are gone, so squads return to the pool
@@ -259,6 +261,11 @@ export class Strategist {
         const job = vroles.get(v.label), at = job && job.role === 'hold' ? byName(job.at) : null, keep = job && job.role === 'hold' ? (at && at.owner === this.team ? at : hold) : null;
         if (keep && keep !== at) refused.set(v.label, `hold at ${job.at}: not ours, so at ${keep.name} instead`);
         const goal = keep || attack || hold; if (!goal) continue;
+        if (v.breach && !v.breach.dead) {   // a wall run to breach (breach()): from 55 m out on its own side, where the cannon sees it; caution() still backs it off launchers
+          const w = v.breach, dx = v.pos.x - w.pos.x, dz = v.pos.z - w.pos.z, d = Math.hypot(dx, dz) || 1;
+          if (d > 75 || d < 35) { const x = w.pos.x + dx / d * 55, z = w.pos.z + dz / d * 55; if (this.vehicleReaches(v, x, z) && !(v.dest && v.goal && Math.hypot(v.goal[0] - x, v.goal[1] - z) < 12)) { v.goal = [x, z]; v.order(x, z); } }
+          continue;
+        }
         if (v.type === 'apc' && (!keep || this.lifts.has(v)) && this.ride(v, free, attack, land)) continue;   // an APC leaving base takes a squad with it (one holding finishes a drop under way, then starts none)
         const standoff = v.type === 'tank' ? 90 : 70;   // the tank's gun reaches 200 m: it stands further off
         const foes = this.enemiesNear(goal.x, goal.z, goal.r + 40), c = this.cluster(foes);
@@ -328,6 +335,30 @@ export class Strategist {
     return sq;
   }
 
+  // Walls in the way (Hold: the player's wall runs, B3). Once a second: when the squad nearest the attack cannot reach it on foot
+  // at all (the foot grid's regions differ: walled in), or only by a long way round (twice the straight distance and 60 m), the
+  // side's guns that can hurt a wall (APCs, tanks, manned mortars) are given the run nearest the straight way in as `breach`:
+  // combat.js fires at it when nothing else is in sight, the plan's vehicle loop sits armour where it sees it, and when the run
+  // comes down (buildings.js) the grids open and the target clears. Looked at every five seconds while walls stand.
+  breach() {
+    const g = this.goals, at = g && g.attack, now = this.match.elapsed;
+    const guns = this.units.units.filter(u => u.team === this.team && !u.dead && !u.mounted && (u.type === 'apc' || u.type === 'tank' || (u.type === 'soldier' && u.post && u.post.sb.gun === 'mortar')));
+    const set = (w) => { for (const u of guns) u.breach = w; this.breachAt = w; };
+    if (!at) return set(null);
+    const walls = this.contacts().filter(u => u.type === 'wall' && !u.dead).map(u => (u.ghost ? u.unit : u)).filter(u => !u.dead);   // known walls stay known (vision STICKY)
+    if (!walls.length) return set(null);
+    if (this.breachAt && !this.breachAt.dead && now - (this.breachT || 0) < 5) return set(this.breachAt);
+    const sqs = this.units.squads.filter(s => s.team === this.team && s.leader && !s.mounted && !s.members.some(m => m.post)).map(s => s.centroid()).sort((a, b) => Math.hypot(a.x - at.x, a.z - at.z) - Math.hypot(b.x - at.x, b.z - at.z));
+    if (!sqs.length) return set(null);
+    const lead = sqs[0], nav = this.units.nav.foot; this.breachT = now;
+    const a = nav.nearest(nav.cellOf(lead.x), nav.cellOf(lead.z)), b = nav.nearest(nav.cellOf(at.x), nav.cellOf(at.z));
+    let blocked = !a || !b || nav.region(a[0], a[1]) !== nav.region(b[0], b[1]);
+    if (!blocked) { const p = nav.findPath(lead.x, lead.z, at.x, at.z, 30000); blocked = !p || pathLen([[lead.x, lead.z], ...p]) > Math.hypot(at.x - lead.x, at.z - lead.z) * 2 + 60; }
+    if (!blocked) return set(null);
+    let best = null, bd = Infinity;
+    for (const w of walls) { const d = segDist(w.pos.x, w.pos.z, lead.x, lead.z, at.x, at.z) + 0.3 * Math.hypot(w.pos.x - lead.x, w.pos.z - lead.z); if (d < bd) { bd = d; best = w; } }
+    set(best);
+  }
   // why grabsFor leaves place l out (the reason a remote commander's grab is refused), or null when it would take it
   grabRefusal(l, attack) {
     const o = this.match.objectives, t = this.team;

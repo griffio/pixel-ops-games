@@ -82,6 +82,11 @@ export class Combat {
     const G = this.low, i = G.list.length; G.list.push(o); const st = new Int32Array(i + 1); st.set(G.stamp); G.stamp = st;
     for (let cz = this.ci(o.minZ); cz <= this.ci(o.maxZ); cz++) for (let cx = this.ci(o.minX); cx <= this.ci(o.maxX); cx++) { const k = cz * this.nx + cx; let a = G.cells.get(k); if (!a) G.cells.set(k, a = []); a.push(i); }
   }
+  // a tall obstacle added after the match started (a built wall run, a platform's legs): into the line-of-sight grid
+  addTall(o) {
+    const G = this.tall, i = G.list.length; G.list.push(o); const st = new Int32Array(i + 1); st.set(G.stamp); G.stamp = st; delete o.top;
+    for (let cz = this.ci(o.minZ); cz <= this.ci(o.maxZ); cz++) for (let cx = this.ci(o.minX); cx <= this.ci(o.maxX); cx++) { const k = cz * this.nx + cx; let a = G.cells.get(k); if (!a) G.cells.set(k, a = []); a.push(i); }
+  }
   // a soldier settled in a sandbag position's firing slot, shot at from its front or sides (not through the open rear)
   dugIn(e, from) { const p = e.post; if (!p || !p.settled) return false; const a = Math.atan2(from.pos.x - e.pos.x, from.pos.z - e.pos.z) - p.sb.heading; return Math.abs(Math.atan2(Math.sin(a), Math.cos(a))) < Math.PI * 0.6; }
   // partial cover: a low obstacle within 3 m of the target on the shooter's side
@@ -119,7 +124,15 @@ export class Combat {
       const d = Math.hypot(s.pos.x - x, s.pos.z - z); s.supp = Math.min(1, s.supp + amount * (1 - 0.5 * d / r) * (s === victim ? 2 : 1) * (s.post && s.post.settled ? 0.5 : 1));   // dug in: half the suppression
     }
   }
+  // a wall run as a target (a gun the strategist gave it to breach, u.breach): seen when its near face is, a metre out from the
+  // run on the viewer's side, since a line to its centre ends inside its own boxes
+  canSeeWall(u, e) {
+    const nx = Math.sin(e.heading), nz = Math.cos(e.heading), side = (u.pos.x - e.pos.x) * nx + (u.pos.z - e.pos.z) * nz >= 0 ? 1 : -1, fx = e.pos.x + nx * side, fz = e.pos.z + nz * side, fy = e.pos.y + 1.0;
+    const T = this.world.terrain; if (T && !T.los(u.pos.x, this.eyeY(u), u.pos.z, fx, fy, fz)) return false;
+    return this.los(u.pos.x, u.pos.z, fx, fz, this.eyeY(u), fy);
+  }
   canSee(u, e) {
+    if (e.spec && e.spec.wall) return this.canSeeWall(u, e);
     const T = this.world.terrain;
     if (T && !T.los(u.pos.x, this.eyeY(u), u.pos.z, e.pos.x, e.pos.y + 1.2, e.pos.z)) return false;   // hills block
     const W = this.world, tu = W.thicketAt ? W.thicketAt(u.pos.x, u.pos.z) : null, te = W.thicketAt ? W.thicketAt(e.pos.x, e.pos.z) : null;
@@ -201,6 +214,8 @@ export class Combat {
       if (!u.enemy) {
         u.hold = false;
         if ((u.retarget -= dt) <= 0) { u.retarget = 0.4 + Math.random() * 0.3; u.enemy = this.findTarget(u, w); }
+        // nothing to shoot at, and a wall run to breach (strategist.breach): the guns that can hurt it fire at it, in range and in sight (a mortar: known to its side)
+        if (!u.enemy && u.breach) { const b = u.breach; if (b.dead) u.breach = null; else if (w.explosive && u.type !== 'soldier') { const d = Math.hypot(b.pos.x - u.pos.x, b.pos.z - u.pos.z); if (d <= w.range && !(w.min && d < w.min) && (w.indirect ? !this.vision || this.vision.sees(u.team, b) : this.canSee(u, b))) { u.enemy = b; u.burst = 0; } } }
       }
       if (u.enemy && u.cooldown <= 0 && this.onTarget(u, u.enemy) && !(u.ammo !== undefined && u.ammo < 1)) this.fire(u, w, u.enemy, kit);   // an empty rocket pod waits for the base
       if (u.kit2) {   // the coax shares the turret: it fires at the turret's target when that is infantry in its range
@@ -258,7 +273,7 @@ export class Combat {
     if (u.type === 'soldier') chance *= 1 - 0.4 * u.supp; // a suppressed shooter aims badly
     if (e.type !== 'soldier') chance *= 1.6;            // vehicles are big targets
     if (w.rocket && e.spec.air && e.alt > 2) chance *= u.squad && u.squad.aa && !u.dest ? 0.7 : 0.35;   // an unguided rocket at a helicopter in the air rarely connects; braced for it (a squad standing to fire at helicopters, strategist.skyward) twice as often
-    else if (!w.thrown) { const dug = this.dugIn(e, u); chance *= Math.max(dug ? 0.2 : 0.3, (dug ? 0.35 : this.covered(e, u) ? 0.5 : 1) * (1 - 0.2 * (e.kneelK || 0) - 0.4 * (e.proneK || 0))); }   // a manned position, cover and a low stance shrink the target
+    else if (!w.thrown) { const dug = this.dugIn(e, u), cv = dug ? (e.post.sb.spec.cover ?? 0.35) : this.covered(e, u) ? 0.5 : 1; chance *= Math.max(dug ? Math.min(0.2, cv) : 0.3, cv * (1 - 0.2 * (e.kneelK || 0) - 0.4 * (e.proneK || 0))); }   // a manned position (worth what its spec says: bags 0.35, a platform's parapet 0.6), cover and a low stance shrink the target
     const hit = Math.random() < chance;
     // the round leaves the barrel a little ahead of the unit at gun height, aimed where the target will be
     // when it arrives; a miss is aimed past the target and comes down on the ground around it
@@ -274,7 +289,7 @@ export class Combat {
       mx = u.pos.x + side * c + 1.0 * sn; mz = u.pos.z - side * sn + 1.0 * c;
     }
     const flight = d / (w.arc ? w.speed * 0.85 : w.speed), ev = Math.abs(e.speed) > 0.05 && !e.dead && !w.indirect ? e.speed : 0;   // a mortar lays on where the target is
-    let tx = e.pos.x + Math.sin(e.heading) * ev * flight, tz = e.pos.z + Math.cos(e.heading) * ev * flight, ty = e.pos.y + (e.spec.air ? 2 : e.type === 'soldier' ? 1.1 - 0.35 * (e.kneelK || 0) - 0.75 * (e.proneK || 0) : 2.2);
+    let tx = e.pos.x + Math.sin(e.heading) * ev * flight, tz = e.pos.z + Math.cos(e.heading) * ev * flight, ty = e.pos.y + (e.spec.air ? 2 : e.type === 'soldier' ? 1.1 - 0.35 * (e.kneelK || 0) - 0.75 * (e.proneK || 0) : e.spec.wall ? 1.0 : 2.2);   // a wall run is hit halfway up
     if (!hit) { const sp = (w.arc ? 2 : 1.5) + d * (w.arc ? 0.06 : 0.04); tx += (Math.random() - 0.5) * 2 * sp; tz += (Math.random() - 0.5) * 2 * sp; ty = e.spec.air && e.alt > 2 ? ty + (Math.random() - 0.5) * 6 : this.groundAt(tx, tz) + 0.1; }
     let near = null;
     if (!hit && !w.arc && !w.splash && !(e.spec.air && e.alt > 2)) {   // a missed bullet or rocket flies on past the target, into the ground beyond or whatever stands there (a bursting shell still comes down around the target)
@@ -332,7 +347,7 @@ export class Combat {
       if (o === skip || o.dead || o.mounted || o.team === u.team || o.team < 0 || o.team > 1 || o.spec.untargetable || (o.spec.air && o.alt > 2)) continue;
       const d = Math.hypot(o.pos.x - x, o.pos.z - z), k = 1 - d / w.splash; if (k <= 0) continue;
       let dmg = (o.type === 'soldier' ? w.dmgInf : w.dmgVeh * 0.5) * k * ((T && T.dmg) || 1);
-      if (o.type === 'soldier') dmg *= (this.dugIn(o, at) || this.covered(o, at) ? 0.35 : 1) * (1 - 0.5 * (o.proneK || 0));
+      if (o.type === 'soldier') dmg *= (this.dugIn(o, at) ? (o.post.sb.spec.cover ?? 0.35) : this.covered(o, at) ? 0.35 : 1) * (1 - 0.5 * (o.proneK || 0));
       u.firedKit = kit;
       if (o.damage(dmg, u)) this.onDeath && this.onDeath(o, u);
     }

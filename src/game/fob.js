@@ -1,5 +1,5 @@
 import { RULES } from './rules.js';
-import { sandbagBoxes, trapBoxes, emplacementBoxes, TRAPS } from '../core/models.js';
+import { sandbagBoxes, trapBoxes, emplacementBoxes, wallBoxes, platformBoxes, platformDeck, TRAPS, WALL, PLAT } from '../core/models.js';
 import { roadDist, roadAlong, pathDist } from '../core/math.js';
 
 // Forward operating bases: an engineer within range of a supply truck that holds
@@ -65,7 +65,7 @@ export class Fobs {
   // railway, and a position on its 10 m deck once closed it to every vehicle for the rest of the match)
   onCrossing(x, z, m = 6) {
     const B = this.world.bridges || [];
-    for (const b of B) { const dx = x - b.x, dz = z - b.z, c = Math.cos(b.angle), s = Math.sin(b.angle); if (Math.abs(dx * s + dz * c) <= b.len / 2 + m && Math.abs(dx * c - dz * s) <= b.w / 2 + m) return 'not on a bridge'; }
+    for (const b of B) { if (b.deck) continue; const dx = x - b.x, dz = z - b.z, c = Math.cos(b.angle), s = Math.sin(b.angle); if (Math.abs(dx * s + dz * c) <= b.len / 2 + m && Math.abs(dx * c - dz * s) <= b.w / 2 + m) return 'not on a bridge'; }   // a platform's deck is no crossing
     const rail = this.world.map && this.world.map.rail; if (rail && rail.length > 1 && pathDist(rail, x, z) < RULES.sandbags.roadClear) return 'too close to the railway';
     return null;
   }
@@ -151,6 +151,97 @@ export class Fobs {
     eng.building = b; eng.hold = true; eng.target = null; eng.dest = null; eng.path = null;
     this.builds.push(b); return { ok: true, build: b };
   }
+  // Base defence works (docs/GAME_PLAN.md B3), from a supply truck like sandbags: a wall run, 6 m of gabions across the facing that
+  // blocks sight and movement until shellfire brings it down (game/buildings.js), and a platform, a 6 by 4 m deck 3 m up that four
+  // men man and see over the walls from. Both go where the ghost puts them (the build plan) or where the engineer stands.
+  wallsOf(team) { return this.units.units.filter(u => u.type === 'wall' && u.team === team && !u.dead); }
+  platformsOf(team) { return this.units.units.filter(u => u.type === 'platform' && u.team === team && !u.dead); }
+  // the ground under a footprint: clear of every obstacle (built ones too, so runs may touch end to end), dry, not too steep, off
+  // the roads and crossings, clear of the FOB; `pts` are world points to try, `slope` the most the ground may fall
+  groundOk(team, pts, slope, fobClear) {
+    const W = this.world, T = W.terrain;
+    for (const [px, pz] of pts) {
+      if (Math.abs(px) > W.half - 4 || Math.abs(pz) > W.half - 4) return 'at the edge of the map';
+      if (W.isBlocked(px, pz, 0.3, true)) return 'no room here';
+      if (T && T.height(px, pz) < T.water) return 'in the water';
+      if (T && T.slope(px, pz) > slope) return 'too steep here';
+      for (const f of this.active(team)) if (Math.hypot(f.pos.x - px, f.pos.z - pz) < fobClear) return 'too close to the FOB';
+      if (roadDist(W.map, px, pz) < RULES.sandbags.roadClear) return 'too close to the road';
+      const xr = this.onCrossing(px, pz); if (xr) return xr;
+    }
+    return null;
+  }
+  // whether a wall run at (x, z) facing h (the run lies across the facing) is allowed for `team`: {} or { reason }
+  wallSite(team, x, z, h = null) {
+    const R = RULES.wall, max = this.rule('wallsMax', R.max), hh = h === null ? this.threatHeading(team, x, z) : h, c = Math.cos(hh), s = Math.sin(hh);
+    const bad = this.siteOk(team, x, z); if (bad) return { reason: bad };
+    if (this.wallsOf(team).length + this.builds.filter(b => b.team === team && b.kind === 'wall').length >= max) return { reason: `no more than ${max} wall runs` };
+    const g = this.groundOk(team, [-2.5, -1.25, 0, 1.25, 2.5].map(lx => [x + lx * c, z - lx * s]), 0.9, R.fobClear); if (g) return { reason: g };
+    for (const p of this.platformsOf(team)) if (Math.hypot(p.pos.x - x, p.pos.z - z) < 5) return { reason: 'too close to a platform' };
+    if (this.builds.some(b => (b.kind === 'wall' || b.kind === 'platform') && b.team === team && Math.hypot(b.x - x, b.z - z) < (b.kind === 'wall' ? 5.5 : 5))) return { reason: 'too close to another build' };
+    return {};
+  }
+  // whether a platform at (x, z) facing h is allowed: level ground under all four legs and room for the ladder behind
+  platformSite(team, x, z, h = null) {
+    const R = RULES.platform, max = this.rule('platformsMax', R.max), hh = h === null ? this.threatHeading(team, x, z) : h, c = Math.cos(hh), s = Math.sin(hh), T = this.world.terrain;
+    const bad = this.siteOk(team, x, z); if (bad) return { reason: bad };
+    if (this.platformsOf(team).length + this.builds.filter(b => b.team === team && b.kind === 'platform').length >= max) return { reason: `no more than ${max} platforms` };
+    const L = (lx, lz) => [x + lx * c + lz * s, z - lx * s + lz * c], hx = PLAT.w / 2 - 0.4, hz = PLAT.d / 2 - 0.4, corners = [L(-hx, -hz), L(hx, -hz), L(-hx, hz), L(hx, hz)];
+    const g = this.groundOk(team, [[x, z], ...corners, L(0, -PLAT.d / 2 - 1.4), L(0, -PLAT.d / 2 - 3)], R.maxSlope, R.fobClear); if (g) return { reason: g };
+    if (T) { const ys = corners.map(([px, pz]) => T.height(px, pz)); if (Math.max(...ys) - Math.min(...ys) > 1.2) return { reason: 'too steep here' }; }   // the legs would float or sink
+    for (const p of this.platformsOf(team)) if (Math.hypot(p.pos.x - x, p.pos.z - z) < 7.5) return { reason: 'too close to another platform' };
+    for (const w of this.wallsOf(team)) if (Math.hypot(w.pos.x - x, w.pos.z - z) < 5) return { reason: 'too close to a wall' };
+    for (const o of [...this.sandbagsOf(team), ...this.emplacementsOf(team)]) if (Math.hypot(o.pos.x - x, o.pos.z - z) < 6) return { reason: 'too close to another position' };
+    if (this.builds.some(b => b.kind && b.kind !== 'traps' && b.kind !== 'clear' && b.team === team && Math.hypot(b.x - x, b.z - z) < (b.kind === 'platform' ? 7.5 : 6))) return { reason: 'too close to another build' };
+    return {};
+  }
+  canBuildWall(eng, at = null, h = null) {
+    if (!eng || eng.dead || eng.kit !== 'engineer' || eng.mounted) return { ok: false, reason: 'needs an engineer' };
+    if (eng.building) return { ok: false, reason: 'already building' };
+    const [x, z] = at && Math.hypot(at[0] - eng.pos.x, at[1] - eng.pos.z) < 3.5 ? at : [eng.pos.x, eng.pos.z];
+    const site = this.wallSite(eng.team, x, z, h); if (site.reason) return { ok: false, reason: site.reason };
+    const truck = this.truckFor(eng, RULES.wall.supplyCost);
+    if (!truck) return { ok: false, reason: `needs a supply truck with ${RULES.wall.supplyCost} supplies within ${this.buildRange(eng.team)} m` };
+    return { ok: true, truck, x, z };
+  }
+  startWall(eng, at = null, h = null) {
+    const c = this.canBuildWall(eng, at, h); if (!c.ok) return c;
+    const d = this.teams[eng.team].doctrine || {}, t = RULES.wall.buildTime * (d.fobBuild || 1);
+    const b = { kind: 'wall', eng, truck: c.truck, team: eng.team, x: c.x, z: c.z, h: h === null ? undefined : h, t, total: t };
+    eng.building = b; eng.hold = true; eng.target = null; eng.dest = null; eng.path = null;
+    this.builds.push(b); return { ok: true, build: b };
+  }
+  canBuildPlatform(eng, at = null, h = null) {
+    if (!eng || eng.dead || eng.kit !== 'engineer' || eng.mounted) return { ok: false, reason: 'needs an engineer' };
+    if (eng.building) return { ok: false, reason: 'already building' };
+    const [x, z] = at && Math.hypot(at[0] - eng.pos.x, at[1] - eng.pos.z) < 5 ? at : [eng.pos.x, eng.pos.z];   // he stands at the ladder's foot, behind it
+    const site = this.platformSite(eng.team, x, z, h); if (site.reason) return { ok: false, reason: site.reason };
+    const truck = this.truckFor(eng, RULES.platform.supplyCost);
+    if (!truck) return { ok: false, reason: `needs a supply truck with ${RULES.platform.supplyCost} supplies within ${this.buildRange(eng.team)} m` };
+    return { ok: true, truck, x, z };
+  }
+  startPlatform(eng, at = null, h = null) {
+    const c = this.canBuildPlatform(eng, at, h); if (!c.ok) return c;
+    const d = this.teams[eng.team].doctrine || {}, t = RULES.platform.buildTime * (d.fobBuild || 1);
+    const b = { kind: 'platform', eng, truck: c.truck, team: eng.team, x: c.x, z: c.z, h: h === null ? undefined : h, t, total: t };
+    eng.building = b; eng.hold = true; eng.target = null; eng.dest = null; eng.path = null;
+    this.builds.push(b); return { ok: true, build: b };
+  }
+  // the wall run (anyone's) whose line passes within r of a point, and the platform whose deck a point is within r of
+  wallsAt(x, z, r = RULES.sandbags.clearRange) {
+    let best = null, bd = r;
+    for (const t of this.units.units) {
+      if (t.type !== 'wall' || t.dead) continue;
+      const [lx, lz] = t.worldToLocal(x, z), d = Math.hypot(Math.max(0, Math.abs(lx) - WALL.len / 2), lz);
+      if (d < bd) { bd = d; best = t; }
+    }
+    return best;
+  }
+  platformsAt(x, z, r = RULES.sandbags.clearRange) {
+    let best = null, bd = r;
+    for (const t of this.units.units) { if (t.type !== 'platform' || t.dead) continue; const [lx, lz] = t.worldToLocal(x, z), d = Math.hypot(Math.max(0, Math.abs(lx) - PLAT.w / 2), Math.max(0, Math.abs(lz) - PLAT.d / 2)); if (d < bd) { bd = d; best = t; } }
+    return best;
+  }
   // the sandbag position (anyone's) nearest a point, within r of its centre
   sandbagsAt(x, z, r = RULES.sandbags.clearRange) {
     let best = null, bd = r;
@@ -161,14 +252,14 @@ export class Fobs {
   canClear(eng) {
     if (!eng || eng.dead || eng.kit !== 'engineer' || eng.mounted) return { ok: false, reason: 'needs an engineer' };
     if (eng.building) return { ok: false, reason: 'already working' };
-    const traps = this.trapsAt(eng.pos.x, eng.pos.z), sandbags = traps ? null : this.sandbagsAt(eng.pos.x, eng.pos.z);
-    if (!traps && !sandbags) return { ok: false, reason: `no traps or sandbags within ${RULES.traps.clearRange} m` };
-    if (this.builds.some(b => b.kind === 'clear' && (traps ? b.traps === traps : b.sandbags === sandbags))) return { ok: false, reason: 'already being cleared' };
-    return { ok: true, traps, sandbags };
+    const traps = this.trapsAt(eng.pos.x, eng.pos.z), sandbags = traps ? null : this.sandbagsAt(eng.pos.x, eng.pos.z), wall = traps || sandbags ? null : this.wallsAt(eng.pos.x, eng.pos.z), platform = traps || sandbags || wall ? null : this.platformsAt(eng.pos.x, eng.pos.z);
+    if (!traps && !sandbags && !wall && !platform) return { ok: false, reason: `no traps, sandbags, wall or platform within ${RULES.traps.clearRange} m` };
+    const what = traps || sandbags || wall || platform; if (this.builds.some(b => b.kind === 'clear' && (b.traps === what || b.sandbags === what || b.wall === what || b.platform === what))) return { ok: false, reason: 'already being cleared' };
+    return { ok: true, traps, sandbags, wall, platform };
   }
   startClear(eng) {
     const c = this.canClear(eng); if (!c.ok) return c;
-    const t = c.traps ? RULES.traps.clearTime : RULES.sandbags.clearTime, b = { kind: 'clear', eng, traps: c.traps || null, sandbags: c.sandbags || null, team: eng.team, x: eng.pos.x, z: eng.pos.z, t, total: t };
+    const t = c.traps ? RULES.traps.clearTime : c.sandbags ? RULES.sandbags.clearTime : c.wall ? RULES.wall.clearTime : RULES.platform.clearTime, b = { kind: 'clear', eng, traps: c.traps || null, sandbags: c.sandbags || null, wall: c.wall || null, platform: c.platform || null, team: eng.team, x: eng.pos.x, z: eng.pos.z, t, total: t };
     eng.building = b; eng.hold = true; eng.target = null; eng.dest = null; eng.path = null;
     this.builds.push(b); return { ok: true, build: b };
   }
@@ -199,7 +290,8 @@ export class Fobs {
   tick(dt) {
     for (let i = this.builds.length - 1; i >= 0; i--) {
       const b = this.builds[i], e = b.eng;
-      const cancel = e.dead || e.mounted || Math.hypot(e.pos.x - b.x, e.pos.z - b.z) > 3 || (b.truck && (b.truck.dead || Math.hypot(b.truck.pos.x - b.x, b.truck.pos.z - b.z) > this.buildRange(b.team) + 5)) || (b.traps && b.traps.dead) || (b.sandbags && b.sandbags.dead);
+      // off the spot (a platform's builder stands at the ladder's foot, behind the deck), aboard, dead, the truck gone or away, the thing to clear gone: the build stops
+      const cancel = e.dead || e.mounted || Math.hypot(e.pos.x - b.x, e.pos.z - b.z) > (b.kind === 'platform' ? 5 : 3) || (b.truck && (b.truck.dead || Math.hypot(b.truck.pos.x - b.x, b.truck.pos.z - b.z) > this.buildRange(b.team) + 5)) || (b.traps && b.traps.dead) || (b.sandbags && b.sandbags.dead) || (b.wall && b.wall.dead) || (b.platform && b.platform.dead);
       if (cancel) { e.building = null; e.hold = false; this.builds.splice(i, 1); continue; }
       b.t -= dt; if (b.t > 0) continue;
       e.building = null; e.hold = false; this.builds.splice(i, 1);
@@ -209,7 +301,15 @@ export class Fobs {
         if (this.onTraps) this.onTraps(u, trapBoxes(b.rx, b.rz, b.h));
         continue;
       }
-      if (b.kind === 'clear') { if (b.sandbags) { if (this.onSandbagsCleared) this.onSandbagsCleared(b.sandbags, b.team); } else if (this.onTrapsCleared) this.onTrapsCleared(b.traps, b.team); continue; }
+      if (b.kind === 'clear') { if (b.sandbags) { if (this.onSandbagsCleared) this.onSandbagsCleared(b.sandbags, b.team); } else if (b.wall) { if (this.onWallCleared) this.onWallCleared(b.wall, b.team); } else if (b.platform) { if (this.onPlatformCleared) this.onPlatformCleared(b.platform, b.team); } else if (this.onTrapsCleared) this.onTrapsCleared(b.traps, b.team); continue; }
+      if (b.kind === 'wall' || b.kind === 'platform') {
+        b.truck.supplies -= RULES[b.kind].supplyCost;
+        const h = b.h !== undefined ? b.h : this.threatHeading(b.team, b.x, b.z);   // a wall lies across the threat; a platform's parapet faces it, its ladder away
+        const u = this.units.spawn(b.kind, b.x, b.z, h, b.team); u.label = `${b.kind === 'wall' ? 'WL' : 'PF'}-${String((b.kind === 'wall' ? this.wallsOf(b.team) : this.platformsOf(b.team)).length).padStart(2, '0')}`;
+        if (b.kind === 'wall') { if (this.onWall) this.onWall(u, wallBoxes(b.x, b.z, h)); }
+        else if (this.onPlatform) this.onPlatform(u, platformBoxes(b.x, b.z, h), platformDeck(b.x, b.z, h, this.world.surfaceAt ? this.world.surfaceAt(b.x, b.z) : this.world.heightAt(b.x, b.z)));
+        continue;
+      }
       if (b.kind === 'emplacement') {
         b.truck.supplies -= RULES.emplacement[b.gun].supplyCost;
         const h = b.h !== undefined ? b.h : this.threatHeading(b.team, b.x, b.z), pre = { hmg: 'MG', atgm: 'AT', mortar: 'MO' }[b.gun];

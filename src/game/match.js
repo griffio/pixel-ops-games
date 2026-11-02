@@ -124,8 +124,27 @@ export class Match {
       }
       this.event({ type: 'sandbags cleared', team });
     };
+    // a wall run (B3): a tall obstacle to movement and sight, a building that shellfire brings down (game/buildings.js), the fog grid told
+    this.fobs.onWall = (u, boxes) => {
+      u.wallBoxes = boxes;
+      for (const o of boxes) { this.world.addObstacle(o); this.nav.foot.block(o); this.nav.vehicle.block(o); if (this.nav.amphib) this.nav.amphib.block(o); this.combat.addTall(o); }
+      this.stepClear(u, 7); this.buildings.addWall(u, boxes); this.vision.refresh();
+      this.event({ type: 'wall', team: u.team, label: u.label });
+    };
+    // a platform (B3): its deck lifts whoever stands on it (core/layout.js addDeck); its legs and rails keep walkers out of the
+    // footprint, so the deck is entered from the back as a sandbag position is; the legs are tall boxes to the line of sight
+    this.fobs.onPlatform = (u, boxes, deck) => {
+      u.platBoxes = boxes; u.deck = deck; this.world.addDeck(deck);
+      for (const o of boxes) { this.world.addObstacle(o); this.nav.foot.block(o, 0.3); this.nav.vehicle.block(o); if (this.nav.amphib) this.nav.amphib.block(o); if (o.h >= 1.5) this.combat.addTall(o); }
+      this.stepClear(u, 7);
+      this.event({ type: 'platform', team: u.team, label: u.label });
+    };
+    // taken down by an engineer: the boxes go, the grids round them are worked out again, the deck is a height no more
+    this.fobs.onWallCleared = (u, team) => { this.buildings.remove(u.bld); this.unbuild(u, u.wallBoxes || []); this.event({ type: 'wall cleared', team }); };
+    this.fobs.onPlatformCleared = (u, team) => { for (const s of this.units.units) if (s.post && s.post.sb === u) s.leavePost(); if (u.deck) this.world.removeDeck(u.deck); this.unbuild(u, u.platBoxes || []); this.event({ type: 'platform cleared', team }); };
     this.combat.onSprung = (u) => { if (u.team === (this.app.playerTeam ?? 0) && this.app.hud) this.app.hud.toast(`${u.squad && u.squad.leader ? u.squad.leader.label : u.label} opens fire`); };
     this.combat.onDeath = (v, k) => {
+      if (v.type === 'wall') { this.buildings.breached(v, k); return; }   // a built wall shot down: rubble, the grids and the feed (game/buildings.js); no ticket, no respawn
       this.respawn.onDeath(v, k);
       const s = this.teams[v.team].stats; s.losses[v.type] = (s.losses[v.type] || 0) + 1; if (v.type === 'fob') s.fobsLost++;
       if (k) { const ks = this.teams[k.team].stats, by = k.type === 'soldier' ? (k.firedKit || k.kit) : k.type; ks.kills[v.type] = (ks.kills[v.type] || 0) + 1; ks.killsBy[by] = (ks.killsBy[by] || 0) + 1; ks.killsByUnit[k.label] = (ks.killsByUnit[k.label] || 0) + 1; }   // by unit label (a squad's men share theirs), kept on the team: a wreck's object may be gone by the debrief
@@ -157,6 +176,25 @@ export class Match {
     this.spatial.rebuild(this.units.units);
   }
 
+  // whoever stands where a structure just went up steps onto the nearest free ground
+  stepClear(u, r) {
+    for (const v of this.units.units) {
+      if (v.dead || v === u || v.spec.structure || !v.spec.nav || Math.hypot(v.pos.x - u.pos.x, v.pos.z - u.pos.z) > r) continue;
+      const nav = this.nav[v.spec.nav]; if (!nav.blocked(v.pos.x, v.pos.z)) continue;
+      const c = nav.nearest(nav.cellOf(v.pos.x), nav.cellOf(v.pos.z), 10); if (c) { v.pos.x = nav.world(c[0]); v.pos.z = nav.world(c[1]); }
+    }
+  }
+  // a structure's obstacle boxes out of the world, the grids round them worked out again, the unit gone
+  unbuild(u, B) {
+    const O = this.world.obstacles;
+    for (const o of B) { const i = O.indexOf(o); if (i >= 0) O.splice(i, 1); }
+    u.dead = true; u.remove = true;
+    if (B.length) {
+      const x0 = Math.min(...B.map(o => o.minX)), x1 = Math.max(...B.map(o => o.maxX)), z0 = Math.min(...B.map(o => o.minZ)), z1 = Math.max(...B.map(o => o.maxZ));
+      for (const g of [this.nav.foot, this.nav.vehicle, this.nav.amphib]) if (g) g.refresh(x0, x1, z0, z1);
+      this.combat.rebuildGrids(); this.vision.refresh();
+    }
+  }
   // one history row every 5 s: [t, tickets0, tickets1, infantry lost 0, 1, vehicles lost 0, 1, locations owned 0, 1]
   sample() {
     const veh = (t) => Object.entries(t.stats.losses).filter(([k]) => k !== 'soldier' && k !== 'fob').reduce((a, [, v]) => a + v, 0);

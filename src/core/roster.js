@@ -10,7 +10,7 @@ const ALERT = 6;           // seconds a card stays red after its unit was hit
 const PLACE_PAD = 30;      // a squad this far outside a location still holds it
 const HOLD_MS = 500, SLOP = 10;
 const VEH = { tank: ['TANK', 0], apc: ['APC', 1], humvee: ['HUMVEE', 1.5], heli: ['CHINOOK', 2], bird: ['LITTLE BIRD', 2], truck: ['TRUCK', 3] };
-const STRUCT = { fob: 0, emplacement: 1, sandbags: 2, traps: 3 };
+const STRUCT = { fob: 0, emplacement: 1, sandbags: 2, platform: 2, traps: 3 };   // wall runs have no card: a base has dozens
 const GUN = { hmg: 'HMG', atgm: 'AT GUN', mortar: 'MORTAR' };
 export const squadKind = (kits) => kits.includes('engineer') ? ['engineer', 'ENG'] : kits.includes('medic') ? ['medic', 'MEDIC'] : kits.includes('at') ? ['at', 'AT']
   : kits.includes('marksman') ? ['marksman', 'MARKS'] : kits.filter(k => k === 'mg').length > 1 ? ['support', 'SUPPORT'] : ['rifle', 'RIFLE'];
@@ -143,6 +143,7 @@ export class Roster {
     if (u.type === 'fob') Object.assign(d, { sub: 'FOB', pic: 'fob', glyph: 'fob', text: `Spawn · ${p}` });
     else if (u.type === 'emplacement') { const on = !!u.crewAt(0); Object.assign(d, { sub: GUN[u.gun] || 'GUN', pic: u.gun, glyph: 'post', units: [u], text: on ? `Manned · ${p}` : 'No gunner', tone: on ? '' : 'y' }); }
     else if (u.type === 'sandbags') { const n = u.crew ? u.crew.length - u.freeSlots : 0; Object.assign(d, { sub: 'BAGS', pic: 'sandbags', glyph: 'post', text: `${n ? n + ' in' : 'Empty'} · ${p}` }); }
+    else if (u.type === 'platform') { const n = u.crew ? u.crew.length - u.freeSlots : 0; Object.assign(d, { sub: 'DECK', pic: 'platform', glyph: 'post', text: `${n ? n + ' up' : 'Empty'} · ${p}`, hp: null }); }
     else Object.assign(d, { sub: 'TRAPS', pic: 'traps', glyph: 'traps', text: p, hp: null });
     if (d.alert) Object.assign(d, { glyph: 'fire', tone: 'red', text: `Under fire · ${p}` });
     return d;

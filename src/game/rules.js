@@ -20,6 +20,11 @@ export const RULES = {
   rearm: { supplyCost: 10, range: 12 },   // a belt for a vehicle with one (the Humvee) from a supply truck stopped beside it
   grenades: { count: 2, range: 35, squadGap: 4, friendly: 8, supplyCost: 2 },   // a rifleman's hand grenades (weapons.js grenade, combat.throwGrenade): count each, one throw a squad every squadGap s, none with a friend within `friendly` m of the target; back on respawn, in the main base, or beside a stopped supply truck for supplyCost a squad
   sandbags: { buildTime: 12, supplyCost: 12, max: 8, minSpacing: 12, enemyBaseDistance: 60, roadClear: 10, clearTime: 8, clearRange: 8 },   // any engineer standing at a position clears it, like traps
+  // base defence works (game/fob.js, docs/GAME_PLAN.md B3): a wall run, 6 m of gabions 1.8 m high that blocks sight and movement until
+  // mortar or cannon fire brings it down (hp, on the units' scale: three mortar bombs, a dozen cannon rounds; bullets chip it), and a
+  // platform, a 6 by 4 m scaffold deck 3 m up that four men stand on and see and shoot over the walls from
+  wall: { buildTime: 14, supplyCost: 16, max: 30, hp: 150, len: 6, h: 1.8, thick: 1.1, clearTime: 10, fobClear: 10 },
+  platform: { buildTime: 20, supplyCost: 30, max: 8, w: 6, d: 4, h: 3, clearTime: 12, fobClear: 12, maxSlope: 0.5 },
   // FOB emplacements: an engineer by a supply truck, within fobRange of one of his side's FOBs, builds a gun the soldier
   // manning it fires (weapons.js hmg / atgm / mortar); perFob to a FOB, spaced from each other, sandbags and the FOB itself
   emplacement: { hmg: { supplyCost: 20, buildTime: 12 }, atgm: { supplyCost: 30, buildTime: 15 }, mortar: { supplyCost: 40, buildTime: 18 }, perFob: 3, fobRange: 50, minSpacing: 8, fobClear: 8, roadClear: 8 },   // improvised fighting positions: no kit, an engineer by a supply truck; never on the road (6 m half width + the position's 4 m)

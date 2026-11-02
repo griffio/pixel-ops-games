@@ -21,7 +21,7 @@ export class Hold extends AAS {
   static key = 'hold'; static name = 'Hold the Farm'; static desc = 'Base defence: three minutes to build on the knoll, then hold the HQ against eight waves over twelve minutes. The CPU wins by taking your HQ zone; you win at the clock, or by breaking every wave.'; static sides = false;
   static minutes = 15;
   playerBuilds = true;   // the placement ghost and the build plan (core/builder.js, game/buildplan.js)
-  buildRules = { buildRange: 140, sandbagsMax: 20, trapsMax: 10, perFob: 12, fobRange: 100 };   // the one truck parked at the HQ serves the whole farm; room for a real defence
+  buildRules = { buildRange: 140, sandbagsMax: 20, trapsMax: 10, perFob: 12, fobRange: 100, wallsMax: 30, platformsMax: 8 };   // the one truck parked at the HQ serves the whole farm; room for a real defence
   static RING = 95;   // build within this of the HQ: the knoll and the ground just below its lip
   tickets(team) { return team === 1 ? 9999 : super.tickets(team); }   // the attackers' losses are the waves themselves
   deploys(team) { return team === 0; }   // no starting force for the attackers: the waves are theirs

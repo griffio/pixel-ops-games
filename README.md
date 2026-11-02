@@ -200,7 +200,19 @@ the top left places sandbags, guns and tank traps: pick a tile, a footprint foll
 mouse (or sits where you last tapped) green where it may go and red with the reason, R and
 Shift+R turn it, a click or Place drops it, and the nearest free engineer walks over and
 builds it from the HQ truck's supplies (300 to start, 40 more for each wave held, shown in
-the reinforcements panel). Queued builds show as chips that cancel them.
+the reinforcements panel). Queued builds show as chips that cancel them. Two works are
+the base's own: a **wall run** (16 supplies, 14 s), 6 m of gabions 1.8 m high laid across
+the facing, which blocks sight and movement for both sides until mortar bombs or cannon
+fire bring it down (150 hit points: an APC at 60 m needs about half a minute, bullets only
+chip it), leaving a heap of rubble and an open way; runs may touch end to end, so leave a
+gap as the gate. And a **platform** (30 supplies, 20 s), a 6 by 4 m scaffold deck 3 m up
+with a bag parapet along the front and a ladder at the back: right-click or tap it with
+soldiers selected and four climb up (a second each way) and stand on its slots, seeing and
+shooting over the walls and hedges, less sheltered than men behind bags on the ground. The
+attackers answer walls: when their lead squad cannot reach the HQ on foot, or only by a
+long way round, their APCs (and any mortar they man) are given the run nearest the way in
+as a target and shoot at it until it is down. An engineer standing at a run or a platform
+takes it down.
 
 Cliffs ring the coast except at three landings:
 - West Beach: sand, open to vehicles.
@@ -436,7 +448,8 @@ precedence and the utility AI fills the gaps.
   three minutes to build before eight waves of attackers come in at the map's edges every
   90 s, each a little stronger (an APC from the fourth); dead attackers do not come back. The
   CPU wins by taking the HQ zone (an ordinary capture); the player wins at the 15-minute clock
-  or by breaking every wave.
+  or by breaking every wave. Besides sandbags, guns and traps the player builds wall runs
+  that shellfire breaches and platforms that four men see and shoot over the walls from.
 
 **Capture rings.** Every location wears a ring on the ground at its capture radius: the holder's colour
 (blue or red), solid while held and dashed in the taking side's colour while it is

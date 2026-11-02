@@ -1,5 +1,5 @@
 import { Mesh, Node } from '../gl/scene.js';
-import { sandbagBoxes, emplacementBoxes, trapBoxes } from './models.js';
+import { sandbagBoxes, emplacementBoxes, trapBoxes, wallBoxes, platformBoxes, PLAT } from './models.js';
 import { KINDS } from '../game/buildplan.js';
 import { icon } from './icons.js';
 
@@ -13,7 +13,7 @@ const OK = { color: [0.45, 0.95, 0.5, 0.42], tex: null, emissive: [0.05, 0.3, 0.
 const BAD = { color: [1, 0.35, 0.3, 0.45], tex: null, emissive: [0.3, 0.05, 0.05], unlit: true, cast: false, blend: true };
 const QUEUED = { color: [0.9, 0.85, 0.5, 0.3], tex: null, emissive: [0.2, 0.18, 0.05], unlit: true, cast: false, blend: true };
 const STEP = Math.PI / 12;
-const GLYPH = { sandbags: 'sandbags', hmg: 'hmg', atgm: 'atgm', mortar: 'mortar', traps: 'traps' };
+const GLYPH = { sandbags: 'sandbags', hmg: 'hmg', atgm: 'atgm', mortar: 'mortar', traps: 'traps', wall: 'wall', platform: 'platform' };
 export class Builder {
   constructor(app) {
     this.app = app; this.active = null; this.ghost = null; this.marks = new Map(); this.mouse = null; this.mouseAt = 0; this.last = null;
@@ -62,9 +62,10 @@ export class Builder {
   // the footprint of a kind at a spot as thin boxes, in one of the three materials
   footprint(kind, x, z, h, mat) {
     const g = new Node(); g.bound = 12; const W = this.app.world, y = W.surfaceAt(x, z);
-    const boxes = kind === 'traps' ? trapBoxes(x, z, h) : KINDS[kind].gun ? emplacementBoxes(x, z, h) : sandbagBoxes(x, z, h);
-    for (const b of boxes) { const m = new Mesh('box:1,1,1', mat), w = b.maxX - b.minX, d = b.maxZ - b.minZ, hh = kind === 'traps' ? 1.3 : KINDS[kind].gun ? 0.72 : 1.0; m.position.set((b.minX + b.maxX) / 2 - x, hh / 2 + 0.05, (b.minZ + b.maxZ) / 2 - z); m.scale.set(w, hh, d); g.add(m); }
-    if (KINDS[kind].gun) { const m = new Mesh('box:1,1,1', mat); m.position.set(0, 0.6, 0.2); m.scale.set(0.3, 0.3, 1.4); m.rotation.y = -h; g.add(m); }   // the gun's barrel, for the facing
+    const boxes = kind === 'traps' ? trapBoxes(x, z, h) : KINDS[kind].gun ? emplacementBoxes(x, z, h) : kind === 'wall' ? wallBoxes(x, z, h) : kind === 'platform' ? platformBoxes(x, z, h).filter(b => b.leg) : sandbagBoxes(x, z, h);
+    for (const b of boxes) { const m = new Mesh('box:1,1,1', mat), w = b.maxX - b.minX, d = b.maxZ - b.minZ, hh = b.h || (kind === 'traps' ? 1.3 : KINDS[kind].gun ? 0.72 : 1.0); m.position.set((b.minX + b.maxX) / 2 - x, hh / 2 + 0.05, (b.minZ + b.maxZ) / 2 - z); m.scale.set(w, hh, d); g.add(m); }
+    if (kind === 'platform') { const m = new Mesh('box:1,1,1', mat); m.position.set(0, PLAT.h + 0.1, 0); m.scale.set(PLAT.w, 0.2, PLAT.d); m.rotation.y = h; g.add(m); const l = new Mesh('box:1,1,1', mat); l.position.set(-Math.sin(h) * (PLAT.d / 2 + 0.3), PLAT.h / 2, -Math.cos(h) * (PLAT.d / 2 + 0.3)); l.scale.set(0.8, PLAT.h, 0.2); l.rotation.y = h; g.add(l); }   // the deck, and the ladder at the back for the facing
+    if (KINDS[kind].gun) { const m = new Mesh('box:1,1,1', mat); m.position.set(Math.sin(h) * 0.2, 0.6, Math.cos(h) * 0.2); m.scale.set(0.3, 0.3, 1.4); m.rotation.y = h; g.add(m); }   // the gun's barrel, for the facing (a mesh turned by h points the way a unit with heading h faces)
     g.position.set(x, y, z); return g;
   }
   dropGhost() { if (this.ghost) { this.app.units.scene.remove(this.ghost); this.ghost = null; } }

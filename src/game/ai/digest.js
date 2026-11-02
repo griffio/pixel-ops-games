@@ -45,6 +45,8 @@ export function buildDigest(match, team, remote = null) {
   const enemy = clusters.sort((a, b) => b.n - a.n).slice(0, 8).map(c => ({ at: [r(c.x), r(c.z)], near: nearLoc(c.x, c.z), units: c.types, inThickets: c.thk || undefined, lastSeen: c.age ? r(c.age) : undefined }));
   const fobs = (t) => (t === team ? U.filter(u => u.type === 'fob' && u.team === t && !u.dead) : known.filter(u => u.type === 'fob')).map(u => nearLoc(u.pos.x, u.pos.z));
   const sandbags = U.filter(u => u.type === 'sandbags' && u.team === team && !u.dead).map(u => nearLoc(u.pos.x, u.pos.z));
+  // base defence works (Hold): our wall runs and platforms, and the enemy's we have found; a platform with men up it
+  const works = (t) => { const mine = t === team, W = mine ? U.filter(u => u.team === t && !u.dead) : known, walls = W.filter(u => u.type === 'wall'), plats = W.filter(u => u.type === 'platform'); return walls.length || plats.length ? { walls: walls.length, platforms: plats.map(u => ({ near: nearLoc(u.pos.x, u.pos.z), manned: mine ? u.crew.length - u.freeSlots : undefined })) } : undefined; };
   // FOB emplacements: ours with whether a gunner is on it, theirs where we have found them
   const emplacements = { ours: U.filter(u => u.type === 'emplacement' && u.team === team && !u.dead).map(u => ({ id: u.label, gun: u.gun, near: nearLoc(u.pos.x, u.pos.z), hp: r(100 * u.hp / u.maxHp), manned: !!u.crewAt(0) })),
     theirs: known.filter(u => u.type === 'emplacement').map(u => ({ gun: u.gun || (u.unit && u.unit.gun), near: nearLoc(u.pos.x, u.pos.z) })) };
@@ -67,7 +69,7 @@ export function buildDigest(match, team, remote = null) {
     side: T.name, mode: m.mode.constructor.key, minute: +(m.elapsed / 60).toFixed(1), minutesLeft: +(Math.max(0, m.time) / 60).toFixed(1),
     tickets: { ours: r(T.tickets), theirs: r(E.tickets) }, lost: { infantry: T.stats.losses.soldier || 0, vehicles: Object.entries(T.stats.losses).filter(([k]) => k !== 'soldier' && k !== 'fob' && k !== 'emplacement').reduce((a, [, v]) => a + v, 0), emplacements: T.stats.losses.emplacement || undefined },
     locations, next: o ? (o.nextFor(team) || {}).name || null : null, front: o ? (o.front(team) || {}).name || null : null,
-    squads, vehicles, enemy, air, emplacements, fobs: { ours: fobs(team), theirs: fobs(1 - team), kitsLeft: m.fobs.kitsLeft(team) }, sandbags, traps,
+    squads, vehicles, enemy, air, emplacements, fobs: { ours: fobs(team), theirs: fobs(1 - team), kitsLeft: m.fobs.kitsLeft(team) }, sandbags, works: works(team), enemyWorks: works(1 - team), traps,
     trends, events, plans: remote ? remote.planHistory() : [], notes: remote && remote.plan ? remote.plan.notes || '' : '', waiting: remote ? remote.waitState() : null, orders: m.orders && m.orders.forDigest(team).length ? m.orders.forDigest(team) : undefined,   // the player's orders to a hybrid commander (game/orders.js)
     watch: remote && remote.watch ? remote.watch : undefined,   // a small model's read of the plan a few seconds ago (ai/watch.js), and whether it asked for this plan early
     enemyStyle: (() => { const s = (m.strategists || []).find(s => s.team === team), r = s && s.enemyStyle; return r ? { style: r.style, confidence: r.confidence, massing: r.massing, minute: r.minute } : undefined; })(),   // the enemy's way of fighting as a System One model read it (ai/style.js)

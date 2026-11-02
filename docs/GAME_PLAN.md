@@ -3712,6 +3712,45 @@ so a design can be replayed against harder waves.
   300 to 268 and unchanged after thirty seconds parked, a cancel releasing its engineer, the ghost with its parts,
   hint, rotation, placement, chip and dim mark, the bar absent on Palm Valley, 288 after the second wave (268 less a
   row of traps plus 40).
+- **B3 done (2026-11-02, "Go B3").** Two works of the base's own (game/rules.js wall, platform). The *wall run*: a unit type
+  `wall` (150 hp, a structure nobody picks as a target) whose model is three gabion baskets, 6 m by 1.8 m, and whose twelve
+  obstacle boxes are tall (they block the foot and vehicle grids, combat's line-of-sight grid through `addTall`, and the fog
+  grid, where a box tagged `solid` counts whatever share of its cell it covers: a 6 m run is under the 8 m² a house wall
+  needs); `Buildings.addWall` makes it a building of its own whose hits are the unit's hit points (a hit a third of them,
+  `wound`), so strays that strike it, bursts beside it and guns fired at it on purpose wear down the same thing; at zero the
+  match's death hook (`breached`) brings it down the way a cottage comes down: rubble heaps in its own colour (`world.collapse`
+  takes `b.color`), the obstacles out, the nav grids refreshed, combat's grids rebuilt and the fog grid too (`vision.refresh`,
+  which the collapse of a map building now also calls), dust, a blast, the feed line "breached a wall"; no ticket and no
+  respawn. The *platform*: a unit type `platform` (hollow, four slots along the front of a 6 by 4 m deck, the entry 3.6 m
+  behind, its own `inside` box for the walk to the slot), its model four tube legs with braces, a planked deck 3 m up, a
+  bag parapet in front, side rails and a ladder at the back; the deck is a bridge to `heightAt` (`addDeck`/`removeDeck`,
+  never a crossing to `onCrossing`), so whoever stands on it stands 3 m up and the eye, the muzzle, the target point and
+  the viewshed all go up with him; its legs are tall boxes and its rails low ones (0.3 m: no cover, no sight) that keep
+  walkers out of the footprint, so the deck is entered from the back as a sandbag position is; a man posted to it climbs
+  and, sent away, climbs down at 3.5 m/s (`descend`) instead of jumping; `spec.cover` 0.6 is what the parapet is worth
+  against aimed and splash fire (bags on the ground: 0.35). Sites (fob.js `wallSite`, `platformSite`, `groundOk`): clear of
+  every obstacle with 0.3 m to spare (so runs touch end to end), dry, not too steep (a platform's four legs within 1.2 m of
+  height), off roads and crossings, 10 to 12 m from the FOB; the plan's own spacing (`GAP`) lets walls meet and keeps
+  platforms 7.5 m apart. The build plan, the ghost (wall boxes 1.8 m high; a platform's legs, deck slab and ladder, the
+  slab turned to the facing, which also fixed the gun ghost's barrel turning the wrong way), the build bar (seven tiles in
+  four columns), the engineer's own tiles in a mode that builds a base, the roster (a platform card with "n up"; walls get
+  none), the feed, the digest (`works`), clearing by an engineer and the portraits all know them. *The CPU against walls*
+  (strategist `breach`, once a second): when the squad nearest the attack cannot reach it on the foot grid (regions) or
+  only by a long way round (a path over twice the straight distance and 60 m), the side's APCs, tanks and manned mortars
+  are given the run nearest the straight way in as `u.breach`; combat fires at it when nothing else is in sight (a wall is
+  seen at its near face, a metre out, since a line to its centre ends inside its own boxes; aimed halfway up), the vehicle
+  loop sits armour 55 m off it, and when it falls the grids open and the target clears. Checked headless (sim-test, seed
+  3): the legality answers (a wall on the cottage "no room here", on the FOB "too close", outside the ring), a wall and a
+  platform queued, built by the engineers (the platform's builder stands at the ladder's foot, 3.4 m back, and the build's
+  cancel distance allows it), the wall's boxes tall and solid and the foot grid shut across it with the ground beside it
+  open, the fog grid's top 1.8 m over it; the deck lifting by 3 m inside its rectangle and nothing outside, the rails shut
+  and the inside and the entry open; a squad manning it, four settled on the deck in about four seconds with a one-second
+  climb, eyes 1.5 m over the deck, a man on it seeing the lane 40 m past a wall that a man on the ground behind the wall
+  cannot, one ordered off climbing down over a second and freeing his slot; an APC given the wall from 60 m firing 56 times
+  and breaching it in 35 s, six heaps left, the foot grid open, the tall boxes gone, the record down, the feed line, no
+  ticket moved; and the strategist's pick (the foot regions faked apart) choosing the run on the way in and clearing it
+  when the way is open. Portraits rendered with tools/make-portraits.mjs. Balance (wall hit points against the waves, how
+  many walls the pool allows, whether the waves need a mortar team to breach without an APC) is B4's.
 
 ## Open questions
 

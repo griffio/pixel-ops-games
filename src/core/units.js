@@ -16,6 +16,12 @@ export const SPEC = {
   tank:     { speed: 7,   turn: 0.8, accel: 3.5, label: 'TK', air: false, hp: 1200, nav: 'vehicle', kit: 'tankgun', kit2: 'coax', armour: true },   // M1 Abrams: thick front, weaker sides and rear
   traps:    { speed: 0, turn: 0,   accel: 0, label: 'TT', air: false, hp: 1e9, nav: null, structure: true, untargetable: true },   // tank traps: stop vehicles, not infantry
   rally:    { speed: 0, turn: 0,   accel: 0, label: 'RP', air: false, hp: 1e9, nav: null, structure: true, untargetable: true },   // a squad's spawn: burned by enemies close by, not shot
+  // base defence works (docs/GAME_PLAN.md B3): a wall run that mortar and cannon fire bring down (game/buildings.js tracks it; nobody
+  // picks it as a target, the strategist hands it to its guns as `breach`), and a platform four men stand on 3 m up (its deck is a
+  // height to the world, core/layout.js addDeck; the men climb it from the back as they enter a sandbag position; `cover` is what
+  // its parapet is worth against fire from the front, less than bags on the ground)
+  wall:     { speed: 0, turn: 0,   accel: 0, label: 'WL', air: false, hp: 150, nav: null, structure: true, untargetable: true, wall: true },
+  platform: { speed: 0, turn: 0,   accel: 0, label: 'PF', air: false, hp: 1e9, nav: null, structure: true, untargetable: true, hollow: true, slots: [[-2.2, 1.1], [-0.75, 1.1], [0.75, 1.1], [2.2, 1.1]], entry: -3.6, inside: [2.6, -4.8, 1.6], deck: 3, cover: 0.6 },
   // a FOB emplacement (game/fob.js): a gun in a ring of bags with one gunner's slot behind it; u.gun names the weapon
   // (hmg, atgm, mortar) the soldier manning it fires; it can be shot up (three rockets) and costs tickets when lost
   craft:    { speed: 12, turn: 0.7, accel: 3, label: 'LC', air: false, hp: 900, nav: null, naval: true },   // a landing craft: run along its lanes by game/landing.js, never ordered
@@ -25,6 +31,7 @@ const counters = {}; let pickSeq = 0;
 const SWIM = { apc: 3.6, truck: 3.0 };   // m/s afloat (a tracked amphibian makes 12 km/h in the water)
 const POST_SLOTS = [[-1.0, 0.75], [1.0, 0.75], [-1.85, -0.5], [1.85, -0.5]];   // a sandbag position's firing slots (local: x across, z out over the front wall)
 const slotsOf = (spec) => spec.slots || POST_SLOTS;                                // an emplacement has one, the gunner's
+const INSIDE = [1.9, -4.6, 1.6];                                                   // the mouth and the inside of a sandbag position (local: half width, rear, front), where a man walks straight to his slot; a platform has its own (spec.inside)
 const LANDED = 90;   // seconds a soldier a helicopter set down counts as freshly landed (Air Assault captures)
 
 // ---- soldier arms -------------------------------------------------------------
@@ -211,7 +218,7 @@ export class Unit {
     const [ex, ez] = sb.postEntry(); this.order(ex, ez, true);
     return true;
   }
-  leavePost() { const p = this.post; if (!p) return; if (p.sb.crew[p.slot] === this) p.sb.crew[p.slot] = null; this.post = null; }
+  leavePost() { const p = this.post; if (!p) return; if (p.sb.crew[p.slot] === this) p.sb.crew[p.slot] = null; this.post = null; if (p.sb.spec.deck) this.descend = 2; }   // off a platform: the next two seconds' drop is a climb, not a fall
   stepPost(dt) {
     const p = this.post, sb = p.sb;
     if (sb.dead) { this.leavePost(); return; }
@@ -221,7 +228,8 @@ export class Unit {
     p.stuck = d < 1.2 && Math.abs(this.speed) < 0.2 ? (p.stuck || 0) + dt : 0;             // as close as the bags let him get
     if (d < 0.6 || p.stuck > 1) { p.settled = true; p.off = d; p.stuck = 0; this.dest = this.target = this.path = null; this.speed = 0; return; }
     const [lx, lz] = sb.worldToLocal(this.pos.x, this.pos.z);
-    if (Math.abs(lx) < 1.9 && lz > -4.6 && lz < 1.6) {                                    // in the mouth or inside: straight to the slot
+    const I = sb.spec.inside || INSIDE;
+    if (Math.abs(lx) < I[0] && lz > I[1] && lz < I[2]) {                                   // in the mouth or inside: straight to the slot
       if (!this.dest || this.path || Math.hypot(this.dest.x - sx, this.dest.z - sz) > 0.1) { this.dest = new Vec3(sx, 0, sz); this.target = new Vec3(sx, 0, sz); this.path = null; this.bestDist = Infinity; this.noProgress = 0; }
     } else if ((p.t += dt) > 1.5 || !this.dest) {                                           // on the way to the rear of it: keep going there
       p.t = 0; const [ex, ez] = sb.postEntry(); if (!this.dest || Math.hypot(this.dest.x - ex, this.dest.z - ez) > 2) this.order(ex, ez, true);
@@ -235,7 +243,7 @@ export class Unit {
     return false;
   }
   die(from) {
-    this.dead = true; this.deathT = 0; this.enemy = null; this.target = null; this.path = null; this.dest = null; this.hold = false; this.boardTarget = null; this.building = null; this.leavePost();
+    this.dead = true; this.deathT = 0; this.enemy = null; this.target = null; this.path = null; this.dest = null; this.hold = false; this.boardTarget = null; this.building = null; this.leavePost(); this.descend = 0; this.breach = null;
     this.killer = from || null; this.parts.ring.visible = false;
     if (this.group.baked && this.mgr && this.mgr.world.renderer) this.mgr.world.renderer.unbakeGroup(this.group);   // a dead structure is drawn live again, so a wreck recolour or a fall shows
     // passengers: out of a ground vehicle (or a landed helicopter) shaken and hurt, lost with a helicopter shot down in the
@@ -257,7 +265,7 @@ export class Unit {
   }
   // revive at a position (infantry respawn reuses the object so squads keep their members)
   revive(x, z, heading) { if (this.spec.ammo) this.ammo = this.spec.ammo; if (this.kit === 'rifle') this.grenades = RULES.grenades.count; this.holdFire = !!(this.squad && this.squad.members.some(m => !m.dead && m !== this && m.holdFire));   // a man back to a squad holding fire holds it too
-    this.dead = false; this.hp = this.maxHp; this.pos.set(x, 0, z); this.heading = heading; this.group.rotation.set(0, heading, 0);
+    this.dead = false; this.hp = this.maxHp; this.pos.set(x, 0, z); this.heading = heading; this.group.rotation.set(0, heading, 0); this.descend = 0;
     this.group.visible = true; this.speed = 0; this.enemy = null; this.target = null; this.path = null; this.dest = null; this.deathT = 0; this.reviveT = 0; this.hold = false; this.boardTarget = null; this.mounted = null; this.landedT = 0;
   }
 
@@ -356,7 +364,9 @@ export class Unit {
     this.dist += Math.hypot(nx - this.pos.x, nz - this.pos.z);
     const H = this.mgr.world.half; this.pos.x = clamp(nx, -H + 2, H - 2); this.pos.z = clamp(nz, -H + 2, H - 2);
     const h = this.mgr.world.surfaceAt(this.pos.x, this.pos.z);   // the road's surface where there is one
-    this.pos.y = this.swimming ? Math.max(h, T.water - 0.45 + Math.sin(performance.now() * 0.0014 + this.phase) * 0.06) : h;   // afloat: sat low on the water, riding the swell
+    // a man climbing onto a platform's deck (or down off one) rises and drops at a ladder's pace instead of jumping the 3 m
+    const climb = this.type === 'soldier' && ((this.post && this.post.sb.spec.deck) || this.descend > 0); if (this.descend > 0) this.descend -= dt;
+    this.pos.y = this.swimming ? Math.max(h, T.water - 0.45 + Math.sin(performance.now() * 0.0014 + this.phase) * 0.06) : climb ? this.pos.y + clamp(h - this.pos.y, -3.5 * dt, 3.5 * dt) : h;   // afloat: sat low on the water, riding the swell
     this.group.rotation.y = this.heading;
     if (this.type !== 'soldier' || this.drawn()) this.animate(dt);   // a soldier off screen (or out of sight under the fog) keeps his pose: the renderer skips him anyway
   }

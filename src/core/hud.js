@@ -25,8 +25,8 @@ const SHORT = [[/already/, 'BUSY'], [/supply truck/, 'NO TRUCK'], [/FOB kits/, '
   [/too close|traps within/, 'TOO CLOSE'], [/no more than/, 'LIMIT'], [/steep|wet|no room/, 'NO ROOM'], [/squadmate/, 'ALONE'], [/ready in (\d+)/, (r) => r[1] + ' S'], [/enemy within/, 'ENEMY NEAR'], [/on foot/, 'ON FOOT'], [/free seat/, 'NO SEAT']];
 const short = (why) => { for (const [re, out] of SHORT) { const r = why.match(re); if (r) return typeof out === 'function' ? out(r) : out; } return 'N/A'; };
 const esc = (t) => String(t).replace(/&/g, '&amp;').replace(/"/g, '&quot;').replace(/</g, '&lt;');
-const BUILD_ACTS = ['fob', 'sandbags', 'traps', 'emp_hmg', 'emp_atgm', 'emp_mortar'];
-const FOOT = { sandbags: 2.8, fob: 6, hmg: 2.4, atgm: 2.4, mortar: 2.4 };   // the ground a build takes, for its outline
+const BUILD_ACTS = ['fob', 'sandbags', 'traps', 'emp_hmg', 'emp_atgm', 'emp_mortar', 'wall', 'platform'];
+const FOOT = { sandbags: 2.8, fob: 6, hmg: 2.4, atgm: 2.4, mortar: 2.4, wall: 3.2, platform: 3.4 };   // the ground a build takes, for its outline
 const KIT_NAME = { rifle: 'rifle', grenade: 'grenade', mg: 'MG', at: 'AT', marksman: 'marksman', medic: 'rifle', engineer: 'rifle', autocannon: 'autocannon', doorgun: 'door gun', tankgun: '120 mm', coax: 'coax MG', hmg: 'HMG', atgm: 'ATGM', mortar: 'mortar', hydra: 'rockets', mk19: 'Mk 19', gau19: 'gatling' };
 const TYPE_NAME = { apc: 'APC', humvee: 'Humvee', tank: 'tank', heli: 'Chinook', bird: 'Little Bird', truck: 'truck', craft: 'landing craft', emplacement: 'FOB gun' };   // vehicles in the debrief's weapon list
 
@@ -103,7 +103,7 @@ export class Hud {
     }
 
     // under fog of war the enemy's own news stays theirs: its commander's radio, its FOB going up, its digging in
-    const a = this.app, hush = a.fog && a.fog.on ? (f) => f.kind === 'event' && f.e.team !== (a.playerTeam ?? 0) && (f.e.type === 'radio' || f.e.type === 'fob' || f.e.type === 'sandbags' || f.e.type === 'traps' || f.e.type === 'emplacement') : () => false;
+    const a = this.app, hush = a.fog && a.fog.on ? (f) => f.kind === 'event' && f.e.team !== (a.playerTeam ?? 0) && (f.e.type === 'radio' || f.e.type === 'fob' || f.e.type === 'sandbags' || f.e.type === 'traps' || f.e.type === 'emplacement' || f.e.type === 'wall' || f.e.type === 'platform') : () => false;
     const feed = $('feed'), lines = m.feed.filter(f => f.t < 10 && !hush(f)), key = lines.map(f => f.id).join(',');
     if (key !== this.feedKey) { this.feedKey = key; feed.innerHTML = lines.map(f => this.feedLine(f)).join(''); }
     lines.forEach((f, i) => { const el = feed.children[i]; if (!el) return; const op = f.t > 7 ? ((10 - f.t) / 3).toFixed(2) : '1'; if (el._op !== op) { el._op = op; el.style.opacity = op; } });
@@ -131,7 +131,7 @@ export class Hud {
       return `<div class="kill${v.type !== 'soldier' ? ' veh' : ''}"><b class="t${k ? k.team : 0}">${k ? k.label : '?'}</b><span class="w">${kit}</span>${ico(v.type === 'soldier' ? 'skull' : v.type)}<b class="t${v.team}">${v.label}</b></div>`;
     }
     const e = f.e, team = e.team, name = e.who || (team === 0 ? 'BLUFOR' : 'OPFOR'), loc = e.loc ? e.loc.name : '';   // who: the player's own CO speaking (game/orders.js)
-    const text = e.type === 'captured' ? `captured <b>${loc}</b>` : e.type === 'lost' ? `lost <b>${loc}</b>` : e.type === 'fob' ? 'FOB is up' : e.type === 'building' ? 'brought a building down' : e.type === 'sandbags' ? 'dug in behind sandbags' : e.type === 'emplacement' ? `set up ${{ hmg: 'a heavy machine gun', atgm: 'an anti-tank launcher', mortar: 'a mortar' }[e.gun] || 'an emplacement'} <b>${e.label || ''}</b>` : e.type === 'traps' ? 'laid tank traps' : e.type === 'traps cleared' ? 'cleared tank traps' : e.type === 'sandbags cleared' ? 'cleared a sandbag position' : e.type === 'rally lost' ? `lost rally point <b>${e.rally || ''}</b>` : e.type === 'radio' ? `<i>${String(e.text).replace(/[&<>]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;' }[c]))}</i>` : e.type === 'cache revealed' ? `found the cache at <b>${loc}</b>` : e.type === 'cache destroyed' ? `destroyed the cache at <b>${loc}</b>` : e.type;
+    const text = e.type === 'captured' ? `captured <b>${loc}</b>` : e.type === 'lost' ? `lost <b>${loc}</b>` : e.type === 'fob' ? 'FOB is up' : e.type === 'building' ? 'brought a building down' : e.type === 'sandbags' ? 'dug in behind sandbags' : e.type === 'emplacement' ? `set up ${{ hmg: 'a heavy machine gun', atgm: 'an anti-tank launcher', mortar: 'a mortar' }[e.gun] || 'an emplacement'} <b>${e.label || ''}</b>` : e.type === 'traps' ? 'laid tank traps' : e.type === 'traps cleared' ? 'cleared tank traps' : e.type === 'sandbags cleared' ? 'cleared a sandbag position' : e.type === 'wall' ? `raised a wall <b>${e.label || ''}</b>` : e.type === 'platform' ? `built a platform <b>${e.label || ''}</b>` : e.type === 'wall breached' ? 'breached a wall' : e.type === 'wall cleared' ? 'took a wall down' : e.type === 'platform cleared' ? 'took a platform down' : e.type === 'rally lost' ? `lost rally point <b>${e.rally || ''}</b>` : e.type === 'radio' ? `<i>${String(e.text).replace(/[&<>]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;' }[c]))}</i>` : e.type === 'cache revealed' ? `found the cache at <b>${loc}</b>` : e.type === 'cache destroyed' ? `destroyed the cache at <b>${loc}</b>` : e.type;
     return `<div class="ev">${ico(e.type === 'fob' ? 'fob' : e.type.startsWith('cache') ? 'cache' : 'flag')}<b class="t${team}">${name}</b> ${text}</div>`;
   }
 
@@ -319,6 +319,8 @@ export class Hud {
     if (u.type === 'fob') return `forward operating base · every squad can respawn here · ${m ? `${m.fobs.emplacementsAt(u)}/${RULES.emplacement.perFob} guns · ` : ''}${hp}`;
     if (u.type === 'sandbags') return `sandbag position · ${u.crew.length - u.freeSlots}/${u.crew.length} manned · ${tap} it with soldiers selected to man it · an engineer at it clears it`;
     if (u.type === 'traps') return 'tank traps · no vehicle gets past, ours included · an engineer at the row clears them';
+    if (u.type === 'wall') return `wall run · ${hp} · blocks sight and movement · mortar bombs and cannon fire bring it down, bullets only chip it · an engineer at it takes it down`;
+    if (u.type === 'platform') return `platform · ${u.crew.length - u.freeSlots}/${u.crew.length} up · ${tap} it with soldiers selected to man it: they climb the ladder at the back and see and shoot over the walls · an engineer at it takes it down`;
     if (u.type === 'rally') return `rally point${u.rallyOf ? ' of ' + u.rallyOf.members[0].label : ''} · ${m && m.rallies && m.rallies.covered(u) ? `enemy armour within ${RULES.rally.armourRadius} m: its men come back at the next spawn until it leaves` : `its men come back here every ${RULES.rally.wave} s${m && m.rallies ? ` · next in ${Math.ceil(m.rallies.nextWaveIn(u))} s` : ''}`}`;
     return `${u.type} · ${hp}`;
   }
@@ -352,9 +354,10 @@ export class Hud {
       const b = eng.building, bk = b && buildKind(b), F = m.fobs, R = RULES;
       const cl = F.canClear(eng), traps = cl.ok && !b ? ['clear', cl, 0] : ['traps', F.canBuildTraps(eng), R.traps.supplyCost];
       const items = [['sandbags', F.canBuildSandbags(eng), R.sandbags.supplyCost, R.sandbags.buildTime], ['fob', F.canBuild(eng), R.fob.supplyCost, R.fob.buildTime], [...traps, R.traps.buildTime],
-        ...['hmg', 'atgm', 'mortar'].map(g => [g, F.canBuildEmplacement(eng, g), R.emplacement[g].supplyCost, R.emplacement[g].buildTime])];
+        ...['hmg', 'atgm', 'mortar'].map(g => [g, F.canBuildEmplacement(eng, g), R.emplacement[g].supplyCost, R.emplacement[g].buildTime]),
+        ...(m.mode.playerBuilds ? [['wall', F.canBuildWall(eng), R.wall.supplyCost, R.wall.buildTime], ['platform', F.canBuildPlatform(eng), R.platform.supplyCost, R.platform.buildTime]] : [])];   // the base defence works, in a mode that builds a base
       const tiles = items.map(([k, c, cost, time]) => {
-        const B = k === 'clear' && cl.sandbags ? { ...BUILDS.clear, name: 'Clearing sandbags', say: 'clearing the sandbag position' } : BUILDS[k], t = { act: B.act, pic: B.pic, name: B.short || B.name, key: B.key, cost, title: `${B.name}${cost ? `: ${cost} supplies` : ''}${time ? `, about ${Math.round(time * (k === 'traps' || k === 'clear' ? 1 : (m.teams[eng.team].doctrine || {}).fobBuild || 1))} s` : ''}` };
+        const B = k === 'clear' && (cl.sandbags || cl.wall || cl.platform) ? { ...BUILDS.clear, name: cl.sandbags ? 'Clearing sandbags' : cl.wall ? 'Taking the wall down' : 'Taking the platform down', say: cl.sandbags ? 'clearing the sandbag position' : cl.wall ? 'taking the wall down' : 'taking the platform down' } : BUILDS[k], t = { act: B.act, pic: B.pic, name: B.short || B.name, key: B.key, cost, title: `${B.name}${cost ? `: ${cost} supplies` : ''}${time ? `, about ${Math.round(time * (k === 'traps' || k === 'clear' ? 1 : (m.teams[eng.team].doctrine || {}).fobBuild || 1))} s` : ''}` };
         if (b) return { ...t, state: bk === k || (bk === 'clear' && k === 'traps') ? 'act' : 'busy' };
         return c.ok ? t : { ...t, state: 'off', why: c.reason };
       });
@@ -428,10 +431,11 @@ export class Hud {
     if (kind === 'traps') {   // at a row of traps, or a sandbag position, an engineer clears it; anywhere else he lays traps
       const eng = sel.find(u => u.kit === 'engineer' && !u.dead); if (!eng) return this.toast('Select an engineer');
       const cl = m.fobs.canClear(eng), r = cl.ok ? m.fobs.startClear(eng) : m.fobs.startTraps(eng);
-      this.toast(r.ok ? `${cl.ok ? (cl.sandbags ? 'Clearing the sandbag position' : 'Clearing tank traps') : 'Laying tank traps'}, ${Math.round(r.build.total)} s` : r.reason);
+      this.toast(r.ok ? `${cl.ok ? (cl.sandbags ? 'Clearing the sandbag position' : cl.wall ? 'Taking the wall down' : cl.platform ? 'Taking the platform down' : 'Clearing tank traps') : 'Laying tank traps'}, ${Math.round(r.build.total)} s` : r.reason);
       if (this.app.audio) { this.app.audio.ui(r.ok ? 'order' : 'deny'); if (r.ok) this.app.audio.foley('dig', eng.pos.x, eng.pos.z); }
     }
     if (kind === 'sandbags') { const eng = sel.find(u => u.kit === 'engineer' && !u.dead); if (!eng) return this.toast('Select an engineer'); const r = m.fobs.startSandbags(eng); this.toast(r.ok ? `Building sandbags, ${Math.round(r.build.total)} s` : r.reason); if (this.app.audio) { this.app.audio.ui(r.ok ? 'order' : 'deny'); if (r.ok) this.app.audio.foley('dig', eng.pos.x, eng.pos.z); } if (r.ok && m.voices) m.voices.say('vo_sq_dig', 10); }
+    if (kind === 'wall' || kind === 'platform') { const eng = sel.find(u => u.kit === 'engineer' && !u.dead); if (!eng) return this.toast('Select an engineer'); const r = kind === 'wall' ? m.fobs.startWall(eng) : m.fobs.startPlatform(eng); this.toast(r.ok ? `${kind === 'wall' ? 'Raising a wall' : 'Building a platform'}, ${Math.round(r.build.total)} s` : r.reason); if (this.app.audio) { this.app.audio.ui(r.ok ? 'order' : 'deny'); if (r.ok) this.app.audio.foley('dig', eng.pos.x, eng.pos.z); } }
     if (kind === 'rally') {
       const sqs = [...new Set(sel.filter(u => u.type === 'soldier' && u.squad && !u.dead).map(u => u.squad))]; if (!sqs.length) return this.toast('Select a squad');
       const done = [], why = []; for (const sq of sqs) { const r = m.rallies.place(sq); if (r.ok) done.push(r.rally.label); else why.push(r.reason); }

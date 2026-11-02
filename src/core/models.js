@@ -524,6 +524,40 @@ export function makeBuilders(F) {
     return { group: g, parts: p, height: 1.3, radius: 7.8 };
   }
 
+  // Wall run (docs/GAME_PLAN.md B3): three gabion baskets in a row, 6 m long and 1.8 m high, wire-mesh cages of khaki liner
+  // filled to the top with gravel. Static structure; a destructible one (game/buildings.js): its obstacle boxes come from
+  // wallBoxes() below, tall enough to block sight and movement until mortar or cannon fire brings it down into a heap.
+  function wall() {
+    const g = group(); const p = {};
+    for (let k = -1; k <= 1; k++) {
+      box(1.9, WALL.h, WALL.d, 'hesco', k * 2, WALL.h / 2, 0, g);                                                        // the basket
+      box(1.8, 0.08, WALL.d - 0.12, 'gravel', k * 2, WALL.h + 0.02, 0, g);                                                // its fill, proud of the rim
+      for (const y of [0.45, 0.9, 1.35]) box(1.96, 0.04, WALL.d + 0.04, 'scaff', k * 2, y, 0, g);                        // the mesh's horizontal wires
+      for (const x of [-0.95, 0.95]) box(0.06, WALL.h, WALL.d + 0.04, 'scaff', k * 2 + x, WALL.h / 2, 0, g);             // its corner posts
+    }
+    p.ring = ring(3.6, g);
+    return { group: g, parts: p, height: WALL.h + 0.1, radius: 3.2 };
+  }
+  // Platform (B3): a scaffold deck 6 by 4 m and 3 m up on four tube legs with cross braces, planked, a short bag parapet along
+  // the front, a rail down each side and a ladder up the back; four men stand on it (units.js slots) and see and shoot over
+  // the walls. Static structure; its footprint is a deck to heightAt (core/layout.js addDeck) and its legs and rails are
+  // obstacles (platformBoxes() below), so the only way up is the ladder side.
+  function platform() {
+    const g = group(); const p = {}; const { w, d, h } = PLAT, hx = w / 2 - 0.15, hz = d / 2 - 0.15;
+    for (const x of [-hx, hx]) for (const z of [-hz, hz]) box(0.22, h, 0.22, 'scaff', x, h / 2, z, g);                   // legs
+    for (const z of [-hz, hz]) { box(w - 0.3, 0.1, 0.1, 'scaff', 0, 1.4, z, g); box(Math.hypot(w - 0.3, h - 0.4), 0.08, 0.08, 'scaff', 0, h / 2, z, g).rotation.z = Math.atan2(h - 0.4, w - 0.3); }   // ledgers and a diagonal, front and back
+    for (const x of [-hx, hx]) { box(0.1, 0.1, d - 0.3, 'scaff', x, 1.4, 0, g); box(0.08, 0.08, Math.hypot(d - 0.3, h - 0.4), 'scaff', x, h / 2, 0, g).rotation.x = Math.atan2(h - 0.4, d - 0.3); }   // the sides
+    for (const z of [-hz + 0.5, hz - 0.5]) box(w, 0.14, 0.14, 'scaff', 0, h - 0.12, z, g);                                 // bearers under the planks
+    for (let i = 0; i < 12; i++) box(0.46, 0.1, d, i % 2 ? 'plank2' : 'plank', -w / 2 + 0.25 + i * 0.5, h + 0.05, 0, g);   // the deck
+    const top = group(); top.position.y = h + 0.1; g.add(top); bagStack(w - 0.2, 0.5, 0.5, 0, hz - 0.3, 0, top);        // the parapet along the front
+    for (const x of [-hx, hx]) { for (const z of [-hz + 0.1, 0, hz - 0.5]) box(0.07, 0.95, 0.07, 'scaff', x, h + 0.58, z, g); box(0.06, 0.06, d - 0.6, 'scaff', x, h + 1.02, -0.2, g); }   // side rails
+    const lad = group(); lad.position.set(0, 0, -hz - 0.12); lad.rotation.x = 0.16; g.add(lad);                         // the ladder, leaning out from the back edge
+    for (const x of [-0.32, 0.32]) box(0.07, h + 1.1, 0.07, 'scaff', x, (h + 1.1) / 2, 0, lad);
+    for (let i = 1; i <= 9; i++) box(0.7, 0.05, 0.06, 'plank', 0, i * 0.36, 0, lad);
+    p.ring = ring(4.2, g);
+    return { group: g, parts: p, height: h + 1.2, radius: 3.6 };
+  }
+
   // Rally point: a radio pack on the ground and a short pole with a pennant in the team's camo. Static structure.
   function rally() {
     const g = group(); const p = {};
@@ -551,7 +585,7 @@ export function makeBuilders(F) {
 
   // each builder takes the team so the whole model picks the right camo set
   const forTeam = (fn) => (t = 0) => { team = t; const r = fn(); team = 0; return r; };
-  return { soldier: forTeam(soldier), truck: forTeam(() => truck(false)), supplyTruck: forTeam(() => truck(true)), apc: forTeam(apc), humvee: forTeam(humvee), heli: forTeam(heli), bird: forTeam(bird), fob: forTeam(fob), cache: forTeam(cache), sandbags: forTeam(sandbags), emp_hmg: forTeam(empHmg), emp_atgm: forTeam(empAtgm), emp_mortar: forTeam(empMortar), traps: forTeam(traps), rally: forTeam(rally), tank: forTeam(tank), craft: forTeam(craft), amphib: forTeam(amphib), amphibSupply: forTeam(amphibSupply) };
+  return { soldier: forTeam(soldier), truck: forTeam(() => truck(false)), supplyTruck: forTeam(() => truck(true)), apc: forTeam(apc), humvee: forTeam(humvee), heli: forTeam(heli), bird: forTeam(bird), fob: forTeam(fob), cache: forTeam(cache), sandbags: forTeam(sandbags), emp_hmg: forTeam(empHmg), emp_atgm: forTeam(empAtgm), emp_mortar: forTeam(empMortar), traps: forTeam(traps), wall: forTeam(wall), platform: forTeam(platform), rally: forTeam(rally), tank: forTeam(tank), craft: forTeam(craft), amphib: forTeam(amphib), amphibSupply: forTeam(amphibSupply) };
 
 
 
@@ -585,10 +619,36 @@ export function sandbagBoxes(x, z, h) {
   return out;
 }
 
+// a wall run: len metres of gabions, h high and d thick, along the run's local x (B3; game/rules.js wall keeps the same numbers)
+export const WALL = { len: 6, h: 1.8, d: 1.1 };
+// world-space obstacle boxes for a wall run at (x, z) facing h: tall (they block sight and movement), `solid` so the fog grid
+// counts them whatever share of a cell they cover (vision.js), cut into 0.5 m pieces to hug the run at any heading
+export function wallBoxes(x, z, h) {
+  const c = Math.cos(h), s = Math.sin(h), out = [];
+  for (let lx = -WALL.len / 2 + 0.25; lx < WALL.len / 2; lx += 0.5) { const wx = x + lx * c, wz = z - lx * s, hw = (0.5 * Math.abs(c) + WALL.d * Math.abs(s)) / 2, hd = (0.5 * Math.abs(s) + WALL.d * Math.abs(c)) / 2; out.push({ minX: wx - hw, maxX: wx + hw, minZ: wz - hd, maxZ: wz + hd, h: WALL.h, solid: true }); }
+  return out;
+}
+// a platform: a w by d deck h metres up, open at the back (local -z) where the ladder is
+export const PLAT = { w: 6, d: 4, h: 3 };
+// world-space obstacle boxes for a platform at (x, z) facing h: the four legs (tall, thin) and a rail down each side and along
+// the front (low, below any cover or sight height: they keep walkers out of the footprint, so the only way onto the deck is
+// the back, as for a sandbag position's open rear); the deck itself is a height, not a box (core/layout.js addDeck)
+export function platformBoxes(x, z, h) {
+  const c = Math.cos(h), s = Math.sin(h), out = [], { w, d } = PLAT, hx = w / 2 - 0.15, hz = d / 2 - 0.15;
+  const piece = (lx, lz, pw, pd, ph, tag) => { const wx = x + lx * c + lz * s, wz = z - lx * s + lz * c, hw = (pw * Math.abs(c) + pd * Math.abs(s)) / 2, hd = (pw * Math.abs(s) + pd * Math.abs(c)) / 2; out.push({ minX: wx - hw, maxX: wx + hw, minZ: wz - hd, maxZ: wz + hd, h: ph, ...tag }); };
+  for (const lx of [-hx, hx]) for (const lz of [-hz, hz]) piece(lx, lz, 0.3, 0.3, PLAT.h, { leg: true });
+  for (let lx = -w / 2 + 0.25; lx < w / 2; lx += 0.5) piece(lx, d / 2, 0.5, 0.2, 0.3, { rail: true });                 // the front
+  for (let lz = -d / 2 + 0.25; lz < d / 2; lz += 0.5) { piece(-w / 2, lz, 0.2, 0.5, 0.3, { rail: true }); piece(w / 2, lz, 0.2, 0.5, 0.3, { rail: true }); }   // the sides
+  return out;
+}
+// the deck as core/layout.js wants a bridge: centred on the platform, its long side across the facing, h above the ground there
+export function platformDeck(x, z, h, groundY) { return { x, z, angle: h + Math.PI / 2, len: PLAT.w, w: PLAT.d, y: groundY + PLAT.h, foot: true, deck: true }; }
+
 // sRGB hex colours shared by both back ends' material tables
 export const COLORS = {
   skin: 0xc9966b, skin2: 0x7a5236, hair: 0x1a1512, belt: 0x3b3127, boots: 0x8a7350, bootsB: 0x2f2a24, rifle: 0x1f1f1f, gun: 0x34373a, medRed: 0xb3261e, launcher: 0x56603c,
   heliDark: 0x2e3330, olive: 0x5c6b3f, trap: 0x4c4741, trap2: 0x6b4a35, sandbag: 0x9c8b64, sandbag2: 0xa8976f, sandbag3: 0x8f7f5a, bagCore: 0x5e5139, glass: 0x1d2328, tire: 0x1a1a1a, rim: 0xb09a64, rimB: 0x6c7550, metal: 0x2a2a2a, canvas: 0x6f6448,
+  hesco: 0x8e8c72, gravel: 0x76726a, plank: 0x9a7a4e, plank2: 0x85683e, scaff: 0x6f7478,   // base defence works: gabion baskets and their fill, a platform's planks and scaffold tube
   hub: 0x5e5340, tread: 0x2c2c2c, headlight: 0xf2ecd0, grille: 0x171717, amber: 0xd9822b,
   hull: 0x858a8e, hullDark: 0x4f5458,   // landing craft
   sand: 0xd6c08a, sandB: 0x87915f, engine: 0x6b6e6c, wood: 0x8a6a43, drum: 0x3e4a33, case: 0x3a3d40,   // vehicle plates, engines, cargo

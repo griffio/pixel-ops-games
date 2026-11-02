@@ -35,6 +35,8 @@ const P = {
   atgm: '<path d="M.5 5.5h12v3h-12zM12.5 4.5h3v5h-3zM5 8.5l-2 6h1.5L6.5 9zM8 8.5l2 6H8.5L6.5 9z"/>',
   mortar: '<path d="M6 1.5l2-1 4 9-2 1zM2 13h12v2H2zM9 10l2 3H9.5L8 11z"/>',
   sup: '<path d="M1 5h14v9H1zM1 2h14v2H1zM6 7h4v2H6z"/>',
+  wall: '<path d="M1 11h4.3v4H1zM6.6 11h4.3v4H6.6zM12.2 11H15v4h-2.8zM1 6h1.6v4H1zM3.9 6h4.3v4H3.9zM9.5 6h4.3v4H9.5zM1 1h4.3v4H1zM6.6 1h4.3v4H6.6zM12.2 1H15v4h-2.8z"/>',
+  platform: '<path d="M1 5h14v1.8H1zM2.2 6.8h1.4V15H2.2zM12.4 6.8h1.4V15h-1.4zM3.6 10.2h8.8v1.2H3.6zM6.8 1.2h2.4V5H6.8z"/>',
 };
 export const icon = (k, cls = 'gi') => `<svg class="${cls}" viewBox="0 0 16 16" aria-hidden="true">${P[k] || ''}</svg>`;
 // a progress ring with a glyph in the middle; f is the part done, 0..1
@@ -52,6 +54,8 @@ export const BUILDS = {
   hmg: { name: 'HMG', glyph: 'hmg', pic: 'hmg', act: 'emp_hmg', key: 'G', say: 'setting up a heavy machine gun' },
   atgm: { name: 'AT gun', glyph: 'atgm', pic: 'atgm', act: 'emp_atgm', key: 'J', say: 'setting up an anti-tank launcher' },
   mortar: { name: 'Mortar', glyph: 'mortar', pic: 'mortar', act: 'emp_mortar', key: 'K', say: 'setting up a mortar' },
+  wall: { name: 'Wall', glyph: 'wall', pic: 'wall', act: 'wall', key: '', say: 'raising a wall' },   // base defence works (Hold): built from the build bar, or by an engineer where he stands
+  platform: { name: 'Platform', glyph: 'platform', pic: 'platform', act: 'platform', key: '', say: 'building a platform' },
 };
 // the build an engineer is on: FOB builds carry no kind, emplacements say which gun
 export const buildKind = (b) => (b.kind === 'emplacement' ? b.gun : b.kind || 'fob');

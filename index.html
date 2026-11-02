@@ -212,7 +212,7 @@
   /* the build bar (core/builder.js): tiles for what the player may build, the ghost's hint, the plan's chips */
   #build { display: none; left: calc(10px + env(safe-area-inset-left)); top: 64px; width: 236px; padding: 8px; z-index: 16; }
   body.build.match #build { display: block; }
-  #build .b-tiles { display: grid; grid-template-columns: repeat(5, 1fr); gap: 4px; }
+  #build .b-tiles { display: grid; grid-template-columns: repeat(4, 1fr); gap: 4px; }
   #build .b-tile { display: flex; flex-direction: column; align-items: center; gap: 2px; padding: 5px 2px; border-radius: 6px; border: 1px solid rgba(255,255,255,0.18); background: #1d2126; color: var(--ink, #e8e2d4); font: 600 9px/1.1 system-ui, sans-serif; letter-spacing: 0.04em; cursor: pointer; }
   #build .b-tile svg { width: 22px; height: 16px; } #build .b-tile small { font-weight: 400; opacity: 0.75; }
   #build .b-tile.on { border-color: var(--accent); background: #2d2716; color: var(--accent); }

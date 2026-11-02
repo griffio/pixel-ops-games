@@ -42,16 +42,35 @@ export class Buildings {
     return null;
   }
 
+  // a wall run the player built (game/fob.js, B3): a building of its own, its hit points the unit's (RULES.wall.hp), so the
+  // guns the strategist points at it (combat: u.breach) and the strays that strike it wear the same thing down
+  addWall(u, boxes) {
+    const b = { boxes, props: [], down: false, minX: Infinity, maxX: -Infinity, minZ: Infinity, maxZ: -Infinity, h: 0, vol: 0, unit: u, color: 0x8e8c72 };
+    for (const o of boxes) { b.minX = Math.min(b.minX, o.minX); b.maxX = Math.max(b.maxX, o.maxX); b.minZ = Math.min(b.minZ, o.minZ); b.maxZ = Math.max(b.maxZ, o.maxZ); b.h = Math.max(b.h, o.h); b.vol += (o.maxX - o.minX) * (o.maxZ - o.minZ) * o.h; o.bld = b; }
+    b.hp = b.hits = 3; u.bld = b; this.list.push(b);
+    for (let x = Math.floor(b.minX / CELL) * CELL; x <= b.maxX; x += CELL) for (let z = Math.floor(b.minZ / CELL) * CELL; z <= b.maxZ; z += CELL) { const k = Math.floor(x / CELL) + ',' + Math.floor(z / CELL); let a = this.cells.get(k); if (!a) this.cells.set(k, a = []); a.push(b); }
+    return b;
+  }
+  // a wall an engineer took down: out of the list without rubble (the match clears its boxes and grids)
+  remove(b) { if (!b || b.down) return; b.down = true; const i = this.list.indexOf(b); if (i >= 0) this.list.splice(i, 1); }
+  // `dmg` in hits (a cottage takes three): a built wall takes it on its unit's scale (a hit is a third of RULES.wall.hp) and comes
+  // down through the match's death hook (match.js onDeath: breached), like a wall shot at on purpose
+  wound(b, dmg, u) {
+    if (b.down || !dmg) return;
+    if (b.unit) { if (!b.unit.dead && b.unit.damage(dmg * b.unit.maxHp / 3, u)) this.m.combat.onDeath(b.unit, u); return; }
+    if ((b.hp -= dmg) <= 0) this.collapse(b, u);
+  }
   // a round into a wall or roof: what it does to the building
   hit(b, p, w, kit, u) {
-    if (b.down) return;
     const dmg = !w.explosive ? 0 : w.splash || kit === 'tankgun' || w.rocket ? 1 : 0.34;   // bombs, tank shells and rockets wound it; an autocannon's rounds take three
-    if (dmg && (b.hp -= dmg) <= 0) this.collapse(b, u);
+    this.wound(b, dmg, u);
   }
   // a burst on the ground near a wall
   splash(x, z, r, u) {
-    const b = this.at(x, z, r); if (b && (b.hp -= 0.6) <= 0) this.collapse(b, u);
+    const b = this.at(x, z, r); if (b) this.wound(b, 0.6, u);
   }
+  // a built wall's unit died (shot at on purpose, or worn down by strays): the run comes down
+  breached(v, k) { const b = v.bld; if (b && !b.down) this.collapse(b, k); }
   // down it comes: props out, rubble in, the obstacles and grids updated, dust and a scorch, anyone stood in a heap steps out
   collapse(b, u) {
     b.down = true; this.down++; if (u && this.m.teams && this.m.teams[u.team] && this.m.teams[u.team].stats) this.m.teams[u.team].stats.buildings++;
@@ -59,9 +78,10 @@ export class Buildings {
     for (const o of b.boxes) { const i = O.indexOf(o); if (i >= 0) O.splice(i, 1); }
     const heaps = W.collapse(b);   // the props go and rubble stands in their place; back come the heaps as low obstacles
     for (const o of heaps) O.push(o);
+    if (b.unit) { const v = b.unit; for (const s of m.units.units) if (s.post && s.post.sb === v) s.leavePost(); v.dead = true; v.remove = true; }   // a built wall: its model goes with it
     const pad = 3;
     for (const g of ['foot', 'vehicle', 'amphib']) if (m.nav[g]) m.nav[g].refresh(b.minX - pad, b.maxX + pad, b.minZ - pad, b.maxZ + pad);
-    m.combat.rebuildGrids();
+    m.combat.rebuildGrids(); if (m.vision) m.vision.refresh();   // the fog grid too: what stood in the way of a look is gone
     for (const v of m.units.units) {   // anyone standing where a heap now is steps clear
       if (v.dead || v.spec.structure || !v.spec.nav || v.pos.x < b.minX - pad || v.pos.x > b.maxX + pad || v.pos.z < b.minZ - pad || v.pos.z > b.maxZ + pad) continue;
       const nav = m.nav[v.spec.nav]; if (!nav.blocked(v.pos.x, v.pos.z)) continue;
@@ -73,6 +93,6 @@ export class Buildings {
       for (let i = 0; i < 18; i++) { const a = Math.random() * Math.PI * 2, d = Math.random() * r; D.impact(cx + Math.sin(a) * d, gy + 0.2, cz + Math.cos(a) * d); }
     }
     if (m.combat.audio) m.combat.audio.blast(cx, cz, 1.6);
-    m.event && m.event({ type: 'building', team: u ? u.team : -1, x: cx, z: cz });
+    m.event && m.event({ type: b.unit ? 'wall breached' : 'building', team: u ? u.team : -1, x: cx, z: cz });
   }
 }
