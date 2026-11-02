@@ -184,6 +184,7 @@ export class Match {
   deploy() {
     const w = this.world;
     for (const team of this.teams) {
+      if (this.mode.deploys && !this.mode.deploys(team.id)) continue;   // a mode may field a side itself (Hold: the attackers come in waves)
       const b = team.base, d = Math.hypot(b.x, b.z) || 1, dx = -b.x / d, dz = -b.z / d, lx = -dz, lz = dx, toward = Math.atan2(dx, dz);
       const at = (fwd, lat) => [b.x + dx * fwd + lx * lat, b.z + dz * fwd + lz * lat];
       const place = (fwd, lat, pad, fn) => { let [x, z] = at(fwd, lat); if (w.isBlocked(x, z, pad)) [x, z] = team.spawnPoint(w, pad); return fn(x, z); };

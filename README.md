@@ -190,6 +190,13 @@ Infantry. Since grenades the pool is 280: in 27 seeded CPU mirror matches 16 ran
 clock with a median margin of 56, the rest ended by tickets after minute 10, and the bases
 split 9 to 18, a lean still being watched.
 
+`?map=hilltop` plays *Hilltop Farm*, 500 m, infantry only, the Hold mode only: base
+defence. A farm on a flat knoll at the centre, fields falling away on every side, a lane
+in from the north and a track from the east, both hedged, two copses the attackers come
+through, a pond to the south. The player's HQ (a FOB) and a supply truck stand in the
+farmyard; the force is six squads, two of them engineer-led (the Garrison preset, offered
+on arrival), and three minutes of build phase come before the first wave.
+
 Cliffs ring the coast except at three landings:
 - West Beach: sand, open to vehicles.
 - North Cove: under the cliffs, infantry only.
@@ -420,6 +427,11 @@ precedence and the utility AI fills the gaps.
 - *Territory Control*: a hex grid over the map; capture only hexes touching your own; more
   hexes bleeds the enemy; 80% of the land wins outright.
 - *Skirmish*: tickets only.
+- *Hold* (Hilltop Farm only): base defence. The player owns the one place, the HQ, and has
+  three minutes to build before eight waves of attackers come in at the map's edges every
+  90 s, each a little stronger (an APC from the fourth); dead attackers do not come back. The
+  CPU wins by taking the HQ zone (an ordinary capture); the player wins at the 15-minute clock
+  or by breaking every wave.
 
 **Capture rings.** Every location wears a ring on the ground at its capture radius: the holder's colour
 (blue or red), solid while held and dashed in the taking side's colour while it is
@@ -629,7 +641,7 @@ src/game/           milestone 1 game layer (renderer-agnostic)
   landing.js        landing craft for a side based on a ship (Peninsula): the well dock, lanes to the beaches, beach choice, held beaches as supply dumps
   ai/strategist.js  CPU commander: objectives, logistics (FOBs), air lifts, FOB raids
   objectives.js     capture zones, lattice order, ownership events
-  modes/            game modes behind one interface: aas, invasion, destruction, territory, skirmish (objectives, tickets, win checks, HUD bar, minimap, CPU goals)
+  modes/            game modes behind one interface: aas, invasion, destruction, territory, skirmish, hold (objectives, tickets, win checks, HUD bar, minimap, CPU goals; hold: the base defence waves)
   loadout.js        force builder data: items, doctrines, presets, validation, CPU counter-pick, saved loadouts
   support.js        medic revives, engineer repairs, supply truck refills
   fob.js            forward operating bases: build rules, construction, spawn points

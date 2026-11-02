@@ -29,6 +29,7 @@ export const DOCTRINES = {
 
 export const PRESETS = {
   balanced:   { name: 'Balanced', doctrine: 'entrenched', items: { rifle: 6, support: 1, at: 1, medic: 1, engineer: 1, apc: 1, supply: 1, fob: 1 } },
+  garrison:   { name: 'Garrison', doctrine: 'entrenched', items: { rifle: 2, support: 1, at: 1, engineer: 2 } },   // Hilltop Farm's default: two engineer squads to build with, a gun squad and launchers for the waves
   mechanized: { name: 'Mechanized', doctrine: 'mechanized', items: { rifle: 5, support: 1, at: 1, engineer: 1, apc: 2, supply: 1, fob: 1 } },
   air:        { name: 'Air Assault', doctrine: 'air', items: { rifle: 6, at: 1, medic: 1, engineer: 1, heli: 2, supply: 1, fob: 1 } },
   light:      { name: 'Light Infantry', doctrine: 'light', items: { rifle: 7, support: 1, at: 1, medic: 1, engineer: 1, humvee: 1, supply: 1, fob: 1 } },   // the Humvee took the truck's place on 2026-10-30: it carries three and, parked, is the doctrine's forward spawn
@@ -39,10 +40,10 @@ export const PRESETS = {
 };
 
 export function itemCost(key, doctrine) { const it = ITEMS[key], mul = (DOCTRINES[doctrine] && DOCTRINES[doctrine].costMul[key]) || 1; return Math.round(it.cost * mul); }
-export function summarize(l, infantryOnly = false) {
+export function summarize(l, infantryOnly = false, footSlots = null) {   // footSlots: a map's own squad count (Hilltop Farm: six)
   let cost = 0, squads = 0, vehicles = 0;
   for (const [k, n] of Object.entries(l.items || {})) { if (!ITEMS[k] || !n) continue; cost += itemCost(k, l.doctrine) * n; if (ITEMS[k].kind === 'squad') squads += n; else if (ITEMS[k].kind === 'vehicle') vehicles += n; }
-  const slots = infantryOnly ? FORCE.footSquads : MAX_SQUADS + ((DOCTRINES[l.doctrine] && DOCTRINES[l.doctrine].squadSlots) || 0);
+  const slots = infantryOnly ? (footSlots || FORCE.footSquads) : MAX_SQUADS + ((DOCTRINES[l.doctrine] && DOCTRINES[l.doctrine].squadSlots) || 0);
   const errors = [];
   if (cost > BUDGET) errors.push(`over budget by ${cost - BUDGET}`);
   if (squads > slots) errors.push(`too many squads (${squads}/${slots})`);
@@ -65,10 +66,11 @@ export const clone = (l) => ({ doctrine: l.doctrine, items: { ...l.items } });
 // A map for infantry only (map.infantryOnly): vehicles and the FOB kit come off, and the points go into rifle squads
 export function fitMap(l, map) {
   if (!map || !map.infantryOnly) return l;
-  const out = clone(l); for (const k of Object.keys(out.items)) if (!ITEMS[k] || ITEMS[k].kind !== 'squad') delete out.items[k];
-  for (const k of ['at', 'engineer']) if (out.items[k]) { out.items.rifle = (out.items.rifle || 0) + out.items[k]; delete out.items[k]; }   // nothing to shoot rockets at or to build: rifles instead
-  let s = summarize(out, true); while (s.cost + itemCost('rifle', out.doctrine) <= BUDGET && s.squads < s.slots) { out.items.rifle = (out.items.rifle || 0) + 1; s = summarize(out, true); }   // up to the map's squad count (FORCE.footSquads)
-  while (s.squads > s.slots && out.items.rifle > 0) { out.items.rifle--; s = summarize(out, true); }   // and down to it: the presets carry more squads than a small map takes
+  const out = clone(l), slots = map.footSquads || null; for (const k of Object.keys(out.items)) if (!ITEMS[k] || ITEMS[k].kind !== 'squad') delete out.items[k];
+  if (!map.keepKits) for (const k of ['at', 'engineer']) if (out.items[k]) { out.items.rifle = (out.items.rifle || 0) + out.items[k]; delete out.items[k]; }   // nothing to shoot rockets at or to build: rifles instead (a defence map keeps them: keepKits)
+  let s = summarize(out, true, slots); while (s.cost + itemCost('rifle', out.doctrine) <= BUDGET && s.squads < s.slots) { out.items.rifle = (out.items.rifle || 0) + 1; s = summarize(out, true, slots); }   // up to the map's squad count (FORCE.footSquads, or the map's own)
+  while (s.squads > s.slots && out.items.rifle > 0) { out.items.rifle--; s = summarize(out, true, slots); }   // and down to it: the presets carry more squads than a small map takes
+  for (const k of ['medic', 'support', 'marksman']) while (s.squads > s.slots && out.items[k] > 0) { out.items[k]--; s = summarize(out, true, slots); }   // still over with no rifles left: the others go
   return out;
 }
 export const preset = (key) => clone(PRESETS[key] || PRESETS.balanced);

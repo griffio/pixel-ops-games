@@ -3658,6 +3658,30 @@ the commander variant arrives.
 clock or count against it; infantry only or an APC of the player's own; and whether the base's layout should be saved
 so a design can be replayed against harder waves.
 
+- **B1 done (2026-11-02, "Commit and Go B1").** `src/game/maps/hilltop.js`: Hilltop Farm, 500 m, a 10 m knoll flat on
+  top (r 42) with the farmhouse, barn, pen, well, trough and three runs of wall at the lip, the yard left open; a lane
+  from the north and a track from the east with hedgerows (thin thickets) in broken runs either side, two copses on low
+  rises to the north-west and south-east, lone trees, rocks on the slopes, a pond (water at -1.5 m in a dug basin)
+  with reeds to the south; `spawns` at the lane's and the track's ends; `keepKits`, `footSquads: 6`, `preset:
+  'garrison'`, 300 tickets, a 15-minute clock. `src/game/modes/hold.js`: the one place (the HQ) owned by the player,
+  `deploys(team)` so the attackers field nothing at the start (match.deploy asks), the HQ FOB and the supply truck
+  spawned in setup, waves from a table of eight (two rifle squads first, an APC from the fourth, two from the seventh)
+  every 90 s after a 180 s build phase at the two spawns in turn, each announced over the radio; the attackers' goals
+  point every squad at the HQ, posture aggressive, no lifts; dead attackers are cancelled from the respawn queue and
+  their bodies cleared after 20 s; the win checks: the HQ captured (CPU), the clock (player), every wave broken
+  (player); the bar shows the HQ and a Waves item with the build countdown, the wave number and the time to the next;
+  the minimap marks the spawns. Loadout: `summarize` and `fitMap` take a map's own squad count and keep launchers and
+  engineers where the map says (`keepKits`); the Garrison preset (two rifle, a support, an anti-tank, two engineer
+  squads). Lobby: a map with a preset offers it on arrival; the side row hides for a mode without sides and the fixed-
+  mode swap applies only to modes with sides. Checked headless: the lobby card reads "0.5 km · infantry · Hold the
+  Farm only", picking it selects Garrison (six squads), Deploy makes a Hold match with two engineer squads, two
+  launchers, the truck and the HQ FOB and no attackers; a full 15-minute game with the garrison left idle: the build
+  phase to the second, waves at 180, 270 ... 810 s, the first wave 56 m from the HQ fifty seconds after spawning,
+  bodies cleared, the player winning at the clock having lost 92 tickets and never the HQ (the balance is B4's: today
+  an idle garrison of 24 men holds). A spectator run (both sides CPU) ran clean. The lobby thumbnail made with
+  tools/make-map-thumbs.mjs. Building is still today's: walk an engineer to the spot and press the tile (B2 brings the
+  placement ghost).
+
 ## Open questions
 
 None open. Answered:

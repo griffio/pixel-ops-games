@@ -80,9 +80,11 @@ export class Lobby {
   set(k, v) { this.loadout.items[k] = Math.max(0, Math.min(9, v)); if (!this.loadout.items[k]) delete this.loadout.items[k]; this.render(); }
 
   render() {
-    const card = this.maps.find(m => m.key === this.mapKey), inf = !!(card && card.infantryOnly); if (inf) this.loadout = fitMap(this.loadout, { infantryOnly: true });   // an infantry-only map: no vehicles to pick
+    const card = this.maps.find(m => m.key === this.mapKey), inf = !!(card && card.infantryOnly);
+    if (card && card.preset && this.presetMap !== this.mapKey) { this.presetMap = this.mapKey; this.loadout = preset(card.preset); }   // a map with a force of its own (Hilltop Farm: Garrison) offers it on arrival; the player may still change it
+    if (inf) this.loadout = fitMap(this.loadout, { infantryOnly: true, footSquads: card.footSquads, keepKits: card.keepKits });   // an infantry-only map: no vehicles to pick
     $('lb-vehicles').style.display = inf ? 'none' : ''; for (const k of ['at', 'engineer']) { const row = $('lb-squads').querySelector(`[data-k="${k}"]`); if (row) row.style.display = inf ? 'none' : ''; }
-    const l = this.loadout, s = summarize(l, inf);
+    const l = this.loadout, s = summarize(l, inf, card && card.footSquads);
     for (const k of Object.keys(ITEMS)) { $('lb-squads').parentElement.querySelector(`[data-n="${k}"]`).textContent = this.n(k); $('lb-squads').parentElement.querySelector(`[data-cost="${k}"]`).textContent = itemCost(k, l.doctrine); }
     for (const r of this.root.querySelectorAll('input[name=doctrine]')) r.checked = r.value === l.doctrine;
     for (const r of this.root.querySelectorAll('input[name=mode]')) r.checked = r.value === this.modeOpts.mode;
@@ -100,7 +102,7 @@ export class Lobby {
 
   deploy() {
     const card = this.maps.find(m => m.key === this.mapKey), inf = !!(card && card.infantryOnly);
-    if (!summarize(this.loadout, inf).ok) return;
+    if (!summarize(this.loadout, inf, (this.maps.find(m => m.key === this.mapKey) || {}).footSquads).ok) return;
     if (!inf) saveLoadout(this.loadout); this.saveMode();   // an infantry-only map's fitted force (nine rifle squads, no vehicles) is not what to come back to on the next map
     this.root.style.display = 'none';
     this.onDeploy(clone(this.loadout), { ...this.modeOpts });

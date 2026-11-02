@@ -2,6 +2,7 @@ import { seedRng } from './math.js';
 import { Match } from '../game/match.js';
 import { Lobby } from '../game/ui/lobby.js';
 import { MAPS } from '../game/maps/index.js';
+import { MODES } from '../game/modes/index.js';
 import { preset, counterPick, DOCTRINES, FORCE } from '../game/loadout.js';
 import { RULES } from '../game/rules.js';
 import { WEAPONS } from '../game/weapons.js';
@@ -62,7 +63,7 @@ export function populate(app) {
       const mode = fixed || q.get('mode') || modeOpts.mode || 'aas', difficulty = q.get('difficulty') || modeOpts.difficulty || 'normal';
       if (!q.has('commander') && modeOpts.commander !== undefined) { app.commanderUrl = modeOpts.commander ? '/commander' : null; app.commanderModel = modeOpts.commander || null; }   // the lobby's Opponent (a link's ?commander= wins)
       let side = q.get('side') || modeOpts.side || 'attack', swap = q.get('swap') === '1';
-      if (fixed) { if (side === 'defend') swap = !swap; side = swap ? 'defend' : 'attack'; }   // its first base always attacks: defending, or ?swap=1, plays from the other base
+      if (fixed && MODES[fixed] && MODES[fixed].sides) { if (side === 'defend') swap = !swap; side = swap ? 'defend' : 'attack'; }   // its first base always attacks: defending, or ?swap=1, plays from the other base (a mode without sides, Hold, keeps the player on the first base)
       app.cpuAmbush = q.get('cpuambush') !== '0';   // ?cpuambush=0: the CPU's posts never hold fire (a balance check)
       if (q.has('lightcost')) DOCTRINES.light.respawnCostInfantryOnly = +q.get('lightcost');   // ?lightcost=0.75: Light's man on an infantry-only map, for balance runs
       if (q.has('footslots')) FORCE.footSquads = +q.get('footslots') || 8;   // ?footslots=8: squads a side on an infantry-only map, for balance runs
@@ -90,7 +91,7 @@ export function populate(app) {
       app.hud.toast(`${app.match.teams[0].loadoutName} vs ${app.match.teams[1].loadoutName}`);
     };
     if (cpu.includes(0) || q.has('loadout')) app.startMatch(preset(q.get('loadout') || 'balanced'));
-    else { const b = app.world.map && app.world.map.bases ? app.world.map.bases[0] : { x: -400, z: -400 }; app.lobby = new Lobby(app.startMatch, app.world.map && app.world.map.name, app.world.map && app.world.map.mode, { maps: Object.entries(MAPS).map(([key, m]) => ({ key, name: m.name, size: m.size, infantryOnly: !!m.infantryOnly, blurb: m.blurb, mode: m.mode, clock: m.clock })), current: Object.keys(MAPS).find(k => MAPS[k] === app.world.map), commanderLocked: q.has('commander') }); rts.target.set(b.x + 10, 0, b.z + 10); }   // the camera behind the force builder looks at our base
+    else { const b = app.world.map && app.world.map.bases ? app.world.map.bases[0] : { x: -400, z: -400 }; app.lobby = new Lobby(app.startMatch, app.world.map && app.world.map.name, app.world.map && app.world.map.mode, { maps: Object.entries(MAPS).map(([key, m]) => ({ key, name: m.name, size: m.size, infantryOnly: !!m.infantryOnly, blurb: m.blurb, mode: m.mode, clock: m.clock, footSquads: m.footSquads, keepKits: !!m.keepKits, preset: m.preset })), current: Object.keys(MAPS).find(k => MAPS[k] === app.world.map), commanderLocked: q.has('commander') }); rts.target.set(b.x + 10, 0, b.z + 10); }   // the camera behind the force builder looks at our base
     return;
   }
   for (let i = 0; i < 10; i++) units.spawnSquad();
