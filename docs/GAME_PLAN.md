@@ -3761,6 +3761,33 @@ so a design can be replayed against harder waves.
   reach (140 m here, 20 elsewhere) instead of a truck within 20 m; the dump has a card in the strip and a line under the
   cursor; the digest's `works` carries `supplies`. A hybrid commander in Hold would still look for a truck to pay its own
   builds, so the base is the player's to build, as intended.
+- **B4 done (2026-11-02, "Go B4").** *The waves by the CPU setting* (hold.js `TABLES`, keyed by the lobby's difficulty, which
+  now carries its `key`): easy builds for 240 s, waves every 100 s, armour from the fifth, no mortars, 60 supplies a wave
+  held; normal 180 s, 90 s, an APC from the fourth, a mortar team from the fifth, 40; hard 150 s, 80 s, a squad more in
+  every wave, armour from the third, mortar teams from the fourth and two from the seventh, 30. The clock follows the table
+  (`length`: the last wave lands with 90 s to take the HQ: 17:10, 15:00, 13:20; the lobby's summary reads it with the
+  setting chosen). *A wave comes in on one side at a time*, the sides taking turns (it used to split every wave between
+  the lane and the track and arrive piecemeal), the last three on both at once; the APCs and the mortar team go with it,
+  and the radio names the side. *Mortar teams* (`mortarTeam`): a mortar emplacement spawned at the spawn's firing spot
+  (hilltop.js `spawns[].mortar`, 175 m out in the fields, in sight of a position at the farm's edge so the player's own
+  mortar can answer it) facing the HQ, with its ring of bags as obstacles, and a rifle squad beside it; the strategist's
+  garrison rule crews it and keeps the squad there, the tube shells whatever the attackers see (and the walls when they are
+  shut out: it is in `breach`'s gun list), and the gun outlives its crew for a later wave. *Siege* (strategist `siege`,
+  `cutOff`): a squad sent at the attack that is walled out of it (the foot grid's regions differ) while `breachAt` names a
+  run stands 80 m off that run on its own side, behind cover from any gun that overlooks the spot, and goes in with the
+  next plan once the run is down. *Platforms are posts* to a CPU garrison (`allPosts`), and a mode may set the post range
+  (Hold: the whole farm, `postRange`), so a CPU-held farm mans what stands on it. *Balance* (tools/hold-balance.mjs: both
+  sides under the built-in commander, the base bare or with the standard works stood up through the completion hooks,
+  seeded, a line a match, about 20 s of wall time each): with every wave split between the spawns and 300 tickets the farm
+  held in all six runs, bare or not; from one side at a time the works began to count (normal: bare 142 and 111 tickets
+  left on seeds 1 and 2, works 239 and 181; hard: bare 68 and 40, works 97 and 146); the pool was then set to 200 (every
+  man lost costs one, so losses are the second way to lose), and on seeds 3 and 4: easy bare holds with about 250 left,
+  normal bare scrapes through with 1 and 45, normal works holds with 76 and 109, hard bare loses by tickets at 11:52 and
+  12:28 before the last wave, hard works holds once (60) and loses once (12:52). Walls were breached in every fortified
+  run (two to five of eight), the posted men fell from 18 at the first wave to under ten by the sixth as the mortars
+  arrived (the platforms' crews first), and the last waves always had twenty or more men alive at the clock, so hold-out
+  is the ending and "broke every wave" stays the rare one. Left for B5 or later: flanking through the copses as a wave
+  tactic, the dump as a target, re-manning posts faster, a mortar team that walks in rather than appears.
 
 ## Open questions
 

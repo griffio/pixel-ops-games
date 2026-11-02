@@ -138,7 +138,7 @@ export class Strategist {
     const attack = g.attack, hold = g.hold, reserve = g.reserve || null;
     const enemyFob = this.contacts().find(u => u.type === 'fob' && (attack ? Math.hypot(u.pos.x - attack.x, u.pos.z - attack.z) < 160 : true));
     const logisticsSquad = this.logistics(squads, vehicles, g.fobAnchor, hold, attack);
-    const allPosts = hold ? this.match.fobs.sandbagsOf(this.team).filter(s => Math.hypot(s.pos.x - hold.x, s.pos.z - hold.z) < this.postRange(hold)) : [];   // our sandbag positions at the place we hold, one squad each
+    const allPosts = hold ? [...this.match.fobs.sandbagsOf(this.team), ...this.match.fobs.platformsOf(this.team)].filter(s => Math.hypot(s.pos.x - hold.x, s.pos.z - hold.z) < this.postRange(hold)) : [];   // our sandbag positions and platforms at the place we hold, one squad each
     // a squad manning one (or on its way in) keeps it and sits out the job share; the other positions go to squads given the hold job
     const manned = squads.filter(sq => sq !== logisticsSquad && allPosts.some(s => sq.tag === 'post' + s.id && sq.members.some(m => m.post && m.post.sb === s)));
     for (const sq of manned) this.manPost(sq, allPosts.find(s => sq.tag === 'post' + s.id), hold);
@@ -149,6 +149,7 @@ export class Strategist {
     // what each job means on the ground
     const attackWith = (sq) => {
       if (!attack) return holdAt(sq, hold);
+      if (this.breachAt && !this.breachAt.dead && this.cutOff(sq, attack)) return siege(sq, this.breachAt);   // shut out by walls: wait for the breach (breach()) out of the defenders' rifles
       const foes = this.enemiesNear(attack.x, attack.z, attack.r + 20);
       if (foes.length > 1 && (attack.n ? attack.n[this.team] : 0) < 4) {   // stand off and shoot rather than walk into them, from behind something if an APC overlooks the spot
         // defenders in thickets are seen and shot only from inside 15 m (combat.canSee) while they see out to rifle range, so a
@@ -160,6 +161,15 @@ export class Strategist {
         this.send(sq, x, z, 'approach', attack);
       }
       else { const [x, z] = this.inZone(attack.x, attack.z, attack); this.send(sq, x, z, 'cap' + attack.index, attack); }
+    };
+    // a squad walled out of the attack stands 80 m off the run its guns are breaching, on its own side, behind cover from any
+    // gun that overlooks the spot, and goes in when the run is down (the next plan finds the way open)
+    const siege = (sq, w) => {
+      const c = sq.centroid(), dx = c.x - w.pos.x, dz = c.z - w.pos.z, d = Math.hypot(dx, dz) || 1; let x = w.pos.x + dx / d * 80, z = w.pos.z + dz / d * 80;
+      const N = this.units.nav.foot; if (N.blocked(x, z) || N.inPocket(x, z)) { const cell = N.nearestMain(N.cellOf(x), N.cellOf(z), 10); if (cell) { x = N.world(cell[0]); z = N.world(cell[1]); } }
+      const gun = this.contacts().find(f => (f.type === 'emplacement' || f.type === 'apc' || f.type === 'tank') && Math.hypot(f.pos.x - x, f.pos.z - z) < 140 && this.match.combat.canSeePoint(f, x, z));
+      if (gun) { const p = this.match.combat.coverPoint(x, z, gun.pos.x, gun.pos.z, 30, N); if (p) [x, z] = p; }
+      this.send(sq, x, z, 'siege', attack, true);
     };
     const holdAt = (sq, loc) => {
       if (!loc) return this.send(sq, land.x + (Math.random() - 0.5) * 20, land.z + (Math.random() - 0.5) * 20, 'home', null, true);
@@ -335,6 +345,11 @@ export class Strategist {
     return sq;
   }
 
+  // is the squad cut off from the place on the foot grid (walled out)? the regions of the nearest open cells differ
+  cutOff(sq, at) {
+    const nav = this.units.nav.foot, c = sq.centroid(), a = nav.nearest(nav.cellOf(c.x), nav.cellOf(c.z)), b = nav.nearest(nav.cellOf(at.x), nav.cellOf(at.z));
+    return !a || !b || nav.region(a[0], a[1]) !== nav.region(b[0], b[1]);
+  }
   // Walls in the way (Hold: the player's wall runs, B3). Once a second: when the squad nearest the attack cannot reach it on foot
   // at all (the foot grid's regions differ: walled in), or only by a long way round (twice the straight distance and 60 m), the
   // side's guns that can hurt a wall (APCs, tanks, manned mortars) are given the run nearest the straight way in as `breach`:
@@ -682,7 +697,7 @@ export class Strategist {
   }
 
   // How far from a place its sandbag positions stand: out to the map's own spots for it, or 12 m past the zone.
-  postRange(loc) { return loc.defend ? Math.max(...loc.defend.map(([x, z]) => Math.hypot(x - loc.x, z - loc.z))) + 8 : loc.r + 12; }
+  postRange(loc) { const M = this.match.mode; if (M.postRange) return M.postRange(loc); return loc.defend ? Math.max(...loc.defend.map(([x, z]) => Math.hypot(x - loc.x, z - loc.z))) + 8 : loc.r + 12; }   // a mode may widen it (Hold: the whole farm)
   digSpot(hold) {
     const mine = this.match.fobs.sandbagsOf(this.team), N = this.units.nav.foot;
     if (mine.filter(s => Math.hypot(s.pos.x - hold.x, s.pos.z - hold.z) < this.postRange(hold)).length >= 3) return null;

@@ -12,7 +12,7 @@ const TRACK = [[245, 24], [190, 30], [130, 20], [80, 10], [46, 4]];        // th
 const KNOLL = { r: 120, h: 10 };
 
 export const hilltop = {
-  name: 'Hilltop Farm', size: 500, mode: 'hold', infantryOnly: true, keepKits: true, footSquads: 6, preset: 'garrison', tickets: 300, clock: 15,   // keepKits: engineers and launchers stay (fitMap); clock: three minutes to build and twelve to hold
+  name: 'Hilltop Farm', size: 500, mode: 'hold', infantryOnly: true, keepKits: true, footSquads: 6, preset: 'garrison', tickets: 200, clock: 15,   // keepKits: engineers and launchers stay (fitMap); tickets: a bare garrison on normal spends 160 to 190 of them over the waves (B4 runs), works save most of that; clock: hold.js sets it by the CPU setting
   hour: 9.5, wind: [0.6, 0.4],
   blurb: 'Base defence: three minutes to lay out the farm on the knoll, then hold the HQ against waves from the north lane and the east track.',
   nav: { foot: 1, vehicle: 2 },
@@ -20,7 +20,7 @@ export const hilltop = {
   ground: { base: 'meadow', baseSize: 12.8, tiles: ['concrete', 'asphalt', 'dirt', 'meadow'], tileSize: [16, 4, 12.8, 12.8] },
   bases: [{ team: 0, x: 0, z: 0, r: 36 }, { team: 1, x: 226, z: 226, r: 14 }],   // the knoll; the attackers' corner is a formality, their waves come in at `spawns`
   locations: [{ name: 'HQ', x: 0, z: 0, r: 22, home: 0 }],                      // the one place: the farmyard; the attackers take it by standing in it
-  spawns: [{ x: -12, z: 236, w: 60, name: 'the north lane' }, { x: 236, z: 24, w: 60, name: 'the east track' }],
+  spawns: [{ x: -12, z: 236, w: 60, name: 'the north lane', mortar: [-62, 168] }, { x: 236, z: 24, w: 60, name: 'the east track', mortar: [166, 64] }],   // mortar: where a wave's mortar team sets up (hold.js), in the fields 175 m out, in sight of a position at the farm's edge
   tracks: [LANE, TRACK],
   terrain: {
     water: -1.5,   // the pond: the one basin dug below it

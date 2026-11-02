@@ -451,6 +451,24 @@ precedence and the utility AI fills the gaps.
   CPU wins by taking the HQ zone (an ordinary capture); the player wins at the 15-minute clock
   or by breaking every wave. Besides sandbags, guns and traps the player builds wall runs
   that shellfire breaches and platforms that four men see and shoot over the walls from.
+  The lobby's CPU setting picks the wave table: easy gives four minutes to build, waves
+  every 100 s, armour from the fifth and no mortars; normal three minutes, 90 s, an APC from
+  the fourth and a mortar team from the fifth; hard two and a half minutes, 80 s, bigger
+  waves, armour from the third and mortar teams from the fourth, two from the seventh. A
+  mortar team is a tube set up in the fields 175 m out (in sight of a position at the farm's
+  edge) with a squad beside it that crews it; it shells whatever the attackers see, and the
+  walls when they are shut out. Each wave held brings 60, 40 or 30 supplies by setting, and
+  the clock runs so the last wave lands with ninety seconds to take the HQ (17:10, 15:00,
+  13:20). A wave comes in on one side at a time, the sides taking turns, and the last three
+  on both at once. Attackers walled out of the HQ stand 80 m off the run their guns are
+  breaching and go in when it falls. The farm's ticket pool is 200 and every man lost costs
+  one, so losses are the second way to lose: in headless runs a bare garrison under the
+  built-in commander holds on easy with 250 to spare, scrapes through on normal with 1 to
+  45 left and loses by tickets on hard before the last wave, while the standard works
+  (eight wall runs with a gate on each face, two platforms, two sandbag positions, a heavy
+  machine gun and a mortar) hold normal with 76 to 109 left and hard about half the time.
+  tools/hold-balance.mjs plays the mode headless at each setting with the base bare or with
+  those works.
 
 **Capture rings.** Every location wears a ring on the ground at its capture radius: the holder's colour
 (blue or red), solid while held and dashed in the taking side's colour while it is

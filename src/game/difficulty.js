@@ -7,4 +7,5 @@ export const DIFFICULTY = {
   normal: { name: 'Normal', desc: 'Even terms', acc: 1, dmg: 1, respawn: 1, plan: 5, attackShare: 0, kits: 0, logistics: true, noise: 0.06 },
   hard:   { name: 'Hard',   desc: 'CPU shoots better, respawns faster, an extra FOB kit, keener attacks', acc: 1.2, dmg: 1.15, respawn: 0.8, plan: 3.5, attackShare: 0.12, kits: 1, logistics: true, noise: 0.02 },   // noise: random spread on the utility commander's scores
 };
+for (const [k, d] of Object.entries(DIFFICULTY)) d.key = k;   // a mode that scales itself by difficulty (Hold's waves) asks the key
 export const difficulty = (k) => DIFFICULTY[k] || DIFFICULTY.normal;
