@@ -13,6 +13,7 @@ import { DustSim } from '../core/dust.js';
 import { Input } from '../core/input.js';
 import { Hud } from '../core/hud.js';
 import { Wheel } from '../core/wheel.js';
+import { Builder } from '../core/builder.js';
 import { applyUrlParams, populate, runLoop, detectTouch } from '../core/app.js';
 import { mapFor } from '../game/maps/index.js';
 
@@ -51,6 +52,7 @@ app.guide = new Guide(app);   // the field manual and hints, before the HUD too
 app.hud = new Hud(app);
 app.input = new Input(app);
 app.wheel = new Wheel(app);   // the Command Wheel, shown with a hybrid commander
+app.builder = new Builder(app);   // the placement ghost and build bar, in a mode where the player builds (Hold)
 populate(app);
 runLoop(app);
 window.app = app;

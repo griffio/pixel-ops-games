@@ -99,7 +99,7 @@ export class Hud {
       this.modeShown = true; document.querySelector('#match .small').textContent = m.mode.constructor.name + (m.mode.constructor.sides ? (m.mode.attacker === (this.app.playerTeam ?? 0) ? ' · attacking' : ' · defending') : '') + (m.cpu && m.cpu.length === 1 ? ` · ${m.difficulty.name} CPU` : '');
       document.querySelector('#match .t0 .nm').innerHTML = `BLUFOR<br><em>${t0.doctrine.name}</em>`; document.querySelector('#match .t1 .nm').innerHTML = `OPFOR<br><em>${t1.doctrine.name}</em>`;
       for (const id of ['minimap', 'objs', 'match', 'reinf-h', 'reinf']) $(id).style.display = ''; this.mmHidden = false;
-      this.roster.setupSpawnPref(m.teams[this.app.playerTeam ?? 0]); document.body.classList.add('match'); document.body.classList.toggle('hybrid', !!m.hybrid);   // the respawn choice lives on the unit strip; hybrid: the CO button
+      this.roster.setupSpawnPref(m.teams[this.app.playerTeam ?? 0]); document.body.classList.add('match'); document.body.classList.toggle('hybrid', !!m.hybrid); document.body.classList.toggle('build', !!m.plan);   // the respawn choice lives on the unit strip; hybrid: the CO button
     }
 
     // under fog of war the enemy's own news stays theirs: its commander's radio, its FOB going up, its digging in
@@ -120,7 +120,7 @@ export class Hud {
     const me = this.app.playerTeam ?? 0, q = m.respawn.queue.filter(x => x.unit.team === me).sort((a, b) => a.t - b.t).slice(0, 6);
     const fobs = m.fobs.active(me).length, kits = m.fobs.kitsLeft(me), build = m.fobs.builds.find(b => b.team === me);
     const L = m.teams[me].landing, ls = L && L.status();   // a side on a ship: what waits in its well dock, how many craft are out
-    const reinfHtml = (ls ? `<div>Ship: ${ls.waiting} men${ls.vehicles ? `, ${ls.vehicles} vehicles` : ''} waiting · craft ${ls.out}/${ls.craft} out</div>` : '') + `<div>FOBs ${fobs} · kits ${kits}${build ? ` · building ${Math.ceil(build.t)}s` : ''}</div>` + (q.length ? q.map(x => { const r = m.rallies && m.respawn.rallyFor(x.unit, m.teams[me]); return `<div><b>${x.unit.label}</b> ${x.unit.type} ${r ? 'rally ' + Math.ceil(m.rallies.nextWaveIn(r)) : Math.max(0, Math.ceil(x.t))}s</div>`; }).join('') : '<div>all units deployed</div>');
+    const reinfHtml = (m.mode.reinfLine ? `<div>${m.mode.reinfLine()}</div>` : '') + (ls ? `<div>Ship: ${ls.waiting} men${ls.vehicles ? `, ${ls.vehicles} vehicles` : ''} waiting · craft ${ls.out}/${ls.craft} out</div>` : '') + `<div>FOBs ${fobs} · kits ${kits}${build ? ` · building ${Math.ceil(build.t)}s` : ''}</div>` + (q.length ? q.map(x => { const r = m.rallies && m.respawn.rallyFor(x.unit, m.teams[me]); return `<div><b>${x.unit.label}</b> ${x.unit.type} ${r ? 'rally ' + Math.ceil(m.rallies.nextWaveIn(r)) : Math.max(0, Math.ceil(x.t))}s</div>`; }).join('') : '<div>all units deployed</div>');
     if (reinfHtml !== this.reinfKey) { this.reinfKey = reinfHtml; $('reinf').innerHTML = reinfHtml; }   // rebuilt only when it reads differently
     this.drawMinimap(m);
   }
@@ -499,6 +499,7 @@ export class Hud {
     if (!a.match) return;
     this.buildMarks(a.match, w, h);
     this.roster.update(dt); this.roster.edges(w, h);
+    if (this.app.builder) this.app.builder.update(dt);
     const sel = a.input.selected;
     if (sel.length) { this.actAcc += dt; if (this.actAcc > 0.25) { this.actAcc = 0; this.renderActions(sel); } else this.tickActions(sel); }
     this.tickBusy();

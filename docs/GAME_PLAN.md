@@ -3688,6 +3688,30 @@ so a design can be replayed against harder waves.
   positions, emplacements and trap rows off a road all use it. The placement ghost in B2 will start from this angle and
   let the player turn it. Checked headless: sandbags at (0, 30) read -3 degrees, the lane's bearing, where the corner
   would have been 49.
+- **B2 done (2026-11-02, "B2").** `src/game/buildplan.js`: the build plan, a queue of structures wanted at a spot with
+  a facing (sandbags, HMG, AT gun, mortar, tank traps); `check(kind, x, z, h)` answers legality, cost, the snapped
+  spot (a trap row goes across a road within 12 m) and the facing (the mode's threat heading unless the player turned
+  it); every half second the nearest free engineer takes the oldest queued entry and walks to a step behind the spot;
+  standing at it with a truck in range the ordinary build starts (fob.js, now taking an explicit spot and facing:
+  `startSandbags(eng, at, h)`, `startTraps(eng, at, h)`, `startEmplacement(eng, gun, at, h)`); an engineer who dies,
+  boards or wanders sends the entry back to the queue; cancel before the start costs nothing. fob.js grew
+  position-based site checks (`sandbagSite`, `trapSite`, `emplacementSite` with the mode's say, `siteOk`) and reads a
+  mode's `buildRules` (Hold: the truck's reach 140 m so the one parked at the HQ serves the whole farm, 20 positions,
+  10 rows of traps, 12 guns within 100 m of the HQ). `src/core/builder.js`: the build bar (index.html `#build`, shown
+  in a mode with a plan), five tiles with cost; a tile enters placement: a translucent footprint of the real obstacle
+  boxes follows the mouse (on a tablet it sits where the last tap landed, else at the middle of the view), green when
+  legal, red with the reason, the hint giving cost, time and facing; R and Shift+R (or the arrows) turn it in 15
+  degree steps; a click places (a tablet taps then presses Place); Esc or Cancel leaves; queued builds keep a dim
+  ghost until an engineer starts them and their chips in the bar cancel them; a Supplies line shows the pool and what
+  is planned against it. The pool is the HQ truck's load: 300 to start, 40 more for each wave held, never refilled
+  (`noRefill`, support.js); the reinforcements panel shows it with the phase. Match: `plan` when the mode has
+  `playerBuilds` and the player is not a CPU side. A position may sit on the lane or the track: the "too close to the
+  road" rule covers paved convoy roads only, and a wall across the dirt lane is a defence here. Checked headless: the
+  legality answers (outside the farm, too close to the FOB, a row snapping across the lane), two builds queued and
+  taken by the two engineers, walked, built and standing with the facings asked for (17 and 90 degrees), the pool
+  300 to 268 and unchanged after thirty seconds parked, a cancel releasing its engineer, the ghost with its parts,
+  hint, rotation, placement, chip and dim mark, the bar absent on Palm Valley, 288 after the second wave (268 less a
+  row of traps plus 40).
 
 ## Open questions
 

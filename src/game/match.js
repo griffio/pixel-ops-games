@@ -12,6 +12,7 @@ import { Orders } from './orders.js';
 import { StyleReader } from './ai/style.js';
 import { PlanWatch } from './ai/watch.js';
 import { RemoteCommander } from './ai/remote.js';
+import { BuildPlan } from './buildplan.js';
 import { UtilityCommander } from './ai/utility.js';
 import { Rallies } from './rally.js';
 import { Vision } from './vision.js';
@@ -140,6 +141,7 @@ export class Match {
     this.mode.setup();
     this.objectives = this.mode.objectives || null;
     this.orders = new Orders(this);   // the player's orders to a hybrid commander (game/orders.js)
+    this.plan = this.mode.playerBuilds && !cpu.includes(this.app.playerTeam ?? 0) ? new BuildPlan(this, this.app.playerTeam ?? 0) : null;   // the player's build plan (game/buildplan.js), in a mode that has one
     const pt = app.playerTeam ?? 0, sides = this.hybrid && !cpu.includes(pt) ? [...cpu, pt] : [...cpu];   // hybrid: the player's side has a commander too
     this.strategists = sides.map(t => new Strategist(t, this.units, this.teams, this));
     // the utility commander is the default; ?ai=rules gives a side the older built-in planner (per team: ?ai=utility,rules);
@@ -228,6 +230,7 @@ export class Match {
     this.fobs.tick(dt);
     this.mode.tick(dt);
     if (this.orders) this.orders.tick(dt);
+    if (this.plan) this.plan.tick(dt);
     for (const r of this.styles || []) r.tick(dt);
     for (const w of this.watches || []) w.tick(dt);
     for (const s of ((this.tickNo = (this.tickNo || 0) + 1) & 1) ? [...this.strategists].reverse() : this.strategists) s.tick(dt);   // neither commander plans first every tick

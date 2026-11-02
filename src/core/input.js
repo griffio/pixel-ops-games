@@ -35,6 +35,7 @@ export class Input {
 
   onMove(e) {
     const [nx, ny] = this.norm(e); this.rts.mouse.set(nx, ny, 0); this.rts.edgePan = true;   // a real mouse showed up: edge panning is useful again
+    if (this.app.builder && this.app.builder.on) this.app.builder.hover(nx, ny);   // the placement ghost follows the mouse
     const d = this.down; if (!d) return;
     const dx = e.clientX - d.x, dy = e.clientY - d.y;
     if (!d.moved && Math.hypot(dx, dy) > 4) d.moved = true;
@@ -77,10 +78,10 @@ export class Input {
     if (down) {
       if (e.code === 'Space') { e.preventDefault(); this.hud.togglePause(); return; }
       if (e.code === 'KeyF') { this.rts.follow = this.selected[0] || null; if (this.rts.follow) this.hud.toast('Following ' + this.rts.follow.label); return; }
-      if (e.code === 'Escape') { if (this.app.guide && this.app.guide.isOpen) this.app.guide.close(); else if (this.app.wheel && this.app.wheel.open_) this.app.wheel.close(); else if (this.picking) { this.picking = null; this.hud.toast('Cancelled'); } else if (this.loading) this.startLoad(); else if (this.advancing) this.startAdvance(); else this.select([]); return; }
+      if (e.code === 'Escape') { if (this.app.guide && this.app.guide.isOpen) this.app.guide.close(); else if (this.app.builder && this.app.builder.on) this.app.builder.cancel(); else if (this.app.wheel && this.app.wheel.open_) this.app.wheel.close(); else if (this.picking) { this.picking = null; this.hud.toast('Cancelled'); } else if (this.loading) this.startLoad(); else if (this.advancing) this.startAdvance(); else this.select([]); return; }
       if (e.code === 'KeyH') { if (this.app.guide) this.app.guide.toggle(); return; }
       if (e.code === 'F3') { e.preventDefault(); this.hud.toggleDev(); return; }   // the engine panels
-      if (e.code === 'KeyR') { this.rts.reset(); return; }
+      if (e.code === 'KeyR') { if (this.app.builder && this.app.builder.on) this.app.builder.rotate((e.shiftKey ? -1 : 1) * Math.PI / 12); else this.rts.reset(); return; }   // in placement R turns the ghost (Shift+R back)
       if (e.code === 'KeyB') { this.hud.action('fob'); return; }
       if (e.code === 'KeyN') { this.hud.action('sandbags'); return; }
       if (e.code === 'KeyX') { this.hud.action('traps'); return; }
@@ -103,6 +104,7 @@ export class Input {
   }
 
   clickSelect(nx, ny, add, radiusPx = 0) {
+    if (this.app.builder && this.app.builder.on && this.app.builder.tapAt(nx, ny)) return;   // placing a structure: the click or tap is where it goes
     if (this.picking) { const cb = this.picking; this.picking = null; const g = this.rts.screenToGround(nx, ny); cb(g.x, g.z); return; }   // the wheel's "Here"
     const u = this.app.pick(nx, ny, radiusPx), me = this.app.playerTeam ?? 0;
     if (this.loading) { this.loadInto(u); return; }   // after Load the click picks the vehicle
@@ -142,6 +144,7 @@ export class Input {
   }
 
   issueOrder(nx, ny, radiusPx = 0, advance = false) {
+    if (this.app.builder && this.app.builder.on && this.app.builder.tapAt(nx, ny)) return;
     if (this.picking) { const cb = this.picking; this.picking = null; const g = this.rts.screenToGround(nx, ny); cb(g.x, g.z); return; }
     // right-click (or a hold) on a friendly helicopter, truck or APC with infantry selected: board it; on a sandbag position: man it
     this.loading = false; advance = advance || this.advancing; this.advancing = false;

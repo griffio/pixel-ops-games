@@ -8,6 +8,13 @@ export class Fobs {
   constructor(units, teams, world) { this.units = units; this.teams = teams; this.world = world; this.builds = []; this.onBuilt = null; this.onSandbags = null; this.onTraps = null; this.onTrapsCleared = null; this.onEmplacement = null; }
 
   active(team) { return this.units.units.filter(u => u.type === 'fob' && u.team === team && !u.dead); }
+  // a mode may loosen the rules for its map (Hold: the farm's one truck serves the whole knoll, more positions): mode.buildRules
+  rule(key, dflt) { const M = this.match && this.match.mode, R = M && M.buildRules; return R && R[key] !== undefined ? R[key] : dflt; }
+  buildRange(team) { return this.rule('buildRange', RULES.fob.buildRange); }
+  // a truck of the side with `cost` supplies within reach of the engineer
+  truckFor(eng, cost) { const r = this.buildRange(eng.team); return this.units.units.filter(t => t.supply && !t.dead && t.team === eng.team && t.supplies >= cost && Math.hypot(t.pos.x - eng.pos.x, t.pos.z - eng.pos.z) <= r)[0] || null; }
+  // the mode's say on a spot (Hold: inside the farm); null when it has none
+  siteOk(team, x, z) { const M = this.match && this.match.mode; return M && M.siteOk ? M.siteOk(team, x, z) : null; }
   kitsLeft(team) { const t = this.teams[team]; return Math.max(0, t.fobKits - this.active(team).length - this.builds.filter(b => b.team === team && !b.kind).length); }   // FOB builds have no kind
   sandbagsOf(team) { return this.units.units.filter(u => u.type === 'sandbags' && u.team === team && !u.dead); }
   emplacementsOf(team) { return this.units.units.filter(u => u.type === 'emplacement' && u.team === team && !u.dead); }
@@ -16,14 +23,15 @@ export class Fobs {
   // emplacements and sandbags, and of the road
   emplacementsAt(fob) {
     const R = RULES.emplacement;
-    return this.emplacementsOf(fob.team).filter(e => Math.hypot(e.pos.x - fob.pos.x, e.pos.z - fob.pos.z) <= R.fobRange).length + this.builds.filter(b => b.kind === 'emplacement' && b.fob === fob).length;
+    return this.emplacementsOf(fob.team).filter(e => Math.hypot(e.pos.x - fob.pos.x, e.pos.z - fob.pos.z) <= this.rule('fobRange', R.fobRange)).length + this.builds.filter(b => b.kind === 'emplacement' && b.fob === fob).length;
   }
   // whether (x, z) will take an emplacement for `team`: { fob } when it will, { reason, fob? } when not
   emplacementSite(team, x, z) {
-    const R = RULES.emplacement, d = (u) => Math.hypot(u.pos.x - x, u.pos.z - z);
-    const fob = this.active(team).filter(f => d(f) <= R.fobRange).sort((a, b) => d(a) - d(b))[0];
-    if (!fob) return { reason: `needs one of your FOBs within ${R.fobRange} m` };
-    if (this.emplacementsAt(fob) >= R.perFob) return { reason: `this FOB has its ${R.perFob} emplacements`, fob };
+    const R = RULES.emplacement, d = (u) => Math.hypot(u.pos.x - x, u.pos.z - z), fobRange = this.rule('fobRange', R.fobRange), perFob = this.rule('perFob', R.perFob);
+    const bad = this.siteOk(team, x, z); if (bad) return { reason: bad };
+    const fob = this.active(team).filter(f => d(f) <= fobRange).sort((a, b) => d(a) - d(b))[0];
+    if (!fob) return { reason: `needs one of your FOBs within ${fobRange} m` };
+    if (this.emplacementsAt(fob) >= perFob) return { reason: `this FOB has its ${perFob} emplacements`, fob };
     if (d(fob) < R.fobClear) return { reason: 'too close to the FOB', fob };
     for (const o of [...this.emplacementsOf(team), ...this.sandbagsOf(team)]) if (d(o) < R.minSpacing) return { reason: `too close to another position (${R.minSpacing} m)`, fob };
     if (this.builds.some(b => (b.kind === 'emplacement' || b.kind === 'sandbags') && b.team === team && Math.hypot(b.x - x, b.z - z) < R.minSpacing)) return { reason: 'too close to another build', fob };
@@ -40,14 +48,15 @@ export class Fobs {
     if (eng.building) return { ok: false, reason: 'already building' };
     const [x, z] = at && Math.hypot(at[0] - eng.pos.x, at[1] - eng.pos.z) < 3 ? at : [eng.pos.x, eng.pos.z];
     const site = this.emplacementSite(eng.team, x, z); if (site.reason) return { ok: false, reason: site.reason };
-    const truck = this.units.units.filter(t => t.supply && !t.dead && t.team === eng.team && t.supplies >= g.supplyCost && Math.hypot(t.pos.x - eng.pos.x, t.pos.z - eng.pos.z) <= RULES.fob.buildRange)[0];
-    if (!truck) return { ok: false, reason: `needs a supply truck with ${g.supplyCost} supplies within ${RULES.fob.buildRange} m` };
+    const truck = this.truckFor(eng, g.supplyCost);
+    if (!truck) return { ok: false, reason: `needs a supply truck with ${g.supplyCost} supplies within ${this.buildRange(eng.team)} m` };
     return { ok: true, truck, fob: site.fob, x, z };
   }
-  startEmplacement(eng, gun, at = null) {
+  // h: a facing the player chose (the placement ghost); otherwise the mode's threat heading when it is done
+  startEmplacement(eng, gun, at = null, h = null) {
     const c = this.canBuildEmplacement(eng, gun, at); if (!c.ok) return c;
     const d = this.teams[eng.team].doctrine || {}, t = RULES.emplacement[gun].buildTime * (d.fobBuild || 1);
-    const b = { kind: 'emplacement', gun, fob: c.fob, eng, truck: c.truck, team: eng.team, x: c.x, z: c.z, t, total: t };
+    const b = { kind: 'emplacement', gun, fob: c.fob, eng, truck: c.truck, team: eng.team, x: c.x, z: c.z, h: h === null ? undefined : h, t, total: t };
     eng.building = b; eng.hold = true; eng.target = null; eng.dest = null; eng.path = null;
     this.builds.push(b); return { ok: true, build: b };
   }
@@ -61,24 +70,34 @@ export class Fobs {
     return null;
   }
   // Improvised sandbag position: the same crew as a FOB (an engineer by a supply truck), cheaper and quicker, no kit
-  canBuildSandbags(eng) {
+  // whether (x, z) will take a sandbag position for `team`: {} when it will, { reason } when not
+  sandbagSite(team, x, z) {
+    const r = RULES.sandbags, max = this.rule('sandbagsMax', r.max);
+    const bad = this.siteOk(team, x, z); if (bad) return { reason: bad };
+    if (this.sandbagsOf(team).length + this.builds.filter(b => b.team === team && b.kind === 'sandbags').length >= max) return { reason: `no more than ${max} positions` };
+    for (const s of this.sandbagsOf(team)) if (Math.hypot(s.pos.x - x, s.pos.z - z) < r.minSpacing) return { reason: `too close to another position (${r.minSpacing} m)` };
+    for (const e of this.emplacementsOf(team)) if (Math.hypot(e.pos.x - x, e.pos.z - z) < RULES.emplacement.minSpacing) return { reason: `too close to a gun (${RULES.emplacement.minSpacing} m)` };
+    if (this.builds.some(b => (b.kind === 'emplacement' || b.kind === 'sandbags') && b.team === team && b.eng && Math.hypot(b.x - x, b.z - z) < r.minSpacing)) return { reason: 'too close to another build' };
+    const enemyBase = this.teams[1 - team].base; if (Math.hypot(enemyBase.x - x, enemyBase.z - z) < r.enemyBaseDistance) return { reason: 'too close to the enemy main base' };
+    if (this.units.nav && this.units.nav.foot.blocked(x, z)) return { reason: 'no room here' };
+    if (roadDist(this.world.map, x, z) < r.roadClear) return { reason: 'too close to the road' };   // it would block our own convoys
+    const xr = this.onCrossing(x, z); if (xr) return { reason: xr };
+    return {};
+  }
+  canBuildSandbags(eng, at = null) {
     const r = RULES.sandbags;
     if (!eng || eng.dead || eng.kit !== 'engineer' || eng.mounted) return { ok: false, reason: 'needs an engineer' };
     if (eng.building) return { ok: false, reason: 'already building' };
-    if (this.sandbagsOf(eng.team).length + this.builds.filter(b => b.team === eng.team && b.kind === 'sandbags').length >= r.max) return { ok: false, reason: `no more than ${r.max} positions` };
-    const truck = this.units.units.filter(t => t.supply && !t.dead && t.team === eng.team && t.supplies >= r.supplyCost && Math.hypot(t.pos.x - eng.pos.x, t.pos.z - eng.pos.z) <= RULES.fob.buildRange)[0];
-    if (!truck) return { ok: false, reason: `needs a supply truck with ${r.supplyCost} supplies within ${RULES.fob.buildRange} m` };
-    for (const s of this.sandbagsOf(eng.team)) if (Math.hypot(s.pos.x - eng.pos.x, s.pos.z - eng.pos.z) < r.minSpacing) return { ok: false, reason: `too close to another position (${r.minSpacing} m)` };
-    const enemyBase = this.teams[1 - eng.team].base; if (Math.hypot(enemyBase.x - eng.pos.x, enemyBase.z - eng.pos.z) < r.enemyBaseDistance) return { ok: false, reason: 'too close to the enemy main base' };
-    if (this.units.nav && this.units.nav.foot.blocked(eng.pos.x, eng.pos.z)) return { ok: false, reason: 'no room here' };
-    if (roadDist(this.world.map, eng.pos.x, eng.pos.z) < r.roadClear) return { ok: false, reason: 'too close to the road' };   // it would block our own convoys
-    const x = this.onCrossing(eng.pos.x, eng.pos.z); if (x) return { ok: false, reason: x };
-    return { ok: true, truck };
+    const [x, z] = at && Math.hypot(at[0] - eng.pos.x, at[1] - eng.pos.z) < 3 ? at : [eng.pos.x, eng.pos.z];
+    const site = this.sandbagSite(eng.team, x, z); if (site.reason) return { ok: false, reason: site.reason };
+    const truck = this.truckFor(eng, r.supplyCost);
+    if (!truck) return { ok: false, reason: `needs a supply truck with ${r.supplyCost} supplies within ${this.buildRange(eng.team)} m` };
+    return { ok: true, truck, x, z };
   }
-  startSandbags(eng) {
-    const c = this.canBuildSandbags(eng); if (!c.ok) return c;
+  startSandbags(eng, at = null, h = null) {
+    const c = this.canBuildSandbags(eng, at); if (!c.ok) return c;
     const d = this.teams[eng.team].doctrine || {}, t = RULES.sandbags.buildTime * (d.fobBuild || 1);
-    const b = { kind: 'sandbags', eng, truck: c.truck, team: eng.team, x: eng.pos.x, z: eng.pos.z, t, total: t };
+    const b = { kind: 'sandbags', eng, truck: c.truck, team: eng.team, x: c.x, z: c.z, h: h === null ? undefined : h, t, total: t };
     eng.building = b; eng.hold = true; eng.target = null; eng.dest = null; eng.path = null;
     this.builds.push(b); return { ok: true, build: b };
   }
@@ -102,25 +121,33 @@ export class Fobs {
     const M = this.match && this.match.mode, p = M && M.threatFrom ? M.threatFrom(team, x, z) : null, eb = p || this.teams[1 - team].base;
     return Math.atan2(eb.x - x, eb.z - z);
   }
-  trapRow(x, z, team) {
+  trapRow(x, z, team, h = null) {   // h: a facing the player chose, used off the road
     const [d, tx, tz, px, pz] = roadAlong(this.world.map, x, z); if (d < 12) return [px, pz, Math.atan2(tx, tz)];
-    return [x, z, this.threatHeading(team, x, z)];
+    return [x, z, h === null ? this.threatHeading(team, x, z) : h];
   }
-  canBuildTraps(eng) {
+  // whether a row at (x, z) is allowed for `team`: {} or { reason }
+  trapSite(team, x, z) {
+    const r = RULES.traps, max = this.rule('trapsMax', r.max);
+    const bad = this.siteOk(team, x, z); if (bad) return { reason: bad };
+    if (this.trapsOf(team).length + this.builds.filter(b => b.team === team && b.kind === 'traps').length >= max) return { reason: `no more than ${max} rows of traps` };
+    if (this.trapsAt(x, z, r.minSpacing)) return { reason: `too close to other traps (${r.minSpacing} m)` };
+    const enemyBase = this.teams[1 - team].base; if (Math.hypot(enemyBase.x - x, enemyBase.z - z) < r.enemyBaseDistance) return { reason: 'too close to the enemy main base' };
+    return {};
+  }
+  canBuildTraps(eng, at = null) {
     const r = RULES.traps;
     if (!eng || eng.dead || eng.kit !== 'engineer' || eng.mounted) return { ok: false, reason: 'needs an engineer' };
     if (eng.building) return { ok: false, reason: 'already building' };
-    if (this.trapsOf(eng.team).length + this.builds.filter(b => b.team === eng.team && b.kind === 'traps').length >= r.max) return { ok: false, reason: `no more than ${r.max} rows of traps` };
-    const truck = this.units.units.filter(t => t.supply && !t.dead && t.team === eng.team && t.supplies >= r.supplyCost && Math.hypot(t.pos.x - eng.pos.x, t.pos.z - eng.pos.z) <= RULES.fob.buildRange)[0];
-    if (!truck) return { ok: false, reason: `needs a supply truck with ${r.supplyCost} supplies within ${RULES.fob.buildRange} m` };
-    if (this.trapsAt(eng.pos.x, eng.pos.z, r.minSpacing)) return { ok: false, reason: `too close to other traps (${r.minSpacing} m)` };
-    const enemyBase = this.teams[1 - eng.team].base; if (Math.hypot(enemyBase.x - eng.pos.x, enemyBase.z - eng.pos.z) < r.enemyBaseDistance) return { ok: false, reason: 'too close to the enemy main base' };
-    return { ok: true, truck };
+    const [x, z] = at && Math.hypot(at[0] - eng.pos.x, at[1] - eng.pos.z) < 3 ? at : [eng.pos.x, eng.pos.z];
+    const site = this.trapSite(eng.team, x, z); if (site.reason) return { ok: false, reason: site.reason };
+    const truck = this.truckFor(eng, r.supplyCost);
+    if (!truck) return { ok: false, reason: `needs a supply truck with ${r.supplyCost} supplies within ${this.buildRange(eng.team)} m` };
+    return { ok: true, truck, x, z };
   }
-  startTraps(eng) {
-    const c = this.canBuildTraps(eng); if (!c.ok) return c;
-    const [rx, rz, h] = this.trapRow(eng.pos.x, eng.pos.z, eng.team), t = RULES.traps.buildTime;
-    const b = { kind: 'traps', eng, truck: c.truck, team: eng.team, x: eng.pos.x, z: eng.pos.z, rx, rz, h, t, total: t };
+  startTraps(eng, at = null, h = null) {
+    const c = this.canBuildTraps(eng, at); if (!c.ok) return c;
+    const [rx, rz, hh] = at && h !== null ? [c.x, c.z, h] : this.trapRow(c.x, c.z, eng.team, h), t = RULES.traps.buildTime;
+    const b = { kind: 'traps', eng, truck: c.truck, team: eng.team, x: c.x, z: c.z, rx, rz, h: hh, t, total: t };
     eng.building = b; eng.hold = true; eng.target = null; eng.dest = null; eng.path = null;
     this.builds.push(b); return { ok: true, build: b };
   }
@@ -150,10 +177,7 @@ export class Fobs {
     const i = this.builds.findIndex(b => b.eng === eng); if (i < 0) return null;
     const b = this.builds[i]; this.builds.splice(i, 1); eng.building = null; eng.hold = false; return b;
   }
-  nearestTruck(u) {
-    const r = RULES.fob;
-    return this.units.units.filter(t => t.supply && !t.dead && t.team === u.team && t.supplies >= r.supplyCost && Math.hypot(t.pos.x - u.pos.x, t.pos.z - u.pos.z) <= r.buildRange)[0] || null;
-  }
+  nearestTruck(u) { return this.truckFor(u, RULES.fob.supplyCost); }
   canBuild(eng) {
     const r = RULES.fob;
     if (!eng || eng.dead || eng.kit !== 'engineer' || eng.mounted) return { ok: false, reason: 'needs an engineer' };
@@ -175,7 +199,7 @@ export class Fobs {
   tick(dt) {
     for (let i = this.builds.length - 1; i >= 0; i--) {
       const b = this.builds[i], e = b.eng;
-      const cancel = e.dead || e.mounted || Math.hypot(e.pos.x - b.x, e.pos.z - b.z) > 3 || (b.truck && (b.truck.dead || Math.hypot(b.truck.pos.x - b.x, b.truck.pos.z - b.z) > RULES.fob.buildRange + 5)) || (b.traps && b.traps.dead) || (b.sandbags && b.sandbags.dead);
+      const cancel = e.dead || e.mounted || Math.hypot(e.pos.x - b.x, e.pos.z - b.z) > 3 || (b.truck && (b.truck.dead || Math.hypot(b.truck.pos.x - b.x, b.truck.pos.z - b.z) > this.buildRange(b.team) + 5)) || (b.traps && b.traps.dead) || (b.sandbags && b.sandbags.dead);
       if (cancel) { e.building = null; e.hold = false; this.builds.splice(i, 1); continue; }
       b.t -= dt; if (b.t > 0) continue;
       e.building = null; e.hold = false; this.builds.splice(i, 1);
@@ -188,14 +212,14 @@ export class Fobs {
       if (b.kind === 'clear') { if (b.sandbags) { if (this.onSandbagsCleared) this.onSandbagsCleared(b.sandbags, b.team); } else if (this.onTrapsCleared) this.onTrapsCleared(b.traps, b.team); continue; }
       if (b.kind === 'emplacement') {
         b.truck.supplies -= RULES.emplacement[b.gun].supplyCost;
-        const h = this.threatHeading(b.team, b.x, b.z), pre = { hmg: 'MG', atgm: 'AT', mortar: 'MO' }[b.gun];
+        const h = b.h !== undefined ? b.h : this.threatHeading(b.team, b.x, b.z), pre = { hmg: 'MG', atgm: 'AT', mortar: 'MO' }[b.gun];
         const u = this.units.spawn('emplacement', b.x, b.z, h, b.team, { gun: b.gun }); u.label = `${pre}-${String(this.emplacementsOf(b.team).filter(e => e.gun === b.gun).length).padStart(2, '0')}`;
         if (this.onEmplacement) this.onEmplacement(u, emplacementBoxes(b.x, b.z, h));
         continue;
       }
       if (b.kind === 'sandbags') {
         b.truck.supplies -= RULES.sandbags.supplyCost;
-        const h = this.threatHeading(b.team, b.x, b.z);   // the open side faces away from the threat, toward home
+        const h = b.h !== undefined ? b.h : this.threatHeading(b.team, b.x, b.z);   // the open side faces away from the threat, toward home
         const u = this.units.spawn('sandbags', b.x, b.z, h, b.team); u.label = `SB-${String(this.sandbagsOf(b.team).length).padStart(2, '0')}`;
         if (this.onSandbags) this.onSandbags(u, sandbagBoxes(b.x, b.z, h));
         continue;

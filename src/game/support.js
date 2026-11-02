@@ -26,7 +26,7 @@ export class Support {
         if (t.supplies >= full) { const back = t.refillBack; t.refilling = false; t.refillHome = t.refillBack = null; if (back) t.order(back[0], back[1]); }
         continue;
       }
-      if (!M || M.cpu.includes(t.team) || t.supplies >= RULES.sandbags.supplyCost || t.dest || Math.abs(t.speed) > 0.3) continue;
+      if (!M || M.cpu.includes(t.team) || t.noRefill || t.supplies >= RULES.sandbags.supplyCost || t.dest || Math.abs(t.speed) > 0.3) continue;
       if (this.atRefill(t)) continue;
       if (M.fobs && M.fobs.builds.some(x => x.truck === t)) continue;
       this.startRefill(t);
@@ -35,7 +35,7 @@ export class Support {
   tick(dt) {
     const all = this.units.units;
     // supply trucks refill inside their own main base
-    for (const t of all) if (t.supply && !t.dead && !t.afloat && t.supplies < RULES.fob.truckSupplies) { if (this.atRefill(t)) t.supplies = Math.min(RULES.fob.truckSupplies, t.supplies + RULES.fob.resupplyRate * dt); }
+    for (const t of all) if (t.supply && !t.dead && !t.afloat && !t.noRefill && t.supplies < RULES.fob.truckSupplies) { if (this.atRefill(t)) t.supplies = Math.min(RULES.fob.truckSupplies, t.supplies + RULES.fob.resupplyRate * dt); }
     this.trips();
     // a helicopter landed in its own main base is patched up by the ground crew (full in a minute)
     // (the Little Bird never lands: hovering over the base counts, and its rocket pod is refilled too, full in half a minute)
