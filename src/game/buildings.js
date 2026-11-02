@@ -92,7 +92,7 @@ export class Buildings {
       D.explosion(cx, gy + Math.min(b.h, 6) * 0.4, cz, Math.min(1.6, 0.9 + b.vol / 2000));
       for (let i = 0; i < 18; i++) { const a = Math.random() * Math.PI * 2, d = Math.random() * r; D.impact(cx + Math.sin(a) * d, gy + 0.2, cz + Math.cos(a) * d); }
     }
-    if (m.combat.audio) m.combat.audio.blast(cx, cz, 1.6);
+    if (m.combat.audio) { m.combat.audio.blast(cx, cz, 1.6); if (b.unit) m.combat.audio.foley('rubble', cx, cz, 1.2); }   // a built wall's gabions sliding down
     m.event && m.event({ type: b.unit ? 'wall breached' : 'building', team: u ? u.team : -1, x: cx, z: cz });
   }
 }

@@ -43,10 +43,12 @@ ambience and foley (last section).
 Voices: text to speech with `eleven_v3`; squad lines by the premade voice **Adam** (`pNInz6obpgDQGcFmaJgB`, shouted lines tagged `[shouting]`),
 HQ lines by **Brian** (`nPczCjzI2devNBz1zQrb`). Each line is trimmed, levelled, given a radio colour (320-3200 Hz band, light bit crush,
 compression) and wrapped in a push-to-talk click and a squelch tail. Sound effects: `eleven_text_to_sound_v2` with the prompts below;
-loops have their tail crossfaded into their head and are stored as WAV so they repeat without a gap.
+loops have their tail crossfaded into their head and are stored as WAV so they repeat without a gap. `hammer` (the engineers at a wall or a platform) and `rubble` (a wall run coming down) were added for Hold the Farm with the same tool; the two Hold radio lines were spoken by Brian and coloured with ffmpeg (silence trimmed, 320-3200 Hz band, a light crush, compression, loudness -16 LUFS, a click before and a squelch after).
 
 | Voice clip | Line(s) |
 |---|---|
+| `vo_hq_wave` | "Wave incoming. All squads, stand to." (Hold the Farm, a wave announced) |
+| `vo_hq_breach` | "They're through the wall. Breach in the line, plug it now." (a wall run breached) |
 | `vo_sq_moving*` | "Moving!" / "On the move." |
 | `vo_sq_contact*` | "Contact!" / "Contact front!" |
 | `vo_sq_fire*` | "Taking fire!" / "We're taking fire!" |

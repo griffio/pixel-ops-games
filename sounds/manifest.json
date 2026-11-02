@@ -149,6 +149,14 @@
   ],
   "reload": [
    "reload.mp3"
+  ],
+  "hammer": "hammer.mp3",
+  "rubble": "rubble.mp3",
+  "vo_hq_wave": [
+   "vo_hq_wave.mp3"
+  ],
+  "vo_hq_breach": [
+   "vo_hq_breach.mp3"
   ]
  }
 }

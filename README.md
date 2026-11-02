@@ -468,7 +468,15 @@ precedence and the utility AI fills the gaps.
   (eight wall runs with a gate on each face, two platforms, two sandbag positions, a heavy
   machine gun and a mortar) hold normal with 76 to 109 left and hard about half the time.
   tools/hold-balance.mjs plays the mode headless at each setting with the base bare or with
-  those works.
+  those works. The lobby's Opponent row gives the waves a commander: the built-in one, or
+  Llama or Claude through the game's server, which reads the base's layout (every wall run
+  with its facing, the platforms and who is up them, the guns) and the wave schedule from the
+  digest and picks the side, the posture and the moment; your own CO, if you take one, reads
+  the same. The debrief adds the waves held, the attackers killed, the works built, the walls
+  breached and the supplies left; the field manual has a Base defence page and the hints
+  follow the mode (the build phase, the first wave, no wall yet, a breach, an enemy mortar,
+  low supplies); the radio calls a wave in and a breach, and the engineers can be heard
+  hammering at a wall or a platform and a run coming down.
 
 **Capture rings.** Every location wears a ring on the ground at its capture radius: the holder's colour
 (blue or red), solid while held and dashed in the taking side's colour while it is

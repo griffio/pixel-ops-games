@@ -128,7 +128,7 @@ export class Match {
     this.fobs.onWall = (u, boxes) => {
       u.wallBoxes = boxes;
       for (const o of boxes) { this.world.addObstacle(o); this.nav.foot.block(o); this.nav.vehicle.block(o); if (this.nav.amphib) this.nav.amphib.block(o); this.combat.addTall(o); }
-      this.stepClear(u, 7); this.buildings.addWall(u, boxes); this.vision.refresh();
+      this.stepClear(u, 7); this.buildings.addWall(u, boxes); this.vision.refresh(); this.teams[u.team].stats.walls = (this.teams[u.team].stats.walls || 0) + 1;
       this.event({ type: 'wall', team: u.team, label: u.label });
     };
     // a platform (B3): its deck lifts whoever stands on it (core/layout.js addDeck); its legs and rails keep walkers out of the
@@ -136,7 +136,7 @@ export class Match {
     this.fobs.onPlatform = (u, boxes, deck) => {
       u.platBoxes = boxes; u.deck = deck; this.world.addDeck(deck);
       for (const o of boxes) { this.world.addObstacle(o); this.nav.foot.block(o, 0.3); this.nav.vehicle.block(o); if (this.nav.amphib) this.nav.amphib.block(o); if (o.h >= 1.5) this.combat.addTall(o); }
-      this.stepClear(u, 7);
+      this.stepClear(u, 7); this.teams[u.team].stats.platforms = (this.teams[u.team].stats.platforms || 0) + 1;
       this.event({ type: 'platform', team: u.team, label: u.label });
     };
     // taken down by an engineer: the boxes go, the grids round them are worked out again, the deck is a height no more
@@ -161,6 +161,7 @@ export class Match {
     this.objectives = this.mode.objectives || null;
     this.orders = new Orders(this);   // the player's orders to a hybrid commander (game/orders.js)
     this.plan = this.mode.playerBuilds && !cpu.includes(this.app.playerTeam ?? 0) ? new BuildPlan(this, this.app.playerTeam ?? 0) : null;   // the player's build plan (game/buildplan.js), in a mode that has one
+    if (this.plan) this.plan.onStart = (e) => { if (this.app.audio) this.app.audio.foley(e.kind === 'wall' || e.kind === 'platform' ? 'hammer' : 'dig', e.x, e.z); };   // the engineer sets to: digging, or hammering at a wall or a platform
     const pt = app.playerTeam ?? 0, sides = this.hybrid && !cpu.includes(pt) ? [...cpu, pt] : [...cpu];   // hybrid: the player's side has a commander too
     this.strategists = sides.map(t => new Strategist(t, this.units, this.teams, this));
     // the utility commander is the default; ?ai=rules gives a side the older built-in planner (per team: ?ai=utility,rules);

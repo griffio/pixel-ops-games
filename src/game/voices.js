@@ -59,6 +59,8 @@ export class VoiceDirector {
     else if (k && k.team === T && v.team !== T && v.type !== 'soldier' && !v.spec.structure) this.say('vo_sq_kill', 20);
   }
   onEvent(e) {
+    if (e.type === 'wall breached' && e.team !== this.team) { this.say('vo_hq_breach', 25, { hq: true, delay: 0.9 }); return; }   // our wall, the enemy's doing
+    if (e.type === 'radio' && e.team === this.team && e.who === 'HQ' && /^Wave /.test(e.text || '')) { this.say('vo_hq_wave', 30, { hq: true, delay: 0.4 }); return; }   // Hold: a wave announced
     if (e.team !== this.team) return;
     const line = { captured: 'vo_hq_captured', lost: 'vo_hq_lost', fob: 'vo_hq_fob', 'rally lost': 'vo_hq_rally_lost' }[e.type];
     if (line) this.say(line, e.type === 'rally lost' ? 45 : 4, { hq: true, delay: 0.7 });   // after the chime

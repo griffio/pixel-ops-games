@@ -57,7 +57,7 @@ export class Hold extends AAS {
   deploys(team) { return team === 0; }   // no starting force for the attackers: the waves are theirs
   setup() {
     super.setup();
-    const hq = this.hq = this.objectives.list[0]; hq.owner = 0; hq.progress = 100;
+    const hq = this.hq = this.objectives.list[0]; hq.owner = 0; hq.progress = 100; hq.homes = [0, 1];   // both sides may capture it: the objectives' rule lets a side take only a place next to its own base, and the HQ is the player's home with no links (until B5 the attackers could never take it)
     this.wave = 0; this.nextWave = this.table.build; this.lastSpawnAt = Infinity; this.alive = 0;
     const m = this.match, b = this.teams[0].base;   // the HQ: a FOB for emplacements and respawns, and the supply truck the base keeps topped up
     const fob = m.units.spawn('fob', b.x + 2, b.z - 4, 0, 0); fob.label = 'HQ';
@@ -118,6 +118,19 @@ export class Hold extends AAS {
   reinfLine() { const p = this.phase(), s = this.dump && !this.dump.dead ? Math.round(this.dump.supplies) : 0; return `Supplies ${s}${p.build ? ` · build phase ${Math.ceil(p.left)} s` : p.left !== null ? ` · wave ${this.wave} of ${this.table.waves.length}, next in ${Math.ceil(p.left)} s` : ' · last wave'}`; }
   // where the threat comes from, for the facing of what gets built: the nearer spawn for the defenders, the HQ for the attackers
   threatFrom(team, x, z) { if (team === 1) return this.hq; let best = null, bd = Infinity; for (const s of this.spawns) { const d = Math.hypot(s.x - x, s.z - z); if (d < bd) { bd = d; best = s; } } return best; }
+  // for the commander's digest (ai/digest.js) and the debrief: where the waves stand
+  forDigest() {
+    const T = this.table, p = this.phase(), S = this.spawns, next = this.wave < T.waves.length ? T.waves[this.wave] : null, n = this.wave + 1;
+    const split = n > T.waves.length - 3 && S.length > 1, side = split ? S.map(s => s.name).join(' and ') : S[n % S.length].name;
+    return { wave: this.wave, of: T.waves.length, buildPhase: p.build || undefined, nextWaveIn: p.left === null ? undefined : Math.round(p.left), nextWaveFrom: next ? side : undefined, nextWave: next ? { squads: next.squads.length, apc: next.apc || 0, mortarTeams: next.mortar || 0 } : undefined,
+      attackersAlive: this.alive, spawns: S.map(s => ({ name: s.name, at: [Math.round(s.x), Math.round(s.z)], mortarAt: s.mortar ? s.mortar.map(Math.round) : undefined })), supplies: this.dump && !this.dump.dead ? Math.round(this.dump.supplies) : 0, suppliesPerWaveHeld: T.income };
+  }
+  // the debrief's own rows (hud.showEnd): waves held, what the attackers lost, what fell
+  debrief() {
+    const m = this.match, st = m.teams[0].stats, T = this.table, U = m.units.units, walls = U.filter(u => u.type === 'wall' && !u.dead).length, breached = m.buildings ? m.buildings.list.filter(b => b.unit && b.down).length : 0;
+    return [['Waves held', `${this.hq.owner === 0 ? this.wave : Math.max(0, this.wave - 1)} of ${T.waves.length}`, ''], ['Attackers killed', '', `${m.teams[1].stats.losses.soldier || 0} men, ${m.teams[1].stats.losses.apc || 0} APC`],
+      ['Works built', `${st.walls || 0} wall${st.walls === 1 ? '' : 's'}, ${st.platforms || 0} platform${st.platforms === 1 ? '' : 's'}`, ''], ['Walls breached', `${breached} (${walls} standing)`, ''], ['Supplies left', this.dump ? Math.round(this.dump.supplies) : 0, '']];
+  }
   phase() { const m = this.match; if (this.wave === 0) return { build: true, left: Math.max(0, this.nextWave - m.elapsed) }; return { build: false, left: this.wave < this.table.waves.length ? Math.max(0, this.nextWave - m.elapsed) : null }; }
   bar() {
     const p = this.phase(), mm = (s) => `${Math.floor(s / 60)}:${String(Math.floor(s % 60)).padStart(2, '0')}`;

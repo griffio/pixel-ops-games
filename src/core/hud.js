@@ -235,6 +235,7 @@ export class Hud {
     if (a.stats.caches || b.stats.caches) rows.push(['Caches destroyed', a.stats.caches, b.stats.caches]);
     if (a.stats.buildings || b.stats.buildings) rows.push(['Buildings brought down', a.stats.buildings, b.stats.buildings]);
     if (L(a, 'craft') || L(b, 'craft')) rows.push(['Landing craft sunk', L(a, 'craft'), L(b, 'craft')]);
+    if (m.mode.debrief) rows.push(...m.mode.debrief());   // the mode's own rows (Hold: waves held, works, breaches)
     // what did the killing: the three deadliest weapons of each side, and the unit with the most kills
     const WEAPON = (k) => KIT_NAME[k] || TYPE_NAME[k] || k, top = (t) => Object.entries(t.stats.killsBy || {}).sort((p, q) => q[1] - p[1]).slice(0, 3).map(([k, n]) => `${WEAPON(k)} ${n}`).join(' · ') || '–';
     const ace = (t) => { const e = Object.entries(t.stats.killsByUnit || {}).sort((p, q) => q[1] - p[1])[0]; return e ? `${e[0]} · ${e[1]}` : '–'; };

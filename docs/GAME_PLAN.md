@@ -3654,9 +3654,10 @@ the commander variant arrives.
   commander with the mode's goals; the digest carrying the base's layout; the debrief with waves held and what fell;
   sounds for building and breaching; the guide's lines.
 
-**Open questions for the user.** Which ending (hold out, last stand, or both); whether the build phase should pause the
-clock or count against it; infantry only or an APC of the player's own; and whether the base's layout should be saved
-so a design can be replayed against harder waves.
+**Open questions for the user.** Which ending (hold out, last stand, or both), and whether the base's layout should be
+saved so a design can be replayed against harder waves. Answered 2026-11-02: no APC of the player's own (the garrison
+stays infantry), and the build phase does not pause the clock (it counts against it, as built: the clock is the table's
+build phase, the gaps and ninety seconds for the last wave).
 
 - **B1 done (2026-11-02, "Commit and Go B1").** `src/game/maps/hilltop.js`: Hilltop Farm, 500 m, a 10 m knoll flat on
   top (r 42) with the farmhouse, barn, pen, well, trough and three runs of wall at the lip, the yard left open; a lane
@@ -3788,6 +3789,43 @@ so a design can be replayed against harder waves.
   arrived (the platforms' crews first), and the last waves always had twenty or more men alive at the clock, so hold-out
   is the ending and "broke every wave" stays the rare one. Left for B5 or later: flanking through the copses as a wave
   tactic, the dump as a target, re-manning posts faster, a mortar team that walks in rather than appears.
+- **B5 done (2026-11-02, "B5").** *A bug first:* the attackers could never take the HQ. The objectives' capture rule lets a
+  side take only a place next to its own base or linked to one it holds, and the HQ is the player's home with no links, so
+  `capturable(1, HQ)` was false and `Objectives.tick` skipped the zone whoever stood in it; every CPU win so far was by
+  tickets. Hold's setup now makes the HQ a home of both sides (`hq.homes = [0, 1]`), which also lets a remote plan name it
+  as the attack. Checked: eight attackers alone in the zone turn it in 21 s and the match ends "overran the HQ"; the
+  balance batch replayed on seeds 3 and 4 gave the same eight lines to the ticket, since a garrison of 24 respawning at the
+  HQ never leaves its zone empty (and a seed replays a match exactly). *The commander variant:* the lobby's Opponent row
+  already gives the waves a commander (built-in, Llama, or Claude when the engine panels are on); what was missing was
+  the read. The digest (ai/digest.js) now carries `hold` from the mode (`forDigest`: the wave number and count, the build
+  phase, when and from where the next wave comes and what is in it, the attackers alive, the spawns with their mortar
+  spots, the supplies and the income) and the works in full: every wall run as [x, z, facing in degrees] (ours with its
+  hit points), the platforms with their position and how many are up, for both sides as far as they are known. The
+  Worker's system prompt (worker/index.js `holdFor`) gains a Hold paragraph when the digest's mode is hold, one for the
+  attackers (waves, no respawn, the HQ always capturable, the works and the gates, that breaching is automatic and the
+  choices are the side, the wait and the posture, how they win) and one for the defenders (tickets as the second loss,
+  the works to man, enemy mortar teams and how to answer them); it reads the side from the digest. The waves already
+  nudge a remote commander as they spawn. The plan's "real CPU force with tickets and its own clock" is not built: the
+  waves are the mode the user asked for, and a commander driving them is the variant; a force variant would need an
+  attackers' base, respawns, a ticket pool and a lobby row, noted below as an option. *The debrief:* a mode may add rows
+  (`debrief()`, hud.showEnd): Hold adds waves held, attackers killed (men and APCs), works built (walls and platforms, from
+  stats the match keeps as they go up), walls breached with the runs standing, and the supplies left. *Sounds:* two clips
+  made with the sound tool, `hammer` (the engineers setting to a wall or a platform, played where the build starts from
+  the plan; a sandbag or trap build keeps `dig`) and `rubble` (a run coming down, with the blast); the chimes: a work
+  finished rings the FOB chime, a wall of ours breached the "lost" chime; two radio lines spoken by the HQ voice and
+  coloured with ffmpeg (sounds/CREDITS.md): "Wave incoming, all squads stand to" when a wave is announced and "They're
+  through the wall" when a run of ours is breached (game/voices.js). *The guide:* the Objective page reads Hold's own text
+  (the HQ, the build phase and the waves from the table in play, the tickets, the build bar, the two works, manning, how
+  the waves answer walls); a Base defence page (the bar, the wall run, the platform, the waves, the mortar team, the
+  tickets); and Hold has its own hints in place of the capture ones: the build phase at the start, the first wave in, no
+  wall a minute into the build phase, a wall breached, an enemy mortar seen, supplies under 30; the other hints' page
+  numbers were put right for the new page. Checked headless: the hints, the digest for both sides, the debrief rows and
+  the capture; the Worker's prompt renders for both sides; a Palm Valley match runs clean.
+
+**Options after B5.** A force variant (the attackers as a real side with a base, respawns and tickets under the commander,
+no waves). The dump as a target: shootable, and the pool burns with it. Flanking through the copses as a wave tactic. A
+mortar team that walks in. Faster re-manning of posts by a CPU garrison. Two open questions stand: the ending and saved
+layouts; no APC and no clock pause are settled.
 
 ## Open questions
 

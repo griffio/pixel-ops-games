@@ -175,6 +175,8 @@ export class AudioEngine {
     if (type === 'captured') this.ui(friendly ? 'captured' : 'lost');
     else if (type === 'lost') this.ui(friendly ? 'lost' : 'captured');
     else if (type === 'fob') { if (friendly) this.ui('fob'); }
+    else if (type === 'wall' || type === 'platform') { if (friendly) this.ui('fob'); }   // a work of the base finished
+    else if (type === 'wall breached') { if (!friendly) this.ui('lost'); }         // our wall: the breacher's side raised the event
     else if (type === 'cache destroyed') this.ui('cache');
   }
 

@@ -18,6 +18,9 @@ const CLIPS = {
   lose:       ['short descending arcade defeat sting, 8-bit, 2 seconds', 2.0],
   select:     ['tiny UI blip click, 8-bit, very short', 0.3],
   order:      ['short confirming UI beep, two tones, 8-bit', 0.4],
+  // base defence works (Hold): the engineers at a wall or a platform, and a wall run coming down
+  hammer:     ['hammering wooden planks and a steel mallet on scaffold tube, outdoors, a few quick blows, no music', 1.4],
+  rubble:     ['a stone-filled gabion wall collapsing, gravel and rocks sliding and tumbling into a heap, dust, outdoors, short', 2.2],
 };
 mkdirSync('sounds', { recursive: true });
 let manifest = { clips: {} }; try { manifest = JSON.parse(readFileSync('sounds/manifest.json', 'utf8')); } catch {}

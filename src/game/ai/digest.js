@@ -46,7 +46,11 @@ export function buildDigest(match, team, remote = null) {
   const fobs = (t) => (t === team ? U.filter(u => u.type === 'fob' && u.team === t && !u.dead) : known.filter(u => u.type === 'fob')).map(u => nearLoc(u.pos.x, u.pos.z));
   const sandbags = U.filter(u => u.type === 'sandbags' && u.team === team && !u.dead).map(u => nearLoc(u.pos.x, u.pos.z));
   // base defence works (Hold): our wall runs and platforms, and the enemy's we have found; a platform with men up it
-  const works = (t) => { const mine = t === team, W = mine ? U.filter(u => u.team === t && !u.dead) : known, walls = W.filter(u => u.type === 'wall'), plats = W.filter(u => u.type === 'platform'); const dump = mine ? U.find(u => u.type === 'dump' && u.team === t && !u.dead) : null; return walls.length || plats.length || dump ? { supplies: dump ? r(dump.supplies) : undefined, walls: walls.length, platforms: plats.map(u => ({ near: nearLoc(u.pos.x, u.pos.z), manned: mine ? u.crew.length - u.freeSlots : undefined })) } : undefined; };
+  // each wall run as [x, z, facing in degrees] (a run lies across its facing, 6 m long), with its hit points for our own; a gap
+  // between runs is where to go in, and a run at 0% is down
+  const deg = (h) => r(((h * 180 / Math.PI) % 360 + 360) % 360);
+  const works = (t) => { const mine = t === team, W = mine ? U.filter(u => u.team === t && !u.dead) : known.map(u => (u.ghost ? u.unit : u)).filter(u => u && !u.dead), walls = W.filter(u => u.type === 'wall'), plats = W.filter(u => u.type === 'platform'); const dump = mine ? U.find(u => u.type === 'dump' && u.team === t && !u.dead) : null;
+    return walls.length || plats.length || dump ? { supplies: dump ? r(dump.supplies) : undefined, walls: walls.map(u => mine ? [r(u.pos.x), r(u.pos.z), deg(u.heading), r(100 * u.hp / u.maxHp)] : [r(u.pos.x), r(u.pos.z), deg(u.heading)]), platforms: plats.map(u => ({ at: [r(u.pos.x), r(u.pos.z)], near: nearLoc(u.pos.x, u.pos.z), manned: mine ? u.crew.length - u.freeSlots : undefined })) } : undefined; };
   // FOB emplacements: ours with whether a gunner is on it, theirs where we have found them
   const emplacements = { ours: U.filter(u => u.type === 'emplacement' && u.team === team && !u.dead).map(u => ({ id: u.label, gun: u.gun, near: nearLoc(u.pos.x, u.pos.z), hp: r(100 * u.hp / u.maxHp), manned: !!u.crewAt(0) })),
     theirs: known.filter(u => u.type === 'emplacement').map(u => ({ gun: u.gun || (u.unit && u.unit.gun), near: nearLoc(u.pos.x, u.pos.z) })) };
@@ -71,6 +75,7 @@ export function buildDigest(match, team, remote = null) {
     locations, next: o ? (o.nextFor(team) || {}).name || null : null, front: o ? (o.front(team) || {}).name || null : null,
     squads, vehicles, enemy, air, emplacements, fobs: { ours: fobs(team), theirs: fobs(1 - team), kitsLeft: m.fobs.kitsLeft(team) }, sandbags, works: works(team), enemyWorks: works(1 - team), traps,
     trends, events, plans: remote ? remote.planHistory() : [], notes: remote && remote.plan ? remote.plan.notes || '' : '', waiting: remote ? remote.waitState() : null, orders: m.orders && m.orders.forDigest(team).length ? m.orders.forDigest(team) : undefined,   // the player's orders to a hybrid commander (game/orders.js)
+    hold: m.mode.forDigest ? m.mode.forDigest() : undefined,   // Hold the Farm: the waves, the spawns, the supplies (modes/hold.js)
     watch: remote && remote.watch ? remote.watch : undefined,   // a small model's read of the plan a few seconds ago (ai/watch.js), and whether it asked for this plan early
     enemyStyle: (() => { const s = (m.strategists || []).find(s => s.team === team), r = s && s.enemyStyle; return r ? { style: r.style, confidence: r.confidence, massing: r.massing, minute: r.minute } : undefined; })(),   // the enemy's way of fighting as a System One model read it (ai/style.js)
   };
