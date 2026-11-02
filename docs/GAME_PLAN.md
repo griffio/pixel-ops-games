@@ -3681,6 +3681,13 @@ so a design can be replayed against harder waves.
   an idle garrison of 24 men holds). A spectator run (both sides CPU) ran clean. The lobby thumbnail made with
   tools/make-map-thumbs.mjs. Building is still today's: walk an engineer to the spot and press the tile (B2 brings the
   placement ghost).
+- **Facing (2026-11-02, "Go facing").** What gets built faced the enemy's main base, which on Hilltop Farm is the
+  attackers' formal corner to the north-east, so every position faced north-east. `Fobs.threatHeading` now asks the
+  mode (`threatFrom(team, x, z)`): Hold answers the nearer spawn for the defenders (a position north of the yard faces
+  the lane, one east of it the track) and the HQ for the attackers; other modes keep the enemy base. Sandbag
+  positions, emplacements and trap rows off a road all use it. The placement ghost in B2 will start from this angle and
+  let the player turn it. Checked headless: sandbags at (0, 30) read -3 degrees, the lane's bearing, where the corner
+  would have been 49.
 
 ## Open questions
 

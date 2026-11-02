@@ -97,9 +97,14 @@ export class Fobs {
   }
   // where a row laid from (x, z) goes and which way it faces: across the road, centred on it, within 12 m of one; elsewhere
   // where the engineer stands, across the way to the enemy's base
+  // which way a position faces: toward where the mode says the threat comes from (Hold: the nearer spawn), else the enemy's main base
+  threatHeading(team, x, z) {
+    const M = this.match && this.match.mode, p = M && M.threatFrom ? M.threatFrom(team, x, z) : null, eb = p || this.teams[1 - team].base;
+    return Math.atan2(eb.x - x, eb.z - z);
+  }
   trapRow(x, z, team) {
     const [d, tx, tz, px, pz] = roadAlong(this.world.map, x, z); if (d < 12) return [px, pz, Math.atan2(tx, tz)];
-    const eb = this.teams[1 - team].base; return [x, z, Math.atan2(eb.x - x, eb.z - z)];
+    return [x, z, this.threatHeading(team, x, z)];
   }
   canBuildTraps(eng) {
     const r = RULES.traps;
@@ -183,14 +188,14 @@ export class Fobs {
       if (b.kind === 'clear') { if (b.sandbags) { if (this.onSandbagsCleared) this.onSandbagsCleared(b.sandbags, b.team); } else if (this.onTrapsCleared) this.onTrapsCleared(b.traps, b.team); continue; }
       if (b.kind === 'emplacement') {
         b.truck.supplies -= RULES.emplacement[b.gun].supplyCost;
-        const eb = this.teams[1 - b.team].base, h = Math.atan2(eb.x - b.x, eb.z - b.z), pre = { hmg: 'MG', atgm: 'AT', mortar: 'MO' }[b.gun];
+        const h = this.threatHeading(b.team, b.x, b.z), pre = { hmg: 'MG', atgm: 'AT', mortar: 'MO' }[b.gun];
         const u = this.units.spawn('emplacement', b.x, b.z, h, b.team, { gun: b.gun }); u.label = `${pre}-${String(this.emplacementsOf(b.team).filter(e => e.gun === b.gun).length).padStart(2, '0')}`;
         if (this.onEmplacement) this.onEmplacement(u, emplacementBoxes(b.x, b.z, h));
         continue;
       }
       if (b.kind === 'sandbags') {
         b.truck.supplies -= RULES.sandbags.supplyCost;
-        const eb = this.teams[1 - b.team].base, h = Math.atan2(eb.x - b.x, eb.z - b.z);   // the open side faces home
+        const h = this.threatHeading(b.team, b.x, b.z);   // the open side faces away from the threat, toward home
         const u = this.units.spawn('sandbags', b.x, b.z, h, b.team); u.label = `SB-${String(this.sandbagsOf(b.team).length).padStart(2, '0')}`;
         if (this.onSandbags) this.onSandbags(u, sandbagBoxes(b.x, b.z, h));
         continue;

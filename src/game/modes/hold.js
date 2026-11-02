@@ -61,6 +61,8 @@ export class Hold extends AAS {
     if (team === 1) return { attack: this.hq, hold: null, threatened: [], fobAnchor: null, attackShare: 1, posture: 'aggressive', lift: false };
     return { attack: null, hold: this.hq, threatened: this.threatenedOf(team, extra), fobAnchor: this.hq, attackShare: 0 };
   }
+  // where the threat comes from, for the facing of what gets built: the nearer spawn for the defenders, the HQ for the attackers
+  threatFrom(team, x, z) { if (team === 1) return this.hq; let best = null, bd = Infinity; for (const s of this.spawns) { const d = Math.hypot(s.x - x, s.z - z); if (d < bd) { bd = d; best = s; } } return best; }
   phase() { const m = this.match; if (this.wave === 0) return { build: true, left: Math.max(0, this.nextWave - m.elapsed) }; return { build: false, left: this.wave < WAVES.length ? Math.max(0, this.nextWave - m.elapsed) : null }; }
   bar() {
     const p = this.phase(), mm = (s) => `${Math.floor(s / 60)}:${String(Math.floor(s % 60)).padStart(2, '0')}`;

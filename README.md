@@ -244,7 +244,7 @@ truck under Light Infantry, never one with an enemy within 30 m); the
 reinforcements panel can force main base, a helicopter or a truck.
 
 **FOB emplacements.** Within 50 m of one of your FOBs, an engineer beside a supply
-truck builds a gun where he stands, facing the enemy's base: a **heavy machine gun**
+truck builds a gun where he stands, facing the enemy's base (or where the mode says the threat comes from: on Hilltop Farm the nearer of the two spawns, and sandbag positions and tank-trap rows face the same way): a **heavy machine gun**
 (**G**, 20 supplies, 12 s; 120 m, long bursts that pin infantry), an **anti-tank
 launcher** (**J**, 30 supplies, 15 s; a guided missile out to 200 m, three hits kill
 an APC) or a **mortar** (**K**, 40 supplies, 18 s; it shells any enemy your side

@@ -63,7 +63,7 @@ export class Match {
     this.buildings = new Buildings(this); this.combat.buildings = this.buildings;   // what stray rounds can knock down
     this.respawn = new Respawn(this.units, this.teams, this.world);
     this.support = new Support(this.units, this.respawn, this.teams); this.support.match = this;   // the match: which sides are CPU, the builds under way
-    this.fobs = new Fobs(this.units, this.teams, this.world);
+    this.fobs = new Fobs(this.units, this.teams, this.world); this.fobs.match = this;   // the mode: where a position should face (fobs.threatHeading)
     this.rallies = new Rallies(this.units, this.teams, this); this.respawn.rallies = this.rallies;
     this.landing = map && map.sea ? new Landing(this, map.sea) : null; this.respawn.landing = this.landing;   // a side based on a ship comes ashore by landing craft
     this.voices = null; if (app.audio) this.attachAudio(app.audio);
