@@ -193,14 +193,15 @@ split 9 to 18, a lean still being watched.
 `?map=hilltop` plays *Hilltop Farm*, 500 m, infantry only, the Hold mode only: base
 defence. A farm on a flat knoll at the centre, fields falling away on every side, a lane
 in from the north and a track from the east, both hedged, two copses the attackers come
-through, a pond to the south. The player's HQ (a FOB) and a supply truck stand in the
+through, a pond to the south. The player's HQ (a FOB) and a supply dump stand in the
 farmyard; the force is six squads, two of them engineer-led (the Garrison preset, offered
 on arrival), and three minutes of build phase come before the first wave. The build bar at
 the top left places sandbags, guns and tank traps: pick a tile, a footprint follows the
 mouse (or sits where you last tapped) green where it may go and red with the reason, R and
 Shift+R turn it, a click or Place drops it, and the nearest free engineer walks over and
-builds it from the HQ truck's supplies (300 to start, 40 more for each wave held, shown in
-the reinforcements panel). Queued builds show as chips that cancel them. Two works are
+builds it from the supply dump beside the HQ (300 to start, 40 more for each wave held,
+never refilled, shown in the reinforcements panel and on the dump's card; there is no
+truck to drive away or lose). Queued builds show as chips that cancel them. Two works are
 the base's own: a **wall run** (16 supplies, 14 s), 6 m of gabions 1.8 m high laid across
 the facing, which blocks sight and movement for both sides until mortar bombs or cannon
 fire bring it down (150 hit points: an APC at 60 m needs about half a minute, bullets only

@@ -412,6 +412,19 @@ export function makeBuilders(F) {
     return { group: g, parts: p, height: 2.4, radius: 2.2 };
   }
 
+  // Supply dump (Hold, docs/GAME_PLAN.md B3 "Go pool"): the base's supplies in the open beside the HQ: crates on pallets,
+  // fuel drums and a stack of ammunition boxes under a tarp slung from two poles. Static structure; it holds the pool the
+  // engineers build from (u.supplies) and nothing shoots it yet.
+  function dump() {
+    const g = group(); const p = {};
+    for (const [x, z] of [[-1.1, 0.4], [0.3, 0.5]]) { box(1.3, 0.12, 1.1, 'wood', x, 0.06, z, g); box(1.1, 0.8, 0.9, 'olive', x, 0.52, z, g); box(0.9, 0.5, 0.7, 'canvas', x + 0.05, 1.17, z - 0.05, g); }   // pallets with crates
+    for (let i = 0; i < 3; i++) box(0.56, 0.9, 0.56, i === 1 ? 'amber' : 'drum', 1.4 + (i % 2) * 0.2, 0.45, -0.7 + i * 0.62, g);                                           // drums
+    for (let i = 0; i < 4; i++) box(0.5, 0.3, 0.32, 'olive', -1.2 + (i % 2) * 0.55, 0.15 + Math.floor(i / 2) * 0.32, -0.85, g);                                       // ammunition boxes
+    box(0.08, 2.2, 0.08, 'metal', -2.0, 1.1, 1.3, g); box(0.08, 2.2, 0.08, 'metal', 1.0, 1.1, 1.3, g); mesh('wedge:3.4,0.9,2.6,1.0,1.0', 'canvas', -0.5, 2.0, 0.2, g);   // the tarp on its poles, over the crates; the drums stand out in the open
+    p.ring = ring(2.8, g);
+    return { group: g, parts: p, height: 2.6, radius: 2.4 };
+  }
+
   // Improvised fighting position: a U of sandbags open to the rear, a squad fits inside. Static structure;
   // its obstacle boxes come from sandbagBoxes() below.
   function sandbags() {
@@ -585,7 +598,7 @@ export function makeBuilders(F) {
 
   // each builder takes the team so the whole model picks the right camo set
   const forTeam = (fn) => (t = 0) => { team = t; const r = fn(); team = 0; return r; };
-  return { soldier: forTeam(soldier), truck: forTeam(() => truck(false)), supplyTruck: forTeam(() => truck(true)), apc: forTeam(apc), humvee: forTeam(humvee), heli: forTeam(heli), bird: forTeam(bird), fob: forTeam(fob), cache: forTeam(cache), sandbags: forTeam(sandbags), emp_hmg: forTeam(empHmg), emp_atgm: forTeam(empAtgm), emp_mortar: forTeam(empMortar), traps: forTeam(traps), wall: forTeam(wall), platform: forTeam(platform), rally: forTeam(rally), tank: forTeam(tank), craft: forTeam(craft), amphib: forTeam(amphib), amphibSupply: forTeam(amphibSupply) };
+  return { soldier: forTeam(soldier), truck: forTeam(() => truck(false)), supplyTruck: forTeam(() => truck(true)), apc: forTeam(apc), humvee: forTeam(humvee), heli: forTeam(heli), bird: forTeam(bird), fob: forTeam(fob), cache: forTeam(cache), sandbags: forTeam(sandbags), emp_hmg: forTeam(empHmg), emp_atgm: forTeam(empAtgm), emp_mortar: forTeam(empMortar), traps: forTeam(traps), wall: forTeam(wall), platform: forTeam(platform), dump: forTeam(dump), rally: forTeam(rally), tank: forTeam(tank), craft: forTeam(craft), amphib: forTeam(amphib), amphibSupply: forTeam(amphibSupply) };
 
 
 

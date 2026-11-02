@@ -3751,6 +3751,16 @@ so a design can be replayed against harder waves.
   ticket moved; and the strategist's pick (the foot regions faked apart) choosing the run on the way in and clearing it
   when the way is open. Portraits rendered with tools/make-portraits.mjs. Balance (wall hit points against the waves, how
   many walls the pool allows, whether the waves need a mortar team to breach without an APC) is B4's.
+- **Pool on a dump (2026-11-02, "Go pool").** The supply truck is gone from the farm: it was a number with wheels, could be
+  driven out of a build's reach with no word why, and dying cost 16 tickets and came back a minute later still loaded. The
+  pool is a *supply dump* now (unit type `dump`: crates on pallets, drums and ammunition boxes under a tarp, beside the HQ), a
+  structure that counts as a supply holder to every build rule (`supply`, `supplies`, `noRefill`), with a low box so nobody
+  walks through it; 300 to start, 40 for each wave held, never refilled, not shootable yet (burning it is a loss condition
+  B4 or B5 may add). The build rules' refusal reads "not enough supplies: N needed, M left" when a holder is in reach and
+  "needs a supply truck" only when none is (fob.js `noSupply`); the engineer's own tiles read the holder within the mode's
+  reach (140 m here, 20 elsewhere) instead of a truck within 20 m; the dump has a card in the strip and a line under the
+  cursor; the digest's `works` carries `supplies`. A hybrid commander in Hold would still look for a truck to pay its own
+  builds, so the base is the player's to build, as intended.
 
 ## Open questions
 

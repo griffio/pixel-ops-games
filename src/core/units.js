@@ -21,6 +21,7 @@ export const SPEC = {
   // height to the world, core/layout.js addDeck; the men climb it from the back as they enter a sandbag position; `cover` is what
   // its parapet is worth against fire from the front, less than bags on the ground)
   wall:     { speed: 0, turn: 0,   accel: 0, label: 'WL', air: false, hp: 150, nav: null, structure: true, untargetable: true, wall: true },
+  dump:     { speed: 0, turn: 0,   accel: 0, label: 'SD', air: false, hp: 1e9, nav: null, structure: true, untargetable: true },   // the base's supply dump (Hold): holds the pool the engineers build from, as a parked supply truck would
   platform: { speed: 0, turn: 0,   accel: 0, label: 'PF', air: false, hp: 1e9, nav: null, structure: true, untargetable: true, hollow: true, slots: [[-2.2, 1.1], [-0.75, 1.1], [0.75, 1.1], [2.2, 1.1]], entry: -3.6, inside: [2.6, -4.8, 1.6], deck: 3, cover: 0.6 },
   // a FOB emplacement (game/fob.js): a gun in a ring of bags with one gunner's slot behind it; u.gun names the weapon
   // (hmg, atgm, mortar) the soldier manning it fires; it can be shot up (three rockets) and costs tickets when lost

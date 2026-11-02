@@ -319,6 +319,7 @@ export class Hud {
     if (u.type === 'fob') return `forward operating base · every squad can respawn here · ${m ? `${m.fobs.emplacementsAt(u)}/${RULES.emplacement.perFob} guns · ` : ''}${hp}`;
     if (u.type === 'sandbags') return `sandbag position · ${u.crew.length - u.freeSlots}/${u.crew.length} manned · ${tap} it with soldiers selected to man it · an engineer at it clears it`;
     if (u.type === 'traps') return 'tank traps · no vehicle gets past, ours included · an engineer at the row clears them';
+    if (u.type === 'dump') return `supply dump · ${Math.round(u.supplies)} supplies · what the engineers build from, 40 more for each wave held · never refilled`;
     if (u.type === 'wall') return `wall run · ${hp} · blocks sight and movement · mortar bombs and cannon fire bring it down, bullets only chip it · an engineer at it takes it down`;
     if (u.type === 'platform') return `platform · ${u.crew.length - u.freeSlots}/${u.crew.length} up · ${tap} it with soldiers selected to man it: they climb the ladder at the back and see and shoot over the walls · an engineer at it takes it down`;
     if (u.type === 'rally') return `rally point${u.rallyOf ? ' of ' + u.rallyOf.members[0].label : ''} · ${m && m.rallies && m.rallies.covered(u) ? `enemy armour within ${RULES.rally.armourRadius} m: its men come back at the next spawn until it leaves` : `its men come back here every ${RULES.rally.wave} s${m && m.rallies ? ` · next in ${Math.ceil(m.rallies.nextWaveIn(u))} s` : ''}`}`;
@@ -362,8 +363,8 @@ export class Hud {
         return c.ok ? t : { ...t, state: 'off', why: c.reason };
       });
       if (b) tiles.push({ act: 'cancel', glyph: 'clear', name: 'Cancel', key: 'C', cls: 'cancel', title: `Stop ${BUILDS[bk].say}` });
-      const truck = U.filter(t => t.supply && !t.dead && t.team === eng.team && Math.hypot(t.pos.x - eng.pos.x, t.pos.z - eng.pos.z) <= R.fob.buildRange).sort((x, y) => y.supplies - x.supplies)[0];
-      const head = truck ? `${icon('sup')}${truck.label} ${Math.round(truck.supplies)} <i><b style="width:${Math.round(truck.supplies)}%"></b></i>` : `no supply truck within ${R.fob.buildRange} m`;
+      const truck = U.filter(t => t.supply && !t.dead && t.team === eng.team && Math.hypot(t.pos.x - eng.pos.x, t.pos.z - eng.pos.z) <= F.buildRange(eng.team)).sort((x, y) => y.supplies - x.supplies)[0];   // the mode's reach (Hold: the dump serves the farm)
+      const head = truck ? `${icon('sup')}${truck.label} ${Math.round(truck.supplies)} <i><b style="width:${Math.round(Math.min(100, truck.supplies / (truck.type === 'dump' ? 3 : 1)))}%"></b></i>` : `no supply truck within ${F.buildRange(eng.team)} m`;
       html += `<div class="vr"></div><div class="grp"><h6>Build <em>${head} · FOB kits ${F.kitsLeft(eng.team)}</em></h6><div class="tiles">${tiles.map(t => this.tile(t)).join('')}</div></div>`;
     }
     if (html !== this.actHtml) { this.actHtml = html; box.innerHTML = html; }

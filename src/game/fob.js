@@ -13,6 +13,11 @@ export class Fobs {
   buildRange(team) { return this.rule('buildRange', RULES.fob.buildRange); }
   // a truck of the side with `cost` supplies within reach of the engineer
   truckFor(eng, cost) { const r = this.buildRange(eng.team); return this.units.units.filter(t => t.supply && !t.dead && t.team === eng.team && t.supplies >= cost && Math.hypot(t.pos.x - eng.pos.x, t.pos.z - eng.pos.z) <= r)[0] || null; }
+  // why no supply holder pays for a build: short of supplies when one is in reach (Hold's dump), else no truck near enough
+  noSupply(eng, cost) {
+    const r = this.buildRange(eng.team), near = this.units.units.filter(t => t.supply && !t.dead && t.team === eng.team && Math.hypot(t.pos.x - eng.pos.x, t.pos.z - eng.pos.z) <= r);
+    return near.length ? `not enough supplies: ${cost} needed, ${Math.round(Math.max(...near.map(t => t.supplies)))} left` : `needs a supply truck with ${cost} supplies within ${r} m`;
+  }
   // the mode's say on a spot (Hold: inside the farm); null when it has none
   siteOk(team, x, z) { const M = this.match && this.match.mode; return M && M.siteOk ? M.siteOk(team, x, z) : null; }
   kitsLeft(team) { const t = this.teams[team]; return Math.max(0, t.fobKits - this.active(team).length - this.builds.filter(b => b.team === team && !b.kind).length); }   // FOB builds have no kind
@@ -49,7 +54,7 @@ export class Fobs {
     const [x, z] = at && Math.hypot(at[0] - eng.pos.x, at[1] - eng.pos.z) < 3 ? at : [eng.pos.x, eng.pos.z];
     const site = this.emplacementSite(eng.team, x, z); if (site.reason) return { ok: false, reason: site.reason };
     const truck = this.truckFor(eng, g.supplyCost);
-    if (!truck) return { ok: false, reason: `needs a supply truck with ${g.supplyCost} supplies within ${this.buildRange(eng.team)} m` };
+    if (!truck) return { ok: false, reason: this.noSupply(eng, g.supplyCost) };
     return { ok: true, truck, fob: site.fob, x, z };
   }
   // h: a facing the player chose (the placement ghost); otherwise the mode's threat heading when it is done
@@ -91,7 +96,7 @@ export class Fobs {
     const [x, z] = at && Math.hypot(at[0] - eng.pos.x, at[1] - eng.pos.z) < 3 ? at : [eng.pos.x, eng.pos.z];
     const site = this.sandbagSite(eng.team, x, z); if (site.reason) return { ok: false, reason: site.reason };
     const truck = this.truckFor(eng, r.supplyCost);
-    if (!truck) return { ok: false, reason: `needs a supply truck with ${r.supplyCost} supplies within ${this.buildRange(eng.team)} m` };
+    if (!truck) return { ok: false, reason: this.noSupply(eng, r.supplyCost) };
     return { ok: true, truck, x, z };
   }
   startSandbags(eng, at = null, h = null) {
@@ -141,7 +146,7 @@ export class Fobs {
     const [x, z] = at && Math.hypot(at[0] - eng.pos.x, at[1] - eng.pos.z) < 3 ? at : [eng.pos.x, eng.pos.z];
     const site = this.trapSite(eng.team, x, z); if (site.reason) return { ok: false, reason: site.reason };
     const truck = this.truckFor(eng, r.supplyCost);
-    if (!truck) return { ok: false, reason: `needs a supply truck with ${r.supplyCost} supplies within ${this.buildRange(eng.team)} m` };
+    if (!truck) return { ok: false, reason: this.noSupply(eng, r.supplyCost) };
     return { ok: true, truck, x, z };
   }
   startTraps(eng, at = null, h = null) {
@@ -201,7 +206,7 @@ export class Fobs {
     const [x, z] = at && Math.hypot(at[0] - eng.pos.x, at[1] - eng.pos.z) < 3.5 ? at : [eng.pos.x, eng.pos.z];
     const site = this.wallSite(eng.team, x, z, h); if (site.reason) return { ok: false, reason: site.reason };
     const truck = this.truckFor(eng, RULES.wall.supplyCost);
-    if (!truck) return { ok: false, reason: `needs a supply truck with ${RULES.wall.supplyCost} supplies within ${this.buildRange(eng.team)} m` };
+    if (!truck) return { ok: false, reason: this.noSupply(eng, RULES.wall.supplyCost) };
     return { ok: true, truck, x, z };
   }
   startWall(eng, at = null, h = null) {
@@ -217,7 +222,7 @@ export class Fobs {
     const [x, z] = at && Math.hypot(at[0] - eng.pos.x, at[1] - eng.pos.z) < 5 ? at : [eng.pos.x, eng.pos.z];   // he stands at the ladder's foot, behind it
     const site = this.platformSite(eng.team, x, z, h); if (site.reason) return { ok: false, reason: site.reason };
     const truck = this.truckFor(eng, RULES.platform.supplyCost);
-    if (!truck) return { ok: false, reason: `needs a supply truck with ${RULES.platform.supplyCost} supplies within ${this.buildRange(eng.team)} m` };
+    if (!truck) return { ok: false, reason: this.noSupply(eng, RULES.platform.supplyCost) };
     return { ok: true, truck, x, z };
   }
   startPlatform(eng, at = null, h = null) {
@@ -274,7 +279,7 @@ export class Fobs {
     if (!eng || eng.dead || eng.kit !== 'engineer' || eng.mounted) return { ok: false, reason: 'needs an engineer' };
     if (eng.building) return { ok: false, reason: 'already building' };
     if (this.kitsLeft(eng.team) <= 0) return { ok: false, reason: 'no FOB kits left' };
-    const truck = this.nearestTruck(eng); if (!truck) return { ok: false, reason: `needs a supply truck with ${r.supplyCost} supplies within ${r.buildRange} m` };
+    const truck = this.nearestTruck(eng); if (!truck) return { ok: false, reason: this.noSupply(eng, r.supplyCost) };
     for (const f of this.active(eng.team)) if (Math.hypot(f.pos.x - eng.pos.x, f.pos.z - eng.pos.z) < r.minSpacing) return { ok: false, reason: `too close to another FOB (${r.minSpacing} m)` };
     const enemyBase = this.teams[1 - eng.team].base; if (Math.hypot(enemyBase.x - eng.pos.x, enemyBase.z - eng.pos.z) < r.enemyBaseDistance) return { ok: false, reason: 'too close to the enemy main base' };
     if (this.units.nav && this.units.nav.vehicle.blocked(eng.pos.x, eng.pos.z)) return { ok: false, reason: 'ground too steep or wet here' };
