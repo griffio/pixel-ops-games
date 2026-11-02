@@ -3572,6 +3572,94 @@ shadows are on, and flat with them off, says the judder is the shadow pass and i
   while paused, the touch panel reading no blur and 0.96, the desktop one unchanged.
 
 
+## Base defence mode plan (2026-11-02)
+
+**Premise.** A single-player mode on a micro map, 500 m, that fits on one screen at play zoom: the player lays out and
+builds a defensible base of their own design on a knoll, mans it, and from the third minute the CPU commander assaults it
+in waves that grow until the clock runs out. Small by intent: no scrolling about, the whole fight in view, the player's
+attention on where the walls, guns and platforms go and who stands on them.
+
+**What the engine already has.** The build loop (game/fob.js, rules.js): an engineer beside a supply truck (20 m) builds
+a FOB (50 supplies, 20 s), a sandbag U (12, 12 s, eight a side), a gun emplacement he hands to a gunner (HMG 20, ATGM 30,
+mortar 40 supplies; three per FOB within 50 m), tank traps (20) and rally points; the truck refills at 10 a second in its
+own base. Manning (`post`, slots, entry points): a squad ordered onto a position takes it. Destructible buildings
+(game/buildings.js): tall obstacle groups with hit points that shells and mortar bombs bring down, leaving rubble and
+updating the nav and sight grids, which is what a player-built wall should be. Bridge decks: heightAt raises any unit
+standing on a deck rectangle, and the sight and shot tests use heights, which is what a platform needs. The Hollow's 500 m
+build conventions (thickets, a track, hedgerows, a 280 ticket pool). The modes' interface (goals, tick, check, bar) and
+Invasion's attacker and defender split. The strategist attacks whatever goals() names, with its approach, caution and
+grenade rules; the Claude commander can drive it later, with its digest.
+
+**Options.**
+- *What ends it.* (a) Hold out: the player wins when the clock runs down (12 minutes), the CPU when it holds the HQ zone
+  at the base centre for 45 s, like a capture. (b) Last stand: the CPU has a ticket pool and the player wins by spending
+  it; no clock. (c) Siege: the CPU must destroy the HQ structure (FOB hit points). Recommended: (a) with the CPU's
+  tickets as a second way to win early; (c) later as a harder variant.
+- *When the player builds.* (a) A three-minute build phase with a countdown, then waves every 90 s; building goes on
+  between waves. (b) No build phase, waves from the start, supplies arriving over time. Recommended: (a); the first
+  version's whole feel is "design, then defend".
+- *How the player builds.* (a) As today: walk an engineer to the spot and press the tile; the design is wherever the
+  engineers stood. (b) A placement ghost: pick a structure on the dock, a ghost follows the finger with a rotate button,
+  drop it, and the nearest free engineer walks there and builds it, a queue of ghosts allowed, each showing its supply
+  cost and whether the spot is legal. Recommended: (b) from the first version; (a) stays as the fallback and is what the
+  first milestone uses while the mode itself is built.
+- *Supplies.* (a) A supply pool shown in the HUD, carried by one truck parked at the HQ that the base keeps topped up, a
+  starting pool of 300 and 40 more for each wave held. (b) Trucks that must drive to the map edge and back for more.
+  Recommended: (a); (b) is a map twice the size.
+- *The enemy.* (a) Waves the mode spawns at the map's north and east edges, infantry first (two squads), an APC from the
+  fourth wave, a mortar team from the sixth, each wave a squad stronger, the strategist pointed at the HQ zone with every
+  squad; (b) a real force with tickets that the CPU commander (built-in or Claude) attacks with on its own clock.
+  Recommended: (a) for the first version, (b) as the commander variant once the base side works, since the Claude
+  commander already reads emplacements and sandbags in its digest.
+- *The map.* A new one, Hilltop Farm: a 500 m square, the base a flat 70 m knoll at the centre with a farmhouse and a
+  barn for cover, fields falling away on all sides, a lane from the north and a track from the east with hedgerows and
+  two copses the attackers come through, a pond on the south side that nobody crosses. Buildable ground: the knoll and
+  40 m below its lip. Alternatives: the Hollow's north crest (reuse, but its thickets are made for ambushes, not sight
+  lines); a walled compound in Desert Crossing's style.
+
+**What else to build, beyond mortars and anti-tank positions.** Walls: a straight sandbag or gabion run of 6 m, breachable
+(150 hit points, mortar and APC fire bring a segment down, infantry only chip it), with a gap left as a gate. Platforms:
+a scaffold deck 3 m up and 6 by 4 m, four men, sight and shots over walls and hedges (the deck rectangle is a bridge
+deck to heightAt; the eye and the muzzle go up with it; a man on one is exposed to return fire from below). A bunker: a
+roofed HMG, covered from mortars, dearer. Wire: a 6 m run that infantry cross at a third of their speed and cannot shoot
+through at close range, cheap and the right answer to grenades. Mines: a 4 m strip, one APC or a man each. A searchlight
+for a night variant. An ammunition dump that refills grenades and belts within 15 m, and burns if hit. Trenches: a 6 m
+run that gives kneeling cover without blocking movement (prone men inside it are hard to hit), dug not supplied. A medic
+post. Rally points stay off in this mode: everyone comes back at the HQ.
+
+**The first version (recommended scope).** The hold-out mode on Hilltop Farm with a build phase, the placement ghost,
+the supply pool, two new structures (the wall run and the platform) beside the existing sandbags, HMG, ATGM, mortar and
+traps, manning by ordering a squad onto a position, infantry waves with an APC from the fourth, 12 minutes. Force: six
+squads, two of them engineer-led, no vehicles but the HQ's supply truck. Camera: the knoll fills the screen at the
+start zoom and the far zoom shows the whole map. The Command Wheel stays out of this mode; the CO lines come back when
+the commander variant arrives.
+
+**Milestones.**
+- *B1, the mode and the map.* Hilltop Farm blockout (terrain, the knoll, lane and track, hedgerows, copses, farmhouse
+  and barn as destructible buildings, the pond); the Hold mode (modes/hold.js): the HQ zone, the build phase countdown,
+  waves spawned at the edges on a schedule with a strength table, the CPU side's goals pointed at the HQ, the win and
+  loss checks, the objectives bar showing the wave number and the countdown; the lobby entry; building as today with
+  the engineers. Playable, ugly.
+- *B2, designing the base.* The placement ghost on the dock: structure tiles, a ghost that follows the pointer with
+  rotation, legality (slope, road, spacing, inside the buildable ring) and cost shown, a queue; the nearest free engineer
+  walks and builds; the supply pool in the HUD and the parked truck that carries it; cancel and demolish.
+- *B3, walls and platforms.* The wall run as a destructible building the player makes (obstacle boxes, hit points, rubble
+  when down, the nav and sight grids told); the platform as a deck (heightAt, a model with legs and a ladder side, the
+  manning slots on top, a step-up when a man enters it); the CPU's mortars and APC given the walls as targets when
+  infantry cannot get through.
+- *B4, the enemy and balance.* The wave table tuned over headless runs (tools/balance.mjs with the mode), mortar teams
+  that set up at range, flanking through the copses, the strategist's approach rule against walls (go for the gap or
+  breach), supply income per wave, the clock; a difficulty row in the lobby.
+- *B5, the commander variant and polish.* The waves replaced by a real CPU force under the built-in or a Claude
+  commander with the mode's goals; the digest carrying the base's layout; the debrief with waves held and what fell;
+  sounds for building and breaching; the guide's lines.
+
+**Open questions for the user.** Which ending (hold out, last stand, or both); whether the build phase should pause the
+clock or count against it; infantry only or an APC of the player's own; and whether the base's layout should be saved
+so a design can be replayed against harder waves.
+
+## Open questions
+
 None open. Answered:
 
 1. Match length: 25 minutes (methodical), 500-ticket pools; CPU matches mostly run
