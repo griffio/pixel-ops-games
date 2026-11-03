@@ -1,5 +1,6 @@
 import { Vec3, lerp, clamp, wrapAngle as wrap, rng } from './math.js';
 import { RULES } from '../game/rules.js';
+import { WEAPONS } from '../game/weapons.js';
 
 const rnd = (a, b) => a + rng() * (b - a);
 
@@ -92,6 +93,7 @@ export class Unit {
     this.grenades = 0;   // a rifleman's hand grenades (RULES.grenades.count, given with the rifle kit in spawnSquad and back on revive)
     this.stance = 'stand'; this.supp = 0; this.kneelK = 0; this.proneK = 0; this.aimK = 0;   // infantry: suppression 0..1 and the pose blends it drives
     this.down = false; this.bleed = 0; this.aidT = 0; this.wounder = null;   // infantry: down wounded (wound), the seconds left before he dies, first aid given so far, who did it
+    this.rounds = 0; this.mags = 0;   // infantry: rounds in the weapon and spare magazines (loadAmmo; weapons.js mag/mags)
     this.dead = false; this.deathT = 0; this.wreck = false; this.remove = false;
     this.mounted = null; this.passengers = []; this.boardTarget = null; this.turnT = 0; this.supplies = 0; this.landedT = 0; this.hover = false;
     this.post = null; this.crew = spec.hollow ? slotsOf(spec).map(() => null) : null;   // a soldier's firing slot in a sandbag position; a position's crew by slot
@@ -250,6 +252,11 @@ export class Unit {
     return false;
   }
   get fit() { return !this.dead && !this.down; }
+  // magazines (weapons.js mag/mags): full at a spawn, a respawn and a resupply (support.js); dry: nothing left; lowAmmo: on the last one
+  loadAmmo() { const w = WEAPONS[this.kit]; if (w && w.mag) { this.rounds = w.mag; this.mags = w.mags; } }
+  get dry() { const w = WEAPONS[this.kit]; return !!(w && w.mag) && this.rounds <= 0 && this.mags <= 0; }
+  get lowAmmo() { const w = WEAPONS[this.kit]; return !!(w && w.mag) && this.mags <= 1; }
+  get ammoFrac() { const w = WEAPONS[this.kit]; return w && w.mag ? (this.rounds + this.mags * w.mag) / (w.mag * (w.mags + 1)) : 1; }
   // hit and not killed: down wounded where he stands, out of the fight (no target, no shot, no order, flat), out of his post or
   // build, bleeding (support.js counts it down and sees to him: a squadmate's first aid or a medic has him up again)
   wound(from) {
@@ -283,7 +290,7 @@ export class Unit {
     if (this.spec.air) { for (const r of this.parts.rotors) { r.blades.visible = true; r.disc.visible = false; } this.alt = 0; this.pos.y = this.mgr ? this.mgr.world.surfaceAt(this.pos.x, this.pos.z) : 0; this.parts.body.rotation.x = 0; this.parts.body.rotation.z = 0.35; }
   }
   // revive at a position (infantry respawn reuses the object so squads keep their members)
-  revive(x, z, heading) { if (this.spec.ammo) this.ammo = this.spec.ammo; if (this.kit === 'rifle') this.grenades = RULES.grenades.count; this.holdFire = !!(this.squad && this.squad.members.some(m => !m.dead && m !== this && m.holdFire));   // a man back to a squad holding fire holds it too
+  revive(x, z, heading) { if (this.spec.ammo) this.ammo = this.spec.ammo; if (this.kit === 'rifle') this.grenades = RULES.grenades.count; this.loadAmmo(); this.holdFire = !!(this.squad && this.squad.members.some(m => !m.dead && m !== this && m.holdFire));   // a man back to a squad holding fire holds it too
     this.dead = false; this.down = false; this.bleed = 0; this.aidT = 0; this.wounder = null; this.treatedBy = null; this.aimedAt = null; this.hp = this.maxHp; this.pos.set(x, 0, z); this.heading = heading; this.group.rotation.set(0, heading, 0); this.descend = 0;
     this.group.visible = true; this.speed = 0; this.enemy = null; this.target = null; this.path = null; this.dest = null; this.deathT = 0; this.reviveT = 0; this.hold = false; this.boardTarget = null; this.mounted = null; this.landedT = 0;
   }
@@ -644,7 +651,7 @@ export class UnitManager {
   spawnSquad(x, z, team = 0, kits = KITS) {
     if (x === undefined) [x, z] = this.freePoint(3);
     const members = []; const h = rng() * Math.PI * 2;
-    for (let i = 0; i < 4; i++) { const m = this.spawn('soldier', x + (i % 2) * 1.4 - 0.7, z + Math.floor(i / 2) * 1.4 - 0.7, h, team); m.kit = kits[i] || 'rifle'; if (m.kit === 'rifle') m.grenades = RULES.grenades.count; members.push(m); }
+    for (let i = 0; i < 4; i++) { const m = this.spawn('soldier', x + (i % 2) * 1.4 - 0.7, z + Math.floor(i / 2) * 1.4 - 0.7, h, team); m.kit = kits[i] || 'rifle'; if (m.kit === 'rifle') m.grenades = RULES.grenades.count; m.loadAmmo(); members.push(m); }
     const sq = new Squad(members); sq.id = (this.squadCount = (this.squadCount || 0) + 1);
     for (const m of members) m.label = `SQ-${String(sq.id).padStart(2, '0')}`;
     this.squads.push(sq); return sq;

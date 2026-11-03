@@ -71,14 +71,17 @@ south-west corner against OPFOR (olive) in the north-east. Five locations
 majority bleeds the enemy's tickets, losing a location costs 20, and capturing all
 five wins outright. Each side starts with 500 tickets; vehicle losses and
 infantry respawns drain them, and the first team at 0 loses. Infantry are
-expendable: one ticket, back in 15 seconds in squad waves. Men fire single aimed shots
+worth keeping: two tickets a man, back in 45 seconds in squad waves. Men fire single aimed shots
 and short bursts, slower the further the target, and a hit is a casualty: killed, or down
 wounded where he fell, out of the fight, up again in 20 s if a squadmate stands by him out of
 fire (5 s for a medic), dead in two and a half minutes if nobody does. A move leaves the wounded
 behind. Squads have morale: casualties, fire kept on them and armour they cannot answer wear it
 down, and a squad goes shaken (aims worse), then pinned (flat, won't go toward the enemy), then
 broken (drops its orders, runs for cover and home, takes no order until it steadies); out of
-contact it recovers, faster near friends and at home. Left-drag to select
+contact it recovers, faster near friends and at home. Men carry magazines (four for a rifle,
+four belts for a gun, three rockets) and change them with a pause; on the last one a man fires
+only at what is close, and dry he takes no target. Squads fill up in main base, beside a stopped
+supply truck for 4 supplies, or slowly at a FOB; the card says low ammo or out of ammo. Left-drag to select
 squads, right-click to move them, click an enemy to attack-move, click the
 minimap to jump the camera, and keep zooming out for the strategic view. A plain
 move walks through fire: infantry on the way only stop for an enemy inside 18 m.

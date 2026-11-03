@@ -113,6 +113,7 @@ export class Roster {
       if (l && n.d < l.r && l.owner !== this.me) Object.assign(d, { glyph: 'flag', tone: 'cap', text: l.contested ? `Contested · ${l.name}` : l.owner === 1 - this.me ? `Contesting ${l.name}` : `Taking ${l.name} ${Math.max(0, Math.round(sign * l.progress))}%` });
       else { const p = this.place(cx, cz); Object.assign(d, { glyph: 'hold', text: p === 'main base' ? 'At main base' : p ? `Holding ${p}` : 'Holding · open ground', idle: true }); }
     }
+    if (foot.length && !b) { const fit = foot.filter(u => u.fit), dry = fit.filter(u => u.dry).length, low = fit.filter(u => u.lowAmmo).length; if (fit.length && dry === fit.length) { d.text += ' · out of ammo'; d.tone = d.tone || 'y'; } else if (dry || low) d.text += ' · low ammo'; }   // magazines (RULES.ammo)
     return d;
   }
   vehicle(u) {

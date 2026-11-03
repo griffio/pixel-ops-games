@@ -1,6 +1,7 @@
 // The wounded (first aid by a squadmate, a medic's treatment, bleeding out); engineers repair
 // nearby vehicles; main base refills supply trucks and repairs landed helicopters. Ticks at the match rate.
 import { RULES } from './rules.js';
+import { WEAPONS } from './weapons.js';
 
 export class Support {
   constructor(units, respawn, teams) { this.units = units; this.respawn = respawn; this.teams = teams; this.match = null; }
@@ -53,6 +54,20 @@ export class Support {
       if (v.ammo > v.spec.ammo / 2) continue;
       const t = all.find(t => t.supply && !t.dead && t.team === v.team && t.supplies >= RULES.rearm.supplyCost && !t.dest && Math.abs(t.speed) < 0.3 && Math.hypot(t.pos.x - v.pos.x, t.pos.z - v.pos.z) < RULES.rearm.range);
       if (t) { t.supplies -= RULES.rearm.supplyCost; v.ammo = v.spec.ammo; if (this.onRearm) this.onRearm(v, t); }
+    }
+    // magazines (RULES.ammo, Unit.loadAmmo): a squad fills up standing still in its own main base, beside a stopped supply truck
+    // or the Hold's dump for a few supplies a squad once it is down to half, or slowly within reach of one of its FOBs
+    const AM = RULES.ammo, fobs = all.filter(f => f.type === 'fob' && !f.dead), holders = all.filter(t => t.supply && !t.dead && t.supplies >= AM.supplyCost && !t.dest && Math.abs(t.speed) < 0.3);
+    for (const sq of this.units.squads) {
+      const men = sq.members.filter(m => m.fit && !m.mounted && !m.afloat && m.ammoFrac < 1); if (!men.length) continue;
+      const b = this.teams[sq.team].base;
+      for (const m of men) if (!m.dest && Math.abs(m.speed) < 0.3 && Math.hypot(m.pos.x - b.x, m.pos.z - b.z) < b.r) m.loadAmmo();
+      const out = men.filter(m => m.ammoFrac < 1); if (!out.length) continue;
+      if (out.reduce((s, m) => s + m.ammoFrac, 0) / out.length <= 0.5) {
+        const t = holders.find(t => t.team === sq.team && out.some(m => Math.hypot(t.pos.x - m.pos.x, t.pos.z - m.pos.z) < RULES.rearm.range));
+        if (t) { t.supplies -= AM.supplyCost; for (const m of out) if (Math.hypot(t.pos.x - m.pos.x, t.pos.z - m.pos.z) < RULES.rearm.range) m.loadAmmo(); continue; }
+      }
+      for (const m of out) if (!m.dest && fobs.some(f => f.team === sq.team && Math.hypot(f.pos.x - m.pos.x, f.pos.z - m.pos.z) < AM.fobRange)) { m.fobAmmoT = (m.fobAmmoT || 0) + dt; if (m.fobAmmoT >= AM.fobEvery) { m.fobAmmoT = 0; const w = WEAPONS[m.kit]; m.mags = Math.min(w.mags, m.mags + 1); if (m.rounds <= 0) { m.rounds = w.mag; m.mags = Math.max(0, m.mags - 1); } } }
     }
     // riflemen get their grenades back standing still in their own main base, or beside a stopped supply truck in the field
     // for a few supplies a squad (RULES.grenades)

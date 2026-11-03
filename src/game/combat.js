@@ -196,6 +196,8 @@ export class Combat {
       if (u.down) { if (u.enemy) { u.enemy = null; u.burst = 0; } u.hold = false; continue; }   // wounded: out of the fight
       const kit = this.gunOf(u), w = WEAPONS[kit];
       if (u.armed !== kit) { if (u.armed !== undefined) { u.enemy = null; u.burst = 0; u.retarget = 0; } u.armed = kit; }   // took over or left a gun
+      const own = kit === u.kit && !!w.mag;   // his own weapon, with magazines to count (RULES.ammo); a FOB gun's belt is not
+      if (own && u.rounds <= 0 && u.mags <= 0) { if (u.enemy) { u.enemy = null; u.burst = 0; } u.hold = false; if (u.type === 'soldier' && u.grenades > 0) this.throwGrenade(u, dt); continue; }   // dry: no target, walks on with his squad; grenades still go
       u.cooldown -= dt;
       if (u.holdFire && u.type === 'soldier') {   // holding fire (an ambush): no target and no shot until an enemy is within 20 m or the man is fired on, then his whole squad opens up
         const sprung = u.supp > 0.1 || this.spatial.query(u.pos.x, u.pos.z, 20, this.scratch).some(e => !e.dead && !e.down && !e.mounted && e.team !== u.team && e.team >= 0 && e.team <= 1 && !e.spec.structure && !e.spec.untargetable);
@@ -226,6 +228,10 @@ export class Combat {
       }
       if (u.enemy && u.cooldown <= 0 && u.type === 'soldier' && w.burst <= 1 && !w.explosive && u.enemy.type === 'soldier' && u.enemy.proneK > 0.6 && Math.random() < 0.7) {   // a rifleman with a prone man beyond half his range mostly holds his shot: the gun's job
         const e = u.enemy; if (Math.hypot(e.pos.x - u.pos.x, e.pos.z - u.pos.z) > w.range * 0.5) u.cooldown = 1 + Math.random();
+      }
+      if (u.enemy && u.cooldown <= 0 && own && u.mags <= 1 && u.burst <= 0) {   // the last magazine: a shot only at what is close, or well inside his range
+        const e = u.enemy, d = Math.hypot(e.pos.x - u.pos.x, e.pos.z - u.pos.z);
+        if (d > RULES.ammo.close && d > w.range * RULES.ammo.lowReach) u.cooldown = 0.5 + Math.random() * 0.5;
       }
       if (u.enemy && u.cooldown <= 0 && this.onTarget(u, u.enemy) && !(u.ammo !== undefined && u.ammo < 1)) this.fire(u, w, u.enemy, kit);   // an empty rocket pod waits for the base
       if (u.kit2) {   // the coax shares the turret: it fires at the turret's target when that is infantry in its range
@@ -272,11 +278,15 @@ export class Combat {
   fire(u, w, e, kit = u.kit) {
     const two = u.kit2 ? kit === u.kit2 : !!w.thrown, B = two ? 'burst2' : 'burst', CD = two ? 'cooldown2' : 'cooldown';   // a second weapon (the coax, a thrown grenade) keeps its own burst and reload
     if (!two && u.ammo !== undefined) u.ammo--;   // a rocket off the pod
-    if (!u[B]) u[B] = w.burst;
-    const first = u[B] === w.burst; u[B]--;
+    const own = !two && kit === u.kit && !!w.mag, lowAmmo = own && u.mags <= 1;   // his own magazines (RULES.ammo): a gun on its last belt fires short bursts
+    if (!u[B]) u[B] = lowAmmo ? Math.min(w.burst, 3) : w.burst;
+    const first = u[B] === (lowAmmo ? Math.min(w.burst, 3) : w.burst); u[B]--;
+    let reload = 0;
+    if (own) { u.rounds--; if (u.rounds <= 0) { u[B] = 0; if (u.mags > 0) { u.mags--; u.rounds = w.mag; reload = w.reload * (0.8 + Math.random() * 0.4); if (this.audio && w.reload) { const x = u.pos.x, z = u.pos.z; setTimeout(() => this.audio.foley('reload', x, z, 0.4), 500); } } else u.rounds = 0; } }   // the magazine empty: the burst ends, a change (foley), or dry
     const d = Math.hypot(e.pos.x - u.pos.x, e.pos.z - u.pos.z), T = this.teams ? this.teams[u.team] : null;
     u[CD] = u[B] > 0 ? w.burstGap * (0.8 + Math.random() * 0.4) : u.type === 'soldier' && !w.thrown ? w.rate * (0.6 + 0.9 * Math.min(1, d / w.range)) * (0.7 + Math.random() * 0.6) : w.rate * (0.85 + Math.random() * 0.3);   // a soldier takes his time at range: 0.6x at the muzzle, 1.5x at full range, and never two pauses alike
     if (u.type === 'soldier' && u.supp > 0.7) u[CD] *= 1.5;   // pinned: head down, fewer rounds
+    if (reload) u[CD] = Math.max(u[CD], reload);
     let chance = w.acc * Math.max(0.05, 1 - 0.75 * d / w.range) * ((T && T.acc) || 1);
     if (Math.abs(u.speed) > 0.5) chance *= 0.5;
     if (!first) chance *= 0.8;                          // recoil through the burst

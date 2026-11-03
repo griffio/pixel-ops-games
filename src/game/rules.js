@@ -1,12 +1,13 @@
-// Ticket economy and timers (data, for tuning). 25-minute matches. Infantry are
-// expendable: 35 hp, 15 s respawns in squad waves, 1 ticket each; everything else
-// costs twice what it did; pools are 500 so a one-sided match ends by tickets.
+// Ticket economy and timers (data, for tuning). 25-minute matches. Infantry since the
+// morale and fire plan (F3): 2 tickets a man and 45 s respawns in squad waves, so a squad
+// kept alive is worth keeping (15 s and 1 ticket before, when men were expendable);
+// everything else costs twice what it did; pools are 500 so a one-sided match ends by tickets.
 export const RULES = {
   matchLength: 25 * 60,
   startTickets: { skirmish: 500, aas: 500 },
-  ticketCost: { soldier: 1, truck: 10, supply: 16, apc: 20, humvee: 12, tank: 30, heli: 30, bird: 25, craft: 20, fob: 40, emplacement: 10, location: 20 },
-  respawnTime: { soldier: 15, truck: 60, apc: 90, humvee: 70, tank: 150, heli: 120, bird: 100 },
-  waveSlack: 8,              // squadmates who died within this many seconds come back together
+  ticketCost: { soldier: 2, truck: 10, supply: 16, apc: 20, humvee: 12, tank: 30, heli: 30, bird: 25, craft: 20, fob: 40, emplacement: 10, location: 20 },
+  respawnTime: { soldier: 45, truck: 60, apc: 90, humvee: 70, tank: 150, heli: 120, bird: 100 },
+  waveSlack: 12,             // squadmates who died within this many seconds come back together
   captureRate: 1.2,          // progress per unit-second; 4 soldiers take ~21 s
   bleedEvery: 5,             // seconds per ticket while the enemy holds the majority
   fob: { hp: 300, buildTime: 20, supplyCost: 50, truckSupplies: 100, resupplyRate: 10, buildRange: 20, minSpacing: 80, enemyBaseDistance: 140, spawnRadius: 8 },
@@ -22,6 +23,11 @@ export const RULES = {
   // the wounded (combat.casualty, Unit.wound, support.js): a man hit and not killed goes down for `bleed` s, then dies, unless a
   // fit squadmate within `aidRange` m, the squad not under fire, has him up in `aid` s, or a medic within `treatRange` m walks
   // to him and has him up in `treat` s; up again at `upHp` of 35 (the hurt pip), walking at `slow` of his pace until he respawns
+  // ammunition (weapons.js mag/mags/reload, combat.fire, support.js): a squad fills its magazines standing in its own main base,
+  // beside a stopped supply truck or the Hold's dump within RULES.rearm.range for supplyCost supplies, or slowly within fobRange of
+  // one of its FOBs (a magazine a man every fobEvery s); low (the last magazine) a man fires only inside lowReach of his range
+  // unless the enemy is inside close m, and a gun's bursts shorten; dry he takes no target and walks on with his squad
+  ammo: { supplyCost: 4, fobRange: 15, fobEvery: 10, lowReach: 0.6, close: 25 },
   wounds: { bleed: 150, aid: 20, aidRange: 3, treat: 5, treatRange: 25, upHp: 20, slow: 0.85, aidSupp: 0.45, aidEnemy: 30 },   // first aid stops while a fit man is suppressed past aidSupp or an enemy is inside aidEnemy m
   // squad morale (game/morale.js): what a casualty in the squad costs (killed, wounded), what one in a squad within nearRadius
   // costs, the drain a second at mean suppression 1 and the drain with armour inside armourRadius the squad has no launcher for,

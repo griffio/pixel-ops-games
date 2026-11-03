@@ -498,6 +498,24 @@ export class Strategist {
   // falls back unless it stands in the zone it was sent to take or hold, or clearly has the numbers. Squads manning
   // sandbags stay put through all of it. An APC with an enemy inside 50 m backs off to 70 m.
   halt(sq, tag) { for (const m of sq.members) if (!m.dead) { m.dest = null; m.target = null; m.path = null; } sq.tag = tag; sq.goal = null; }
+  // Ammunition (RULES.ammo, support.js): a squad whose fit men average under a quarter of their magazines, with no enemy inside
+  // 60 m, walks to the nearest of its own supplies within 300 m (a stopped supply truck or the dump, a FOB, main base) and is
+  // kept out of the plan (pinUntil) until it has filled up; it is sent again every second it is still low, so the plan takes it
+  // back the second it is full. True while it is on that errand.
+  rearm(sq, c, enemies, now) {
+    const fit = sq.members.filter(m => m.fit && !m.mounted); if (!fit.length) return false;
+    const frac = fit.reduce((s, m) => s + m.ammoFrac, 0) / fit.length;
+    if (frac >= 0.25 || enemies.some(e => Math.hypot(e.pos.x - c.x, e.pos.z - c.z) < 60)) { if (sq.tag === 'rearm') sq.tag = null; return false; }
+    const t = this.team, b = this.teams[t].base, U = this.units.units;
+    const spots = [{ x: b.x, z: b.z, r: 6 }, ...U.filter(u => u.type === 'fob' && u.team === t && !u.dead).map(f => ({ x: f.pos.x, z: f.pos.z, r: RULES.ammo.fobRange - 4 })),
+      ...U.filter(u => u.supply && u.team === t && !u.dead && !u.dest && Math.abs(u.speed) < 0.3 && u.supplies >= RULES.ammo.supplyCost).map(u => ({ x: u.pos.x, z: u.pos.z, r: RULES.rearm.range - 3 }))];
+    let best = null, bd = 300; for (const s of spots) { const d = Math.hypot(s.x - c.x, s.z - c.z); if (d < bd) { bd = d; best = s; } }
+    if (!best) return false;
+    sq.pinUntil = now + 6;
+    if (bd > best.r) { const a = Math.random() * Math.PI * 2, k = Math.random() * best.r * 0.6; this.send(sq, best.x + Math.cos(a) * k, best.z + Math.sin(a) * k, 'rearm', sq.zone); }
+    else if (sq.busy && sq.tag !== 'rearm') this.halt(sq, 'rearm');
+    return true;
+  }
   caution() {
     const enemies = this.contacts().filter(u => !u.spec.structure && !u.down && !(u.spec.air && u.alt > 2));   // the wounded frighten nobody
     // where we have seen enemy armour in the last two minutes, while it lives (trapSpot lays traps where it has been; a
@@ -520,6 +538,7 @@ export class Strategist {
       if (sq.manual) continue;                                                                               // in the player's hand
       if (sq.state === 'broken') continue;                                                                   // running (game/morale.js): nothing to tell it
       const c = sq.centroid();
+      if (this.rearm(sq, c, enemies, now)) continue;                                                        // low on ammunition and out of contact: off to fill up
       let apc = null, ad = 1e9; for (const v of apcs) { const d = Math.hypot(v.pos.x - c.x, v.pos.z - c.z); if (d < 150 && d < ad && C.canSeePoint(v, c.x, c.z)) { apc = v; ad = d; } }
       if (apc) {
         if (sq.members.some(m => !m.dead && m.kit === 'at') && !escorted(apc)) { if (ad > 72) { const [x, z] = this.toward(c, apc.pos, 60); this.send(sq, x, z, 'stalk', sq.zone); } else this.halt(sq, 'stalk'); }
