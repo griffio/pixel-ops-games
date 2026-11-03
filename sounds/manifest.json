@@ -157,6 +157,22 @@
   ],
   "vo_hq_breach": [
    "vo_hq_breach.mp3"
+  ],
+  "vo_sq_broken": [
+   "vo_sq_broken_1.mp3",
+   "vo_sq_broken_2.mp3"
+  ],
+  "vo_sq_pinned": [
+   "vo_sq_pinned_1.mp3",
+   "vo_sq_pinned_2.mp3"
+  ],
+  "vo_sq_lowammo": [
+   "vo_sq_lowammo_1.mp3",
+   "vo_sq_lowammo_2.mp3"
+  ],
+  "vo_sq_dry": [
+   "vo_sq_dry_1.mp3",
+   "vo_sq_dry_2.mp3"
   ]
  }
 }

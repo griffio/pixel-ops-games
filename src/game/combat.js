@@ -326,7 +326,7 @@ export class Combat {
       if (kit === 'at') { const x = u.pos.x, z = u.pos.z; setTimeout(() => this.audio.foley('reload', x, z, 0.5), 1600); }   // the loader's next round
       if (!hit && e.type === 'soldier' && Math.random() < 0.3) this.audio.whizz(e.pos.x, e.pos.z);                        // a near miss
     }
-    if (this.onShot) this.onShot(u, w, e, hit);
+    if (this.onShot) this.onShot(u, w, e, hit, reload > 0);
     if (this.vision) { this.vision.reveal(u, e.team); this.vision.reveal(e, u.team); }   // the flash and the noise give the shooter away; whoever is aimed at is seen
     this.dust.shots.fire({ x: mx, y: gy, z: mz, tx, ty, tz, speed: w.speed, arc: !!w.arc, high: !!w.indirect, elev: w.elev || 0, kind: w.thrown ? 'grenade' : w.arc || kit === 'tankgun' ? 'shell' : w.rocket ? 'rocket' : 'bullet',
       trail: w.thrown ? 0 : w.arc ? 7 : kit === 'tankgun' ? 14 : w.rocket ? 2.5 : (kit === 'mg' || kit === 'doorgun' || kit === 'coax' || kit === 'hmg') ? 8 : 4.5, stray: !hit, near, onArrive: (p) => this.arrive(p, u, w, e, hit, kit) });

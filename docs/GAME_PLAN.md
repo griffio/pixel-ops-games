@@ -230,8 +230,13 @@ Engine changes needed in the existing core:
     man of his side within 70 m (`RULES.wounds.seekRange`; 25 m otherwise, as before). Whoever gives aid kneels by him
     (`Unit.tendT`).
   - *Readable.* A wounded man rolls onto his side (`Unit.downK`, the group's z), drops his rifle (hidden) and lets his head
-    down, so he reads apart from a suppressed man lying prone. A voice line for a squad breaking is not made: the voices
-    were text-to-speech with post-processing that no tool in the tree repeats; parked.
+    down, so he reads apart from a suppressed man lying prone. Four radio lines, two takes each, by the squad voice
+    (`tools/make-voices.mjs`, new: ElevenLabs eleven_v3 and the ffmpeg radio colour the credits describe, the click and
+    squelch cut from `vo_sq_fire_1` so they match): "Falling back!" / "We're pulling back, go!" when a squad of ours breaks,
+    "We're pinned down!" / "Pinned down, can't move!" when one goes to ground pinned (from shaken, not on the way back up),
+    "Running low!" / "Low on ammo!" when a man is on his last magazine, "I'm out!" / "Out of ammo!" when one is dry; the
+    reload line now also plays on some magazine changes, not only rocket shots. Levels sit with the first batch (mean
+    about -19 dB, the originals -18.6).
   - *Postures.* The commander's posture (strategist.applyOrders) acts on morale (`RULES.morale.pressDrain`,
     `carefulDrain`, `carefulRecover`): under Press or at all costs a squad wears 1.15x faster and a pinned one takes orders
     toward the enemy (`sq.pressed`); under Pull back, Go quiet, carefully, and now Hold the line (made cautious when not

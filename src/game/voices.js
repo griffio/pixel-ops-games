@@ -32,6 +32,9 @@ export class VoiceDirector {
       if (engaged && !sq.vEngaged) this.say('vo_sq_contact', 45);
       sq.vEngaged = engaged;
       if (alive.reduce((s, m) => s + m.supp, 0) / alive.length > 0.55) this.say('vo_sq_fire', 50);
+      const dry = alive.some(m => m.fit && m.dry), low = alive.some(m => m.fit && m.lowAmmo);   // magazines (RULES.ammo): a man newly dry, else newly on his last
+      if (dry && !sq.vDry) this.say('vo_sq_dry', 40, { group: 'ammo' }); else if (low && !sq.vLow) this.say('vo_sq_lowammo', 60, { group: 'ammo' });
+      sq.vDry = dry; sq.vLow = low;
       const c = sq.centroid();
       const close = armour.find(a => Math.hypot(a.pos.x - c.x, a.pos.z - c.z) < 70 && !(sq.vArmour || (sq.vArmour = new Set())).has(a));   // each vehicle once per squad
       if (close && this.say('vo_sq_armour', 20)) sq.vArmour.add(close);
@@ -72,7 +75,13 @@ export class VoiceDirector {
     const line = { captured: 'vo_hq_captured', lost: 'vo_hq_lost', fob: 'vo_hq_fob', 'rally lost': 'vo_hq_rally_lost' }[e.type];
     if (line) this.say(line, e.type === 'rally lost' ? 45 : 4, { hq: true, delay: 0.7 });   // after the chime
   }
-  onShot(u) { if (u.team === this.team && u.kit === 'at' && Math.random() < 0.35) this.say('vo_sq_reload', 75); }
+  onShot(u, w, e, hit, reloaded) { if (u.team !== this.team) return; if (u.kit === 'at' ? Math.random() < 0.35 : reloaded && Math.random() < 0.3) this.say('vo_sq_reload', 75); }   // some rocket shots, some magazine changes
+  // a squad of ours breaks, or goes to ground pinned (game/morale.js onState; not on the way back up from broken)
+  onMorale(sq, next, prev) {
+    if (sq.team !== this.team) return;
+    if (next === 'broken') this.say('vo_sq_broken', 40, { group: 'morale' });
+    else if (next === 'pinned' && prev === 'shaken') this.say('vo_sq_pinned', 40, { group: 'morale' });
+  }
   ordered(units) { if (units.some(u => u.type === 'soldier' && u.team === this.team)) this.say('vo_sq_moving', 6); }
   end(won) { this.say(won ? 'vo_hq_win' : 'vo_hq_lose', 0, { hq: true, delay: 1.6 }); }
 }

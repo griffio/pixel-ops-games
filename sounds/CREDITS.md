@@ -2,7 +2,7 @@
 
 Gunshots, explosions, impacts and the helicopter rotor are cut from CC0 (public domain) recordings: no attribution is required,
 but the sources are listed here with thanks. UI stings (select, order, captured, lost, fob, start, win, lose)
-were generated with ElevenLabs (`tools/make-sounds.mjs`), and so were the radio voices, engine loops,
+were generated with ElevenLabs (`tools/make-sounds.mjs`; the voice lines added later with `tools/make-voices.mjs`, which repeats the radio colour below), and so were the radio voices, engine loops,
 ambience and foley (last section).
 
 | Clip | Source | Author | Licence |
@@ -59,6 +59,10 @@ loops have their tail crossfaded into their head and are stored as WAV so they r
 | `vo_sq_dig*` | "Digging in." / "Getting the sandbags up." |
 | `vo_sq_reload*` | "Reloading!" / "Loading!" |
 | `vo_sq_kill*` | "Target down!" / "Target destroyed!" |
+| `vo_sq_broken*` | "Falling back!" / "We're pulling back, go!" (a squad breaks; `tools/make-voices.mjs`, 2026-11-03) |
+| `vo_sq_pinned*` | "We're pinned down!" / "Pinned down, can't move!" (a squad goes to ground pinned) |
+| `vo_sq_lowammo*` | "Running low!" / "Low on ammo!" (a man on his last magazine) |
+| `vo_sq_dry*` | "I'm out!" / "Out of ammo!" (a man dry) |
 | `vo_hq_captured*` | "Objective secured. Good work." |
 | `vo_hq_lost*` | "We've lost the objective. Regroup." |
 | `vo_hq_fob*` | "Forward operating base is up." |
