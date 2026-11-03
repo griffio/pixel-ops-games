@@ -6,6 +6,7 @@ import { Combat } from './combat.js';
 import { Buildings } from './buildings.js';
 import { Respawn } from './respawn.js';
 import { Support } from './support.js';
+import { Morale } from './morale.js';
 import { Fobs } from './fob.js';
 import { Strategist } from './ai/strategist.js';
 import { Orders } from './orders.js';
@@ -64,6 +65,8 @@ export class Match {
     this.buildings = new Buildings(this); this.combat.buildings = this.buildings;   // what stray rounds can knock down
     this.respawn = new Respawn(this.units, this.teams, this.world);
     this.support = new Support(this.units, this.respawn, this.teams); this.support.match = this;   // the match: which sides are CPU, the builds under way
+    this.morale = new Morale(this);   // squad morale: casualties and fire wear a squad down until it goes to ground or runs (game/morale.js)
+    this.support.onRecovered = (u, medic) => { const s = this.teams[u.team].stats; s.recovered = (s.recovered || 0) + 1; };
     this.fobs = new Fobs(this.units, this.teams, this.world); this.fobs.match = this;   // the mode: where a position should face (fobs.threatHeading)
     this.rallies = new Rallies(this.units, this.teams, this); this.respawn.rallies = this.rallies;
     this.landing = map && map.sea ? new Landing(this, map.sea) : null; this.respawn.landing = this.landing;   // a side based on a ship comes ashore by landing craft
@@ -143,15 +146,22 @@ export class Match {
     this.fobs.onWallCleared = (u, team) => { this.buildings.remove(u.bld); this.unbuild(u, u.wallBoxes || []); this.event({ type: 'wall cleared', team }); };
     this.fobs.onPlatformCleared = (u, team) => { for (const s of this.units.units) if (s.post && s.post.sb === u) s.leavePost(); if (u.deck) this.world.removeDeck(u.deck); this.unbuild(u, u.platBoxes || []); this.event({ type: 'platform cleared', team }); };
     this.combat.onSprung = (u) => { if (u.team === (this.app.playerTeam ?? 0) && this.app.hud) this.app.hud.toast(`${u.squad && u.squad.leader ? u.squad.leader.label : u.label} opens fire`); };
+    this.combat.onWounded = (v, k) => {   // a man down wounded (combat.casualty): counted for the debrief, called by the squad
+      const s = this.teams[v.team].stats; s.wounded = (s.wounded || 0) + 1;
+      this.morale.onCasualty(v, false);
+      if (this.voices) this.voices.onWounded(v, k);
+    };
     this.combat.onDeath = (v, k) => {
       if (v.type === 'wall') { this.buildings.breached(v, k); return; }   // a built wall shot down: rubble, the grids and the feed (game/buildings.js); no ticket, no respawn
       this.respawn.onDeath(v, k);
-      const s = this.teams[v.team].stats; s.losses[v.type] = (s.losses[v.type] || 0) + 1; if (v.type === 'fob') s.fobsLost++;
+      const s = this.teams[v.team].stats; s.losses[v.type] = (s.losses[v.type] || 0) + 1; if (v.type === 'fob') s.fobsLost++; if (v.bledOut) s.bled = (s.bled || 0) + 1;
+      if (v.type === 'soldier') this.morale.onCasualty(v, true);
       if (k) { const ks = this.teams[k.team].stats, by = k.type === 'soldier' ? (k.firedKit || k.kit) : k.type; ks.kills[v.type] = (ks.kills[v.type] || 0) + 1; ks.killsBy[by] = (ks.killsBy[by] || 0) + 1; ks.killsByUnit[k.label] = (ks.killsByUnit[k.label] || 0) + 1; }   // by unit label (a squad's men share theirs), kept on the team: a wreck's object may be gone by the debrief
       this.pushFeed({ kind: 'kill', v, k });
       if (v.type !== 'soldier' && this.app.audio) this.app.audio.explosion(v.pos.x, v.pos.z, v.type === 'tank' ? 1.8 : v.type === 'apc' ? 1.5 : 1);
       if (v.type === 'apc' || v.type === 'tank') for (const s of this.strategists || []) if (s.remote && s.team === v.team) s.remote.nudge();
       if (this.voices) this.voices.onDeath(v, k);
+      v.bledOut = false;
       if (v.ejected) { const ps = v.ejected; v.ejected = null; for (const { p, dmg } of ps) if (p.damage(dmg, k)) this.combat.onDeath(p, k); }   // passengers of a destroyed carrier: hurt getting out, or killed, and counted
     };
     this.time = this.mode.length; this.state = 'play'; this.winner = null; this.reason = ''; this.acc = 0;
@@ -266,6 +276,7 @@ export class Match {
     this.respawn.tick(dt);
     if (this.landing) this.landing.tick(dt);
     this.support.tick(dt);
+    this.morale.tick(dt);
     this.fobs.tick(dt);
     this.mode.tick(dt);
     if (this.orders) this.orders.tick(dt);

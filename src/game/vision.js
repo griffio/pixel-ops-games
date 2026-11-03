@@ -81,7 +81,7 @@ export class Vision {
   contacts(team) {
     if (this.cAt[team] === this.t) return this.cList[team];
     const out = [];
-    for (const e of this.units.units) if (!e.dead && !e.mounted && e.team !== team && e.team >= 0 && e.team <= 1 && this.sees(team, e)) out.push(e);
+    for (const e of this.units.units) if (!e.dead && !e.down && !e.mounted && e.team !== team && e.team >= 0 && e.team <= 1 && this.sees(team, e)) out.push(e);   // a wounded man is no contact
     if (this.on) for (const [e, g] of this.ghosts[team]) out.push({ ghost: true, unit: e, age: this.t - g.t, pos: { x: g.x, y: g.y, z: g.z }, heading: g.heading, speed: 0,
       type: e.type, kit: e.kit, supply: e.supply, spec: e.spec, team: e.team, alt: g.alt, label: e.label, dead: false, mounted: null, supp: 0 });
     this.cAt[team] = this.t; return (this.cList[team] = out);
@@ -92,7 +92,7 @@ export class Vision {
     if (!this.on || this.acc < V.every - 1e-6) return; this.acc = 0;
     const gen = ++this.gen, U = this.units.units, viewers = [[], []]; let casts = 0;
     for (const u of U) {
-      if (u.dead || u.mounted || u.team < 0 || u.team > 1) continue;
+      if (u.dead || u.down || u.mounted || u.team < 0 || u.team > 1) continue;   // face down, he sees nothing
       const R = this.sight(u); if (!R) continue;
       const eye = this.combat.eyeY(u), air = u.spec.air && u.alt > 2;
       let c = this.cache.get(u);

@@ -1,7 +1,6 @@
-// Medics revive fallen squadmates inside the revive window; engineers repair
+// The wounded (first aid by a squadmate, a medic's treatment, bleeding out); engineers repair
 // nearby vehicles; main base refills supply trucks and repairs landed helicopters. Ticks at the match rate.
 import { RULES } from './rules.js';
-export const REVIVE_WINDOW = 12, REVIVE_TIME = 3, REVIVE_RANGE = 14;
 
 export class Support {
   constructor(units, respawn, teams) { this.units = units; this.respawn = respawn; this.teams = teams; this.match = null; }
@@ -66,23 +65,37 @@ export class Support {
       const t = trucks.find(t => t.team === sq.team && out.some(m => Math.hypot(t.pos.x - m.pos.x, t.pos.z - m.pos.z) < RULES.rearm.range));
       if (t) { t.supplies -= GR.supplyCost; for (const m of out) if (Math.hypot(t.pos.x - m.pos.x, t.pos.z - m.pos.z) < RULES.rearm.range) m.grenades = GR.count; }
     }
+    // the wounded (Unit.wound, RULES.wounds): a man down bleeds out unless someone sees to him. A fit squadmate within aidRange,
+    // with no fit man of the squad under fire (suppressed above 0.3 or engaging), gives first aid over `aid` s: the squad standing
+    // by him, which is what holding the ground after a fight buys; under fire the aid given so far is kept, so a squad that fights
+    // on and then settles finishes it. A medic (below) does it in `treat` s from further off.
+    const WD = RULES.wounds, C = this.match && this.match.combat;
     for (const u of all) {
-      if (u.dead || (u.kit !== 'medic' && u.kit !== 'engineer')) continue;
+      if (!u.down || u.dead) continue;
+      u.bleed -= dt;
+      if (u.bleed <= 0) { u.bledOut = true; u.die(u.wounder); if (C && C.onDeath) C.onDeath(u, u.wounder); continue; }
+      if (u.treatedBy && !u.treatedBy.dead && !u.treatedBy.down) continue;   // a medic is on him
+      u.treatedBy = null; const sq = u.squad; if (!sq) continue;
+      const fit = sq.members.filter(m => m.fit && !m.mounted && !m.afloat);
+      if (!fit.length || fit.some(m => m.supp > WD.aidSupp || (m.enemy && !m.enemy.dead && Math.hypot(m.enemy.pos.x - m.pos.x, m.enemy.pos.z - m.pos.z) < WD.aidEnemy))) continue;   // heads down, or the enemy on top of them: nobody can see to him
+      if (!fit.some(m => Math.hypot(m.pos.x - u.pos.x, m.pos.z - u.pos.z) < WD.aidRange)) continue;
+      if ((u.aidT += dt) >= WD.aid) { u.recover(); if (this.onRecovered) this.onRecovered(u, null); }
+    }
+    for (const u of all) {
+      if (u.dead || u.down || u.mounted || (u.kit !== 'medic' && u.kit !== 'engineer')) continue;
       if (u.kit === 'medic') {
-        // nearest recent body of a friendly soldier
-        let best = null, bd = REVIVE_RANGE;
+        // the nearest wounded man of his side within reach that no other medic is on: walk to him, kneel by him `treat` s
+        let best = null, bd = WD.treatRange;
         for (const b of all) {
-          if (!b.dead || b.type !== 'soldier' || b.team !== u.team || b.deathT > REVIVE_WINDOW || b.spec.air) continue;
+          if (!b.down || b.dead || b.team !== u.team || (b.treatedBy && b.treatedBy !== u && !b.treatedBy.dead && !b.treatedBy.down)) continue;
           const d = Math.hypot(b.pos.x - u.pos.x, b.pos.z - u.pos.z); if (d < bd) { bd = d; best = b; }
         }
-        if (!best) { if (u.medicTarget) { u.medicTarget = null; u.target = null; u.dest = null; } continue; }
+        if (u.medicTarget && u.medicTarget !== best && u.medicTarget.treatedBy === u) u.medicTarget.treatedBy = null;
+        if (!best) { if (u.medicTarget) { u.medicTarget = null; u.target = null; u.dest = null; u.hold = false; } continue; }
+        best.treatedBy = u;
         if (bd > 2.5) { if (u.medicTarget !== best || !u.dest) { u.medicTarget = best; u.order(best.pos.x, best.pos.z); } continue; }
-        u.hold = true; best.reviveT = (best.reviveT || 0) + dt;
-        if (best.reviveT >= REVIVE_TIME) {
-          this.respawn.cancel(best);
-          best.revive(best.pos.x, best.pos.z, u.heading); best.hp = Math.round(best.maxHp * 0.5); best.reviveT = 0;
-          u.medicTarget = null; u.hold = false;
-        }
+        u.medicTarget = best; u.hold = true; best.treatT = (best.treatT || 0) + dt;
+        if (best.treatT >= WD.treat) { best.recover(); u.medicTarget = null; u.hold = false; if (this.onRecovered) this.onRecovered(best, u); }
       } else if (u.speed < 0.2) {
         for (const v of all) {
           if (v.dead || v.team !== u.team || v.type === 'soldier' || v.hp >= v.maxHp) continue;

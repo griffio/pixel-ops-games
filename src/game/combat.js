@@ -118,9 +118,9 @@ export class Combat {
   }
   // suppression: rounds landing or bursting near infantry push them down; an MG burst pins a squad, a rifle burst rattles it
   suppress(x, z, w, shooterTeam, victim = null) {
-    const r = w.explosive ? 9 : 4, amount = w.explosive ? 0.4 : w.burst >= 8 ? 0.1 : w.dmgInf >= 20 ? 0.25 : 0.07;
+    const r = w.explosive ? 9 : 4, amount = w.supp !== undefined ? w.supp : w.explosive ? 0.4 : 0.15;   // weapons.js supp: a rifle round 0.15, a gun's 0.15 to 0.2, a heavy single round 0.3, a burst 0.4
     for (const s of this.spatial.query(x, z, r, this.scratch)) {
-      if (s.type !== 'soldier' || s.dead || s.mounted || s.team === shooterTeam) continue;
+      if (s.type !== 'soldier' || s.dead || s.down || s.mounted || s.team === shooterTeam) continue;
       const d = Math.hypot(s.pos.x - x, s.pos.z - z); s.supp = Math.min(1, s.supp + amount * (1 - 0.5 * d / r) * (s === victim ? 2 : 1) * (s.post && s.post.settled ? 0.5 : 1));   // dug in: half the suppression
     }
   }
@@ -154,9 +154,9 @@ export class Combat {
     const seen = this.vision ? this.vision.contacts(u.team).filter(e => !e.ghost) : this.units.units.filter(e => e.team !== u.team);
     let best = null, bestScore = -Infinity;
     for (const e of seen) {
-      if (e.dead || e.mounted || e.spec.untargetable || (e.spec.air && e.alt > 2) || e.team === u.team || e.team < 0 || e.team > 1) continue;
+      if (e.dead || e.down || e.mounted || e.spec.untargetable || (e.spec.air && e.alt > 2) || e.team === u.team || e.team < 0 || e.team > 1) continue;
       const d = Math.hypot(e.pos.x - u.pos.x, e.pos.z - u.pos.z); if (d > w.range || d < w.min) continue;
-      let n = 0; for (const o of seen) if (o !== e && !o.dead && Math.hypot(o.pos.x - e.pos.x, o.pos.z - e.pos.z) < w.splash * 1.5) n++;
+      let n = 0; for (const o of seen) if (o !== e && !o.dead && !o.down && Math.hypot(o.pos.x - e.pos.x, o.pos.z - e.pos.z) < w.splash * 1.5) n++;
       const score = n * 10 + (e.type === 'soldier' ? 3 : 0) - d * 0.01; if (score > bestScore) { bestScore = score; best = e; }
     }
     return best;
@@ -168,9 +168,10 @@ export class Combat {
     let best = null, bestScore = -Infinity;
     for (const e of list) {
       if (far) { const ex = e.pos.x - u.pos.x, ez = e.pos.z - u.pos.z; if (ex * ex + ez * ez > r2) continue; }
-      if (e.team === u.team || e.dead || e.mounted || e.spec.untargetable) continue;
+      if (e.team === u.team || e.dead || e.down || e.mounted || e.spec.untargetable) continue;   // a wounded man is nobody's target (fragments still find him)
       if (e.spec.air && e.alt > 2 && !w.air) continue;
       const d = Math.hypot(e.pos.x - u.pos.x, e.pos.z - u.pos.z);
+      if (w.lone && e.type === 'soldier' && d > w.lone && !this.grouped(e)) continue;   // a rocket is kept for vehicles and for groups: a lone man beyond w.lone is left to the rifles
       let score = -d;
       if (w.prefersVehicles && e.type !== 'soldier') score += 40;
       if (!w.prefersVehicles && e.type === 'soldier') score += 6;
@@ -188,15 +189,16 @@ export class Combat {
     this.clock = (this.clock || 0) + dt;
     const U = this.units.units, n = U.length, back = (this.tickNo = (this.tickNo || 0) + 1) & 1;   // forward one tick, backward the next: no side aims and fires first every time
     const C = this.cand || (this.cand = [[], []]); C[0].length = C[1].length = 0;   // each side's live, unmounted, targetable units, for the long-range searches
-    for (const u of U) if (!u.dead && !u.mounted && !u.spec.untargetable && (u.team === 0 || u.team === 1)) C[u.team].push(u);
+    for (const u of U) if (!u.dead && !u.down && !u.mounted && !u.spec.untargetable && (u.team === 0 || u.team === 1)) C[u.team].push(u);
     for (let i = 0; i < n; i++) {
       const u = U[back ? n - 1 - i : i];
       if (u.dead || !u.kit || u.mounted) continue;
+      if (u.down) { if (u.enemy) { u.enemy = null; u.burst = 0; } u.hold = false; continue; }   // wounded: out of the fight
       const kit = this.gunOf(u), w = WEAPONS[kit];
       if (u.armed !== kit) { if (u.armed !== undefined) { u.enemy = null; u.burst = 0; u.retarget = 0; } u.armed = kit; }   // took over or left a gun
       u.cooldown -= dt;
       if (u.holdFire && u.type === 'soldier') {   // holding fire (an ambush): no target and no shot until an enemy is within 20 m or the man is fired on, then his whole squad opens up
-        const sprung = u.supp > 0.1 || this.spatial.query(u.pos.x, u.pos.z, 20, this.scratch).some(e => !e.dead && !e.mounted && e.team !== u.team && e.team >= 0 && e.team <= 1 && !e.spec.structure && !e.spec.untargetable);
+        const sprung = u.supp > 0.1 || this.spatial.query(u.pos.x, u.pos.z, 20, this.scratch).some(e => !e.dead && !e.down && !e.mounted && e.team !== u.team && e.team >= 0 && e.team <= 1 && !e.spec.structure && !e.spec.untargetable);
         if (!sprung) { if (u.enemy) { u.enemy = null; u.burst = 0; } u.hold = false; continue; }
         for (const m of u.squad ? u.squad.members : [u]) m.holdFire = false;
         if (this.onSprung) this.onSprung(u);
@@ -209,13 +211,21 @@ export class Combat {
           if (!lost && u.kit2 && e.type !== 'soldier') { const n = this.findTarget(u, w); if (n && n.type === 'soldier') { u.enemy = n; u.burst = 0; continue; } }   // a tank turns from armour to infantry closing in
         }
         if (lost) { u.enemy = null; u.retarget = 0.3; u.burst = 0; }
-        else u.hold = u.type === 'soldier' && d < (u.dest && !u.advance ? Math.min(w.hold, 18) : w.hold);   // infantry on the move only stop for an enemy at close quarters, unless the move is an attack-move; once where they were sent they hold and shoot out to their hold range
+        else u.hold = u.type === 'soldier' && !u.fleeing && d < (u.dest && !u.advance ? Math.min(w.hold, 18) : w.hold);   // infantry on the move only stop for an enemy at close quarters, unless the move is an attack-move; once where they were sent they hold and shoot out to their hold range; a broken man never stops
       }
       if (!u.enemy) {
         u.hold = false;
         if ((u.retarget -= dt) <= 0) { u.retarget = 0.4 + Math.random() * 0.3; u.enemy = this.findTarget(u, w); }
         // nothing to shoot at, and a wall run to breach (strategist.breach): the guns that can hurt it fire at it, in range and in sight (a mortar: known to its side)
         if (!u.enemy && u.breach) { const b = u.breach; if (b.dead) u.breach = null; else if (w.explosive && u.type !== 'soldier') { const d = Math.hypot(b.pos.x - u.pos.x, b.pos.z - u.pos.z); if (d <= w.range && !(w.min && d < w.min) && (w.indirect ? !this.vision || this.vision.sees(u.team, b) : this.canSee(u, b))) { u.enemy = b; u.burst = 0; } } }
+      }
+      if (u.enemy && u.fleeing && Math.hypot(u.enemy.pos.x - u.pos.x, u.enemy.pos.z - u.pos.z) > RULES.morale.brokenReach) { u.enemy = null; u.burst = 0; u.retarget = 0.5; }   // broken: a shot only at a man on top of him
+      if (u.enemy && u.type === 'soldier' && u.aimedAt !== u.enemy) {   // a new target: the seconds to lay on it (weapons.js aim), more further out and more when suppressed
+        const e = u.enemy, d = Math.hypot(e.pos.x - u.pos.x, e.pos.z - u.pos.z);
+        u.aimedAt = e; u.cooldown = Math.max(u.cooldown, (w.aim || 0.8) * (0.5 + d / w.range) * (1 + u.supp) * (0.8 + Math.random() * 0.4));
+      }
+      if (u.enemy && u.cooldown <= 0 && u.type === 'soldier' && w.burst <= 1 && !w.explosive && u.enemy.type === 'soldier' && u.enemy.proneK > 0.6 && Math.random() < 0.7) {   // a rifleman with a prone man beyond half his range mostly holds his shot: the gun's job
+        const e = u.enemy; if (Math.hypot(e.pos.x - u.pos.x, e.pos.z - u.pos.z) > w.range * 0.5) u.cooldown = 1 + Math.random();
       }
       if (u.enemy && u.cooldown <= 0 && this.onTarget(u, u.enemy) && !(u.ammo !== undefined && u.ammo < 1)) this.fire(u, w, u.enemy, kit);   // an empty rocket pod waits for the base
       if (u.kit2) {   // the coax shares the turret: it fires at the turret's target when that is infantry in its range
@@ -235,9 +245,9 @@ export class Combat {
     const sq = u.squad; if (sq && this.clock - sq.grenadeAt < R.squadGap) return;
     const W = this.world, near = this.spatial.query(u.pos.x, u.pos.z, R.range, this.scratch2 || (this.scratch2 = []));
     const worth = (e) => {
-      if (e.type !== 'soldier' || e.dead || e.mounted || e.team === u.team || e.team < 0 || e.team > 1 || e.spec.untargetable) return false;
+      if (e.type !== 'soldier' || e.dead || e.down || e.mounted || e.team === u.team || e.team < 0 || e.team > 1 || e.spec.untargetable) return false;
       const d = Math.hypot(e.pos.x - u.pos.x, e.pos.z - u.pos.z); if (d > R.range || d < 8) return false;
-      let n = 0; for (const o of near) if (o !== e && o.type === 'soldier' && !o.dead && !o.mounted && o.team === e.team && Math.hypot(o.pos.x - e.pos.x, o.pos.z - e.pos.z) < 5) n++;
+      let n = 0; for (const o of near) if (o !== e && o.type === 'soldier' && !o.dead && !o.down && !o.mounted && o.team === e.team && Math.hypot(o.pos.x - e.pos.x, o.pos.z - e.pos.z) < 5) n++;
       if (!(n >= 2 || this.dugIn(e, u) || this.covered(e, u) || (W.thicketAt && W.thicketAt(e.pos.x, e.pos.z)) || this.nearBuilding(e.pos.x, e.pos.z, 2))) return false;
       for (const o of this.spatial.query(e.pos.x, e.pos.z, R.friendly, this.scratch3 || (this.scratch3 = []))) if (o !== u && o.team === u.team && !o.dead && !o.mounted && o.type === 'soldier') return false;
       return this.canSee(u, e);
@@ -264,13 +274,15 @@ export class Combat {
     if (!two && u.ammo !== undefined) u.ammo--;   // a rocket off the pod
     if (!u[B]) u[B] = w.burst;
     const first = u[B] === w.burst; u[B]--;
-    u[CD] = u[B] > 0 ? w.burstGap * (0.8 + Math.random() * 0.4) : w.rate * (0.85 + Math.random() * 0.3);
-    if (u.type === 'soldier' && u.supp > 0.7) u[CD] *= 1.5;   // pinned: head down, fewer rounds
     const d = Math.hypot(e.pos.x - u.pos.x, e.pos.z - u.pos.z), T = this.teams ? this.teams[u.team] : null;
+    u[CD] = u[B] > 0 ? w.burstGap * (0.8 + Math.random() * 0.4) : u.type === 'soldier' && !w.thrown ? w.rate * (0.6 + 0.9 * Math.min(1, d / w.range)) * (0.7 + Math.random() * 0.6) : w.rate * (0.85 + Math.random() * 0.3);   // a soldier takes his time at range: 0.6x at the muzzle, 1.5x at full range, and never two pauses alike
+    if (u.type === 'soldier' && u.supp > 0.7) u[CD] *= 1.5;   // pinned: head down, fewer rounds
     let chance = w.acc * Math.max(0.05, 1 - 0.75 * d / w.range) * ((T && T.acc) || 1);
     if (Math.abs(u.speed) > 0.5) chance *= 0.5;
     if (!first) chance *= 0.8;                          // recoil through the burst
     if (u.type === 'soldier') chance *= 1 - 0.4 * u.supp; // a suppressed shooter aims badly
+    const st = u.type === 'soldier' && u.squad ? u.squad.state : null;   // the squad's morale (game/morale.js): shaken aims worse and pauses longer, broken worse again; pinned is held suppressed, which does both
+    if (st === 'shaken') { chance *= 0.85; u[CD] *= 1.2; } else if (st === 'pinned') { chance *= 0.7; u[CD] *= 1.4; } else if (st === 'broken') chance *= 0.6;
     if (e.type !== 'soldier') chance *= 1.6;            // vehicles are big targets
     if (w.rocket && e.spec.air && e.alt > 2) chance *= u.squad && u.squad.aa && !u.dest ? 0.7 : 0.35;   // an unguided rocket at a helicopter in the air rarely connects; braced for it (a squad standing to fire at helicopters, strategist.skyward) twice as often
     else if (!w.thrown) { const dug = this.dugIn(e, u), cv = dug ? (e.post.sb.spec.cover ?? 0.35) : this.covered(e, u) ? 0.5 : 1; chance *= Math.max(dug ? Math.min(0.2, cv) : 0.3, cv * (1 - 0.2 * (e.kneelK || 0) - 0.4 * (e.proneK || 0))); }   // a manned position (worth what its spec says: bags 0.35, a platform's parapet 0.6), cover and a low stance shrink the target
@@ -322,12 +334,11 @@ export class Combat {
     }
     const close = hit && !e.dead && !e.mounted && Math.hypot(e.pos.x - p.x, e.pos.z - p.z) < (e.type === 'soldier' ? 2.5 : 4.5);
     if (close) {
-      let dmg = (e.type === 'soldier' ? w.dmgInf : w.dmgVeh) * ((T && T.dmg) || 1);
-      if (e.spec.armour && w.explosive) dmg *= this.facing(e, u);   // flank the tank
       if (w.explosive) this.dust.explosion(p.x, p.y, p.z, w.thrown ? 0.45 : kit === 'tankgun' ? 0.7 : 0.35); else this.dust.hitSpark(p.x, p.y, p.z);
       if (this.audio) w.explosive ? this.audio.blast(p.x, p.z, w.thrown ? 0.8 : kit === 'tankgun' ? 1.4 : 1) : this.audio.hit(p.x, p.z);
       u.firedKit = kit;   // the kill feed names the weapon that did it
-      if (e.damage(dmg, u)) { this.onDeath && this.onDeath(e, u); }
+      if (e.type === 'soldier') this.casualty(e, w, u, 1);   // a man hit is a casualty: killed or down wounded
+      else { let dmg = w.dmgVeh * ((T && T.dmg) || 1); if (e.spec.armour && w.explosive) dmg *= this.facing(e, u); if (e.damage(dmg, u)) { this.onDeath && this.onDeath(e, u); } }   // flank the tank
       this.suppress(p.x, p.z, w, u.team, e);
     } else {
       const gy = this.groundAt(p.x, p.z), y = Math.max(p.y, gy + 0.1);
@@ -337,6 +348,21 @@ export class Combat {
     }
     if (w.splash) this.splashAt(p.x, p.z, w, u, kit, close ? e : null);
   }
+  // A soldier hit (k = 1) is a casualty: killed with the weapon's lethal chance (the CPU setting's dmg scales it), else down
+  // wounded (Unit.wound; support.js sees to him). Fragments (k < 1: the splash falling off with distance, cover and stance)
+  // give a casualty with a chance from the old damage figure (k x dmgInf over 30: a mortar bomb's 70 kills out to its edge, a
+  // hand grenade's 30 wounds most men inside its burst and kills a third), and kill less often. A man already down is killed.
+  casualty(e, w, u, k = 1) {
+    if (e.dead) return false;
+    const T = this.teams ? this.teams[u.team] : null, scale = (T && T.dmg) || 1;
+    if (k < 1 && Math.random() >= Math.min(1, k * w.dmgInf / 30)) return false;
+    const dead = e.down || Math.random() < Math.min(0.95, (w.lethal ?? 0.5) * scale * (k < 1 ? 0.5 + 0.5 * k : 1));
+    if (dead) { e.die(u); this.onDeath && this.onDeath(e, u); }
+    else { e.wound(u); this.onWounded && this.onWounded(e, u); }
+    return true;
+  }
+  // two or more other fit enemies within 6 m of a man: a group worth a rocket (weapons.js lone)
+  grouped(e) { let n = 0; for (const o of this.spatial.query(e.pos.x, e.pos.z, 6, this.scratch4 || (this.scratch4 = []))) if (o !== e && o.type === 'soldier' && !o.dead && !o.down && !o.mounted && o.team === e.team && ++n >= 2) return true; return false; }
   // a shell bursting at (x, z) hurts everyone of the other side within w.splash: less further out, a third as much in a
   // manned position facing the burst or behind cover, less again lying down; the target it struck is not hit twice
   splashAt(x, z, w, u, kit, skip) {
@@ -346,9 +372,9 @@ export class Combat {
     for (const o of [...near]) {
       if (o === skip || o.dead || o.mounted || o.team === u.team || o.team < 0 || o.team > 1 || o.spec.untargetable || (o.spec.air && o.alt > 2)) continue;
       const d = Math.hypot(o.pos.x - x, o.pos.z - z), k = 1 - d / w.splash; if (k <= 0) continue;
-      let dmg = (o.type === 'soldier' ? w.dmgInf : w.dmgVeh * 0.5) * k * ((T && T.dmg) || 1);
-      if (o.type === 'soldier') dmg *= (this.dugIn(o, at) ? (o.post.sb.spec.cover ?? 0.35) : this.covered(o, at) ? 0.35 : 1) * (1 - 0.5 * (o.proneK || 0));
       u.firedKit = kit;
+      if (o.type === 'soldier') { this.casualty(o, w, u, k * (this.dugIn(o, at) ? (o.post.sb.spec.cover ?? 0.35) : this.covered(o, at) ? 0.35 : 1) * (1 - 0.5 * (o.proneK || 0))); continue; }   // fragments: less further out, in cover, lying down
+      const dmg = w.dmgVeh * 0.5 * k * ((T && T.dmg) || 1);
       if (o.damage(dmg, u)) this.onDeath && this.onDeath(o, u);
     }
   }

@@ -50,8 +50,15 @@ export class VoiceDirector {
     this.vehicles = veh;
   }
 
+  // a man of ours down wounded: the squad calls it (for a medic when it has one); a man who then bleeds out was called already
+  onWounded(v) {
+    if (v.team !== this.team || v.type !== 'soldier') return;
+    const medic = v.squad && v.squad.members.some(m => m !== v && m.fit && m.kit === 'medic');
+    this.say(medic ? 'vo_sq_medic' : 'vo_sq_mandown', 30, { group: 'casualty' });
+  }
   onDeath(v, k) {
     const T = this.team;
+    if (v.bledOut) return;   // called when he went down
     if (v.team === T && v.type === 'soldier') {
       const medic = v.squad && v.squad.members.some(m => m !== v && !m.dead && m.kit === 'medic');
       this.say(medic ? 'vo_sq_medic' : 'vo_sq_mandown', 30, { group: 'casualty' });

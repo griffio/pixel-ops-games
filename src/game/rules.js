@@ -18,7 +18,19 @@ export const RULES = {
   // tank traps (a row of hedgehogs, 15 m): an engineer by a supply truck lays them; any engineer standing at a row clears it
   traps: { buildTime: 10, supplyCost: 20, max: 6, minSpacing: 18, enemyBaseDistance: 100, clearTime: 8, clearRange: 8 },
   rearm: { supplyCost: 10, range: 12 },   // a belt for a vehicle with one (the Humvee) from a supply truck stopped beside it
-  grenades: { count: 2, range: 35, squadGap: 4, friendly: 8, supplyCost: 2 },   // a rifleman's hand grenades (weapons.js grenade, combat.throwGrenade): count each, one throw a squad every squadGap s, none with a friend within `friendly` m of the target; back on respawn, in the main base, or beside a stopped supply truck for supplyCost a squad
+  grenades: { count: 2, range: 35, squadGap: 4, friendly: 8, supplyCost: 2 },
+  // the wounded (combat.casualty, Unit.wound, support.js): a man hit and not killed goes down for `bleed` s, then dies, unless a
+  // fit squadmate within `aidRange` m, the squad not under fire, has him up in `aid` s, or a medic within `treatRange` m walks
+  // to him and has him up in `treat` s; up again at `upHp` of 35 (the hurt pip), walking at `slow` of his pace until he respawns
+  wounds: { bleed: 150, aid: 20, aidRange: 3, treat: 5, treatRange: 25, upHp: 20, slow: 0.85, aidSupp: 0.45, aidEnemy: 30 },   // first aid stops while a fit man is suppressed past aidSupp or an enemy is inside aidEnemy m
+  // squad morale (game/morale.js): what a casualty in the squad costs (killed, wounded), what one in a squad within nearRadius
+  // costs, the drain a second at mean suppression 1 and the drain with armour inside armourRadius the squad has no launcher for,
+  // the recovery a second once calm (calmAfter s since the last casualty; faster broken and out of contact, doubled at home,
+  // half as much again near friends), the ceiling at zero strength (capBase, rising to 1 at full),
+  // how far a broken squad runs (fleeRun) and from how far it heads home (homeRadius), how close an enemy
+  // must be for a broken man to shoot (brokenReach), and the state thresholds, down and back up (hysteresis)
+  morale: { killed: 0.15, wounded: 0.1, near: 0.03, nearRadius: 30, suppDrain: 0.03, armourDrain: 0.02, armourRadius: 80, threatRadius: 150, calmAfter: 4, recover: 0.012, recoverBroken: 0.02, friendRadius: 25, capBase: 0.4, fleeRun: 60, homeRadius: 250, brokenReach: 15,
+    thresholds: { shaken: 0.6, pinned: 0.35, broken: 0.15, pinnedAgain: 0.3, shakenAgain: 0.45, steadyAgain: 0.7 } },   // a rifleman's hand grenades (weapons.js grenade, combat.throwGrenade): count each, one throw a squad every squadGap s, none with a friend within `friendly` m of the target; back on respawn, in the main base, or beside a stopped supply truck for supplyCost a squad
   sandbags: { buildTime: 12, supplyCost: 12, max: 8, minSpacing: 12, enemyBaseDistance: 60, roadClear: 10, clearTime: 8, clearRange: 8 },   // any engineer standing at a position clears it, like traps
   // base defence works (game/fob.js, docs/GAME_PLAN.md B3): a wall run, 6 m of gabions 1.8 m high that blocks sight and movement until
   // mortar or cannon fire brings it down (hp, on the units' scale: three mortar bombs, a dozen cannon rounds; bullets chip it), and a

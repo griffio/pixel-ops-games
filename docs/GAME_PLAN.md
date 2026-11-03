@@ -3827,6 +3827,69 @@ no waves). The dump as a target: shootable, and the pool burns with it. Flanking
 mortar team that walks in. Faster re-manning of posts by a CPU garrison. Two open questions stand: the ending and saved
 layouts; no APC and no clock pause are settled.
 
+## Morale and fire plan (2026-11-03)
+
+**Premise.** The user's review ask: the fight is a free-for-all of unrealistic fire rates with no ammunition to
+conserve, a hit is a quarter of a man, and nobody is ever afraid. Slow it down the way the Close Combat series does:
+men fire single shots and short bursts at irregular intervals, a hit is a casualty, squads carry ammunition and run
+short, and a squad under fire and losing men goes to ground, then breaks and runs, so the fight turns on morale and
+manoeuvre rather than on throughput. Built on the `morale-combat` branch in stages, each measured against the
+seeded balance runs before it (the Palm Valley core set at seed 1, the Hollow balanced v light at seeds 1 and 2).
+
+**What the engine already has.** Weapons as data (`weapons.js`: range, rate, burst, burstGap, acc), with a jitter
+on every pause, and every shot a round in flight whose hit was rolled at the trigger; suppression per round, decaying
+in 2.5 s, driving stance, aim, fire rate, grenades and the CPU's reading of a squad; cover, stance, line of sight,
+hold fire and the ambush; a belt on the Humvee and a pod on the Little Bird with resupply at base and beside a
+supply truck (`RULES.rearm`), and grenades resupplied the same way; the medic walking to a body (`support.js`); the
+strategist's `pinUntil`, which keeps a squad out of the plan, and its caution rule that falls a squad back from an
+enemy inside 22 m; the roster card's pips, alert edge and state line; the headless balance runners.
+
+**What is measured before (seed 1, the core set; the Hollow seeds 1 and 2).** Rifles 99 rounds a minute at
+4.9% a round at 40 m, machine guns 200 at 5.8%, every burst at the 10 Hz tick because every burst gap is under a
+tick; four rifle hits to kill, no wounded state; 230 to 320 infantry deaths a match, men back in 15 s for one ticket.
+
+**Design.**
+- *Fire discipline.* Rifles single aimed shots, machine guns 5 to 7 round bursts, a pause that stretches with range
+  (0.6x at the muzzle, 1.5x at full range) and a wider jitter; an aim time on a new target that grows with range and
+  suppression; a rifleman mostly holds his fire at a prone man beyond half his range (the gun's job); the launcher
+  keeps its rockets for vehicles and for groups, firing at a lone man only inside 25 m. Per-round accuracy up so
+  hits a minute fall about four times while rounds a minute fall about six; per-round suppression up so a burst
+  still pins.
+- *Casualties, not hit points.* A direct hit on a soldier is always a casualty: dead with the weapon's `lethal`
+  chance, else wounded (`u.down`): flat, out of the fight, not a target, not a capturer, left behind by a move,
+  bleeding out in `RULES.wounds.bleed` s. A squadmate standing by him when the squad is not under fire gives first
+  aid (`aid` s) and he is up again, slowed and shaky; a medic does it in `treat` s from further off. The medic's
+  revive of the dead goes. Splash and fragments give a casualty with a chance from the old damage figure. Vehicles
+  keep hit points.
+- *Morale.* A squad value 0..1 on a minutes scale (`game/morale.js`): down with casualties in the squad and near it,
+  with sustained suppression, with unopposed armour in sight; up out of contact, faster near friends and at a
+  position. States with hysteresis: steady, shaken (aims worse, pauses longer), pinned (flat, will not move toward
+  an enemy it can see), broken (drops its orders, runs for cover away from the enemy and then toward friends, fires
+  only inside 15 m, takes no order until it steadies). The CPU weighs a squad by its state and leaves a broken
+  one alone; the card says so; the digest carries it.
+- *Ammunition.* Magazines a man (`mag`, `mags`, `reload` on the kit): a reload between them with the foley, dry means
+  no fire, low means fire only inside half range unless the enemy is close; full again at a respawn, in base, or
+  beside a stopped supply truck or the Hold's dump for a few supplies a squad, like grenades; the CPU walks a squad
+  that is low and out of contact to the nearest truck or home; the card says "Low ammo" and "Out of ammo".
+- *Economy.* Men dearer and slower back: two tickets and 45 s (`RULES`), wave slack to match; the pools stay, since
+  fewer deaths move the end toward the clock and the bleed, which is where most matches end already.
+
+**Milestones.**
+- *F1 Fire and casualties* (together: one changes the other's numbers): weapons table, `fire()` pauses and aim,
+  `arrive()` and `splashAt()` casualty rolls, the wounded state through units, combat, objectives, boarding, the
+  roster, the medic and first aid, the guide and README; balance before and after.
+- *F2 Morale*: the module, its hooks from combat, the squad's refusals and the rout, the CPU weights, the card, the
+  digest; balance.
+- *F3 Economy*: the rules change, the guide and README lines; balance, and a Hold run at normal with works.
+- *F4 Ammunition*: the kit fields, the soldier's rounds, reloads and dry gate, resupply, the CPU's walk to a truck,
+  the card; balance, and the Hold run again.
+
+**Risks.** Hold's wave tables, the Hollow's pool and the grenade numbers were cut against today's kill rates; the
+runs say how far they move. Rifles that wait on prone men can stand two squads off until a gun, a grenade or a move
+breaks it, which is the intent, but the CPU's plan must keep moving squads (it does: caution and the plan both
+re-send). A broken squad must not be re-sent by the strategist (`pinUntil`) or the player (its order refused with a
+note). First aid without the squad walking anywhere keeps the CPU out of it for now.
+
 ## Open questions
 
 None open. Answered:

@@ -91,6 +91,7 @@ export class Unit {
     this.kit2 = spec.kit2 || null; this.cooldown2 = 0; this.burst2 = 0;   // a second weapon on the same turret (the tank's coax MG); a rifleman's grenades use the same reload slot
     this.grenades = 0;   // a rifleman's hand grenades (RULES.grenades.count, given with the rifle kit in spawnSquad and back on revive)
     this.stance = 'stand'; this.supp = 0; this.kneelK = 0; this.proneK = 0; this.aimK = 0;   // infantry: suppression 0..1 and the pose blends it drives
+    this.down = false; this.bleed = 0; this.aidT = 0; this.wounder = null;   // infantry: down wounded (wound), the seconds left before he dies, first aid given so far, who did it
     this.dead = false; this.deathT = 0; this.wreck = false; this.remove = false;
     this.mounted = null; this.passengers = []; this.boardTarget = null; this.turnT = 0; this.supplies = 0; this.landedT = 0; this.hover = false;
     this.post = null; this.crew = spec.hollow ? slotsOf(spec).map(() => null) : null;   // a soldier's firing slot in a sandbag position; a position's crew by slot
@@ -107,7 +108,7 @@ export class Unit {
   // shared: the squad's route (Squad.order), adopted in place of a search of this unit's own. A search beyond the frame's budget
   // (UnitManager.pathSearch) is taken up on a later frame (resolvePath), the unit walking straight at its goal until then.
   order(x, z, keepPost = false, shared = null) {   // any order takes a soldier out of his sandbag position, unless it is his way into it
-    if (this.dead || this.afloat) return;   // afloat: waiting on the ship or aboard a landing craft (game/landing.js)
+    if (this.dead || this.down || this.afloat) return;   // afloat: waiting on the ship or aboard a landing craft (game/landing.js); down: wounded, going nowhere
     if (!keepPost) this.leavePost();
     const nav = this.mgr && this.mgr.nav && this.spec.nav ? this.mgr.nav[this.spec.nav] : null;
     if (nav && nav.inPocket(x, z)) { const c = nav.nearestMain(nav.cellOf(x), nav.cellOf(z)); if (c) { x = nav.world(c[0]); z = nav.world(c[1]); } }   // a goal inside a building, or in a pocket between buildings, becomes the nearest open ground
@@ -173,7 +174,7 @@ export class Unit {
     if (c.spec.air) return [c.pos.x, c.pos.z + 3];
     return [c.pos.x - Math.sin(c.heading) * 4.5, c.pos.z - Math.cos(c.heading) * 4.5];   // the tail: the APC's ramp, the truck's tailgate
   }
-  board(c) { if (this.type !== 'soldier' || this.dead || this.mounted || c.swimming) return; this.boardTarget = c; this.boardT = 0; const [x, z] = this.boardPoint(c); this.order(x, z); }
+  board(c) { if (this.type !== 'soldier' || this.dead || this.down || this.mounted || c.swimming) return; this.boardTarget = c; this.boardT = 0; const [x, z] = this.boardPoint(c); this.order(x, z); }
   advanceTo(x, z) { this.order(x, z); if (this.dest) { this.advance = true; this.holdFire = false; } }   // an attack-move: the same walk, stopping to fight whatever comes into range; it lifts hold fire, the two being opposites
   mount(c) {
     this.mounted = c; c.passengers.push(this); this.boardTarget = null; this.group.visible = false;
@@ -211,7 +212,7 @@ export class Unit {
   crewAt(i) { const c = this.crew[i]; return c && !c.dead && c.post && c.post.sb === this ? c : null; }
   get freeSlots() { return this.crew ? slotsOf(this.spec).filter((_, i) => !this.crewAt(i)).length : 0; }
   man(sb) {   // take the first free slot (front ones first); false when the position is full
-    if (this.type !== 'soldier' || this.dead || this.mounted || !sb.crew || sb.dead) return false;
+    if (this.type !== 'soldier' || this.dead || this.down || this.mounted || !sb.crew || sb.dead) return false;
     if (this.post && this.post.sb === sb) return true;
     const i = slotsOf(sb.spec).findIndex((_, k) => !sb.crewAt(k)); if (i < 0) return false;
     this.leavePost(); this.boardTarget = null;
@@ -239,12 +240,29 @@ export class Unit {
 
   damage(amount, from) {
     if (this.dead) return false;
+    if (this.type === 'soldier') {   // a soldier is killed or wounded, not worn down (combat.casualty does the rolls for fire; this is a fall from a wrecked carrier, or ?kill): the figure is his chance of a wound
+      if (amount < 9999 && !this.down && Math.random() >= amount / this.maxHp) return false;
+      if (amount >= 9999 || this.down) { this.die(from); return true; }
+      this.wound(from); return false;
+    }
     this.hp -= amount;
     if (this.hp <= 0) { this.hp = 0; this.die(from); return true; }
     return false;
   }
+  get fit() { return !this.dead && !this.down; }
+  // hit and not killed: down wounded where he stands, out of the fight (no target, no shot, no order, flat), out of his post or
+  // build, bleeding (support.js counts it down and sees to him: a squadmate's first aid or a medic has him up again)
+  wound(from) {
+    if (this.dead || this.down) return;
+    this.down = true; this.bleed = RULES.wounds.bleed; this.aidT = 0; this.treatT = 0; this.treatedBy = null; this.wounder = from || null; this.hp = Math.min(this.hp, 10);
+    this.enemy = null; this.target = null; this.path = null; this.dest = null; this.hold = false; this.advance = false; this.boardTarget = null; this.building = null; this.breach = null; this.leavePost();
+    this.speed = 0; this.supp = 1;
+  }
+  // up again after first aid or a medic: hurt (the pip), slower until he respawns, and rattled
+  recover() { if (!this.down || this.dead) return; this.down = false; this.bleed = 0; this.aidT = 0; this.treatT = 0; this.treatedBy = null; this.wounder = null; this.hp = Math.max(this.hp, RULES.wounds.upHp); this.supp = Math.max(this.supp, 0.5); }
   die(from) {
     this.dead = true; this.deathT = 0; this.enemy = null; this.target = null; this.path = null; this.dest = null; this.hold = false; this.boardTarget = null; this.building = null; this.leavePost(); this.descend = 0; this.breach = null;
+    this.down = false; this.bleed = 0; this.treatedBy = null; this.aimedAt = null; this.pinnedDown = false; this.fleeing = false;
     this.killer = from || null; this.parts.ring.visible = false;
     if (this.group.baked && this.mgr && this.mgr.world.renderer) this.mgr.world.renderer.unbakeGroup(this.group);   // a dead structure is drawn live again, so a wreck recolour or a fall shows
     // passengers: out of a ground vehicle (or a landed helicopter) shaken and hurt, lost with a helicopter shot down in the
@@ -266,7 +284,7 @@ export class Unit {
   }
   // revive at a position (infantry respawn reuses the object so squads keep their members)
   revive(x, z, heading) { if (this.spec.ammo) this.ammo = this.spec.ammo; if (this.kit === 'rifle') this.grenades = RULES.grenades.count; this.holdFire = !!(this.squad && this.squad.members.some(m => !m.dead && m !== this && m.holdFire));   // a man back to a squad holding fire holds it too
-    this.dead = false; this.hp = this.maxHp; this.pos.set(x, 0, z); this.heading = heading; this.group.rotation.set(0, heading, 0); this.descend = 0;
+    this.dead = false; this.down = false; this.bleed = 0; this.aidT = 0; this.wounder = null; this.treatedBy = null; this.aimedAt = null; this.hp = this.maxHp; this.pos.set(x, 0, z); this.heading = heading; this.group.rotation.set(0, heading, 0); this.descend = 0;
     this.group.visible = true; this.speed = 0; this.enemy = null; this.target = null; this.path = null; this.dest = null; this.deathT = 0; this.reviveT = 0; this.hold = false; this.boardTarget = null; this.mounted = null; this.landedT = 0;
   }
 
@@ -330,10 +348,12 @@ export class Unit {
       }
     }
     if (this.hold && this.type === 'soldier') want = 0;
-    // infantry stance: standing on the move or at rest, a knee to shoot from when still, flat when suppressed (and only crawling then)
+    if (this.down) { want = 0; this.target = null; }   // wounded: where he fell
+    else if (this.type === 'soldier' && want !== 0 && this.hp < this.maxHp * 0.7) want *= RULES.wounds.slow;   // hurt: slower
+    // infantry stance: standing on the move or at rest, a knee to shoot from when still, flat when suppressed (and only crawling then), flat wounded
     if (this.type === 'soldier') {
       this.supp *= Math.exp(-dt / 2.5);
-      this.stance = this.supp > 0.5 ? 'prone' : (this.supp > 0.25 && want === 0) ? 'prone' : want === 0 && this.enemy ? 'kneel' : 'stand';
+      this.stance = this.down || this.pinnedDown || (this.supp > 0.5 && !(this.fleeing && want !== 0)) ? 'prone' : (this.supp > 0.25 && want === 0 && !this.fleeing) ? 'prone' : want === 0 && this.enemy ? 'kneel' : 'stand';   // pinnedDown: the squad's morale (game/morale.js); a broken man runs upright
       if (this.stance === 'prone' && want !== 0) want *= 0.3;
       const kk = this.stance === 'kneel' ? 1 : 0, pk = this.stance === 'prone' ? 1 : 0, r1 = Math.min(1, dt * 4), r2 = Math.min(1, dt * 3);
       this.kneelK += (kk - this.kneelK) * r1; this.proneK += (pk - this.proneK) * r2;
@@ -539,16 +559,21 @@ export class Unit {
 }
 
 export class Squad {
-  constructor(members) { this.members = members; for (const m of members) m.squad = this; this.idle = rnd(0, 4); this.grenadeAt = -Infinity; this.manual = false; this.idleSince = null; }   // grenadeAt: when the squad last threw a grenade (combat.throwGrenade spaces them); manual: in the player's hand, off a hybrid commander's plan (game/orders.js)
-  get leader() { return this.members.find(m => !m.dead && !m.afloat) || this.members.find(m => !m.dead) || null; }   // one ashore, if any are
+  constructor(members) { this.members = members; for (const m of members) m.squad = this; this.idle = rnd(0, 4); this.grenadeAt = -Infinity; this.manual = false; this.idleSince = null; this.morale = 1; this.state = 'steady'; this.threat = null; this.refused = null; }   // morale and state: game/morale.js   // grenadeAt: when the squad last threw a grenade (combat.throwGrenade spaces them); manual: in the player's hand, off a hybrid commander's plan (game/orders.js)
+  get leader() { return this.members.find(m => m.fit && !m.afloat) || this.members.find(m => m.fit) || null; }   // a fit man, one ashore if any are; a squad with every man down or dead has none
   get alive() { return this.members.some(m => !m.dead); }
   get aliveCount() { return this.members.filter(m => !m.dead).length; }
+  get fitCount() { return this.members.filter(m => m.fit).length; }
+  get wounded() { return this.members.filter(m => m.down && !m.dead); }
   get team() { return this.members[0].team; }
   // one route for the squad, the leader's (or one handed in: the strategist's detour check already searched it), the members
   // following it to their own places in the formation; a straggler more than 8 m from the leader finds his own way. Four
   // near-identical searches a squad, twelve squads in one plan tick, used to stall a frame (nav.js)
-  order(x, z, path) {
+  order(x, z, path, force = false) {   // force: the morale module's own flight (game/morale.js); otherwise a broken squad takes no order and a pinned one none that is toward the enemy it can see (refused: the note the HUD shows)
     const L = this.leader; if (!L) return;
+    if (!force && this.state === 'broken') { this.refused = 'broken'; return; }
+    if (!force && this.state === 'pinned' && this.threat) { const c = this.centroid(); if (Math.hypot(x - this.threat.x, z - this.threat.z) < Math.hypot(c.x - this.threat.x, c.z - this.threat.z) - 4) { this.refused = 'pinned'; return; } }
+    this.refused = null;
     const h = Math.atan2(x - L.pos.x, z - L.pos.z), c = Math.cos(h), s = Math.sin(h);
     const offs = [[0, 0], [-1.3, -1.3], [1.3, -1.3], [-2.6, -2.6], [2.6, -2.6], [0, -2.6], [-1.3, -3.9], [1.3, -3.9]];
     const nav = L.mgr && L.mgr.nav && L.spec.nav ? L.mgr.nav[L.spec.nav] : null;
@@ -560,9 +585,9 @@ export class Squad {
       shared = { from: [L.pos.x, L.pos.z], to: [gx, gz], path: p };
     }
     let i = 0;
-    for (const m of this.members) { if (m.dead) continue; const [ox, oz] = offs[i++ % offs.length]; const near = shared && Math.hypot(m.pos.x - L.pos.x, m.pos.z - L.pos.z) < 8; m.order(x + ox * c + oz * s, z - ox * s + oz * c, false, near ? shared : null); }
+    for (const m of this.members) { if (!m.fit) continue; const [ox, oz] = offs[i++ % offs.length]; const near = shared && Math.hypot(m.pos.x - L.pos.x, m.pos.z - L.pos.z) < 8; m.order(x + ox * c + oz * s, z - ox * s + oz * c, false, near ? shared : null); }
   }
-  advanceTo(x, z) { this.order(x, z); for (const m of this.members) if (!m.dead) { if (m.dest) m.advance = true; m.holdFire = false; } }   // an attack-move lifts hold fire: a squad told to fight on the way is not lying in ambush
+  advanceTo(x, z) { this.order(x, z); for (const m of this.members) if (m.fit) { if (m.dest) m.advance = true; m.holdFire = false; } }   // an attack-move lifts hold fire: a squad told to fight on the way is not lying in ambush
   setHoldFire(v) { for (const m of this.members) if (!m.dead) { m.holdFire = v; if (v) m.advance = false; } }   // hold fire: quiet and hidden until an enemy is at 20 m or the squad is fired on (game/combat.js); it drops an attack-move, the walk going on as a plain move
   get holdingFire() { const a = this.members.filter(m => !m.dead); return a.length > 0 && a.every(m => m.holdFire); }
   get busy() { return this.members.some(m => !m.dead && (m.dest || m.boardTarget)); }
@@ -570,16 +595,16 @@ export class Squad {
   // respawn a long way from the rest goes alone when the vehicle is at him, and the rest keep their orders (a Load at the
   // base used to march the whole squad back from the front). Returns how many go and how many stay.
   board(c) {
-    const live = this.members.filter(m => !m.dead && !m.mounted); if (!live.length) return { n: 0, far: 0 };
+    const live = this.members.filter(m => m.fit && !m.mounted); if (!live.length) return { n: 0, far: 0 };   // the wounded are left where they lie
     const d = (m) => Math.hypot(m.pos.x - c.pos.x, m.pos.z - c.pos.z), near = Math.min(...live.map(d)); let n = 0;
     for (const m of live) if (d(m) <= near + 60) { m.board(c); n++; }
     return { n, far: live.length - n };
   }
-  man(sb) { let n = 0; for (const m of this.members) if (!m.dead && !m.mounted && m.man(sb)) n++; return n; }   // into a sandbag position, as many as it has slots
-  get posted() { const a = this.members.filter(m => !m.dead); return a.length > 0 && a.every(m => m.post); }
-  get mounted() { const a = this.members.filter(m => !m.dead); return a.length > 0 && a.every(m => m.mounted); }
+  man(sb) { let n = 0; for (const m of this.members) if (m.fit && !m.mounted && m.man(sb)) n++; return n; }   // into a sandbag position, as many as it has slots
+  get posted() { const a = this.members.filter(m => m.fit); return a.length > 0 && a.every(m => m.post); }
+  get mounted() { const a = this.members.filter(m => m.fit); return a.length > 0 && a.every(m => m.mounted); }
   get engineer() { return this.members.find(m => !m.dead && m.kit === 'engineer') || null; }
-  centroid() { const live = this.members.filter(m => !m.dead), a = live.some(m => !m.afloat) ? live.filter(m => !m.afloat) : live; const c = new Vec3(); for (const m of a) c.add(m.pos); return c.multiplyScalar(1 / (a.length || 1)); }   // men still on the ship don't count while any are ashore
+  centroid() { const alive = this.members.filter(m => !m.dead), live = alive.some(m => m.fit) ? alive.filter(m => m.fit) : alive, a = live.some(m => !m.afloat) ? live.filter(m => !m.afloat) : live; const c = new Vec3(); for (const m of a) c.add(m.pos); return c.multiplyScalar(1 / (a.length || 1)); }   // where its fit men are// men still on the ship don't count while any are ashore
 }
 
 const KITS = ['rifle', 'mg', 'at', 'rifle'];

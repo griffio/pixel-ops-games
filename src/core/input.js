@@ -226,16 +226,20 @@ export class Input {
     const all = [...squads, ...loose], n = all.length;
     const cols = Math.ceil(Math.sqrt(n)), gap = loose.some(u => u.spec.air) ? 12 : 7;
     const quiet = advance ? all.filter(t => t.setHoldFire ? t.holdingFire : t.holdFire).length : 0;   // squads holding fire: an attack-move lifts it, and the toast says so
+    const refused = [], refusedSq = new Set();   // squads whose morale refuses the order (game/morale.js, Squad.order): broken, or pinned and sent toward the enemy
     all.forEach((t, i) => {
       const c = i % cols, rw = Math.floor(i / cols);
       const ox = g.x + (c - (cols - 1) / 2) * gap, oz = g.z + (rw - (Math.ceil(n / cols) - 1) / 2) * gap;
       if (advance) t.advanceTo(ox, oz); else t.order(ox, oz);
+      if (t.refused) { refused.push(`${t.members[0].label} ${t.refused === 'broken' ? 'is broken and running' : 'is pinned: not toward the enemy'}`); refusedSq.add(t); t.refused = null; return; }
       t.manual = true; t.idleSince = null;   // in the player's hand: a hybrid commander leaves the squad or vehicle alone until an order names it, Rejoin, or (a squad) 90 s idle (game/orders.js)
       t.dropOnArrive = false;   // the player's passengers stay aboard until Unload (U): a stop on the way is not a drop
       if (t.spec && t.spec.air) { t.dropOnLand = false; t.orbit = { x: ox, z: oz, r: 30 }; }   // a helicopter circles there, door gun firing, until Unload or Land
     });
     this.app.markers.add(g.x, g.z); if (this.app.audio) this.app.audio.ui('order');
     if (this.app.match && this.app.match.voices) this.app.match.voices.ordered(this.selected);
-    const moving = this.selected.filter(u => !u.spec.structure).length; this.hud.toast(`${advance ? 'Attack-move' : 'Move order'}: ${moving} unit${moving > 1 ? 's' : ''}${quiet ? ', fire at will' : ''}`);
+    const moving = this.selected.filter(u => !u.spec.structure && !(u.squad && refusedSq.has(u.squad))).length;
+    if (refused.length) { this.hud.toast(refused.join('; ')); if (this.app.audio) this.app.audio.ui('deny'); if (refused.length === all.length) return; }
+    this.hud.toast(`${advance ? 'Attack-move' : 'Move order'}: ${moving} unit${moving > 1 ? 's' : ''}${quiet ? ', fire at will' : ''}`);
   }
 }

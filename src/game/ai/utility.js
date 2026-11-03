@@ -15,7 +15,8 @@ export const PERSONAS = {
 const clamp01 = (v) => Math.max(0, Math.min(1, v));
 const sigmoid = (x, mid, width) => 1 / (1 + Math.exp(-(x - mid) / width));
 // combat weight of a unit: a pinned soldier counts half, an APC four, a helicopter two, a truck half
-const weight = (u) => u.type === 'soldier' ? (u.supp > 0.5 ? 0.5 : 1) : u.type === 'tank' ? 6 : u.type === 'apc' ? 4 : u.type === 'humvee' ? 2.5 : u.type === 'heli' || u.type === 'bird' ? 2 : 0.5;
+const STATE_W = { steady: 1, shaken: 0.85, pinned: 0.4, broken: 0 };   // a squad's morale state (game/morale.js) in its men's weight
+const weight = (u) => u.type === 'soldier' ? (u.down ? 0 : (u.squad ? STATE_W[u.squad.state] ?? 1 : 1) * (u.supp > 0.5 ? 0.5 : 1)) : u.type === 'tank' ? 6 : u.type === 'apc' ? 4 : u.type === 'humvee' ? 2.5 : u.type === 'heli' || u.type === 'bird' ? 2 : 0.5;   // a wounded man counts for nothing
 
 export class UtilityCommander {
   constructor(strategist, persona = 'balanced') {
@@ -66,7 +67,7 @@ export class UtilityCommander {
     const urgency = clamp01(Math.max(pressure, timeP, invAttacker ? 0.5 : 0) * this.w.urgency);
     // readiness: men standing and not pinned, out of all the men our squads have
     let men = 0, up = 0, supp = 0;
-    for (const sq of this.units.squads) if (sq.team === t) for (const u of sq.members) { men++; if (!u.dead) { up++; supp += u.supp || 0; } }
+    for (const sq of this.units.squads) if (sq.team === t) for (const u of sq.members) { men++; if (u.fit) { up++; supp += u.supp || 0; } }
     const readiness = men ? (up / men) * (1 - 0.5 * supp / Math.max(1, up)) : 0;
     // travel: how close a place is to our nearest spawn (main base or a FOB); 1 on top of it, a half at 350 m
     const spawns = [m.teams[t].base, ...U.filter(u => u.type === 'fob' && u.team === t && !u.dead).map(f => f.pos)];
@@ -164,8 +165,8 @@ export class UtilityCommander {
     // 9. squad roles: special jobs where there is demand, filled greedily by kit fit, condition and distance;
     // the rest split by the share into assault and hold, best attackers first
     const free = squads.filter(sq => !sq.engineer || logistics === 'none');
-    const alive = (sq) => sq.members.filter(u => !u.dead), has = (sq, k) => alive(sq).some(u => u.kit === k);
-    const cond = (sq) => { const a = alive(sq); return a.length / sq.members.length * (1 - 0.5 * a.reduce((s, u) => s + (u.supp || 0), 0) / Math.max(1, a.length)); };
+    const alive = (sq) => sq.members.filter(u => u.fit), has = (sq, k) => alive(sq).some(u => u.kit === k);   // the fit men: a wounded man is no rifle
+    const cond = (sq) => { const a = alive(sq); return a.length / sq.members.length * (1 - 0.5 * a.reduce((s, u) => s + (u.supp || 0), 0) / Math.max(1, a.length)) * (0.5 + 0.5 * (sq.morale ?? 1)); };   // and its morale
     const near = (sq, p) => { if (!p) return 0.5; const c = sq.centroid(); return 1 / (1 + Math.hypot(c.x - p.x, c.z - p.z) / 250); };
     const keep = (sq, role) => this.roleOf.get(sq.leader.label) === role ? w.commit : 0;
     const armourNearHold = !!holdLoc && M.enemyApcs.some(v => Math.hypot(v.pos.x - holdLoc.x, v.pos.z - holdLoc.z) < 250);

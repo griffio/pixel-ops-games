@@ -17,7 +17,7 @@ export class Strategist {
   contacts() { return this.match.vision.contacts(this.team); }
   enemiesNear(x, z, r) { return this.contacts().filter(u => !(u.spec.air && u.alt > 2) && Math.hypot(u.pos.x - x, u.pos.z - z) < r); }
   armourNear(x, z, r) { return this.contacts().some(e => (e.type === 'apc' || e.type === 'tank') && Math.hypot(e.pos.x - x, e.pos.z - z) < r); }
-  friendsNear(x, z, r) { return this.units.units.filter(u => !u.dead && !u.mounted && u.team === this.team && Math.hypot(u.pos.x - x, u.pos.z - z) < r); }
+  friendsNear(x, z, r) { return this.units.units.filter(u => !u.dead && !u.down && !u.mounted && u.team === this.team && Math.hypot(u.pos.x - x, u.pos.z - z) < r); }
   cluster(list) {
     let best = null, bestN = -1;
     for (const e of list) { let n = 0; for (const o of list) if (Math.hypot(o.pos.x - e.pos.x, o.pos.z - e.pos.z) < 20) n++; if (n > bestN) { bestN = n; best = e; } }
@@ -123,7 +123,7 @@ export class Strategist {
     // (lift keys are carriers, which are units with a type, and the squads riding them whole)
     for (const [k, v] of [...this.lifts]) if (k.type && (k.dead || (v.stage === 'park' ? false : v.sqs ? !v.sqs.some(s => s.leader) : v.sq ? !v.sq.leader : v.riders.length && !k.passengers.length && v.riders.every(m => m.dead)))) this.endLift(k);   // a parked truck carries nobody
     for (const [k] of [...this.lifts]) if (k.type && k.manual) this.endLift(k);   // a carrier the player took in hand: its lift is over, the squads return to the pool
-    const squads = this.units.squads.filter(s => s.team === this.team && s.leader && !this.lifts.has(s) && !s.members.some(m => m.building) && !(s.pinUntil > this.match.elapsed) && !s.manual);   // pinned squads (in cover from armour, or stalking it) keep doing that; a squad in the player's hand is theirs
+    const squads = this.units.squads.filter(s => s.team === this.team && s.leader && !this.lifts.has(s) && !s.members.some(m => m.building) && !(s.pinUntil > this.match.elapsed) && !s.manual && s.state !== 'broken');   // pinned squads (in cover from armour, or stalking it) keep doing that; a squad in the player's hand is theirs
     const vehicles = this.units.units.filter(u => u.team === this.team && !u.dead && !u.squad && !u.spec.structure && !u.spec.naval && !u.afloat && !u.manual);   // not a vehicle in the player's hand (game/orders.js)   // not landing craft, nor what waits on the ship
     const myFobs = this.units.units.filter(u => u.type === 'fob' && u.team === this.team && !u.dead).map(f => ({ x: f.pos.x, z: f.pos.z, r: 18, index: 'fob' + f.id }));
     const g = this.match.mode.goals(this.team, myFobs);
@@ -499,7 +499,7 @@ export class Strategist {
   // sandbags stay put through all of it. An APC with an enemy inside 50 m backs off to 70 m.
   halt(sq, tag) { for (const m of sq.members) if (!m.dead) { m.dest = null; m.target = null; m.path = null; } sq.tag = tag; sq.goal = null; }
   caution() {
-    const enemies = this.contacts().filter(u => !u.spec.structure && !(u.spec.air && u.alt > 2));
+    const enemies = this.contacts().filter(u => !u.spec.structure && !u.down && !(u.spec.air && u.alt > 2));   // the wounded frighten nobody
     // where we have seen enemy armour in the last two minutes, while it lives (trapSpot lays traps where it has been; a
     // vehicle that respawns is a new unit, seen afresh)
     const now0 = this.match.elapsed; this.armourSeen = (this.armourSeen || []).filter(s => now0 - s.t < 120 && !s.u.dead);
@@ -513,11 +513,12 @@ export class Strategist {
     const away = (x, z, e, dist) => { const dx = x - e.pos.x, dz = z - e.pos.z, d = Math.hypot(dx, dz) || 1; return [x + dx / d * dist, z + dz / d * dist]; };
     // armour with more than a squad of infantry within 50 m of it, or another APC or tank within 100 m (whose gun covers the
     // ground a launcher team would cross): going for it would walk into all of them
-    const escorted = (v) => { let n = 0; for (const e of enemies) { const d = Math.hypot(e.pos.x - v.pos.x, e.pos.z - v.pos.z); if ((e.type === 'soldier' && d < 50 && ++n > 4) || (e !== v && (e.type === 'apc' || e.type === 'tank') && d < 100)) return true; } return false; };
+    const escorted = (v) => { let n = 0; for (const e of enemies) { const d = Math.hypot(e.pos.x - v.pos.x, e.pos.z - v.pos.z); if ((e.type === 'soldier' && !e.down && d < 50 && ++n > 4) || (e !== v && (e.type === 'apc' || e.type === 'tank') && d < 100)) return true; } return false; };
     for (const sq of this.units.squads) {
       if (sq.team !== this.team || !sq.leader || sq.mounted || this.lifts.has(sq) || sq.members.some(m => m.building)) continue;
       if (sq.posted) continue;                                                                               // manning sandbags: they stay, armour or not
       if (sq.manual) continue;                                                                               // in the player's hand
+      if (sq.state === 'broken') continue;                                                                   // running (game/morale.js): nothing to tell it
       const c = sq.centroid();
       let apc = null, ad = 1e9; for (const v of apcs) { const d = Math.hypot(v.pos.x - c.x, v.pos.z - c.z); if (d < 150 && d < ad && C.canSeePoint(v, c.x, c.z)) { apc = v; ad = d; } }
       if (apc) {

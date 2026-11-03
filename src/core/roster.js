@@ -78,7 +78,7 @@ export class Roster {
   squad(sq) {
     const m = this.app.match, T = m.teams[this.me], label = sq.members[0].label, [pic, sub] = squadKind(sq.members.map(u => u.kit)), al = sq.members.filter(u => !u.dead);
     const d = { key: 'q:' + label, label, sub, pic, kind: 'squad' };
-    d.pips = sq.members.map(u => u.dead ? 'dead' : u.hp < u.maxHp * 0.7 ? 'hurt' : '');
+    d.pips = sq.members.map(u => u.dead ? 'dead' : u.down ? 'down' : u.hp < u.maxHp * 0.7 ? 'hurt' : '');   // down: wounded, on the ground
     if (!al.length) {   // wiped out: when the first man is back, and where
       const q = m.respawn.queue.filter(e => sq.members.includes(e.unit)).map(e => this.eta(e, T)).sort((a, b) => a.t - b.t)[0];
       const r = sq.rally && !sq.rally.dead ? sq.rally : null; d.units = []; d.down = true; d.anchor = r ? r.pos : sq.members[0].pos;
@@ -87,14 +87,20 @@ export class Roster {
       else Object.assign(d, { glyph: 'clock', text: `Back in ${mmss(q.t)}${q.rally ? ' · ' + q.rally.label : ''}`, ring: { f: 1 - q.t / Math.max(q.t, q.total), t: q.t, glyph: 'clock', color: 'var(--muted)' } });
       return d;
     }
-    const foot = al.filter(u => !u.mounted), car = !foot.length && al[0].mounted;
+    const foot = al.filter(u => !u.mounted), car = !foot.length && al[0].mounted, wd = al.filter(u => u.down);
     d.units = car ? [car] : foot; d.anchor = (car || foot[0]).pos;
     d.alert = this.hit(d.key, sq.members, sq.members.reduce((s, u) => s + (u.dead ? 0 : u.hp), 0));
     const cx = foot.length ? foot.reduce((s, u) => s + u.pos.x, 0) / foot.length : d.anchor.x, cz = foot.length ? foot.reduce((s, u) => s + u.pos.z, 0) / foot.length : d.anchor.z;
     const eng = sq.engineer, b = eng && !eng.dead && eng.building, mv = foot.find(u => u.dest || u.target), post = foot.find(u => u.post);
     const M = this.app.match, ord = M && M.hybrid && M.orders ? M.orders.forSquad(sq) : null;   // a hybrid commander: the squad's standing order, or that it is in the player's hand
     if (b) { const B = BUILDS[buildKind(b)]; Object.assign(d, { glyph: 'build', tone: 'y', text: `${B.name} ${mmss(b.t)}`, ring: { f: 1 - b.t / b.total, t: b.t, glyph: B.glyph } }); }
-    else if (d.alert) Object.assign(d, { glyph: 'fire', tone: 'red', text: `Under fire${this.place(cx, cz) ? ' · ' + this.place(cx, cz) : ''}` });
+    else if (sq.state === 'broken') Object.assign(d, { glyph: 'base', tone: 'red', text: `Broken · running${this.place(cx, cz) ? ' · ' + this.place(cx, cz) : ''}` });   // morale (game/morale.js): takes no order until it steadies
+    else if (sq.state === 'pinned') Object.assign(d, { glyph: 'fire', tone: 'red', text: `Pinned down${this.place(cx, cz) ? ' · ' + this.place(cx, cz) : ''}` });
+    else if (d.alert) Object.assign(d, { glyph: 'fire', tone: 'red', text: `Under fire${sq.state === 'shaken' ? ' · shaken' : ''}${this.place(cx, cz) ? ' · ' + this.place(cx, cz) : ''}` });
+    else if (wd.length) {   // wounded men down (RULES.wounds): who is seeing to them, or that nobody is and how long they have
+      const med = wd.find(u => u.treatedBy && !u.treatedBy.dead), aid = wd.find(u => u.aidT > 0), left = Math.min(...wd.map(u => u.bleed)), fitN = al.filter(u => u.fit).length;
+      Object.assign(d, { glyph: 'clock', tone: med || aid ? 'y' : 'red', text: `${wd.length} wounded · ${med ? 'medic on him' : aid ? `first aid ${Math.ceil(RULES.wounds.aid - aid.aidT)} s` : fitN ? `bleeding ${mmss(left)}` : 'nobody standing'}` });
+    }
     else if (car) Object.assign(d, { glyph: car.spec.air ? 'air' : 'ride', tone: 'go', text: car.type === 'dock' ? 'On the ship' : `${car.spec.air ? 'Flying in' : 'In'} ${car.label}` });   // the dock: waiting for a landing craft
     else if (M && M.hybrid && sq.manual) Object.assign(d, { glyph: 'follow', tone: 'go', text: `In your hand · ${mv ? this.toward(mv, mv.dest || mv.target) : this.place(cx, cz) || 'open ground'}` });
     else if (ord) Object.assign(d, { glyph: 'flag', tone: 'go', text: `Order: ${ord.text.replace(/^SQ-\d\d(, SQ-\d\d)* /i, '')}${foot.every(u => u.holdFire) ? ' · quiet' : ''}${ord.refusedNote || ord.note ? ' · ' + noteHead(ord.refusedNote || ord.note) : ''}` });

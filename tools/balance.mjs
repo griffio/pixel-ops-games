@@ -50,7 +50,7 @@ const play = (len, seed) => `(async () => {
   const dt = 0.05;
   while (m.state === 'play' && m.elapsed < ${len}) { a.world.update(dt); a.units.update(dt); m.update(dt); a.dust.update(dt); a.markers.update(dt); }
   return JSON.stringify({ state: m.state, winner: m.winner ? m.winner.id : null, reason: m.reason || 'cap reached', time: Math.round(m.elapsed), tickets: T.map(t => Math.round(t.tickets)),
-    losses: T.map(t => t.stats.losses), kills, captures: T.map(t => t.stats.captures), sandbags: [0, 1].map(i => a.units.units.filter(u => u.type === 'sandbags' && u.team === i).length),
+    losses: T.map(t => t.stats.losses), kills, wounded: T.map(t => t.stats.wounded || 0), bled: T.map(t => t.stats.bled || 0), recovered: T.map(t => t.stats.recovered || 0), captures: T.map(t => t.stats.captures), sandbags: [0, 1].map(i => a.units.units.filter(u => u.type === 'sandbags' && u.team === i).length),
     start: window.__start, sig: Math.round(a.units.units.reduce((h, u) => h + u.pos.x * 3 + u.pos.z * 7 + u.hp, 0)) });
 })()`;
 
@@ -97,7 +97,7 @@ function line(r) {
   if (r.failed) return `seed ${r.seed}  ${r.blu} v ${r.op}: FAILED (${r.failed})`;
   const win = r.winner === 0 ? r.blu : r.winner === 1 ? r.op : 'draw';
   const veh = (l) => sum(l) - (l.soldier || 0) - (l.fob || 0);
-  return `seed ${r.seed}  ${pad(r.blu + ' (SW)', 17)} v ${pad(r.op + ' (NE)', 17)} ${pad(win === 'draw' ? 'draw' : win + ' wins', 17)} ${pad(r.reason, 24)} ${clock(r.time)}  tickets ${r.tickets[0]}-${r.tickets[1]}  infantry lost ${r.losses[0].soldier || 0}-${r.losses[1].soldier || 0}  vehicles lost ${veh(r.losses[0])}-${veh(r.losses[1])}  sandbags ${r.sandbags[0]}-${r.sandbags[1]}${r.errors.length ? `  PAGE ERRORS ${r.errors.length}: ${r.errors[0]}` : ''}  (${r.wall} s)`;
+  return `seed ${r.seed}  ${pad(r.blu + ' (SW)', 17)} v ${pad(r.op + ' (NE)', 17)} ${pad(win === 'draw' ? 'draw' : win + ' wins', 17)} ${pad(r.reason, 24)} ${clock(r.time)}  tickets ${r.tickets[0]}-${r.tickets[1]}  infantry lost ${r.losses[0].soldier || 0}-${r.losses[1].soldier || 0}${r.wounded ? ` (wounded ${r.wounded[0]}-${r.wounded[1]}, bled out ${r.bled[0]}-${r.bled[1]}, patched up ${r.recovered[0]}-${r.recovered[1]})` : ''}  vehicles lost ${veh(r.losses[0])}-${veh(r.losses[1])}  sandbags ${r.sandbags[0]}-${r.sandbags[1]}${r.errors.length ? `  PAGE ERRORS ${r.errors.length}: ${r.errors[0]}` : ''}  (${r.wall} s)`;
 }
 
 try { await fetch(base); } catch { console.error(`Nothing is served at ${base}: start a server in the project root (python3 -m http.server 8787) or pass --url.`); process.exit(1); }
