@@ -457,7 +457,7 @@ export class Strategist {
     for (const o of orders) {
       if (o.intent === 'take' && o.at) { const l = byName(o.at); if (l && l.owner !== this.team && o2.capturable(this.team, l)) { g.attack = l; g.holds = null; g.attackShare = Math.max(g.attackShare || 0, 0.6); } else if (l && l.owner === this.team) { g.hold = l; g.holds = null; } }
       else if (o.intent === 'press') { g.posture = 'aggressive'; g.attackShare = Math.max(g.attackShare || 0, 0.8); }
-      else if (o.intent === 'hold the line' || o.intent === 'bleed them') { g.attack = null; g.attackShare = 0; }
+      else if (o.intent === 'hold the line' || o.intent === 'bleed them') { g.attack = null; g.attackShare = 0; if (o.intent === 'hold the line' && g.posture !== 'aggressive') g.posture = 'cautious'; }   // hold the line: careful, which steadies the squads (game/morale.js)
       else if (o.intent === 'pull back') { g.attack = null; g.attackShare = 0; g.posture = 'cautious'; const home = o2 ? o2.list.filter(l => l.owner === this.team).sort((p, q) => Math.hypot(p.x - base.x, p.z - base.z) - Math.hypot(q.x - base.x, q.z - base.z))[0] : null; if (home) { g.hold = home; g.holds = null; } }
       else if (o.intent === 'go quiet') { this.quiet = true; if (g.posture !== 'aggressive') g.posture = 'cautious'; }
       if (o.how === 'at all costs') g.posture = 'aggressive'; else if (o.how === 'carefully') g.posture = 'cautious';
@@ -498,6 +498,21 @@ export class Strategist {
   // falls back unless it stands in the zone it was sent to take or hold, or clearly has the numbers. Squads manning
   // sandbags stay put through all of it. An APC with an enemy inside 50 m backs off to 70 m.
   halt(sq, tag) { for (const m of sq.members) if (!m.dead) { m.dest = null; m.target = null; m.path = null; } sq.tag = tag; sq.goal = null; }
+  // The wounded (RULES.wounds, support.js): a squad with a man of its own down within tendRange, no medic on him and no enemy
+  // inside tendClear of him or of the squad, walks back to him (the leader onto him, so a fit man is within arm's reach) and
+  // stands by until he is up or gone, kept out of the plan (pinUntil); first aid takes 20 s. True while on that errand.
+  tend(sq, c, enemies, now) {
+    const WD = RULES.wounds, wd = sq.members.filter(m => m.down && !m.dead && !(m.treatedBy && !m.treatedBy.dead && !m.treatedBy.down));
+    if (!wd.length) { if (sq.tag === 'tend') sq.tag = null; return false; }
+    const near = (x, z) => enemies.some(e => Math.hypot(e.pos.x - x, e.pos.z - z) < WD.tendClear);
+    if (near(c.x, c.z)) return false;
+    let w = null, bd = WD.tendRange; for (const m of wd) { const d = Math.hypot(m.pos.x - c.x, m.pos.z - c.z); if (d < bd && !near(m.pos.x, m.pos.z)) { bd = d; w = m; } }
+    if (!w) return false;
+    sq.pinUntil = now + 6;
+    if (sq.members.some(m => m.fit && !m.mounted && Math.hypot(m.pos.x - w.pos.x, m.pos.z - w.pos.z) < WD.aidRange)) { if (sq.busy && sq.tag !== 'tend') this.halt(sq, 'tend'); sq.tag = 'tend'; return true; }   // by him: stand still
+    if (sq.tag !== 'tend' || !sq.busy) { sq.tag = 'tend'; sq.goal = [w.pos.x, w.pos.z]; sq.order(w.pos.x, w.pos.z); }
+    return true;
+  }
   // Ammunition (RULES.ammo, support.js): a squad whose fit men average under a quarter of their magazines, with no enemy inside
   // 60 m, walks to the nearest of its own supplies within 300 m (a stopped supply truck or the dump, a FOB, main base) and is
   // kept out of the plan (pinUntil) until it has filled up; it is sent again every second it is still low, so the plan takes it
@@ -538,6 +553,7 @@ export class Strategist {
       if (sq.manual) continue;                                                                               // in the player's hand
       if (sq.state === 'broken') continue;                                                                   // running (game/morale.js): nothing to tell it
       const c = sq.centroid();
+      if (this.tend(sq, c, enemies, now)) continue;                                                         // a man down and no enemy near: back to him and stand by
       if (this.rearm(sq, c, enemies, now)) continue;                                                        // low on ammunition and out of contact: off to fill up
       let apc = null, ad = 1e9; for (const v of apcs) { const d = Math.hypot(v.pos.x - c.x, v.pos.z - c.z); if (d < 150 && d < ad && C.canSeePoint(v, c.x, c.z)) { apc = v; ad = d; } }
       if (apc) {

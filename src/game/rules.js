@@ -28,15 +28,17 @@ export const RULES = {
   // one of its FOBs (a magazine a man every fobEvery s); low (the last magazine) a man fires only inside lowReach of his range
   // unless the enemy is inside close m, and a gun's bursts shorten; dry he takes no target and walks on with his squad
   ammo: { supplyCost: 4, fobRange: 15, fobEvery: 10, lowReach: 0.6, close: 25 },
-  wounds: { bleed: 150, aid: 20, aidRange: 3, treat: 5, treatRange: 25, upHp: 20, slow: 0.85, aidSupp: 0.45, aidEnemy: 30 },   // first aid stops while a fit man is suppressed past aidSupp or an enemy is inside aidEnemy m
+  wounds: { bleed: 150, aid: 20, aidRange: 3, treat: 5, treatRange: 25, seekRange: 70, tendRange: 80, tendClear: 60, upHp: 20, slow: 0.85, aidSupp: 0.45, aidEnemy: 30 },   // first aid stops while a fit man is suppressed past aidSupp or an enemy is inside aidEnemy m; a medic whose squad is not engaging walks to a wounded man within seekRange; the CPU walks a squad back to a man of its own within tendRange when no enemy is inside tendClear of him or the squad
   // squad morale (game/morale.js): what a casualty in the squad costs (killed, wounded), what one in a squad within nearRadius
   // costs, the drain a second at mean suppression 1 and the drain with armour inside armourRadius the squad has no launcher for,
   // the recovery a second once calm (calmAfter s since the last casualty; faster broken and out of contact, doubled at home,
   // half as much again near friends), the ceiling at zero strength (capBase, rising to 1 at full),
-  // what a squad settled in its positions (postedDrain) or at home (homeDrain) feels of all that,
+  // what a squad settled in its positions (postedDrain) or at home (homeDrain) feels of all that, what the commander's posture
+  // does (pressDrain: pushed on under Press or at all costs, a squad wears faster but a pinned one takes orders toward the
+  // enemy; carefulDrain and carefulRecover: under Hold the line, Pull back, Go quiet or carefully it wears slower and mends faster),
   // how far a broken squad runs (fleeRun) and from how far it heads home (homeRadius), how close an enemy
   // must be for a broken man to shoot (brokenReach), and the state thresholds, down and back up (hysteresis)
-  morale: { killed: 0.15, wounded: 0.1, near: 0.03, nearRadius: 30, suppDrain: 0.03, armourDrain: 0.02, armourRadius: 80, threatRadius: 150, calmAfter: 4, recover: 0.012, recoverBroken: 0.02, friendRadius: 25, capBase: 0.4, fleeRun: 60, homeRadius: 250, brokenReach: 15, postedDrain: 0.5, homeDrain: 0.7,
+  morale: { killed: 0.15, wounded: 0.1, near: 0.03, nearRadius: 30, suppDrain: 0.03, armourDrain: 0.02, armourRadius: 80, threatRadius: 150, calmAfter: 4, recover: 0.012, recoverBroken: 0.02, friendRadius: 25, capBase: 0.4, fleeRun: 60, homeRadius: 250, brokenReach: 15, postedDrain: 0.5, homeDrain: 0.7, pressDrain: 1.15, carefulDrain: 0.85, carefulRecover: 1.25,
     thresholds: { shaken: 0.6, pinned: 0.35, broken: 0.15, pinnedAgain: 0.3, shakenAgain: 0.45, steadyAgain: 0.7 } },   // a rifleman's hand grenades (weapons.js grenade, combat.throwGrenade): count each, one throw a squad every squadGap s, none with a friend within `friendly` m of the target; back on respawn, in the main base, or beside a stopped supply truck for supplyCost a squad
   sandbags: { buildTime: 12, supplyCost: 12, max: 8, minSpacing: 12, enemyBaseDistance: 60, roadClear: 10, clearTime: 8, clearRange: 8 },   // any engineer standing at a position clears it, like traps
   // base defence works (game/fob.js, docs/GAME_PLAN.md B3): a wall run, 6 m of gabions 1.8 m high that blocks sight and movement until

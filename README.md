@@ -78,7 +78,8 @@ fire (5 s for a medic), dead in two and a half minutes if nobody does. A move le
 behind. Squads have morale: casualties, fire kept on them and armour they cannot answer wear it
 down, and a squad goes shaken (aims worse), then pinned (flat, won't go toward the enemy), then
 broken (drops its orders, runs for cover and home, takes no order until it steadies); out of
-contact it recovers, faster near friends and at home. Men carry magazines (four for a rifle,
+contact it recovers, faster near friends and at home. The CO's postures act on it: Press pushes
+pinned squads on at a cost, Hold the line and Pull back steady them. Men carry magazines (four for a rifle,
 four belts for a gun, three rockets) and change them with a pause; on the last one a man fires
 only at what is close, and dry he takes no target. Squads fill up in main base, beside a stopped
 supply truck for 4 supplies, or slowly at a FOB; the card says low ammo or out of ammo. Left-drag to select

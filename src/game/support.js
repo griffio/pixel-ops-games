@@ -93,14 +93,18 @@ export class Support {
       u.treatedBy = null; const sq = u.squad; if (!sq) continue;
       const fit = sq.members.filter(m => m.fit && !m.mounted && !m.afloat);
       if (!fit.length || fit.some(m => m.supp > WD.aidSupp || (m.enemy && !m.enemy.dead && Math.hypot(m.enemy.pos.x - m.pos.x, m.enemy.pos.z - m.pos.z) < WD.aidEnemy))) continue;   // heads down, or the enemy on top of them: nobody can see to him
-      if (!fit.some(m => Math.hypot(m.pos.x - u.pos.x, m.pos.z - u.pos.z) < WD.aidRange)) continue;
+      let helper = null, hd = WD.aidRange; for (const m of fit) { const d = Math.hypot(m.pos.x - u.pos.x, m.pos.z - u.pos.z); if (d < hd) { hd = d; helper = m; } }
+      if (!helper) continue;
+      helper.tendT = 0.3;   // kneeling by him (Unit.stepGround)
       if ((u.aidT += dt) >= WD.aid) { u.recover(); if (this.onRecovered) this.onRecovered(u, null); }
     }
     for (const u of all) {
       if (u.dead || u.down || u.mounted || (u.kit !== 'medic' && u.kit !== 'engineer')) continue;
       if (u.kit === 'medic') {
-        // the nearest wounded man of his side within reach that no other medic is on: walk to him, kneel by him `treat` s
-        let best = null, bd = WD.treatRange;
+        // the nearest wounded man of his side within reach that no other medic is on: walk to him, kneel by him `treat` s;
+        // further off (seekRange) when his own squad has nobody engaging and he is not under fire
+        const quiet = u.supp < 0.3 && !(u.squad && u.squad.members.some(m => m.fit && m.enemy && !m.enemy.dead));
+        let best = null, bd = quiet ? WD.seekRange : WD.treatRange;
         for (const b of all) {
           if (!b.down || b.dead || b.team !== u.team || (b.treatedBy && b.treatedBy !== u && !b.treatedBy.dead && !b.treatedBy.down)) continue;
           const d = Math.hypot(b.pos.x - u.pos.x, b.pos.z - u.pos.z); if (d < bd) { bd = d; best = b; }
@@ -109,7 +113,7 @@ export class Support {
         if (!best) { if (u.medicTarget) { u.medicTarget = null; u.target = null; u.dest = null; u.hold = false; } continue; }
         best.treatedBy = u;
         if (bd > 2.5) { if (u.medicTarget !== best || !u.dest) { u.medicTarget = best; u.order(best.pos.x, best.pos.z); } continue; }
-        u.medicTarget = best; u.hold = true; best.treatT = (best.treatT || 0) + dt;
+        u.medicTarget = best; u.hold = true; u.tendT = 0.3; best.treatT = (best.treatT || 0) + dt;   // kneeling by him
         if (best.treatT >= WD.treat) { best.recover(); u.medicTarget = null; u.hold = false; if (this.onRecovered) this.onRecovered(best, u); }
       } else if (u.speed < 0.2) {
         for (const v of all) {

@@ -221,6 +221,31 @@ Engine changes needed in the existing core:
     (most of the wounded bleed out or die to grenade fragments where they lie), nothing steadies a squad through the
     player's Press and Hold the line postures yet, and a broken squad in the player's hand stays in it once it steadies.
 
+- **Morale and fire follow-ups (2026-11-03, branch `morale-combat`).** The user played Palm Valley and found it good for
+  now; then the list from "what's next".
+  - *Collecting the wounded.* Only 15 of 136 wounded a match were patched up on Palm Valley: squads walked on or stayed in
+    contact. `strategist.tend` (before `rearm` in caution): a squad with a man of its own down within 80 m, no medic on him
+    and no enemy inside 60 m of him or of the squad walks back to him (the leader onto him) and stands by, kept out of the
+    plan, until he is up or gone. A medic whose squad has nobody engaging, and who is not under fire, goes to any wounded
+    man of his side within 70 m (`RULES.wounds.seekRange`; 25 m otherwise, as before). Whoever gives aid kneels by him
+    (`Unit.tendT`).
+  - *Readable.* A wounded man rolls onto his side (`Unit.downK`, the group's z), drops his rifle (hidden) and lets his head
+    down, so he reads apart from a suppressed man lying prone. A voice line for a squad breaking is not made: the voices
+    were text-to-speech with post-processing that no tool in the tree repeats; parked.
+  - *Postures.* The commander's posture (strategist.applyOrders) acts on morale (`RULES.morale.pressDrain`,
+    `carefulDrain`, `carefulRecover`): under Press or at all costs a squad wears 1.15x faster and a pinned one takes orders
+    toward the enemy (`sq.pressed`); under Pull back, Go quiet, carefully, and now Hold the line (made cautious when not
+    aggressive), it wears 0.85x and mends 1.25x. The guide and README say so.
+  - *Sweep.* Narva (balanced v armoured, light v mechanized, seed 1, both ways) and Peninsula invasion (balanced v
+    mechanized, air v light, seed 1, both ways): no page errors; Narva 150-200 infantry deaths a match, all to the clock;
+    Peninsula 228-367 infantry deaths a match against 245-532 on master (the same set run on a
+    worktree of master), every match ending by the defender's tickets at 15-21 min on both, the attacking side winning all
+    four on both: the mode's shape, not the branch's.
+  - *Measured again* (Hollow seeds 1 and 2, Palm Valley core set seed 1): Palm Valley patched up 15 to 31 a match and bled out 48 to 36,
+    deaths 233 to 237, all eight matches to the clock, no page errors; the Hollow unchanged at about 15 patched up a match
+    (its brawl rarely leaves a squad 60 m clear of an enemy), 94-200 deaths a match, no page errors. The commander prompt
+    (worker/index.js) now describes the wounded, morale and ammunition; it takes effect on the next deploy.
+
 - **Milestone 1 — done (2026-10-23).** Teams with olive OPFOR recolour, hit points,
   rifle / MG / AT / autocannon / door-gun weapons with line of sight, infantry deaths
   and vehicle wrecks with smoke, tracers and impacts, respawns at main base, ticket

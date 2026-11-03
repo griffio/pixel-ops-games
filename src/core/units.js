@@ -94,6 +94,7 @@ export class Unit {
     this.stance = 'stand'; this.supp = 0; this.kneelK = 0; this.proneK = 0; this.aimK = 0;   // infantry: suppression 0..1 and the pose blends it drives
     this.down = false; this.bleed = 0; this.aidT = 0; this.wounder = null;   // infantry: down wounded (wound), the seconds left before he dies, first aid given so far, who did it
     this.rounds = 0; this.mags = 0;   // infantry: rounds in the weapon and spare magazines (loadAmmo; weapons.js mag/mags)
+    this.downK = 0; this.tendT = 0;   // infantry: the roll onto his side when wounded (the pose), seconds left kneeling by a wounded man (support.js)
     this.dead = false; this.deathT = 0; this.wreck = false; this.remove = false;
     this.mounted = null; this.passengers = []; this.boardTarget = null; this.turnT = 0; this.supplies = 0; this.landedT = 0; this.hover = false;
     this.post = null; this.crew = spec.hollow ? slotsOf(spec).map(() => null) : null;   // a soldier's firing slot in a sandbag position; a position's crew by slot
@@ -269,7 +270,7 @@ export class Unit {
   recover() { if (!this.down || this.dead) return; this.down = false; this.bleed = 0; this.aidT = 0; this.treatT = 0; this.treatedBy = null; this.wounder = null; this.hp = Math.max(this.hp, RULES.wounds.upHp); this.supp = Math.max(this.supp, 0.5); }
   die(from) {
     this.dead = true; this.deathT = 0; this.enemy = null; this.target = null; this.path = null; this.dest = null; this.hold = false; this.boardTarget = null; this.building = null; this.leavePost(); this.descend = 0; this.breach = null;
-    this.down = false; this.bleed = 0; this.treatedBy = null; this.aimedAt = null; this.pinnedDown = false; this.fleeing = false;
+    this.down = false; this.bleed = 0; this.treatedBy = null; this.aimedAt = null; this.pinnedDown = false; this.fleeing = false; this.downK = 0; this.tendT = 0; this.group.rotation.z = 0;
     this.killer = from || null; this.parts.ring.visible = false;
     if (this.group.baked && this.mgr && this.mgr.world.renderer) this.mgr.world.renderer.unbakeGroup(this.group);   // a dead structure is drawn live again, so a wreck recolour or a fall shows
     // passengers: out of a ground vehicle (or a landed helicopter) shaken and hurt, lost with a helicopter shot down in the
@@ -291,7 +292,7 @@ export class Unit {
   }
   // revive at a position (infantry respawn reuses the object so squads keep their members)
   revive(x, z, heading) { if (this.spec.ammo) this.ammo = this.spec.ammo; if (this.kit === 'rifle') this.grenades = RULES.grenades.count; this.loadAmmo(); this.holdFire = !!(this.squad && this.squad.members.some(m => !m.dead && m !== this && m.holdFire));   // a man back to a squad holding fire holds it too
-    this.dead = false; this.down = false; this.bleed = 0; this.aidT = 0; this.wounder = null; this.treatedBy = null; this.aimedAt = null; this.hp = this.maxHp; this.pos.set(x, 0, z); this.heading = heading; this.group.rotation.set(0, heading, 0); this.descend = 0;
+    this.dead = false; this.down = false; this.bleed = 0; this.aidT = 0; this.wounder = null; this.treatedBy = null; this.aimedAt = null; this.downK = 0; this.tendT = 0; this.hp = this.maxHp; this.pos.set(x, 0, z); this.heading = heading; this.group.rotation.set(0, heading, 0); this.descend = 0;
     this.group.visible = true; this.speed = 0; this.enemy = null; this.target = null; this.path = null; this.dest = null; this.deathT = 0; this.reviveT = 0; this.hold = false; this.boardTarget = null; this.mounted = null; this.landedT = 0;
   }
 
@@ -360,7 +361,8 @@ export class Unit {
     // infantry stance: standing on the move or at rest, a knee to shoot from when still, flat when suppressed (and only crawling then), flat wounded
     if (this.type === 'soldier') {
       this.supp *= Math.exp(-dt / 2.5);
-      this.stance = this.down || this.pinnedDown || (this.supp > 0.5 && !(this.fleeing && want !== 0)) ? 'prone' : (this.supp > 0.25 && want === 0 && !this.fleeing) ? 'prone' : want === 0 && this.enemy ? 'kneel' : 'stand';   // pinnedDown: the squad's morale (game/morale.js); a broken man runs upright
+      if (this.tendT > 0) this.tendT -= dt;
+      this.stance = this.down || this.pinnedDown || (this.supp > 0.5 && !(this.fleeing && want !== 0)) ? 'prone' : (this.supp > 0.25 && want === 0 && !this.fleeing) ? 'prone' : want === 0 && (this.enemy || this.tendT > 0) ? 'kneel' : 'stand';   // pinnedDown: the squad's morale (game/morale.js); a broken man runs upright; kneeling by a wounded man
       if (this.stance === 'prone' && want !== 0) want *= 0.3;
       const kk = this.stance === 'kneel' ? 1 : 0, pk = this.stance === 'prone' ? 1 : 0, r1 = Math.min(1, dt * 4), r2 = Math.min(1, dt * 3);
       this.kneelK += (kk - this.kneelK) * r1; this.proneK += (pk - this.proneK) * r2;
@@ -405,7 +407,9 @@ export class Unit {
       const run = clamp(this.speed / this.spec.speed, 0, 1);
       this.phase += dt * (3 + 10 * run);
       this.aimK += ((this.enemy ? 1 : 0) - this.aimK) * Math.min(1, dt * 6);   // shoulder the rifle while engaged
-      const ak = this.aimK, k = this.kneelK, pr = this.proneK;
+      this.downK += ((this.down ? 1 : 0) - this.downK) * Math.min(1, dt * 3);   // wounded: rolled onto his side, the rifle dropped, the head down
+      const ak = this.aimK, k = this.kneelK, pr = this.proneK, dk = this.downK;
+      this.group.rotation.z = -1.1 * dk;
       const sw = Math.sin(this.phase) * 0.85 * run;              // +x rotation swings a leg backward
       p.legL.rotation.x = sw; p.legR.rotation.x = -sw;
       p.kneeL.rotation.x = Math.max(0, sw) * 1.4 + 0.12 * run;   // heel kicks up on the trailing leg
@@ -426,7 +430,7 @@ export class Unit {
       // machine gunners hold the machine gun; anti-tank soldiers swap the carbine for the launcher once they have a target
       const tp = p.torso.rotation.x, ty = p.torso.rotation.y, up = 1 - pr, c = 1 - ak, kit = this.kit;
       const tube = kit === 'at' && ak > 0.5, R = kit === 'mg' ? p.mg : tube ? p.launcher : p.rifle;
-      p.rifle.visible = kit !== 'mg'; p.mg.visible = kit === 'mg'; p.launcher.visible = kit === 'at';
+      p.rifle.visible = kit !== 'mg' && dk < 0.5; p.mg.visible = kit === 'mg' && dk < 0.5; p.launcher.visible = kit === 'at' && dk < 0.5;
       if (tube) R.position.set(TUBE_AIM[0] * up + TUBE_PRONE[0] * pr, TUBE_AIM[1] * up + TUBE_PRONE[1] * pr, TUBE_AIM[2] * up + TUBE_PRONE[2] * pr);
       else R.position.set((CARRY[0] * c + AIM[0] * ak) * up + PRONE[0] * pr, (CARRY[1] * c + AIM[1] * ak) * up + PRONE[1] * pr, (CARRY[2] * c + AIM[2] * ak) * up + PRONE[2] * pr);
       if (tube) R.rotation.set(-tp, -ty, 0);
@@ -436,7 +440,7 @@ export class Unit {
       const at = (h) => { const v = rotXYZ(h, R.rotation); AT.x = R.position.x + v.x; AT.y = R.position.y + v.y; AT.z = R.position.z + v.z; return AT; };   // reach() reads it before the next at()
       const [grip, guard] = HOLD[tube ? 'launcher' : kit === 'mg' ? 'mg' : 'rifle'];
       reach(p.armL, p.elbowL, at(grip), POLE_TRIGGER); reach(p.armR, p.elbowR, at(guard), POLE_SUPPORT);
-      p.head.rotation.set(0.15 * ak * up - 1.2 * pr, -ty * 0.8, 0.12 * ak * up);
+      p.head.rotation.set(0.15 * ak * up - 1.2 * pr * (1 - dk), -ty * 0.8, 0.12 * ak * up);
     } else {
       const spin = this.speed * dt / 0.6;
       for (const w of p.wheels) w.rotation.x += spin;
@@ -579,7 +583,7 @@ export class Squad {
   order(x, z, path, force = false) {   // force: the morale module's own flight (game/morale.js); otherwise a broken squad takes no order and a pinned one none that is toward the enemy it can see (refused: the note the HUD shows)
     const L = this.leader; if (!L) return;
     if (!force && this.state === 'broken') { this.refused = 'broken'; return; }
-    if (!force && this.state === 'pinned' && this.threat) { const c = this.centroid(); if (Math.hypot(x - this.threat.x, z - this.threat.z) < Math.hypot(c.x - this.threat.x, c.z - this.threat.z) - 4) { this.refused = 'pinned'; return; } }
+    if (!force && this.state === 'pinned' && this.threat && !this.pressed) { const c = this.centroid(); if (Math.hypot(x - this.threat.x, z - this.threat.z) < Math.hypot(c.x - this.threat.x, c.z - this.threat.z) - 4) { this.refused = 'pinned'; return; } }
     this.refused = null;
     const h = Math.atan2(x - L.pos.x, z - L.pos.z), c = Math.cos(h), s = Math.sin(h);
     const offs = [[0, 0], [-1.3, -1.3], [1.3, -1.3], [-2.6, -2.6], [2.6, -2.6], [0, -2.6], [-1.3, -3.9], [1.3, -3.9]];
