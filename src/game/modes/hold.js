@@ -54,6 +54,7 @@ export class Hold extends AAS {
   buildRules = { buildRange: 140, sandbagsMax: 20, trapsMax: 10, perFob: 12, fobRange: 100, wallsMax: 30, platformsMax: 8 };   // the dump at the HQ serves the whole farm; room for a real defence
   static RING = 95;   // build within this of the HQ: the knoll and the ground just below its lip
   tickets(team) { return team === 1 ? 9999 : super.tickets(team); }   // the attackers' losses are the waves themselves
+  ticketCost(u) { return u.type === 'soldier' ? 1 : undefined; }   // a man of the garrison costs one of the farm's 200, as the waves were cut for (B4), not the two of the open maps (morale and fire plan F3)
   deploys(team) { return team === 0; }   // no starting force for the attackers: the waves are theirs
   setup() {
     super.setup();

@@ -229,7 +229,7 @@ export class Combat {
       if (u.enemy && u.cooldown <= 0 && u.type === 'soldier' && w.burst <= 1 && !w.explosive && u.enemy.type === 'soldier' && u.enemy.proneK > 0.6 && Math.random() < 0.7) {   // a rifleman with a prone man beyond half his range mostly holds his shot: the gun's job
         const e = u.enemy; if (Math.hypot(e.pos.x - u.pos.x, e.pos.z - u.pos.z) > w.range * 0.5) u.cooldown = 1 + Math.random();
       }
-      if (u.enemy && u.cooldown <= 0 && own && u.mags <= 1 && u.burst <= 0) {   // the last magazine: a shot only at what is close, or well inside his range
+      if (u.enemy && u.cooldown <= 0 && own && u.mags <= 1 && u.burst <= 0 && u.enemy.type === 'soldier') {   // the last magazine: a shot at a man only when he is close, or well inside range (a vehicle is always worth the rocket)
         const e = u.enemy, d = Math.hypot(e.pos.x - u.pos.x, e.pos.z - u.pos.z);
         if (d > RULES.ammo.close && d > w.range * RULES.ammo.lowReach) u.cooldown = 0.5 + Math.random() * 0.5;
       }
@@ -291,7 +291,7 @@ export class Combat {
     if (Math.abs(u.speed) > 0.5) chance *= 0.5;
     if (!first) chance *= 0.8;                          // recoil through the burst
     if (u.type === 'soldier') chance *= 1 - 0.4 * u.supp; // a suppressed shooter aims badly
-    const st = u.type === 'soldier' && u.squad ? u.squad.state : null;   // the squad's morale (game/morale.js): shaken aims worse and pauses longer, broken worse again; pinned is held suppressed, which does both
+    const st = u.type === 'soldier' && u.squad ? u.squad.state : null;   // the squad's morale (game/morale.js): shaken aims worse and pauses longer, pinned more so, broken worse again
     if (st === 'shaken') { chance *= 0.85; u[CD] *= 1.2; } else if (st === 'pinned') { chance *= 0.7; u[CD] *= 1.4; } else if (st === 'broken') chance *= 0.6;
     if (e.type !== 'soldier') chance *= 1.6;            // vehicles are big targets
     if (w.rocket && e.spec.air && e.alt > 2) chance *= u.squad && u.squad.aa && !u.dest ? 0.7 : 0.35;   // an unguided rocket at a helicopter in the air rarely connects; braced for it (a squad standing to fire at helicopters, strategist.skyward) twice as often

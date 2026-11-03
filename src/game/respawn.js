@@ -7,7 +7,7 @@ export class Respawn {
   constructor(units, teams, world) { this.units = units; this.teams = teams; this.world = world; this.queue = []; this.clock = 0; this.rallies = null; this.landing = null; }
   sea(team) { return this.landing && this.landing.team === team.id ? this.landing : null; }   // the landing craft, for a side based on a ship
 
-  cost(u) { return u.supply ? RULES.ticketCost.supply : (RULES.ticketCost[u.type] || 0); }   // fob: 40; caches are charged by the mode
+  cost(u) { const c = this.mode && this.mode.ticketCost ? this.mode.ticketCost(u) : undefined; if (c !== undefined) return c; return u.supply ? RULES.ticketCost.supply : (RULES.ticketCost[u.type] || 0); }   // a mode may price a unit itself (Hold: a man of the garrison costs one); fob: 40; caches are charged by the mode
   timer(u) { const t = this.teams[u.team], d = t.doctrine || {}; return RULES.respawnTime[u.type] * (u.type === 'soldier' ? (t.infantryRespawn ?? d.infantryRespawn ?? 1) : (d.vehicleRespawn || 1)) * (u.spec.air ? d.heliRespawn || 1 : 1) * (t.respawnMul || 1); }
 
   onDeath(victim, killer) {
@@ -87,7 +87,7 @@ export class Respawn {
       if (rally ? !(rally.waveNow && this.clock - q.died >= RULES.rally.cutoff) : q.t > 0) continue;
       if (u.type === 'soldier') {
         // a doctrine may make men cheaper (Light Infantry: half a ticket); the fraction carries over, so every second man is free
-        const cost = RULES.ticketCost.soldier * (team.respawnCost ?? (team.doctrine && team.doctrine.respawnCost) ?? 1), due = Math.floor((team.respawnDebt || 0) + cost + 1e-9);
+        const cost = this.cost(q.unit) * (team.respawnCost ?? (team.doctrine && team.doctrine.respawnCost) ?? 1), due = Math.floor((team.respawnDebt || 0) + cost + 1e-9);   // a man's price (the mode may set it: Hold), scaled by the doctrine
         if (team.tickets < due) continue;            // can't afford it yet
         team.respawnDebt = (team.respawnDebt || 0) + cost - due; team.tickets -= due;
         const [x, z] = rally ? this.atRally(rally) : this.spawnPoint(u, team);

@@ -152,6 +152,75 @@ Engine changes needed in the existing core:
 
 ## Status
 
+- **Morale and fire F1-F2 (2026-11-03, branch `morale-combat`).** The plan's first two milestones (see "Morale and fire plan"
+  below). Measured first, on the old code: rifles 99 rounds a minute at 4.9% a round at 40 m, machine guns 200 at 5.8%, every
+  burst at the 10 Hz tick (every burst gap under a tick); the Hollow balanced v light at seeds 1 and 2 lost 375-425 infantry a
+  match, the Palm Valley core set at seed 1 averaged 407.
+  - *Fire discipline* (`weapons.js`, `combat.js`): rifles single shots (acc 0.2, a 3 s pause), guns six-round bursts (acc 0.14,
+    3.6 s), a soldier's pause stretched with range (0.6x at the muzzle to 1.5x at full range, jitter 0.7-1.3), an aim time on a
+    new target (`aim`, more far out and suppressed), a rifleman holding his shot 70% of the time at a prone man beyond half his
+    range, a launcher firing at a lone man only inside 25 m (`lone`), suppression per round from the table (`supp`: a rifle
+    round 0.15, a gun's 0.15-0.2). The first cut (rifle acc 0.26 at 2.4 s) left the casualty rate a shooter where the kill rate
+    had been: the Hollow fell only to 340 and Palm Valley to 382.
+  - *Casualties* (`combat.casualty`, `Unit.wound`, `support.js`, `RULES.wounds`): a direct hit on a soldier is always a casualty,
+    killed with the weapon's `lethal` (rifle 0.4, gun 0.35, marksman 0.7, rockets 0.8, cannon 0.7, tank gun 0.9, scaled by the
+    CPU setting's dmg), else down wounded: flat where he fell, no target, no shot, no order, no capture, no sight, out of his
+    post, left behind by a move, nobody's target, bleeding out in 150 s. A fit squadmate within 3 m, with no fit man of the
+    squad suppressed past 0.45 and no enemy inside 30 m, has him up in 20 s; a medic within 25 m walks to him and has him up in
+    5 s; up at 20 hp (the hurt pip), walking at 0.85. Fragments give a casualty with a chance k x dmgInf / 30. The medic's
+    revive of the dead is gone. `Unit.damage` on a soldier (a fall from a wrecked carrier) is a wound with that chance.
+  - *Morale* (`game/morale.js`, `RULES.morale`): a squad value 0..1, down 0.15 a man killed and 0.1 wounded (0.03 for a man
+    dying of his wounds, 0.03 for a casualty in a squad within 30 m), 0.03 a second at mean suppression 1 (half as much
+    again below full strength), 0.02 a second with armour inside 80 m and no launcher; up 0.012 a second once calm (nobody
+    suppressed past 0.2, nobody engaging, 4 s since the last casualty), 0.02 broken and out of contact, doubled within 60 m of
+    base or 40 m of a FOB, half as much again with another squad of two or more within 25 m, 0.6x with one man, never above
+    0.4 + 0.6 x strength. States with hysteresis: steady; shaken under 0.6 (aim 0.85x, pause 1.2x), back at 0.7; pinned under
+    0.35 (flat through `u.pinnedDown`, aim 0.7x, pause 1.4x, `Squad.order` refuses a goal nearer the enemy it can see, the HUD
+    toasts it), back at 0.45; broken under 0.15 (orders dropped, every man runs upright for cover out of the nearest enemy's
+    sight (`combat.coverPoint`, 60 m) or straight away from him, then toward the nearest own place, FOB or base within 250 m,
+    a shot only at a man inside 15 m, no order taken, `pinUntil` keeps the strategist off it), back at 0.3. The first cut held
+    a pinned squad at suppression 0.55, which fed the drain: by minute five every squad on both sides was broken or pinned at
+    morale 0.2 and stayed there (the probe, scratchpad `probe.mjs`). Driving the stance directly fixed it: squads cycle through
+    the states and come back within a minute or two.
+  - *Everyone who reads a squad*: the CPU's weight (shaken 0.85, pinned 0.4, broken 0, a wounded man 0), condition and
+    readiness fold morale; the plan and caution skip broken squads; the card says Broken · running, Pinned down, Under fire ·
+    shaken, N wounded · first aid / medic on him / bleeding m:ss; the digest carries wounded and morale; the voices call a man
+    going down (not again when he dies of it); the balance runner prints wounded, bled out and patched up.
+  - *Measured after*: the Hollow 158-228 infantry deaths a match (wounded 95-157, a fifth to a third of them bleeding out, 11-28
+    patched up), two of four matches ending with every location captured as one side collapsed; Palm Valley 407 to 265 a match, all eight to the clock.
+
+- **Morale and fire F3-F4 (2026-11-03, branch `morale-combat`).** The last two milestones, and the Hold fallout.
+  - *Economy* (`RULES`): two tickets a man and 45 s respawns (wave slack 12). Hold prices its garrison itself: `Respawn.cost`
+    asks the mode (`mode.ticketCost`), and Hold answers one a man, since its waves were cut against a 200-pool of one-ticket
+    men (B4); at two the farm fell by tickets with fewer men dead than before. Infantry respawns are now charged through the
+    same `cost`, so a mode's price applies to them too.
+  - *Ammunition* (`weapons.js` mag/mags/reload, `RULES.ammo`, `Unit.loadAmmo`, `combat.fire`, `support.js`, `strategist.rearm`):
+    rifles four magazines of 30, guns four belts of 50, launchers three rockets, marksmen five of 10, medics and engineers
+    three of 30; a round off the magazine a shot, a change with its pause (3 s, a gun 5) and the reload foley when it empties;
+    dry, a man takes no target and walks on with his squad (grenades still go); on his last magazine he fires only at what
+    is inside 25 m or 0.6 of his range, and a gun's bursts shorten to three. Squads fill up standing in main base, beside a
+    stopped supply truck or the Hold's dump within 12 m for 4 supplies once down to half, or a magazine a man every 10 s
+    within 15 m of a FOB; full again at a respawn. The CPU walks a squad under a quarter of its magazines, with no enemy
+    inside 60 m, to its nearest supply within 300 m and keeps it out of the plan (`pinUntil`) until full. The card appends
+    "low ammo" and "out of ammo"; the digest carries `ammo`. At six magazines a rifle nobody ran low in a 12-minute Hollow
+    (the probe's mean share stayed above 0.93), hence four.
+  - *Morale at home* (`RULES.morale.postedDrain`, `homeDrain`): a squad settled in its positions feels half of every drain
+    and every casualty, one within 40 m of its FOB or 60 m of base 0.7, after the first Hold run emptied the walls (the posted
+    men 3, 1 and 0 at the last three waves, under ten by the sixth before) as the garrison broke under the mortars.
+  - *Tool*: `tools/morale-probe.mjs`, the probe that found the pinned trap: squads by state, wounded, ammunition every N s.
+  - *Measured* (all seeded as before, no page errors): Palm Valley core set, seed 1, eight matches: infantry deaths a match 407 before, 265 after
+    F2, 233 with everything in (wounded 136, 48 of them bleeding out, 15 patched up), 2.6 vehicles lost a match (3.2), the
+    same four presets winning the same matches as before (light 3, balanced 2, mechanized 2, armoured 1), seven of eight to
+    the clock. The Hollow balanced v light, seeds 1 and 2: 375-425 deaths a match before, 133-212 after (wounded 107-149),
+    two matches to the clock, one by tickets at 10:07 and one by every location captured at 10:19, so the 280 pool now ends
+    about half its matches a minute or two early, which is where the plan says a match should end. Hold the Farm, normal
+    with the standard works, seeds 1 and 2: held with 99 and 49 tickets (76 and 109 on seeds 3 and 4 at B4), 69 and 80 men
+    lost, 86-90 attackers killed and 53-57 still alive at the clock, since broken waves run home and come back; the posted
+    men 18, 15, 14, 12, 8, 4, 6, 0 at the waves on seed 2. The branch is not merged: the user decides, and the knobs are all
+    data (`weapons.js`, `RULES.wounds`, `RULES.morale`, `RULES.ammo`). Left for later: first aid completes rarely in a brawl
+    (most of the wounded bleed out or die to grenade fragments where they lie), nothing steadies a squad through the
+    player's Press and Hold the line postures yet, and a broken squad in the player's hand stays in it once it steadies.
+
 - **Milestone 1 — done (2026-10-23).** Teams with olive OPFOR recolour, hit points,
   rifle / MG / AT / autocannon / door-gun weapons with line of sight, infantry deaths
   and vehicle wrecks with smoke, tracers and impacts, respawns at main base, ticket

@@ -16,7 +16,7 @@ export class Morale {
     this.hit(sq, dead ? (v.bledOut ? R.near : R.killed) : R.wounded);   // a man dying of his wounds was paid for when he went down
     for (const o of this.units.squads) if (o !== sq && o.team === sq.team && o.leader && dist(o.centroid(), v.pos) < R.nearRadius) this.hit(o, R.near);
   }
-  hit(sq, amount) { sq.morale = Math.max(0, (sq.morale ?? 1) - amount); sq.hitAt = this.m.elapsed; }
+  hit(sq, amount) { const fit = sq.members.filter(u => u.fit); if (fit.length && fit.every(u => u.post && u.post.settled)) amount *= RULES.morale.postedDrain; sq.morale = Math.max(0, (sq.morale ?? 1) - amount); sq.hitAt = this.m.elapsed; }   // a casualty costs a settled squad half
   tick(dt) {
     const R = RULES.morale, m = this.m, now = m.elapsed, V = m.vision, C = m.combat;
     const contacts = [null, null], contactsOf = (t) => contacts[t] || (contacts[t] = (V ? V.contacts(t) : this.units.units.filter(u => u.team === 1 - t && !u.dead)).filter(u => !u.spec.structure && !u.down && !(u.spec.air && u.alt > 2)));
@@ -29,14 +29,15 @@ export class Morale {
       sq.threat = threat ? { x: threat.pos.x, z: threat.pos.z, d: td } : null;
       const supp = fit.reduce((s, u) => s + u.supp, 0) / fit.length, engaged = fit.some(u => u.enemy && !u.enemy.dead);
       const strength = fit.length / sq.members.length, weak = 1 + (1 - strength);   // a squad down to two men feels everything half as much again
-      // drains
+      // drains: half as much for a squad settled in its positions (bags, a platform, a gun), less at home (R.postedDrain, R.homeDrain)
+      const base = m.teams[t].base, home = dist(base, c) < 60 || this.units.units.some(u => u.type === 'fob' && u.team === t && !u.dead && dist(u.pos, c) < 40);
+      const posted = fit.every(u => u.post && u.post.settled);
       let drain = supp * R.suppDrain;
       if (threat && (threat.type === 'apc' || threat.type === 'tank') && td < R.armourRadius && !fit.some(u => u.kit === 'at')) drain += R.armourDrain;
-      sq.morale = Math.max(0, sq.morale - drain * weak * dt);
+      sq.morale = Math.max(0, sq.morale - drain * weak * (posted ? R.postedDrain : home ? R.homeDrain : 1) * dt);
       // recovery: calm (nobody suppressed, nobody engaging, no casualty for a while), faster near friends or at home, slower weak
       const calm = supp < 0.2 && !engaged && now - (sq.hitAt || -1e9) > R.calmAfter;
       if (calm) {
-        const base = m.teams[t].base, home = dist(base, c) < 60 || this.units.units.some(u => u.type === 'fob' && u.team === t && !u.dead && dist(u.pos, c) < 40);
         const friends = this.units.squads.some(o => o !== sq && o.team === t && o.fitCount >= 2 && o.state !== 'broken' && dist(o.centroid(), c) < R.friendRadius);
         const rate = (sq.state === 'broken' && !threat ? R.recoverBroken : R.recover) * (home ? 2 : friends ? 1.5 : 1) * (fit.length < 2 ? 0.6 : 1);
         sq.morale = Math.min(R.capBase + (1 - R.capBase) * strength, sq.morale + rate * dt);
@@ -56,7 +57,7 @@ export class Morale {
   }
   // the squad breaks: whatever it was doing is dropped, every man runs
   breakSq(sq, fit) {
-    sq.fleeAt = -1e9; sq.manualBefore = sq.manual; sq.advanceDropped = true;
+    sq.fleeAt = -1e9;
     for (const u of fit) { u.advance = false; u.holdFire = false; u.fleeing = true; u.enemy = null; u.burst = 0; if (u.post) u.leavePost(); }
     this.flee(sq, fit, sq.centroid());
   }

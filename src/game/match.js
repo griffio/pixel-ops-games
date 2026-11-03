@@ -68,7 +68,7 @@ export class Match {
     this.morale = new Morale(this);   // squad morale: casualties and fire wear a squad down until it goes to ground or runs (game/morale.js)
     this.support.onRecovered = (u, medic) => { const s = this.teams[u.team].stats; s.recovered = (s.recovered || 0) + 1; };
     this.fobs = new Fobs(this.units, this.teams, this.world); this.fobs.match = this;   // the mode: where a position should face (fobs.threatHeading)
-    this.rallies = new Rallies(this.units, this.teams, this); this.respawn.rallies = this.rallies;
+    this.rallies = new Rallies(this.units, this.teams, this); this.respawn.rallies = this.rallies; this.respawn.mode = this.mode;   // the mode may price a unit (Respawn.cost)
     this.landing = map && map.sea ? new Landing(this, map.sea) : null; this.respawn.landing = this.landing;   // a side based on a ship comes ashore by landing craft
     this.voices = null; if (app.audio) this.attachAudio(app.audio);
     this.feed = []; this.events = []; this.feedId = 0; this.history = []; this.histAcc = 5; this.elapsed = 0; this.log = [];   // log: captures and losses with times

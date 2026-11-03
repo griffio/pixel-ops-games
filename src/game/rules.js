@@ -33,9 +33,10 @@ export const RULES = {
   // costs, the drain a second at mean suppression 1 and the drain with armour inside armourRadius the squad has no launcher for,
   // the recovery a second once calm (calmAfter s since the last casualty; faster broken and out of contact, doubled at home,
   // half as much again near friends), the ceiling at zero strength (capBase, rising to 1 at full),
+  // what a squad settled in its positions (postedDrain) or at home (homeDrain) feels of all that,
   // how far a broken squad runs (fleeRun) and from how far it heads home (homeRadius), how close an enemy
   // must be for a broken man to shoot (brokenReach), and the state thresholds, down and back up (hysteresis)
-  morale: { killed: 0.15, wounded: 0.1, near: 0.03, nearRadius: 30, suppDrain: 0.03, armourDrain: 0.02, armourRadius: 80, threatRadius: 150, calmAfter: 4, recover: 0.012, recoverBroken: 0.02, friendRadius: 25, capBase: 0.4, fleeRun: 60, homeRadius: 250, brokenReach: 15,
+  morale: { killed: 0.15, wounded: 0.1, near: 0.03, nearRadius: 30, suppDrain: 0.03, armourDrain: 0.02, armourRadius: 80, threatRadius: 150, calmAfter: 4, recover: 0.012, recoverBroken: 0.02, friendRadius: 25, capBase: 0.4, fleeRun: 60, homeRadius: 250, brokenReach: 15, postedDrain: 0.5, homeDrain: 0.7,
     thresholds: { shaken: 0.6, pinned: 0.35, broken: 0.15, pinnedAgain: 0.3, shakenAgain: 0.45, steadyAgain: 0.7 } },   // a rifleman's hand grenades (weapons.js grenade, combat.throwGrenade): count each, one throw a squad every squadGap s, none with a friend within `friendly` m of the target; back on respawn, in the main base, or beside a stopped supply truck for supplyCost a squad
   sandbags: { buildTime: 12, supplyCost: 12, max: 8, minSpacing: 12, enemyBaseDistance: 60, roadClear: 10, clearTime: 8, clearRange: 8 },   // any engineer standing at a position clears it, like traps
   // base defence works (game/fob.js, docs/GAME_PLAN.md B3): a wall run, 6 m of gabions 1.8 m high that blocks sight and movement until
