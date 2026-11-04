@@ -38,6 +38,13 @@ pixels chunkier while the camera rotates freely. No build step.
 <td><img src="docs/screenshots/hollow-hedge.webp" alt="A squad firing from a hedgerow of bushes towards a fight round a cottage and the church, tracers crossing the lane"><br><sub><b>The Hollow.</b> A squad opens up from a hedgerow on the floor: thickets hide a squad until it fires.</sub></td>
 </tr>
 <tr>
+<td><img src="docs/screenshots/olive-gorge-bridge.webp" alt="An old stone bridge over a deep gorge between dark rock walls, a soldier crossing it, sandbags and terracotta-roofed houses on the rim, a dashed red capture ring round the bridge"><br><sub><b>Olive Gorge.</b> The Old Bridge under capture: the one vehicle crossing besides the ford, the town on both rims.</sub></td>
+<td><img src="docs/screenshots/olive-gorge-monastery.webp" alt="A walled monastery compound with a chapel, a bell tower and a cloister range on a hilltop, cypresses at its gate, dry-stone terrace walls and olive trees in rings round it, a white capture ring over the compound"><br><sub><b>Olive Gorge.</b> The Monastery on its terraces, the ring white while nobody holds it.</sub></td>
+</tr>
+<tr>
+<td colspan="2"><img src="docs/screenshots/olive-gorge-ford.webp" alt="A wide shallow river with rippling water where a dirt track runs into it from either bank, a supply truck waiting on the near bank"><br><sub><b>Olive Gorge.</b> The ford where the gorge opens into its basin: a track runs in from either bank and everyone wades.</sub></td>
+</tr>
+<tr>
 <td colspan="2"><img src="docs/screenshots/hollow-clearing.webp" alt="A ruined stone barn and a wall stub in a grassy clearing on a crest, ringed on every side by dense pine and birch woods"><br><sub><b>The Hollow.</b> West Clearing on its crest, the one open ground on that side: a ruined barn for cover, woods all round.</sub></td>
 </tr>
 <tr>
@@ -151,7 +158,7 @@ ones facing the enemy. `?map=desert1km` plays Desert Crossing, the first 1 km ma
 
 `?map=gorge` plays *Olive Gorge*, 1.2 km, mirrored about a river like Palm Valley and built to be
 the map where the ticket pool decides (plan in docs/GAME_PLAN.md, "Olive Gorge plan"): 20 minutes,
-400 tickets, eight squads on 1,200 points (a bigger saved force is trimmed to fit, rifle squads
+300 tickets, eight squads on 1,200 points (a bigger saved force is trimmed to fit, rifle squads
 first, and the CPU's pick the same). A river in a gorge cuts a Mediterranean plateau in two, and an
 old hill town stands on both rims joined by one stone bridge, the Old Bridge, the centre place; the
 gorge opens into a shallow basin to the west where a ford crosses it (everyone wades), and a timber

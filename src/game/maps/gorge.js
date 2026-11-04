@@ -34,10 +34,11 @@ const TERRACES = [100, 88, 76, 64, 52, 40].map((r, i) => ({ x: -LANE, z: ROW, r,
 const GROVES = [   // olive groves on the plateau and round the mill: [x, z, w, d], rows 9 m apart, a tree every 8 m (south half)
   [-200, -470, 48, 40], [200, -470, 48, 40], [-90, -312, 50, 36], [90, -312, 50, 36], [-470, -300, 56, 44], [470, -300, 56, 44], [-232, -172, 44, 36], [232, -172, 44, 36],
   [292, -302, 50, 34], [372, -302, 50, 34], [282, -200, 44, 34], [384, -200, 44, 34],
+  [-120, -210, 40, 30], [120, -210, 40, 30], [-205, -72, 40, 28], [205, -72, 40, 28],   // by the lanes to the bridge, cover on the walk down
 ];
 
 export const gorge = {
-  name: 'Olive Gorge', size: 1200, clock: 20, tickets: 400, squadSlots: 8, budget: 1200,   // 20 minutes, 400 tickets, 8 squads on 1,200 points: a map where the pool decides (docs/GAME_PLAN.md, "Olive Gorge plan")
+  name: 'Olive Gorge', size: 1200, clock: 20, tickets: 300, squadSlots: 8, budget: 1200,   // 20 minutes, 300 tickets, 8 squads on 1,200 points: a map where the pool decides (docs/GAME_PLAN.md, "Olive Gorge plan"; at 400, 2 of 40 CPU matches ended by tickets and the loser stood at 0 to 80 in 15 of them)
   hour: 16.5, wind: [0.6, 0.3],   // late afternoon, long shadows down the terraces
   blurb: 'A gorge splits a hill town: one old stone bridge, a ford where the gorge opens, a footbridge at the mill. Olive terraces either side.',
   nav: { foot: 1.2, vehicle: 2, cap: 150000 },   // a million infantry cells
@@ -197,7 +198,7 @@ export const gorge = {
     const mass = (x, z) => { const [rr, h] = MASS[Math.floor(r() * MASS.length)]; props.push({ geo: `cyl:${rr},${(rr * 1.12).toFixed(2)},${h},8`, tex: 'bush', x, y: h / 2, z, rot: [0, r() * Math.PI * 2, 0], cast: true, sway: true }); };
     const bushAt = (x, z) => { const s = BUSH[Math.floor(r() * BUSH.length)]; props.push({ geo: `cyl:${(1.3 * s).toFixed(2)},${(1.5 * s).toFixed(2)},${(1.6 * s).toFixed(2)},7`, tex: 'bush', x, y: 0.8 * s, z, rot: [0, r() * Math.PI * 2, 0], cast: false, sway: true }); };
     const maquis = (x, z, w, d) => { thickets.push({ minX: x - w / 2, maxX: x + w / 2, minZ: z - d / 2, maxZ: z + d / 2, h: 2.2, thicket: true, walk: 0.55 }); for (let i = 0; i < w * d / 45; i++) mass(x + (r() - 0.5) * (w - 4), z + (r() - 0.5) * (d - 4)); for (let i = 0; i < w * d / 28; i++) bushAt(x + (r() - 0.5) * (w - 2), z + (r() - 0.5) * (d - 2)); };
-    for (let i = 0, made = 0; i < 4000 && made < 90; i++) {
+    for (let i = 0, made = 0; i < 6000 && made < 140; i++) {
       const x = -570 + r() * 1140, z = -570 + r() * 540, w = 10 + r() * 8, d = 10 + r() * 8;
       if (T.height(x, z) < 2.5 || T.slope(x, z) > 0.5 || busy(x, z) || onRoad(x, z, 12) || Math.hypot(x - M.x, z - M.z) < 110 || (Math.abs(x) < 90 && z > -140)) continue;
       if (GROVES.some(([gx, gz, gw, gd]) => Math.abs(x - gx) < gw / 2 + 12 && Math.abs(z - gz) < gd / 2 + 12) || thickets.some(t => Math.max(t.minX - (x + w / 2), (x - w / 2) - t.maxX, t.minZ - (z + d / 2), (z - d / 2) - t.maxZ) < 8)) continue;

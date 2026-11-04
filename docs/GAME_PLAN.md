@@ -4052,7 +4052,27 @@ an olive mill's groves spread on the east, and the gorge opens into a shallow ba
   (the Monastery's top through its gates, 462), the ford from the mill 500; the foot grid is one region and the vehicle
   grid's only pockets are the two flank hilltops; line of sight on 63% of random pairs 40 to 120 m apart on the plateau
   (90 maquis thickets took it from 68%; the Hollow is 21%, this is combined arms); 14,100 props in 118 geometries, 40
-  ticks in 26 ms, no page errors. The thumbnail is from `tools/make-map-thumbs.mjs`. O4 follows.
+  ticks in 26 ms, no page errors. The thumbnail is from `tools/make-map-thumbs.mjs`.
+
+- **O4 done (2026-11-04).** *First runs at 400 tickets* (the core set at seeds 1 and 2, 16 matches; Balanced mirrors on 12
+  seeds plain and with `swap=1`, 24): 2 of 40 ended by tickets and the loser stood at 0 to 80 in 15 of them, so the pool is
+  **300** (the bleed alone is 240 over a match spent without the majority). Four more groves by the lanes to the bridge and
+  140 maquis thickets took line of sight to 59%. *At 300* (64 matches): the core set ended 9 of 16 before the clock (8 by
+  tickets at 15:12 to 19:56, one capture-all at 6:18 by Mechanized against a Balanced side that had sent its squads over the
+  flank crossings to raid while its own row stood empty), the Balanced mirrors 8 of 48 (even fights run the distance with a
+  median margin near 80; mismatches end early), which is the shape the plan asked for. Bases: south-west 25, north-east 23
+  of the 48 mirrors, and 10 to 6 in the core set: even. By team index the second team won 29 of the 48 mirrors here and 7 of
+  12 Balanced mirrors on Palm Valley run the same hour, so that lean is the engine's, not the map's (noted, not chased).
+  Presets at 300: Mechanized won 8 of 8, Armoured 3 of 4, Light 3 of 8, Air 1 of 4, Balanced 1 of 8 (at 400: 6 of 8, 3 of 4,
+  4 of 8, 0 of 4, 3 of 8). **The map is armour country**, more than Palm Valley (Mechanized 33% there): the cap took three
+  rifle squads from every preset and no vehicle, so armour to infantry runs 40% higher than on the 2 km maps; the plateau is
+  open; the ford is a gentle 26 m crossing in a bowl; a side with 7 squads cannot hold two home places and contest the
+  bridge, so raids through the flank crossings swing matches. Open item, levers in order, after the user's play test: a
+  vehicle cap beside the squad cap (`map.vehicleSlots`); maquis dense enough to push armour onto the roads, where the CPU's
+  traps and ambushes bite; a narrower or farther ford; boulders and walls on the basin's rims for the launchers. The lobby
+  shows the card second with 1.2 km and 20:00 and the saved Balanced force trimmed to three rifle squads; three frames in
+  the README table (the Old Bridge under capture, the Monastery, the ford). Not done: randomised lanes (the mode the review
+  put beside this map).
 
 ## Open questions
 
