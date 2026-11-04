@@ -32,7 +32,12 @@ export class GLRenderer {
     this.bakedBatches = new Map(); this.bakedList = []; this.bakedKey = ''; this.bakeGen = 0; this.texIds = new Map();   // baked groups (structures): instanced once, merged again only when the set on show changes
     this.lightVP = Mat4.create(); this.lightView = Mat4.create(); this.lightProj = Mat4.create(); this.lightWorld = Mat4.create();
     this.progs = {
-      main: this.program(S.MAIN_VS, S.MAIN_FS), shadow: this.program(S.SHADOW_VS, S.SHADOW_FS),
+      // two variants of the lit and the shadow programs: the cutout one discards texels under half alpha (tufts, fronds, decals),
+      // the plain one never discards, so the ground, the props and the water keep early depth testing and hidden-surface removal
+      // on Apple GPUs, which drop both for any draw made with a program that can discard (the iPad shaded the whole screen's
+      // worth of ground and water behind the town every frame, 2026-11-04)
+      main: this.program(S.MAIN_VS, S.MAIN_FS), mainCut: this.program(S.MAIN_VS, S.MAIN_FS, '#define CUTOUT'),
+      shadow: this.program(S.SHADOW_VS, S.SHADOW_FS), shadowCut: this.program(S.SHADOW_VS, S.SHADOW_FS, '#define CUTOUT'),
       pick: this.program(S.PICK_VS, S.PICK_FS), comp: this.program(S.COMP_VS, S.COMP_FS), dust: this.program(S.DUST_VS, S.DUST_FS), streak: this.program(S.STREAK_VS, S.STREAK_FS),
     };
     this.white = this.texture('white', (() => { const c = document.createElement('canvas'); c.width = c.height = 1; const g = c.getContext('2d'); g.fillStyle = '#fff'; g.fillRect(0, 0, 1, 1); return c; })(), { mips: false });
@@ -50,9 +55,9 @@ export class GLRenderer {
   }
 
   // ---- resources -------------------------------------------------------------
-  program(vs, fs) {
-    const gl = this.gl, p = gl.createProgram();
-    for (const [type, src] of [[gl.VERTEX_SHADER, vs], [gl.FRAGMENT_SHADER, fs]]) {
+  program(vs, fs, defines = '') {   // defines: lines put after the #version line of both shaders
+    const gl = this.gl, p = gl.createProgram(), inj = (src) => defines ? src.replace('#version 300 es\n', '#version 300 es\n' + defines + '\n') : src;
+    for (const [type, src] of [[gl.VERTEX_SHADER, inj(vs)], [gl.FRAGMENT_SHADER, inj(fs)]]) {
       const s = gl.createShader(type); gl.shaderSource(s, src); gl.compileShader(s);
       if (!gl.getShaderParameter(s, gl.COMPILE_STATUS)) throw new Error('shader: ' + gl.getShaderInfoLog(s));
       gl.attachShader(p, s);
@@ -384,11 +389,13 @@ export class GLRenderer {
     if (this.shadows) {
       gl.bindFramebuffer(gl.FRAMEBUFFER, this.shadowFb); gl.viewport(0, 0, this.shadowSize, this.shadowSize);
       gl.clear(gl.DEPTH_BUFFER_BIT);
-      gl.useProgram(P.shadow.p); gl.uniformMatrix4fv(P.shadow.u.uLightVP, false, this.lightVP); gl.uniform1i(P.shadow.u.uTex, 0); gl.uniform1f(P.shadow.u.uTime, (performance.now() / 1000) % 3600); gl.activeTexture(gl.TEXTURE0); gl.bindTexture(gl.TEXTURE_2D, this.white);   // unit 0 never the shadow map itself
-      let lc = -1, ls = -1, lt = false;
+      for (const prog of [P.shadow, P.shadowCut]) { gl.useProgram(prog.p); gl.uniformMatrix4fv(prog.u.uLightVP, false, this.lightVP); gl.uniform1i(prog.u.uTex, 0); gl.uniform1f(prog.u.uTime, (performance.now() / 1000) % 3600); prog.ls = -1; }
+      gl.activeTexture(gl.TEXTURE0); gl.bindTexture(gl.TEXTURE_2D, this.white);   // unit 0 never the shadow map itself
+      let lt = false, lp = null;
       for (const b of shadowList) if (b.cast) {
-        const cut = b.cutout ? 1 : 0, sw = b.sway ? 1 : 0;
-        if (cut !== lc) { gl.uniform1f(P.shadow.u.uCutout, cut); lc = cut; } if (sw !== ls) { gl.uniform1f(P.shadow.u.uSway, sw); ls = sw; }
+        const prog = b.cutout ? P.shadowCut : P.shadow, sw = b.sway ? 1 : 0;   // the lists are sorted by state, so the program changes a few times a pass
+        if (prog !== lp) { lp = prog; gl.useProgram(prog.p); }
+        if (sw !== prog.ls) { gl.uniform1f(prog.u.uSway, sw); prog.ls = sw; }
         if (b.cutout && b.tex !== lt) { gl.bindTexture(gl.TEXTURE_2D, this.textures.get(b.tex)); lt = b.tex; }
         this.drawBatch(b, true);
       }
@@ -398,7 +405,8 @@ export class GLRenderer {
     const [bw, bh] = this.pixel.bufferSize(W, H); this.ensureMainTarget(bw, bh);
     gl.bindFramebuffer(gl.FRAMEBUFFER, this.main.fb); gl.viewport(0, 0, bw, bh);
     gl.clearColor(L.background[0], L.background[1], L.background[2], 1); gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
-    const u = P.main.u; gl.useProgram(P.main.p);
+    for (const prog of [P.main, P.mainCut]) {   // the frame's uniforms on both variants (the texture binds are shared state and cost nothing twice)
+    const u = prog.u; gl.useProgram(prog.p);
     gl.uniformMatrix4fv(u.uViewProj, false, cam.viewProj); gl.uniformMatrix4fv(u.uLightVP, false, this.lightVP);
     gl.uniform1f(u.uNormalBias, Math.max(0.6, 1.2 * texel)); gl.uniform1f(u.uShadowBias, -0.0006);   // the normal offset grows with the shadow texel at a far zoom, or steep ground terraces
     gl.uniform1f(u.uShadowOn, this.shadows ? 1 : 0); gl.uniform1f(u.uShadowPcf, this.pcf ? 1 : 0);   // (these two sat inside the comment above from 2026-10-31 to 2026-11-01: no shadows were sampled while the shadow pass still ran)
@@ -426,19 +434,24 @@ export class GLRenderer {
     if (this.waterTex) { gl.activeTexture(gl.TEXTURE9); gl.bindTexture(gl.TEXTURE_2D, this.waterTex); gl.uniform2f(u.uWaterMap, this.waterMap[0], this.waterMap[1]); }
     gl.uniform1i(u.uFog, 8); gl.uniform1f(u.uFogOn, this.fog ? 1 : 0);
     if (this.fog) { gl.activeTexture(gl.TEXTURE8); gl.bindTexture(gl.TEXTURE_2D, this.fogTex); gl.uniform2f(u.uFogMap, this.fog.inv, this.fog.off); }
+    gl.uniform1f(u.uUnlit, 0); prog.lm = -1; prog.ls = -1;
+    }
+    const u = P.main.u;
     gl.activeTexture(gl.TEXTURE0);
-    gl.uniform1f(u.uUnlit, 0); gl.depthMask(true); gl.disable(gl.BLEND);
-    let lm = -1, lc = -1, ls = -1, lt = false; const bindTex = (t) => { if (t !== lt) { gl.bindTexture(gl.TEXTURE_2D, t ? this.textures.get(t) : this.white); lt = t; } };   // the lists are sorted by state: set a uniform or a texture only when it changes
+    gl.depthMask(true); gl.disable(gl.BLEND);
+    let lt = false, lp = null; const bindTex = (t) => { if (t !== lt) { gl.bindTexture(gl.TEXTURE_2D, t ? this.textures.get(t) : this.white); lt = t; } };   // the lists are sorted by state: set a uniform, a texture or the program only when it changes
     for (const b of mainList) if (!b.unlit && !b.water) {
-      const mode = b.ground ? 1 : 0, cut = b.cutout ? 1 : 0, sw = b.sway ? 1 : 0;
-      if (mode !== lm) { gl.uniform1i(u.uMode, mode); lm = mode; } if (cut !== lc) { gl.uniform1f(u.uCutout, cut); lc = cut; } if (sw !== ls) { gl.uniform1f(u.uSway, sw); ls = sw; }
+      const prog = b.cutout ? P.mainCut : P.main, mode = b.ground ? 1 : 0, sw = b.sway ? 1 : 0;
+      if (prog !== lp) { lp = prog; gl.useProgram(prog.p); }
+      if (mode !== prog.lm) { gl.uniform1i(prog.u.uMode, mode); prog.lm = mode; } if (sw !== prog.ls) { gl.uniform1f(prog.u.uSway, sw); prog.ls = sw; }
       bindTex(b.tex); this.drawBatch(b);
     }
+    gl.useProgram(P.main.p);   // the water, the unlit batches and the overlays never discard
     // water: lit like the ground (shadows, the night, fog of war) but blended over the bed, without writing depth
-    gl.uniform1i(u.uMode, 2); gl.uniform1f(u.uCutout, 0); gl.uniform1f(u.uSway, 0); gl.enable(gl.BLEND); gl.blendFunc(gl.SRC_ALPHA, gl.ONE_MINUS_SRC_ALPHA); gl.depthMask(false); gl.bindTexture(gl.TEXTURE_2D, this.white);
+    gl.uniform1i(u.uMode, 2); gl.uniform1f(u.uSway, 0); gl.enable(gl.BLEND); gl.blendFunc(gl.SRC_ALPHA, gl.ONE_MINUS_SRC_ALPHA); gl.depthMask(false); gl.bindTexture(gl.TEXTURE_2D, this.white);
     for (const b of mainList) if (b.water) this.drawBatch(b);
     gl.depthMask(true); gl.disable(gl.BLEND);
-    gl.uniform1i(u.uMode, 0); gl.uniform1f(u.uUnlit, 1); gl.uniform1f(u.uCutout, 0); gl.depthMask(false); gl.enable(gl.BLEND); gl.blendFunc(gl.SRC_ALPHA, gl.ONE_MINUS_SRC_ALPHA); gl.disable(gl.CULL_FACE);
+    gl.uniform1i(u.uMode, 0); gl.uniform1f(u.uUnlit, 1); gl.depthMask(false); gl.enable(gl.BLEND); gl.blendFunc(gl.SRC_ALPHA, gl.ONE_MINUS_SRC_ALPHA); gl.disable(gl.CULL_FACE);
     lt = false; for (const b of mainList) if (b.unlit && !b.overlay) { bindTex(b.tex); this.drawBatch(b); }
     // overlays (capture rings): unlit and drawn over whatever stands in the way, so a ring on a castle's courtyard shows through its walls
     gl.disable(gl.DEPTH_TEST);

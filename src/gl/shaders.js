@@ -111,7 +111,9 @@ void main() {
     float foam = max(max(band, tendril * 0.85), ripple);
     albedo = vec4(mix(c, vec3(0.78, 0.9, 0.86), foam), mix(0.66 + 0.26 * smoothstep(0.0, 1.2, d), 0.96, foam));
   } else albedo = vColor * texture(uTex, vUv);
-  if (uCutout > 0.5 && albedo.a < 0.5) discard;
+#ifdef CUTOUT
+  if (albedo.a < 0.5) discard;   // only the cutout variant of the program discards: a shader that can discard loses early depth testing and hidden-surface removal on Apple GPUs, for every draw made with it (renderer.js builds main and mainCut)
+#endif
 
   if (uUnlit > 0.5) { frag = albedo; return; }
   vec3 n = normalize(vN);
@@ -163,8 +165,12 @@ void main() {
 
 export const SHADOW_FS = `#version 300 es
 precision mediump float;
-uniform sampler2D uTex; uniform float uCutout; in vec2 vUv;
-void main() { if (uCutout > 0.5 && texture(uTex, vUv).a < 0.5) discard; }`;
+uniform sampler2D uTex; in vec2 vUv;
+void main() {
+#ifdef CUTOUT
+  if (texture(uTex, vUv).a < 0.5) discard;
+#endif
+}`;
 
 export const PICK_VS = `#version 300 es
 ${INSTANCE_IN}

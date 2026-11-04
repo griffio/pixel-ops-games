@@ -3702,6 +3702,18 @@ shadows are on, and flat with them off, says the judder is the shadow pass and i
   differently from Safari, so the iPad's own profile decides. If it still judders: `?tpu=6` (bigger texels, a quarter of
   the pixels) tells whether the main pass's fill is the limit; the unit tags (sixty composited layers) are the next DOM
   suspect.
+  *Third and fourth profiles (15:14 and 15:17, after the HUD deploy, portrait 1024x1280):* the pan-correlated tail eased
+  (most panning windows p99 17 to 18, where every one had been 27 to 29) but a few windows kept it, standing still at zoom
+  0.4 over the bridge dropped 4 to 5 frames a window at 1,800 calls, and `?tpu=6` changed nothing (at zoom 0.4 the buffer
+  is the screen anyway, and at zoom 1.3 with a quarter of the pixels the tail was the same). So not fill, not the DOM alone.
+  What the code then showed: the lit program's fragment shader has `discard` in it for cutout texels (tufts, fronds,
+  decals), and Apple GPUs turn off early depth testing and hidden-surface removal for every draw made with a program that
+  can discard; the ground (the dearest shader, drawn after the props), the houses and the full-screen water plane were all
+  shaded where something covers them, every frame. The lit and the shadow programs are now built twice, plain and with
+  `#define CUTOUT` round the discard, and the passes switch program with the batch's cutout flag (the lists are sorted, so
+  two or three switches a pass); the water, the unlit batches and the overlays use the plain one. Frames checked on the
+  town, Palm Valley's palms and the Hollow's thickets; the Mac bench is unchanged (its GPU kept early depth with discard).
+  The iPad's profile after this deploy is the test.
 
 ## Base defence mode plan (2026-11-02)
 
