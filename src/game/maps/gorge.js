@@ -41,7 +41,7 @@ export const gorge = {
   name: 'Olive Gorge', size: 1200, clock: 20, tickets: 300, squadSlots: 8, budget: 1200,   // 20 minutes, 300 tickets, 8 squads on 1,200 points: a map where the pool decides (docs/GAME_PLAN.md, "Olive Gorge plan"; at 400, 2 of 40 CPU matches ended by tickets and the loser stood at 0 to 80 in 15 of them)
   hour: 16.5, wind: [0.6, 0.3],   // late afternoon, long shadows down the terraces
   blurb: 'A gorge splits a hill town: one old stone bridge, a ford where the gorge opens, a footbridge at the mill. Olive terraces either side.',
-  nav: { foot: 1.2, vehicle: 2, cap: 150000 },   // a million infantry cells
+  nav: { foot: 1.2, vehicle: 2, cap: 120000 },   // a million infantry cells; the cap as Peninsula's for the same size (150,000 let a failing search run 10 ms on the iPad, in frames of 35 to 60 ms when a plan re-pathed several squads, 2026-11-04)
   splatRes: 1024,
   // dry olive-country grass everywhere (tile 4 is the same texture: painted ground keeps it where nothing else is painted);
   // the base, a lusher meadow, shows where the splat is cleared (the basin and the lower reach's banks)

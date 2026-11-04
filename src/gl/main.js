@@ -36,7 +36,7 @@ const dust = new DustSim(); units.dust = dust; world.dust = dust;   // the world
 const markers = new Markers(scene, world.heightAt), rings = new Rings(scene, renderer, world.heightAt);   // capture rings round the locations (gl/rings.js)
 world.focus = rts.target; rts.heightAt = world.heightAt;
 
-if (touch) { document.body.classList.add('touch'); rts.edgePan = false; }
+if (touch) { document.body.classList.add('touch'); rts.edgePan = false; units.pathBudgetMax = units.pathBudget = 2; }   // tablets: two A* searches a frame, not four (a plan re-routing several squads put 8 to 12 ms of searches into one frame on the iPad, 2026-11-04); the rest take the route a frame or two later
 const app = {
   canvas, pixel, rts, world, units, dust, markers, rings, touch, renderer,
   rendererName: 'WebGL2', otherRenderer: { name: 'three.js sandbox', param: 'three' },

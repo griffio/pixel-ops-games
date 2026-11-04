@@ -3755,6 +3755,13 @@ shadows are on, and flat with them off, says the judder is the shadow pass and i
   it was not the judder. If it is ever worth chasing: it needs GPU timing from the device, which the profiler does not
   have (EXT_disjoint_timer_query is not in Safari), so the next step there would be an on-device A/B of the main pass at
   a lower buffer size at every zoom (today the buffer never goes below the screen's size at zoom 1 and under).
+  *"Some lagging on the houses by the bridge" (16:45, the full 13-minute profile):* the tail as before, and one thing
+  the timers do show: the windows with frames over 33 ms carry `units` maxima of 8 to 12 ms, A* searches when a plan
+  re-routes several squads at once on this map's million-cell foot grid with a 150,000-cell cap. Three changes: the
+  Gorge's cap is 120,000 (Peninsula's, for the same size; every route still found at the same lengths), tablets run two
+  searches a frame instead of four (the rest take their route a frame or two later, as the budget already allows), and
+  the camera's height eases over 60 ms instead of a 12 m/s limit, which lagged a pan onto the town's 2.5 m pad (measured:
+  no lag at a stop on the pad or the knoll, steps of 0.3 m a frame at a 120 m/s pan, the gorge and the bridge still flat).
 
 ## Base defence mode plan (2026-11-02)
 
