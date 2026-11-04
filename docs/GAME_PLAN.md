@@ -3748,6 +3748,13 @@ shadows are on, and flat with them off, says the judder is the shadow pass and i
   once, so the screenshot tools place the camera as before. Measured: across the gorge the view stays at 2.5 m (was -16 to
   2.5), along the bridge it does not move (was 18.5 m jumps), up the monastery it climbs at 0.2 m a frame to the same 9.1 m
   top. This is the fix for what the user saw; the frame tail stays as a known ceiling on the iPad.
+  *Deployed (4bf4e5a2); the user: "Smoother on the bridge now, so an improvement".* The profile of that run (16:31) has
+  the same tail as every run before it (panning p99 25 to 30 and worst 30 to 33, still 17 to 20), which settles its
+  meaning: the iPad's frame runs at its budget on this map and tips a slot late about once a second while the view
+  changes, on 4096, 2048 and 1024 shadows and with shadows off alike. Nothing of the day's rendering work moved it, and
+  it was not the judder. If it is ever worth chasing: it needs GPU timing from the device, which the profiler does not
+  have (EXT_disjoint_timer_query is not in Safari), so the next step there would be an on-device A/B of the main pass at
+  a lower buffer size at every zoom (today the buffer never goes below the screen's size at zoom 1 and under).
 
 ## Base defence mode plan (2026-11-02)
 
