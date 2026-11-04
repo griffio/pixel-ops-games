@@ -17,6 +17,9 @@ export class World extends WorldState {
     map ? this.buildMapGround() : this.buildLegacyGround();
     this.buildProps();
     renderer.finalizeStatic();
+    // the tallest shadow caster, for the shadow pass's reach (renderer.render): the obstacles' tops and the terrain's relief, never
+    // under 25 m (helicopters cruise at 14 to 22)
+    { let t = 25; for (const o of this.obstacles) { const h = o.h === undefined ? 2 : o.h; if (h > t) t = h; } if (this.terrain) t = Math.max(t, this.terrain.max + 8); renderer.tallest = t; }
     this.lamps = this.layout.lamps.map(l => ({ pos: [l.x, l.y + this.heightAt(l.x, l.z), l.z], color: hexToLinear(l.color), distance: l.distance }));
     this.applyLighting();
   }
@@ -82,19 +85,26 @@ export class World extends WorldState {
   }
   // terrain as one static ground-mode mesh per 64 m chunk (16 x 16 cells of 4 m), culled with the chunk
   buildTerrainChunks() {
-    const T = this.terrain, cs = this.renderer.chunkSize, cells = cs / T.cell, mat = { color: [1, 1, 1, 1], tex: null, emissive: [0, 0, 0], cast: true, ground: true };
-    for (let cz = -this.half; cz < this.half; cz += cs) for (let cx = -this.half; cx < this.half; cx += cs) {
-      const ox = cx + cs / 2, oz = cz + cs / 2, v = [], idx = [];
+    const T = this.terrain, cs = this.renderer.chunkSize, mat = { color: [1, 1, 1, 1], tex: null, emissive: [0, 0, 0], cast: true, ground: true };
+    // a chunk's mesh at a step: the heights and normals on a grid of (cs / step + 1) a side, local to the chunk's centre
+    const grid = (cx, cz, step) => {
+      const ox = cx + cs / 2, oz = cz + cs / 2, cells = Math.round(cs / step), v = [], idx = [];
       for (let iz = 0; iz <= cells; iz++) for (let ix = 0; ix <= cells; ix++) {
-        const x = cx + ix * T.cell, z = cz + iz * T.cell, n = T.normal(x, z);
+        const x = cx + ix * step, z = cz + iz * step, n = T.normal(x, z);
         v.push(x - ox, T.height(x, z), z - oz, n[0], n[1], n[2], 0, 0);
       }
       for (let iz = 0; iz < cells; iz++) for (let ix = 0; ix < cells; ix++) {
         const a = iz * (cells + 1) + ix, b = a + 1, c = a + cells + 1, d = c + 1;
         idx.push(a, c, b, b, c, d);
       }
-      const key = this.renderer.registerGeometry(`terrain#${cx},${cz}`, { data: new Float32Array(v), idx: new Uint16Array(idx), count: idx.length });
-      const mesh = new Mesh(key, mat); mesh.position.set(ox, 0, oz); this.renderer.addStatic(mesh);
+      return { data: new Float32Array(v), idx: new Uint16Array(idx), count: idx.length };
+    };
+    for (let cz = -this.half; cz < this.half; cz += cs) for (let cx = -this.half; cx < this.half; cx += cs) {
+      const key = this.renderer.registerGeometry(`terrain#${cx},${cz}`, grid(cx, cz, T.cell));
+      // a map with a 2 m terrain cell (Olive Gorge, for its gorge walls) casts its ground's shadow from a 4 m mesh: a quarter of the
+      // triangles over the shadow pass's reach, and the shadow map cannot tell the difference
+      const m = T.cell < 4 ? { ...mat, shadowGeo: this.renderer.registerGeometry(`terrain#${cx},${cz}#shadow`, grid(cx, cz, 4)) } : mat;
+      const mesh = new Mesh(key, m); mesh.position.set(cx + cs / 2, 0, cz + cs / 2); this.renderer.addStatic(mesh);
     }
   }
 

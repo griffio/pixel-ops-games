@@ -27,6 +27,7 @@ export class GLRenderer {
       viewSize(w, h) { return [w / this.pixelScale / this.texelsPerUnit, h / this.pixelScale / this.texelsPerUnit]; },
     };
     this.geos = new Map(); this.batches = new Map(); this.textures = new Map();
+    this.tallest = 50;   // the tallest shadow caster the map holds (world.js sets it from the obstacles and the terrain): the shadow pass reaches as far as its shadow throws
     this.chunkSize = 64; this.chunks = new Map(); this.coarseSize = 256; this.coarse = new Map(); this.useCoarse = false; this.ground = null;   // static props at two chunk sizes: 64 m chunks, and 256 m ones the ?coarse=1 knob draws (render() below)
     this.bakedBatches = new Map(); this.bakedList = []; this.bakedKey = ''; this.bakeGen = 0; this.texIds = new Map();   // baked groups (structures): instanced once, merged again only when the set on show changes
     this.lightVP = Mat4.create(); this.lightView = Mat4.create(); this.lightProj = Mat4.create(); this.lightWorld = Mat4.create();
@@ -154,14 +155,21 @@ export class GLRenderer {
     const gl = this.gl, geo = this.geometry(geoKey);
     const b = { geo, tex: m.tex, unlit: !!m.unlit, cast: !!m.cast, cutout: !!m.cutout, ground: !!m.ground, water: !!m.water, sway: !!m.sway, overlay: !!m.overlay, vao: gl.createVertexArray(), ibo: gl.createBuffer(), cap, n: 0, data: new Float32Array(cap * STRIDE) };
     b.sortKey = ((b.ground ? 8 : 0) | (b.cutout ? 4 : 0) | (b.sway ? 2 : 0) | (b.unlit ? 1 : 0)) * 4096 + this.texId(m.tex);   // a pass draws its batches in this order, so consecutive draws share their uniforms and texture
-    gl.bindVertexArray(b.vao);
+    this.bindVao(b.vao, geo, b.ibo);
+    // a coarser geometry for the shadow pass (mat.shadowGeo: the ground at a 2 m terrain cell casts from a 4 m mesh, a quarter of the
+    // triangles over the shadow pass's wide reach; the shadow map cannot tell), on the same instance buffer
+    if (m.shadowGeo) { b.sgeo = this.geometry(m.shadowGeo); b.svao = gl.createVertexArray(); this.bindVao(b.svao, b.sgeo, b.ibo); }
+    return b;
+  }
+  bindVao(vao, geo, ibo) {
+    const gl = this.gl;
+    gl.bindVertexArray(vao);
     gl.bindBuffer(gl.ARRAY_BUFFER, geo.vbo);
     [[0, 3, 0], [1, 3, 12], [2, 2, 24]].forEach(([loc, n, off]) => { gl.enableVertexAttribArray(loc); gl.vertexAttribPointer(loc, n, gl.FLOAT, false, 32, off); });
-    gl.bindBuffer(gl.ARRAY_BUFFER, b.ibo);
+    gl.bindBuffer(gl.ARRAY_BUFFER, ibo);
     for (let i = 0; i < 6; i++) { gl.enableVertexAttribArray(3 + i); gl.vertexAttribPointer(3 + i, 4, gl.FLOAT, false, STRIDE * 4, i * 16); gl.vertexAttribDivisor(3 + i, 1); }
     gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, geo.ebo);
     gl.bindVertexArray(null);
-    return b;
   }
   texId(name) { if (!name) return 0; let i = this.texIds.get(name); if (i === undefined) { i = this.texIds.size + 1; this.texIds.set(name, i); } return i; }
   pushInstance(b, world, m, id) {
@@ -190,7 +198,7 @@ export class GLRenderer {
     if (mesh.mat.ground) c.ground = true;
   }
   uploadChunk(c) { const gl = this.gl; for (const b of c.batches.values()) { gl.bindBuffer(gl.ARRAY_BUFFER, b.ibo); gl.bufferData(gl.ARRAY_BUFFER, b.data.subarray(0, b.n * STRIDE), gl.STATIC_DRAW); } }
-  deleteChunk(c) { const gl = this.gl; for (const b of c.batches.values()) { gl.deleteVertexArray(b.vao); gl.deleteBuffer(b.ibo); } }
+  deleteChunk(c) { const gl = this.gl; for (const b of c.batches.values()) { gl.deleteVertexArray(b.vao); if (b.svao) gl.deleteVertexArray(b.svao); gl.deleteBuffer(b.ibo); } }
   finalizeStatic() { for (const c of this.chunks.values()) this.uploadChunk(c); for (const c of this.coarse.values()) this.uploadChunk(c); }
   clearStatic() { for (const c of this.chunks.values()) this.deleteChunk(c); for (const c of this.coarse.values()) this.deleteChunk(c); this.chunks.clear(); this.coarse.clear(); }
   // one chunk rebuilt (a building came down): everything it held, less the meshes gone and plus the ones added, baked and
@@ -329,10 +337,10 @@ export class GLRenderer {
     return out;
   }
 
-  drawBatch(b) {
-    const gl = this.gl;
-    gl.bindVertexArray(b.vao);
-    gl.drawElementsInstanced(gl.TRIANGLES, b.geo.count, gl.UNSIGNED_SHORT, 0, b.n);
+  drawBatch(b, shadow = false) {   // shadow: the shadow pass, which takes a batch's coarser geometry where it has one
+    const gl = this.gl, g = shadow && b.sgeo ? b.sgeo : b.geo;
+    gl.bindVertexArray(shadow && b.svao ? b.svao : b.vao);
+    gl.drawElementsInstanced(gl.TRIANGLES, g.count, gl.UNSIGNED_SHORT, 0, b.n);
     this.stats.calls++;
   }
 
@@ -347,10 +355,12 @@ export class GLRenderer {
     const cx = (box.minX + box.maxX) / 2, cz = (box.minZ + box.maxZ) / 2;
     const footprint = Math.hypot(cam.viewW, cam.viewH / Math.max(0.3, Math.sin(cam.pitch)));
     const R = 8 * Math.pow(2, Math.ceil(Math.log2((footprint / 2 + 70) / 8) * 4) / 4);   // 70 m: hills shift the footprint, long shadows reach in
-    // casters beyond the view matter only as far as their shadows reach into it: a 50 m thing throws 50 / sin(elevation) m,
-    // so the shadow pass takes the chunks within that of the view, not the whole light frustum (at a far zoom that was most of
-    // the map and five draw calls in six: 2,667 a frame on Palm Valley's bluff, 2026-10-31)
-    const reach = Math.min(R, 40 + 50 / Math.max(0.15, L.sunDir[1]));
+    // casters beyond the view matter only as far as their shadows reach into it: the map's tallest thing throws
+    // tallest / sin(elevation) m, so the shadow pass takes the chunks within that of the view, not the whole light frustum (at
+    // a far zoom that was most of the map and five draw calls in six: 2,667 a frame on Palm Valley's bluff, 2026-10-31). The
+    // tallest used to be taken as 50 m everywhere: under Olive Gorge's late sun that reached 171 m and a hundred shadow chunks
+    // at play zoom, and the iPad dropped frames over the town; its church is 20 m (2026-11-04)
+    const reach = Math.min(R, 40 + this.tallest / Math.max(0.15, L.sunDir[1]));
     // ?coarse=1: the 256 m chunks for the shadow pass, and for the main pass zoomed out (a third fewer draw calls for the same ground). Off by
     // default: on the Mac mini's Intel GPU it measured neutral to a little slower, the GPU being fill-bound, not call-bound; a tablet's Safari
     // pays more per call, so it stays as a knob to judge there (2026-11-01)
@@ -380,7 +390,7 @@ export class GLRenderer {
         const cut = b.cutout ? 1 : 0, sw = b.sway ? 1 : 0;
         if (cut !== lc) { gl.uniform1f(P.shadow.u.uCutout, cut); lc = cut; } if (sw !== ls) { gl.uniform1f(P.shadow.u.uSway, sw); ls = sw; }
         if (b.cutout && b.tex !== lt) { gl.bindTexture(gl.TEXTURE_2D, this.textures.get(b.tex)); lt = b.tex; }
-        this.drawBatch(b);
+        this.drawBatch(b, true);
       }
     }
 

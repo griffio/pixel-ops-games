@@ -3671,6 +3671,26 @@ shadows are on, and flat with them off, says the judder is the shadow pass and i
   while paused, the touch panel reading no blur and 0.96, the desktop one unchanged.
 
 
+- **iPad judder on Olive Gorge's town (2026-11-04, "Take a look ?").** The user's `?prof=1` run (Safari 26.6, Apple GPU,
+  1024x1234, shadows 2048, four minutes on the Gorge, 18 windows read back from Workers Logs, where `/perf` lines persist
+  with observability on): JavaScript 1.3 to 1.6 ms a frame throughout, medians 17 ms, but while panning at play zoom the
+  p99 sat at 28 to 34 ms with one to four frames over 33 ms a window, worst at zoom 0.7 over the town (4 of 900) with fewer
+  draw calls than the open plateau. So the GPU, not the simulation. Benched on the Mac mini's GPU (scratchpad bench.mjs:
+  DevTools, ANGLE Metal, rAF intervals over 400 frames while panning 1.5 m a frame; vsync stays on in headless, so the
+  measure is frames over 33 ms): the town view dropped 10 to 32 frames of 400, still or panning, and none with shadows
+  off; Palm Valley's bridge view dropped none panning. Two causes, both the map's: (1) the shadow pass's reach took every
+  map's tallest caster as 50 m, and under the Gorge's 16:30 sun (elevation 0.38) that reached 171 m, a hundred shadow
+  chunks at play zoom against Palm Valley's 64 under its morning sun; (2) the 2 m terrain cell (for the gorge's walls) gave
+  the ground four times the triangles, and the ground casts, so the shadow pass drew them over that whole reach. Fixes
+  in `gl/renderer.js` and `gl/world.js`: `renderer.tallest` is measured from the world's obstacles and the terrain's relief
+  (never under 25 m, for helicopters), and the reach is tallest / sin(elevation); the Gorge's is 25 (its church is 20),
+  Palm Valley's 41, Narva's 150 (the chimneys, so its reach stays as it was), Peninsula's 32, Desert Crossing's 62. A ground
+  chunk whose terrain cell is under 4 m carries a second, 4 m geometry (`mat.shadowGeo`, a second VAO on the same instance
+  buffer) that the shadow pass draws instead (`drawBatch(b, true)`); the shadow map cannot tell. After: the town view
+  panning 0 frames over 33 of 400 at 4096 and at 2048 shadows, still 0 at 2048 (a burst of 10 Hz stalls remains at 4096
+  while a fight runs nearby, which the iPad does not use), shadow chunks 100 to 64, calls 1,153 to 894; Palm Valley 0 and
+  0, unchanged. Shadows checked by eye on the town and the monastery frames.
+
 ## Base defence mode plan (2026-11-02)
 
 **Premise.** A single-player mode on a micro map, 500 m, that fits on one screen at play zoom: the player lays out and
