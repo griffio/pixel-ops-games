@@ -10,8 +10,13 @@ export class Quality {
     this.t += rawMs / 1000; this.ms.push(rawMs); if (this.ms.length > 180) this.ms.shift();
     if (this.t < this.checkAt) return; this.checkAt = this.t + 2;
     if (!a.match || a.match.state !== 'play' || a.match.elapsed < 10 || (a.hud && a.hud.paused)) { this.slow = 0; this.fastSince = this.t; return; }
-    const s = this.ms.slice().sort((x, y) => x - y), med = s[s.length >> 1], R = a.renderer;
-    if (med > 20) {
+    const s = this.ms.slice().sort((x, y) => x - y), med = s[s.length >> 1], p90 = s[Math.floor(s.length * 0.9)], late = s.filter(v => v > 24).length / s.length, R = a.renderer;
+    // slow: a median over 20 ms, or a tail: at least one frame in a hundred running late (over 24 ms, two or more of the 180 kept)
+    // at three checks in a row. Under vsync the median sits at 17 ms however near the budget the frame runs, and a late frame
+    // shows on a 120 Hz tablet as a 25 to 33 ms interval: the iPad's judder over Olive Gorge's town was that tail, one frame in
+    // a hundred at 28 to 32 ms with a median of 17 all along (2026-11-04). p90 is kept for the log
+    this.tail = late; this.p90 = p90;
+    if (med > 20 || late >= 0.01) {
       this.fastSince = this.t;
       if (++this.slow >= 3 && R.shadowSize > this.min && this.t - this.lastChange > 20) { if (this.t - this.lastRestore < 60) this.bounces++; this.step(R.shadowSize / 2, med); }
     } else {
@@ -23,6 +28,6 @@ export class Quality {
   step(size, med) {
     const a = this.app; a.renderer.setShadowSize(size); this.lastChange = this.t; this.slow = 0; this.fastSince = this.t; this.ms.length = 0;
     this.changes.push({ t: +this.t.toFixed(0), size, med: +med.toFixed(1) });
-    if (a.hud && a.hud.toast) a.hud.toast(size < this.base ? `Shadows ${size}: frames were ${Math.round(med)} ms` : `Shadows back to ${size}`);
+    if (a.hud && a.hud.toast) a.hud.toast(size < this.base ? (med > 20 ? `Shadows ${size}: frames were ${Math.round(med)} ms` : `Shadows ${size}: one frame in ${Math.max(2, Math.round(1 / Math.max(0.01, this.tail || 0)))} ran late`) : `Shadows back to ${size}`);
   }
 }

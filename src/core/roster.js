@@ -301,12 +301,18 @@ export class Roster {
       const b = document.createElement('button'); b.className = 'edge'; b.innerHTML = `<span class="dir">${icon('arrow')}</span><span class="lbl"></span><small class="more"></small><small class="dist"></small>`;
       E.appendChild(b); this.pointers.push({ el: b, dir: b.children[0], lbl: b.children[1], more: b.children[2], dist: b.children[3], shown: true });
     }
+    // the words on a pointer (the label, the "+N", the distance) change at 4 Hz at most: a text write lays the button out again,
+    // and with a dozen pointers in 10 m steps one of them changed nearly every frame of a pan; the arrow and the position move
+    // every frame on the compositor alone
+    const words = (this.edgeWordsAt === undefined || performance.now() - this.edgeWordsAt > 250); if (words) this.edgeWordsAt = performance.now();
     this.pointers.forEach((p, i) => {
       const o = out[i], show = !!o; if (p.shown !== show) { p.shown = show; p.el.style.display = show ? '' : 'none'; } if (!o) return;
       const ang = Math.round(o.ang / 10) * 10; if (p.ang !== ang) { p.ang = ang; p.dir.style.transform = `rotate(${ang}deg)`; }
-      if (p.label !== o.label) { p.label = o.label; p.lbl.textContent = o.label; }
-      const more = o.more ? `+${o.more}` : ''; if (p.moreT !== more) { p.moreT = more; p.more.textContent = more; p.more.style.display = more ? '' : 'none'; }
-      const dist = `${Math.max(10, Math.round(o.dist / 10) * 10)} m`; if (p.distT !== dist) { p.distT = dist; p.dist.textContent = dist; }
+      if (words || p.label === undefined) {
+        if (p.label !== o.label) { p.label = o.label; p.lbl.textContent = o.label; }
+        const more = o.more ? `+${o.more}` : ''; if (p.moreT !== more) { p.moreT = more; p.more.textContent = more; p.more.style.display = more ? '' : 'none'; }
+        const dist = `${Math.max(10, Math.round(o.dist / 10) * 10)} m`; if (p.distT !== dist) { p.distT = dist; p.dist.textContent = dist; }
+      }
       if (p.k !== o.k) { p.k = o.k; p.el.dataset.k = o.k; } if (p.red !== !!o.alert) { p.red = !!o.alert; p.el.classList.toggle('red', p.red); }
       const tr = `translate(${Math.round(o.x)}px, ${Math.round(o.y)}px) translate(-50%, -50%)`; if (p.tr !== tr) { p.tr = tr; p.el.style.transform = tr; }
     });

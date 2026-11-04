@@ -3713,7 +3713,16 @@ shadows are on, and flat with them off, says the judder is the shadow pass and i
   `#define CUTOUT` round the discard, and the passes switch program with the batch's cutout flag (the lists are sorted, so
   two or three switches a pass); the water, the unlit batches and the overlays use the plain one. Frames checked on the
   town, Palm Valley's palms and the Hollow's thickets; the Mac bench is unchanged (its GPU kept early depth with discard).
-  The iPad's profile after this deploy is the test.
+  *Fifth profile (15:31, after the shader split):* the same shape still: still frames max 18 to 24, every panning window a
+  worst frame of 31 to 32 and a p99 of 17 to 28, no frame over 33. The user's idea that it comes with every unit on screen
+  was measured and withdrawn: a soldier is 2,716 triangles and the whole dynamic set with every unit in the town 167,000 a
+  frame. What the tail means on a 120 Hz tablet with rAF at 60: frames finishing a few ms late and presenting a slot
+  later, 25 to 33 ms apart, one in a hundred; the adaptive shadow step never saw it because it watched the median, which
+  vsync pins at 17. Two changes: `core/quality.js` steps the shadow map down when one frame in a hundred runs over 24 ms
+  at three checks in a row (the toast says "one frame in N ran late"; a synthetic stream with 1.5% of frames at 28 ms
+  steps 2048 to 1024 in 6 s, a clean one with a single 30 ms frame does not); and the edge pointers' words change at 4 Hz
+  at most, their arrows and positions still every frame on the compositor. If the tail outlives the step to 1024, the
+  on-device split is: a pan with `&hud=0` (DOM or not) and a pan with Shadows off in the Render panel (shadow pass or not).
 
 ## Base defence mode plan (2026-11-02)
 
