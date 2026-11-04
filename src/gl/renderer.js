@@ -495,7 +495,9 @@ export class GLRenderer {
   // radiusPx > 0 (touch) searches a block around the point and returns the nearest id.
   pick(nx, ny, radiusPx = 0) {
     if (!this.main || !this.lastViewProj) return 0;
-    const gl = this.gl, w = this.main.w, h = this.main.h, savedCalls = this.stats.calls; this.ensurePickTarget(w, h);
+    // at half the main target's size: a quarter of the fragments for the units drawn again, and a quarter of the pixels read back
+    // (the read-back waits for the GPU to finish the frame before it; a tap on the iPad cost a frame, 2026-11-04)
+    const gl = this.gl, w = Math.ceil(this.main.w / 2), h = Math.ceil(this.main.h / 2), savedCalls = this.stats.calls; this.ensurePickTarget(w, h);
     gl.bindFramebuffer(gl.FRAMEBUFFER, this.pickFb.fb); gl.viewport(0, 0, w, h);
     gl.clearColor(0, 0, 0, 0); gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
     const p = this.progs.pick; gl.useProgram(p.p); gl.uniformMatrix4fv(p.u.uViewProj, false, this.lastViewProj);

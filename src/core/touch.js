@@ -14,6 +14,10 @@ export class TouchInput {
     this.gesture = null;               // 'drag' | 'box' | 'multi'
     this.hold = null; this.dragging = false; this.boxArmed = false; this.boxFrom = null;
     this.vel = { x: 0, z: 0 }; this.lastMoveT = 0; this.lastTap = null; this.hinted = false; this.doubleMs = 400;
+    // the settings panel's "Tap orders" (hud.js), remembered in the browser, ?taps=0 for a link: off, a tap or a hold on the map gives
+    // no order (a tap still selects a unit of ours; Load, Advance and the wheel's "Here" still take their tap)
+    this.tapOrders = true; try { this.tapOrders = localStorage.getItem('pixelops.taps') !== '0'; } catch {} if (new URLSearchParams(location.search).get('taps') === '0') this.tapOrders = false;
+    this.flingStop = false;  // this touch began on a moving map: it stops the fling and is never a tap (the tap to stop a glide used to order the selection there)
     this.ring = document.getElementById('hold');
     const stop = (e) => e.preventDefault();
     this.canvas.addEventListener('touchstart', stop, { passive: false });   // Safari: no double-tap zoom, callouts or page pinch
@@ -30,11 +34,12 @@ export class TouchInput {
     try { this.canvas.setPointerCapture(e.pointerId); } catch {}   // synthetic events have no active pointer
     const now = performance.now();
     this.pts.set(e.pointerId, { x: e.clientX, y: e.clientY, x0: e.clientX, y0: e.clientY, t0: now });
+    if (this.pts.size === 1) this.flingStop = !this.pts.size || Math.abs(this.vel.x) > 2 || Math.abs(this.vel.z) > 2;   // over 2 m/s: the map was still gliding
     this.vel.x = this.vel.z = 0;
     if (this.pts.size === 1) {
       this.gesture = this.boxArmed ? 'box' : 'drag'; this.dragging = false; this.boxFrom = { x: e.clientX, y: e.clientY };
       this.anchor = this.ground(e.clientX, e.clientY);
-      this.hold = this.gesture === 'drag' ? { x: e.clientX, y: e.clientY, t0: now, fired: false } : null;
+      this.hold = this.gesture === 'drag' && !this.flingStop && (this.tapOrders || this.deliberate() || !this.input.selected.length) ? { x: e.clientX, y: e.clientY, t0: now, fired: false } : null;   // no hold on a stopped glide; with tap orders off a hold only starts a box select (nothing selected) or completes an armed order
       if (this.hold) this.showRing(e.clientX, e.clientY);
     } else {
       this.cancelHold(); this.gesture = 'multi'; this.multi = this.multiState(); this.input.box.style.display = 'none';
@@ -76,7 +81,8 @@ export class TouchInput {
       return;
     }
     const fired = this.hold && this.hold.fired; this.hold = null;
-    if (!fired && !this.dragging) this.tap(p, now);
+    if (!fired && !this.dragging && !this.flingStop) this.tap(p, now);
+    this.flingStop = false;
     if (tIn - this.lastMoveT > STOP_MS) this.vel.x = this.vel.z = 0;    // the finger stopped before lifting: no fling
     this.dragging = false;
   }
@@ -108,12 +114,15 @@ export class TouchInput {
     rts.zoom = rts.zoomT; rts.yaw = rts.yawT;
   }
 
+  // an order the player armed on purpose, which a tap completes whatever the Tap orders setting says: Load, Advance, the wheel's "Here"
+  deliberate() { const inp = this.input; return !!(inp.loading || inp.advancing || inp.picking); }
   tap(p, now) {
     const [nx, ny] = this.norm(p.x, p.y), inp = this.input, me = this.app.playerTeam ?? 0;
     const u = this.app.pick(nx, ny, PICK_RADIUS);
     if (inp.loading) { inp.loadInto(u); if (navigator.vibrate) navigator.vibrate(10); return; }   // after Load the tap picks the vehicle
     if (u && u.team === me && this.lastTap && this.lastTap.u === u && now - this.lastTap.t < this.doubleMs) { inp.selectType(u.type); this.lastTap = null; return; }   // double-tap: all of that type on screen
     this.lastTap = { t: now, u };
+    if (!this.tapOrders && !this.deliberate()) { if (u && u.team === me) inp.clickSelect(nx, ny, false, PICK_RADIUS); return; }   // tap orders off: a tap on our own unit selects it (a double-tap its type), anything else is nothing
     // with units selected, a tap off our own units is an order (manning our sandbags counts as one); a tap on one of our
     // vehicles selects it, so a squad's selection never stands in the way of picking the APC
     const man = inp.canMan(u) || inp.canMan(inp.postAt(nx, ny));

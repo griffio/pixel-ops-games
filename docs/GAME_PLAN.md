@@ -3723,6 +3723,19 @@ shadows are on, and flat with them off, says the judder is the shadow pass and i
   steps 2048 to 1024 in 6 s, a clean one with a single 30 ms frame does not); and the edge pointers' words change at 4 Hz
   at most, their arrows and positions still every frame on the compositor. If the tail outlives the step to 1024, the
   on-device split is: a pan with `&hud=0` (DOM or not) and a pan with Shadows off in the Render panel (shadow pass or not).
+  *Sixth and seventh profiles (15:42 and 15:46):* the stepper fired as designed (2048 to 1024 after 15 s) and the tail stayed;
+  then the user turned shadows off in the panel and the tail stayed at 160 to 290 draw calls, p99 27 to 29 and a worst
+  frame of 31 to 33 in every panning window, 17 and 18 to 26 standing still. So the GPU load is not it at all. The user
+  added that the tap is very sensitive and a pan hardly ever goes by without an accidental order. That fits: a tap or a
+  hold runs `app.pick`, which draws every unit again into the pick buffer at the main target's full size and reads pixels
+  back, a wait for the GPU to finish the frame before it, inside the touch handler where no timer sees it; and a tap to
+  stop a glide was a tap like any other, an order and a pick. Changes: a touch that begins on a gliding map (over 2 m/s)
+  stops the glide and is never a tap; the pick pass runs at half the main target's size (tools/pick-test: 29 of 30 either
+  way, the same soldier beside an APC); and the settings panel has **Tap orders** (remembered, `?taps=0`), off: a tap or a
+  hold on the map gives no order, a tap on our own unit still selects it and a double-tap its type, a hold with nothing
+  selected still box-selects, and Load, Advance and the wheel's "Here" still take their tap (tools/touch-test with and
+  without `taps=0`). If the tail outlives tap orders off, the picks on selection taps are the next thing to make
+  asynchronous (a pixel-pack buffer read a frame later), and the on-device `&hud=0` pan is still the clean split.
 
 ## Base defence mode plan (2026-11-02)
 

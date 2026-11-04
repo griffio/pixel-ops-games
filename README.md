@@ -607,6 +607,8 @@ Touch and pen pointers go to a gesture layer; a mouse or trackpad keeps the tabl
 | Pinch | Zoom about the midpoint |
 | Twist | Rotate about the midpoint |
 | Three-finger drag up/down | Tilt |
+| Tap during a fling | Stops the glide, and is never an order |
+| Settings: Tap orders | Off, a tap or a hold on the map gives no order; a tap still selects a unit of yours, Load, Advance and the wheel's "Here" still take their tap, and a hold with nothing selected still box-selects. Remembered in the browser; `?taps=0` for a link |
 | Toolbar (top left) | **Box** arms a one-shot box select, **Pause**, **Base** jumps to your main, **?** the field manual, sound, **⚙** shows the engine panels. Follow and Deselect are in the command bar |
 | Unit strip | Tap a card to select, tap again to go there, hold to follow; **+** groups the selection |
 

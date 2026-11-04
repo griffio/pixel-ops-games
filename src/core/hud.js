@@ -71,6 +71,11 @@ export class Hud {
       a.rings.on = on; $('c-rings').checked = on;
       $('c-rings').addEventListener('change', e => { a.rings.on = e.target.checked; try { localStorage.setItem('pixelops.rings', e.target.checked ? '1' : '0'); } catch {} });
     }
+    if ($('c-taps')) {   // tap orders on a touch screen (core/touch.js reads the same setting when it is made; the input may not exist yet here)
+      let on = true; try { on = localStorage.getItem('pixelops.taps') !== '0'; } catch {} if (new URLSearchParams(location.search).get('taps') === '0') on = false;
+      $('c-taps').checked = on;
+      $('c-taps').addEventListener('change', e => { const t = a.input && a.input.touch; if (t) t.tapOrders = e.target.checked; try { localStorage.setItem('pixelops.taps', e.target.checked ? '1' : '0'); } catch {} this.toast(e.target.checked ? 'Tap orders on' : 'Tap orders off: the wheel, Advance, Load and the strip give orders'); });
+    }
     // the touch toolbar (top left): box select, pause, the camera to base, the manual, sound, the engine panels
     const TB = { box: ['box', 'Box'], pause: ['pause', ''], base: ['base', ''], help: ['help', ''], sound: ['sound', ''], dev: ['gear', ''] };
     for (const b of document.querySelectorAll('[data-tb]')) { const t = TB[b.dataset.tb]; if (t) b.innerHTML = icon(t[0]) + (t[1] ? `<span>${t[1]}</span>` : ''); b.addEventListener('click', () => this.touchAction(b.dataset.tb)); }
