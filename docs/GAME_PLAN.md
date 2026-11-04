@@ -4102,6 +4102,26 @@ through them and plays Advance and Secure along it. Three steps, each playable:
 - Not in the plan: a staging phase before the match, lanes as separate data (the lattices give enough routes on the maps
   that have them), Invasion on a drawn chain.
 
+- **R1 to R3 done (2026-11-04; R1-R2 d3772c6, the even-chain rule d7f0813, deployed as version 5d18adbd).** *The first
+  cut's flaw:* a chain could run along one home row (Kasbah, Depot, Quarry, Mine) and hand that side three places of four
+  before a shot, and the Palm Valley Balanced mirrors split 9 to 3 for the south-west base. Chains are now **even**: as many
+  places on each side's half of the map, the middle band (15% of the base-to-base distance either side of the midpoint)
+  counting for neither, and a chain may run on through the enemy's row to end at any of its home places. Chains per map:
+  Palm Valley 7 (four of five places: Kasbah or Quarry, Depot, Bridge, Pumps, Souk or Mine; two of four; Depot-Bridge-Pumps),
+  Narva 9, Olive Gorge 4, the Hollow 4, Desert Crossing its list. The mirrors rerun on even chains split 4 to 8, the
+  engine's usual second-team lean, all twelve to the clock with margins of 10 to 180.
+  *Random AAS against AAS on Palm Valley, the core set at seeds 1 and 2 (16 matches each):* AAS ran every match to the
+  clock with an average margin near 80 and the bases 8 to 8 (Mechanized 6 of 8, Light 5 of 8, Armoured 2 of 4, Balanced
+  3 of 8, Air 0 of 4); Random AAS ran 14 to the clock and 2 to tickets at 22:33 and 23:12, with margins near 200 (26-346,
+  352-51, 392-136, 322-27) and the bases 10 to 6 (Armoured 4 of 4 at +215, Mechanized 6 of 8, Light 5 of 8, Balanced 1 of
+  8, Air 0 of 4). A drawn chain is one front: whoever holds three of its five places bleeds the other for long stretches,
+  and an APC standoff on the one lane is worth more than on a lattice with flanks, so armour gains and matches are more
+  decisive. *On Olive Gorge* (its four chains are three places through the Old Bridge) the core set ended 13 of 16 by
+  tickets (Mechanized 7 of 8, Balanced 0 of 8) and the Balanced mirrors 5 of 12, bases 6 to 6: the shortest chains make
+  the sharpest matches. Open: whether Random AAS should bleed only for places past the midpoint, as Squad's AAS does
+  (rank 3 in the report), which would soften the single-front snowball; the armour lean on the gorge stands as noted under
+  its O4; a chain of three on a five-place map could be allowed a fourth by dropping the home-row stop.
+
 ## Open questions
 
 None open. Answered:

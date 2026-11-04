@@ -469,8 +469,9 @@ precedence and the utility AI fills the gaps.
 **Game modes** (picked in the force builder, or `?mode=` with `?side=attack|defend`):
 - *Advance & Secure*: capture the five locations in order; majority bleed; take all to win.
 - *Random Advance & Secure*: the match draws a chain of three to five places through the map's lattice, from one of your
-  home places to one of the enemy's, and plays Advance & Secure along it; the other places are ground to cross. The route
-  differs by seed (`?chain=A,B,C` forces one); Palm Valley has 7 chains, Narva 13, Olive Gorge and the Hollow 4.
+  home places to one of the enemy's, with as many places on each side's half, and plays Advance & Secure along it; the
+  other places are ground to cross, and under fog of war you see the route only as far as the first place you do not hold.
+  The route differs by seed (`?chain=A,B,C` forces one); Palm Valley has 7 chains, Narva 9, Olive Gorge and the Hollow 4.
 - *Invasion*: defenders start with every location and 400 tickets against the attackers'
   650; attackers must take them all before the clock (20 minutes; Peninsula sets 24 with
   `clock` on the map), each capture costs the defenders 30 tickets.
