@@ -33,16 +33,17 @@ export class Rings {
     this.items = []; this.match = match;
     const list = match && match.objectives ? match.objectives.list : [], name = match && match.world && match.world.map ? match.world.map.name : 'map';
     for (const l of list) {
-      const solid = new Mesh(this.geometry(`capring:${name}:${l.index}:solid`, l.x, l.z, l.r, 1), this.mats.solid.n), dash = new Mesh(this.geometry(`capring:${name}:${l.index}:dash`, l.x, l.z, l.r, DASHES), this.mats.dash.n);
+      const solid = new Mesh(this.geometry(`capring:${name}:${l.name}:solid`, l.x, l.z, l.r, 1), this.mats.solid.n), dash = new Mesh(this.geometry(`capring:${name}:${l.name}:dash`, l.x, l.z, l.r, DASHES), this.mats.dash.n);   // keyed by the place's name: under Random AAS an index is a different place each match
       for (const m of [solid, dash]) { m.position.set(l.x, 0, l.z); m.bound = l.r + 2; m.visible = false; this.scene.add(m); }
       this.items.push({ loc: l, solid, dash });
     }
   }
   update(match) {
     if (match !== this.match) this.attach(match);
+    const hide = match && match.mode && match.mode.hidden ? (l) => match.mode.hidden(l) : () => false;   // a place the viewer does not know yet (Random AAS under fog of war) wears no ring
     for (const { loc, solid, dash } of this.items) {
-      const taking = loc.pushing >= 0 ? loc.pushing : -1, held = loc.owner;
-      const dashed = this.on && taking >= 0, solidOn = this.on && !dashed;
+      const taking = loc.pushing >= 0 ? loc.pushing : -1, held = loc.owner, h = hide(loc);
+      const dashed = this.on && !h && taking >= 0, solidOn = this.on && !h && !dashed;
       dash.visible = dashed; solid.visible = solidOn;
       if (dashed) dash.mat = this.mats.dash[taking];
       else if (solidOn) solid.mat = held >= 0 ? this.mats.solid[held] : this.mats.solid.n;

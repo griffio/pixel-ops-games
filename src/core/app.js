@@ -59,8 +59,8 @@ export function populate(app) {
     app.aiModes = (q.get('ai') || '').split(','); app.personas = (q.get('persona') || '').split(',');   // ?ai=rules for the older planner (default utility; per team: utility,rules), ?persona=balanced|aggressive|patient   // ?model=<key> picks a model from the Worker's allow-list (llama, gpt-oss-120b, qwen3-30b, mistral-small)
     app.startMatch = (playerLoadout, modeOpts = {}) => {
       const cpuKey = q.get('cpuloadout') || (app.world.map && app.world.map.infantryOnly ? 'light' : counterPick(playerLoadout));   // on an infantry-only map the CPU brings Light Infantry: the vehicle doctrines have nothing to spend on, and Light's half-price men won every infantry pairing
-      const fixed = app.world.map && app.world.map.mode;   // a map made for one mode (Peninsula: Invasion, attacked from its first base)
-      const mode = fixed || q.get('mode') || modeOpts.mode || 'aas', difficulty = q.get('difficulty') || modeOpts.difficulty || 'normal';
+      const mp0 = app.world.map, allowed = mp0 && (mp0.modes || (mp0.mode ? [mp0.mode] : null)), fixed = allowed ? allowed[0] : null;   // a map made for one mode (Peninsula: Invasion, attacked from its first base), or a few (the Hollow: AAS and Random AAS)
+      const want = q.get('mode') || modeOpts.mode || 'aas', mode = allowed ? (allowed.includes(want) ? want : fixed) : want, difficulty = q.get('difficulty') || modeOpts.difficulty || 'normal';
       if (!q.has('commander') && modeOpts.commander !== undefined) { app.commanderUrl = modeOpts.commander ? '/commander' : null; app.commanderModel = modeOpts.commander || null; }   // the lobby's Opponent (a link's ?commander= wins)
       let side = q.get('side') || modeOpts.side || 'attack', swap = q.get('swap') === '1';
       if (fixed && MODES[fixed] && MODES[fixed].sides) { if (side === 'defend') swap = !swap; side = swap ? 'defend' : 'attack'; }   // its first base always attacks: defending, or ?swap=1, plays from the other base (a mode without sides, Hold, keeps the player on the first base)
@@ -75,7 +75,7 @@ export function populate(app) {
       if (swap && app.world.map && !app.world.map.swapped) { const mp = app.world.map; mp.bases = [...mp.bases].reverse(); mp.locations = [...mp.locations].reverse().map(l => l.home === undefined ? l : { ...l, home: [].concat(l.home).map(h => 1 - h) }); mp.swapped = true; }   // a place touching a base now touches the other team's
       const hq = q.get('hybrid'), hybrid = hq ? (hq === '1' ? 'builtin' : hq) : (modeOpts.hybrid || '');   // ?hybrid=1 | builtin | llama | haiku | sonnet | opus: a commander for the player's side, taking the player's orders (the lobby's "Your CO" row otherwise)
       app.hybrid = hybrid;
-      app.match = new Match(app, { cpu, mode, side, difficulty, loadouts: [playerLoadout, preset(cpuKey)], hybrid });
+      app.match = new Match(app, { cpu, mode, side, difficulty, loadouts: [playerLoadout, preset(cpuKey)], hybrid, chain: q.get('chain') });
       if (app.hud && app.input) app.hud.update(0, window.innerWidth, window.innerHeight);   // the roster cards and the minimap built now, at the click, not in the match's first frame (a 350 ms frame on the iPad)
       if (app.audio) app.audio.ui('start');
       // the sun stands still during a match (a moving sun crawls every shadow edge at close zoom); ?hour= picks the time
@@ -91,7 +91,7 @@ export function populate(app) {
       app.hud.toast(`${app.match.teams[0].loadoutName} vs ${app.match.teams[1].loadoutName}`);
     };
     if (cpu.includes(0) || q.has('loadout')) app.startMatch(preset(q.get('loadout') || 'balanced'));
-    else { const b = app.world.map && app.world.map.bases ? app.world.map.bases[0] : { x: -400, z: -400 }; app.lobby = new Lobby(app.startMatch, app.world.map && app.world.map.name, app.world.map && app.world.map.mode, { maps: Object.entries(MAPS).map(([key, m]) => ({ key, name: m.name, size: m.size, infantryOnly: !!m.infantryOnly, blurb: m.blurb, mode: m.mode, clock: m.clock, footSquads: m.footSquads, keepKits: !!m.keepKits, preset: m.preset, squadSlots: m.squadSlots, budget: m.budget })), current: Object.keys(MAPS).find(k => MAPS[k] === app.world.map), commanderLocked: q.has('commander') }); rts.target.set(b.x + 10, 0, b.z + 10); }   // the camera behind the force builder looks at our base
+    else { const b = app.world.map && app.world.map.bases ? app.world.map.bases[0] : { x: -400, z: -400 }; app.lobby = new Lobby(app.startMatch, app.world.map && app.world.map.name, app.world.map && (app.world.map.modes || (app.world.map.mode ? [app.world.map.mode] : null)), { maps: Object.entries(MAPS).map(([key, m]) => ({ key, name: m.name, size: m.size, infantryOnly: !!m.infantryOnly, blurb: m.blurb, mode: m.mode, modes: m.modes, clock: m.clock, footSquads: m.footSquads, keepKits: !!m.keepKits, preset: m.preset, squadSlots: m.squadSlots, budget: m.budget })), current: Object.keys(MAPS).find(k => MAPS[k] === app.world.map), commanderLocked: q.has('commander') }); rts.target.set(b.x + 10, 0, b.z + 10); }   // the camera behind the force builder looks at our base
     return;
   }
   for (let i = 0; i < 10; i++) units.spawnSquad();

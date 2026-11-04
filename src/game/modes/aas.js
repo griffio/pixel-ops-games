@@ -26,9 +26,15 @@ export class AAS extends Mode {
     if (this.objectives.allOwned(1)) return { winner: this.teams[1], reason: 'captured every location' };
     return null;
   }
-  bar() { return this.objectives.list.map(l => ({ name: l.name, owner: l.owner, progress: l.progress, note: l.owner === 0 ? 'BLUFOR' : l.owner === 1 ? 'OPFOR' : (l.progress ? 'capturing' : 'neutral') })); }
+  // what the viewer may see: everything, unless the mode hides part of the lattice (Random AAS: known) and the fog of war is on,
+  // when the player's side's knowledge shows; the bar, the minimap, the rings, the feed and the digest all ask
+  viewer() { const a = this.match.app; return a && a.fog && a.fog.on ? (a.playerTeam ?? 0) : null; }
+  known(team, loc) { return true; }
+  hidden(loc) { const v = this.viewer(); return v !== null && !this.known(v, loc); }
+  shown() { return this.objectives.list.filter(l => !this.hidden(l)); }
+  bar() { return this.shown().map(l => ({ name: l.name, owner: l.owner, progress: l.progress, note: l.owner === 0 ? 'BLUFOR' : l.owner === 1 ? 'OPFOR' : (l.progress ? 'capturing' : 'neutral') })); }
   drawMinimap(g, X, Z, k) {
-    for (const l of this.objectives.list) {
+    for (const l of this.shown()) {
       g.fillStyle = l.owner === 0 ? 'rgba(127,178,229,0.35)' : l.owner === 1 ? 'rgba(232,106,90,0.35)' : 'rgba(255,255,255,0.15)';
       g.beginPath(); g.arc(X(l.x), Z(l.z), l.r * k, 0, Math.PI * 2); g.fill();
       if (l.owner === -1 && l.progress) { g.strokeStyle = l.progress > 0 ? '#7fb2e5' : '#e86a5a'; g.lineWidth = 2; g.beginPath(); g.arc(X(l.x), Z(l.z), l.r * k, -Math.PI / 2, -Math.PI / 2 + Math.PI * 2 * Math.abs(l.progress) / 100); g.stroke(); }

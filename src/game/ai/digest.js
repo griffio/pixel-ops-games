@@ -4,7 +4,7 @@
 // what this side knows under fog of war (game/vision.js): what it sees, where it last saw the rest
 // (lastSeen, seconds ago), enemies in a zone only as far as it sees them, and the FOBs it has found.
 export function buildDigest(match, team, remote = null) {
-  const m = match, T = m.teams[team], E = m.teams[1 - team], U = m.units.units, O = m.objectives ? m.objectives.list : [], V = m.vision, known = V.contacts(team);
+  const m = match, T = m.teams[team], E = m.teams[1 - team], U = m.units.units, O = m.objectives ? m.objectives.list.filter(l => !m.mode.known || m.mode.known(team, l)) : [], V = m.vision, known = V.contacts(team);   // Random AAS: the chain as far as this side knows it
   const r = (v) => Math.round(v), live = (u) => !u.dead && !u.mounted;
   const nearLoc = (x, z) => { let best = null, bd = Infinity; for (const l of O) { const d = Math.hypot(l.x - x, l.z - z); if (d < bd) { bd = d; best = l; } } return best ? `${best.name}+${r(bd)}m` : 'open'; };
   const owner = (o) => (o === team ? 'ours' : o === 1 - team ? 'theirs' : 'neutral');
@@ -16,7 +16,7 @@ export function buildDigest(match, team, remote = null) {
     return k.n > now ? { units: k.units, secondsAgo: r(m.elapsed - k.t) } : undefined; };
   const locations = O.map(l => ({ name: l.name, at: [r(l.x), r(l.z)], owner: owner(l.owner), capturing: l.progress && l.owner === -1 ? (Math.sign(l.progress) === (team === 0 ? 1 : -1) ? 'ours' : 'theirs') : null, ours: l.n ? l.n[team] : 0,
     theirs: !V.on ? (l.n ? l.n[1 - team] : 0) : known.filter(u => !u.ghost && !u.spec.structure && !(u.spec.air && u.alt > 2) && Math.hypot(u.pos.x - l.x, u.pos.z - l.z) < l.r).length, contested: l.contested || undefined, capturable: o ? o.capturable(team, l) && l.owner !== team : false,
-    grabbable: free.includes(l) || undefined, links: l.adj ? l.adj.map(a => a.name) : undefined, base: l.homes && l.homes.length ? l.homes.map(owner).join(',') : undefined, recent: recent(l) }));   // the network: neighbours, and whose main base it touches
+    grabbable: free.includes(l) || undefined, links: l.adj ? l.adj.filter(a => !m.mode.known || m.mode.known(team, a)).map(a => a.name) : undefined, base: l.homes && l.homes.length ? l.homes.map(owner).join(',') : undefined, recent: recent(l) }));   // the network: neighbours, and whose main base it touches
   // the engineer squad's logistics job and where (its order alone reads "fob" whatever it builds)
   const JOB = { fob: 'build a FOB', sandbags: 'dig sandbags', traps: 'lay tank traps', clear: 'clear tank traps' }, job = (s) => st && st.plan && st.plan.sq === s && !st.plan.done ? `${st.plan.kind === 'emplacement' ? 'set up ' + { hmg: 'a heavy machine gun (hmg)', atgm: 'an anti-tank launcher (atgm)', mortar: 'a mortar' }[st.plan.gun] : JOB[st.plan.kind]} at ${nearLoc(st.plan.x, st.plan.z)}` : undefined;
   // a squad aboard a vehicle says which: helicopters fly squads in, APCs and trucks drive them (both are "lift" to the strategist)

@@ -27,11 +27,11 @@ import { difficulty } from './difficulty.js';
 // teams, tickets, the simulation systems and the clock. Each team deploys the force
 // in its loadout; doctrines shape respawns and spawns.
 export class Match {
-  constructor(app, { cpu = [1], mode = 'aas', side = 'attack', loadouts = [preset('balanced'), preset('balanced')], difficulty: diffKey = 'normal', hybrid = '' } = {}) {   // hybrid: a commander for the player's own side ('builtin', or a model key), taking the player's orders
+  constructor(app, { cpu = [1], mode = 'aas', side = 'attack', loadouts = [preset('balanced'), preset('balanced')], difficulty: diffKey = 'normal', hybrid = '', chain = null } = {}) {   // chain: ?chain=A,B,C, a forced route for Random Advance & Secure   // hybrid: a commander for the player's own side ('builtin', or a model key), taking the player's orders
     this.app = app; this.units = app.units; this.world = app.world;
     const map = this.world.map;
     if (!(map && map.locations && map.locations.length)) mode = 'skirmish';
-    this.mode = createMode(mode, this, { side });
+    this.mode = createMode(mode, this, { side, chain });
     this.difficulty = difficulty(diffKey); this.cpu = cpu; this.hybrid = hybrid || '';
     this.teams = makeTeams(400, map && map.bases);
     this.mode.teams = this.teams;

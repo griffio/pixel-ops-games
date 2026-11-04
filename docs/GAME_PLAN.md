@@ -4074,6 +4074,34 @@ an olive mill's groves spread on the east, and the gorge opens into a shallow ba
   the README table (the Old Bridge under capture, the Monastery, the ford). Not done: randomised lanes (the mode the review
   put beside this map).
 
+## Random lanes plan (2026-11-04)
+
+After Olive Gorge ("Plays great too lets go"): the mode the review put beside the map. Squad's RAAS draws the flag chain
+for each match so the route is not known in advance; the report (reports/Squad gameplay mechanics for Pixel Ops.md, rank 11)
+suggested 2 to 3 lanes of 5 places with the objectives shown. Here the lattices are data already, so the mode draws a chain
+through them and plays Advance and Secure along it. Three steps, each playable:
+
+- **R1, the mode.** `src/game/modes/raas.js`, key `raas`, "Random Advance & Secure", a subclass of AAS. `chainsFor(map)`
+  enumerates every simple path over the map's links from a team-0 home place to the first team-1 home place it meets, each
+  step no more than 60 m back along the base-to-base line (a move along a home row is allowed), 3 to 5 places long
+  (`map.raas = { min, max }` overrides); `chainFor` draws one with weight length squared, or takes `?chain=A,B,C`. The
+  objectives are built from the chain with no links, so the chain's ends are the homes and every other place is capturable
+  only from the one before; places off the chain are scenery (no bar entry, ring, minimap zone or digest line, since all
+  of those read the objectives). A map without links plays its list (Desert Crossing: AAS). A map may now allow a few modes
+  (`map.modes`: the Hollow offers AAS and Random AAS); the lobby lists them and the card names them. The feed announces the
+  route; the manual's Objective page names it; the rings are keyed by place name so "Play again" rebuilds them right.
+  Chains per map: Palm Valley 7 (3 of three places, 4 of four: the OPFOR row's places are all homes, so a chain ends on
+  reaching one), Olive Gorge 4 (all through the Old Bridge), Narva 13 (3, 6 and 4 of three, four and five), the Hollow 4.
+- **R2, the hidden route.** Under fog of war a side knows the chain only as far as the first place it does not hold
+  (`Objectives.known(team, loc)`); the bar, the minimap, the rings, the feed's capture news and the digest show the player's
+  side (or everything with the fog off or the CPU on both sides). The CPU's planners already act on the next place and its
+  own, so they need nothing. The route line in the feed names only the known part.
+- **R3, measure and document.** `tools/balance.mjs --mode raas` on Palm Valley and Olive Gorge, the core set and Balanced
+  mirrors (the chain follows the seed, so the runs sample the chains); the share ending by tickets and the base split
+  against AAS on the same maps; the README's mode list and map notes, the guide, the memory note.
+- Not in the plan: a staging phase before the match, lanes as separate data (the lattices give enough routes on the maps
+  that have them), Invasion on a drawn chain.
+
 ## Open questions
 
 None open. Answered:

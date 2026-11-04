@@ -12,13 +12,15 @@ export const captureWeight = (u, teams) => { const d = u.landedT > 0 && teams[u.
 // fog of war or not: contested (both sides in the zone) and pushing (the side draining or taking it, -1 for none).
 export class Objectives {
   constructor(locations, teams, links = null) {
-    this.list = locations.map((l, i) => ({ ...l, index: i, owner: -1, progress: 0, n: [0, 0], contested: false, pushing: -1, adj: [], homes: l.home === undefined ? [] : [].concat(l.home) }));
+    this.list = locations.map((l, i) => ({ ...l, index: i, owner: -1, progress: 0, n: [0, 0], contested: false, pushing: -1, adj: [], homes: l.home === undefined ? [] : [].concat(l.home), seen: [false, false] }));   // seen: by team, for a mode that hides the chain (Random AAS)
     const L = this.list, byName = (n) => { const l = L.find(x => x.name === n); if (!l) throw new Error('lattice: no location ' + n); return l; };
     if (links) for (const [a, b] of links) { const A = byName(a), B = byName(b); A.adj.push(B); B.adj.push(A); }
     else { for (let i = 1; i < L.length; i++) { L[i - 1].adj.push(L[i]); L[i].adj.push(L[i - 1]); } if (L.length) { L[0].homes.push(0); L[L.length - 1].homes.push(1); } }
     this.teams = teams; this.onEvent = null; this.scratch = [];
   }
   order(team) { return team === 0 ? this.list : [...this.list].reverse(); }
+  // Random AAS hides the chain beyond the first place a side does not hold; what a side has seen stays seen
+  reveal() { for (const t of [0, 1]) for (const l of this.order(t)) { l.seen[t] = true; if (l.owner !== t) break; } }
   capturable(team, loc) { return loc.homes.includes(team) || loc.adj.some(a => a.owner === team); }
   owned(team) { return this.list.filter(l => l.owner === team).length; }
   allOwned(team) { return this.list.every(l => l.owner === team); }
