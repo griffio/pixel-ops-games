@@ -3736,6 +3736,18 @@ shadows are on, and flat with them off, says the judder is the shadow pass and i
   selected still box-selects, and Load, Advance and the wheel's "Here" still take their tap (tools/touch-test with and
   without `taps=0`). If the tail outlives tap orders off, the picks on selection taps are the next thing to make
   asynchronous (a pixel-pack buffer read a frame later), and the on-device `&hud=0` pan is still the clean split.
+  *Eighth profile (16:07, tap orders off):* the same tail again (panning p99 25 to 27, worst 27 to 30; still 17). Four
+  switches off in a row with the same numbers say the tail is the iPad running at its budget on every map, not the judder.
+  What the frame timers cannot see is the camera: `RtsCamera.update` set the target's height to the ground under the target
+  point every frame, unsmoothed, and the eye hangs off the target, so the whole view rode the terrain. Across the gorge
+  that is a 16 m dive and climb in a quarter of a second of panning, and along the bridge a 6 m wobble of the finger
+  flipped the target between the deck (2.5 m) and the gorge bed (-16): measured, the raw ground height jumped 5.4 m a frame
+  crossing beside the bridge and 18.5 m a frame along it. Palm Valley's river is 7 m deep with easy banks, so it never
+  showed. Now the target's height is the highest of five ground samples 14 m apart (a narrow channel under the point no
+  longer counts) and moves at most 12 m/s towards it; a jump of the target (a minimap tap, a fly, a follow) takes it at
+  once, so the screenshot tools place the camera as before. Measured: across the gorge the view stays at 2.5 m (was -16 to
+  2.5), along the bridge it does not move (was 18.5 m jumps), up the monastery it climbs at 0.2 m a frame to the same 9.1 m
+  top. This is the fix for what the user saw; the frame tail stays as a known ceiling on the iPad.
 
 ## Base defence mode plan (2026-11-02)
 

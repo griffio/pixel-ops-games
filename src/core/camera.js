@@ -76,7 +76,19 @@ export class RtsCamera {
     if (this.follow) { const p = this.follow.pos; this.target.x = lerp(this.target.x, p.x, k); this.target.z = lerp(this.target.z, p.z, k); }
     const b = this.bounds;
     this.target.x = clamp(this.target.x, -b, b); this.target.z = clamp(this.target.z, -b, b);
-    this.target.y = this.heightAt ? this.heightAt(this.target.x, this.target.z) : 0;
+    // the ground under the target, widened and smoothed: the camera rides the general ground level, not every ditch. The height
+    // under the target point alone dropped the whole view by a gorge's depth (16 m on Olive Gorge) as a pan crossed it, and the
+    // bridge deck against the gorge bed beside it made the view jump as a finger wobbled along the bridge: the iPad's judder on
+    // the bridge, which no frame timer showed (2026-11-04). The height is the highest of five samples 14 m apart, and moves at
+    // most 12 m/s towards it; a jump of the target (a minimap tap, a fly, a follow) takes it at once
+    const moved = Math.hypot(this.target.x - (this.lastTx ?? this.target.x), this.target.z - (this.lastTz ?? this.target.z)); this.lastTx = this.target.x; this.lastTz = this.target.z;
+    if (this.heightAt) {
+      const H = this.heightAt, x = this.target.x, z = this.target.z, R = 14;
+      const h = Math.max(H(x, z), H(x + R, z), H(x - R, z), H(x, z + R), H(x, z - R));
+      if (this.groundY === undefined || moved > 60 || !(dt > 0)) this.groundY = h;
+      else { const step = 12 * dt; this.groundY += Math.max(-step, Math.min(step, h - this.groundY)); }
+      this.target.y = this.groundY;
+    } else this.target.y = 0;
 
     Mat4.ortho(this.proj, -viewW / 2, viewW / 2, viewH / 2, -viewH / 2, this.near, this.far);
     const dist = 120;
