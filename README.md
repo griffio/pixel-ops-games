@@ -54,7 +54,7 @@ open http://localhost:8787/?r=three      # legacy three.js back end (160 m airfi
 ```
 
 By default the **force builder** opens over the 2 km *Palm Valley* map. Its map cards
-switch to Desert Crossing, Narva or Peninsula: the page reloads on the chosen map,
+switch to Olive Gorge, Desert Crossing, Narva or Peninsula: the page reloads on the chosen map,
 keeps your loadout and remembers the map. Its Opponent row has the built-in CPU or a
 Llama commander. The Claude commanders are listed only while the engine panels are on,
 because they spend the API key the gateway holds. Then spend
@@ -148,6 +148,20 @@ pit (Quarry, Mine); hesco walls and sandbags guard both ends of the bridge. Each
 place lists sandbag positions covering its approaches, and the CPU digs in at the
 ones facing the enemy. `?map=desert1km` plays Desert Crossing, the first 1 km map
 (five places in a line; it favours the north-east base).
+
+`?map=gorge` plays *Olive Gorge*, 1.2 km, mirrored about a river like Palm Valley and built to be
+the map where the ticket pool decides (plan in docs/GAME_PLAN.md, "Olive Gorge plan"): 20 minutes,
+400 tickets, eight squads on 1,200 points (a bigger saved force is trimmed to fit, rifle squads
+first, and the CPU's pick the same). A river in a gorge cuts a Mediterranean plateau in two, and an
+old hill town stands on both rims joined by one stone bridge, the Old Bridge, the centre place; the
+gorge opens into a shallow basin to the west where a ford crosses it (everyone wades), and a timber
+footbridge crosses it to the east by the water mill, infantry only, so the river is crossed three
+ways and a trap row at each end of the bridge and on the ford's banks closes it to armour. Each
+side's home row is a walled monastery on an olive-terraced knoll (Monastery, Convent: six terraces a
+truck can climb, dry-stone walls along every other step) and an olive mill among its groves (Olive
+Mill, Winery); each home place links to the Old Bridge, the monasteries to each other over the
+footbridge and the mills through the ford, three of five for the majority. Maquis thickets on the
+hillsides hide a squad as the Hollow's woods do.
 
 `?map=narva3km` plays *Narva*, a 3 km map of the Estonia-Russia border city (plan in
 docs/GAME_PLAN.md). Its city kit and landmarks follow the user's voxel references: Soviet

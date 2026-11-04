@@ -363,6 +363,15 @@ export function makeKit({ r, rd, onRoad = () => false }) {
         if (k > 0) P(0, bed, z0, W + 2.4, +(b.y - 0.9 - bed).toFixed(2), 3.2, STONE);                                               // a pier between spans
       }
       for (const sz of [-1, 1]) P(0, -2.5, sz * (L / 2 - 1.0), W + 1.6, +(b.y + 1.5).toFixed(2), 2.0, STONE);                      // abutments
+    } else if (b.stone) {
+      // an old stone bridge (Olive Gorge): a stone deck between low parapets with a coping, piers with pointed cutwaters on the
+      // bed, the spandrels stepped in under the deck between them so each span reads as an arch, abutments up from the bed
+      const ST = [0xb8ad98, 0xaba08b, 0x9e9480], spans = Math.max(1, Math.round(L / 14)), span = L / spans;
+      P(0, b.y - 1.2, 0, W, 1.2, L, ST[0]);                                                                                            // deck
+      for (const sx of [-1, 1]) { P(sx * (W / 2 - 0.3), b.y, 0, 0.6, 1.0, L, ST[1]); for (let k = -L / 2 + 1; k < L / 2; k += 2.4) P(sx * (W / 2 - 0.3), b.y + 1.0, +k.toFixed(2), 0.64, 0.18, 1.0, ST[2]); }   // parapets, coping
+      for (let i = 1; i < spans; i++) { const k = +(-L / 2 + i * span).toFixed(2); P(0, bed, k, W + 1.0, +(b.y - 1.2 - bed).toFixed(2), 2.6, ST[1]); for (const sz of [-1, 1]) P(0, bed, +(k + sz * 1.9).toFixed(2), W * 0.55, +(b.y - 2.6 - bed).toFixed(2), 1.2, ST[2]); }   // piers, cutwaters
+      for (let i = 0; i < spans; i++) { const k = +(-L / 2 + (i + 0.5) * span).toFixed(2); for (let st = 0; st < 3; st++) { const d = span - 2.6 - (3 - st) * 2.0; if (d > 0.5) P(0, b.y - 1.2 - (st + 1) * 0.9, k, W - 0.4, 0.9, +d.toFixed(2), ST[0]); } }   // the arch, in steps
+      for (const sz of [-1, 1]) P(0, bed, sz * (L / 2 - 1.0), W + 1.2, +(b.y - 1.2 - bed).toFixed(2), 2.0, ST[1]);                   // abutments
     } else if (b.foot) {
       const WOODS = [0x8a6a46, 0x7a5c3c, 0x957552];
       for (const sx of [-1, 1]) P(sx * (W / 2 - 0.5), b.y - 0.55, 0, 0.3, 0.35, L, TIMBER);                                           // stringers
@@ -498,6 +507,24 @@ export function makeKit({ r, rd, onRoad = () => false }) {
     footprint(len, 3.4, x, z, rot, 0.95);
   };
   // a power-station chimney in red and white bands, tapering, a dark cap
+  // ---- a Mediterranean pair (Olive Gorge): the olive, a short twisted trunk under a grey-green crown in one of three sizes
+  // (sizes from a list so the crowns batch); the cypress, a dark spindle by a road or a gate. Both block sight trunk by trunk
+  const OLIVE = [0x6f7d55, 0x7b8a5e, 0x667550], OLIVE_SIZES = [[2.2, 1.9], [2.6, 2.2], [3.0, 2.5]], CYP = [0x2f4a2e, 0x344f33], CYP_H = [8, 9.5, 11];
+  const olive = (x, z, k = Math.floor(rd() * 3)) => {
+    if (onRoad(x, z)) return;
+    const [rr, h] = OLIVE_SIZES[k], yaw = rd() * Math.PI, y0 = 2.0;
+    props.push({ geo: 'cyl:0.26,0.42,2.3,6', color: 0x6b5a44, x, y: 1.15, z, rot: [0, yaw, 0], cast: true, sway: true });
+    props.push({ geo: `cyl:${rr},${(rr * 0.68).toFixed(2)},${h},7`, color: OLIVE[k], x, y: y0 + h / 2, z, rot: [0, yaw, 0], cast: true, sway: true });   // the crown flares out from a short trunk
+    props.push({ geo: `cyl:${(rr * 0.3).toFixed(2)},${(rr * 0.62).toFixed(2)},${(h * 0.5).toFixed(2)},7`, color: OLIVE[(k + 1) % 3], x: x + 0.35, y: y0 + h + h * 0.25 - 0.35, z: z - 0.25, rot: [0, yaw, 0], cast: true, sway: true });
+    obstacles.push({ minX: x - 0.5, maxX: x + 0.5, minZ: z - 0.5, maxZ: z + 0.5, h: y0 + h });
+  };
+  const cypress = (x, z, k = Math.floor(rd() * 3)) => {
+    if (onRoad(x, z)) return;
+    const h = CYP_H[k], yaw = rd() * Math.PI;
+    props.push({ geo: 'cyl:0.12,0.2,1.2,5', color: 0x5a4a38, x, y: 0.6, z, rot: [0, yaw, 0], cast: true, sway: true });
+    props.push({ geo: `cyl:0.22,0.95,${h},6`, color: CYP[k % 2], x, y: 0.8 + h / 2, z, rot: [0, yaw, 0], cast: true, sway: true });
+    obstacles.push({ minX: x - 0.4, maxX: x + 0.4, minZ: z - 0.4, maxZ: z + 0.4, h: h + 0.8 });
+  };
   const chimney = (x, z, h = 120, r0 = 4.2) => {
     const n = 9, bh = h / n;
     for (let i = 0; i < n; i++) { const rb = r0 * (1 - 0.25 * i / n), rt = r0 * (1 - 0.25 * (i + 1) / n); props.push({ geo: `cyl:${rt.toFixed(2)},${rb.toFixed(2)},${bh.toFixed(2)},12`, color: i % 2 ? 0xe8e4dc : 0xb5432f, x, y: (i + 0.5) * bh, z, rot: [0, 0, 0], cast: true, ax: x, az: z }); }
@@ -522,20 +549,22 @@ export function makeKit({ r, rd, onRoad = () => false }) {
   // ---- a countryside set (Peninsula's village, The Hollow): whitewashed cottages under slate roofs stepped like voxels, a
   // church, dry-stone field walls (low cover), a stone pen, a ruined barn, a water mill
   const COT = { WALLS: [0xebe8de, 0xdfd9cb, 0xe6e0d2, 0xcfc8b8], ROOF: [0x4f5359, 0x5a4b45, 0x464a50], DOORS: [0x3d5a6e, 0x6e3a32, 0x3f5e3f], GLASS: 0x2c3138 };
-  const cottage = (x, z, w, d, rot, floors = 1) => {   // ridge along local x, door and windows on the long faces, a chimney on one gable
+  // the Mediterranean palette (Olive Gorge): ochre and cream stone under terracotta; a cottage or a church takes it as `pal`
+  const MED = { WALLS: [0xd8c3a0, 0xe3d2b4, 0xc9b08a, 0xd0bb98], ROOF: [0xb5593a, 0xa64f33, 0xc06641], DOORS: [0x4a5a3c, 0x5c3a2c, 0x3f4e66], GLASS: 0x2c3138 };
+  const cottage = (x, z, w, d, rot, floors = 1, pal = COT) => {   // ridge along local x, door and windows on the long faces, a chimney on one gable
     const Q = (lx, ly, lz, bw, bh, bd, m) => part(x, z, rot, lx, ly, lz, bw, bh, bd, m), h = 3.1 * floors;
-    const wall = COT.WALLS[Math.floor(rd() * COT.WALLS.length)], roof = COT.ROOF[Math.floor(rd() * COT.ROOF.length)], du = (rd() < 0.5 ? -1 : 1) * w / 4;
+    const wall = pal.WALLS[Math.floor(rd() * pal.WALLS.length)], roof = pal.ROOF[Math.floor(rd() * pal.ROOF.length)], du = (rd() < 0.5 ? -1 : 1) * w / 4;
     Q(0, 0, 0, w, h, d, wall); footprint(w, d, x, z, rot, h + 2.4, true);
     for (let k = 0; k < 4; k++) Q(0, h + k * 0.62, 0, w + 0.5, 0.62, +((d + 0.7) * (1 - k / 4.3)).toFixed(2), roof);
     Q(w / 2 - 0.8, h, 0, 0.9, 3.4, 0.9, wall); Q(w / 2 - 0.8, h + 3.4, 0, 1.0, 0.2, 1.0, 0x6b6660);
     rd();   // (the hearth smoke that used to be rolled here is gone; the roll stays so the rest of the village keeps its layout)
-    Q(du, 0, -d / 2 - 0.04, 1.0, 2.1, 0.08, COT.DOORS[Math.floor(rd() * COT.DOORS.length)]);
-    for (const s of [-1, 1]) for (let fl = 0; fl < floors; fl++) for (const u of [-w / 3, 0, w / 3]) if (!(s < 0 && fl === 0 && Math.abs(u - du) < 1.4)) Q(u, fl * 3.1 + 1.1, s * (d / 2 + 0.03), 0.9, 1.0, 0.06, COT.GLASS);
+    Q(du, 0, -d / 2 - 0.04, 1.0, 2.1, 0.08, pal.DOORS[Math.floor(rd() * pal.DOORS.length)]);
+    for (const s of [-1, 1]) for (let fl = 0; fl < floors; fl++) for (const u of [-w / 3, 0, w / 3]) if (!(s < 0 && fl === 0 && Math.abs(u - du) < 1.4)) Q(u, fl * 3.1 + 1.1, s * (d / 2 + 0.03), 0.9, 1.0, 0.06, pal.GLASS);
   };
-  const church = (x, z, rot) => {   // a nave and a square tower with a stepped spire at its west end
-    const Q = (lx, ly, lz, bw, bh, bd, m) => part(x, z, rot, lx, ly, lz, bw, bh, bd, m);
-    Q(0, 0, 0, 18, 6, 9, 0xd9d3c4); for (let k = 0; k < 5; k++) Q(0, 6 + k * 0.8, 0, 18.4, 0.8, +(9.8 * (1 - k / 5.4)).toFixed(2), 0x4c5056);
-    Q(-11, 0, 0, 5, 13, 5, 0xcfc8b8); for (let k = 0; k < 5; k++) Q(-11, 13 + k * 1.4, 0, +(5.4 * (1 - k / 5)).toFixed(2), 1.4, +(5.4 * (1 - k / 5)).toFixed(2), 0x4c5056);
+  const church = (x, z, rot, pal = null) => {   // a nave and a square tower with a stepped spire at its west end
+    const Q = (lx, ly, lz, bw, bh, bd, m) => part(x, z, rot, lx, ly, lz, bw, bh, bd, m), nave = pal ? pal.WALLS[1] : 0xd9d3c4, tower = pal ? pal.WALLS[0] : 0xcfc8b8, roof = pal ? pal.ROOF[0] : 0x4c5056;
+    Q(0, 0, 0, 18, 6, 9, nave); for (let k = 0; k < 5; k++) Q(0, 6 + k * 0.8, 0, 18.4, 0.8, +(9.8 * (1 - k / 5.4)).toFixed(2), roof);
+    Q(-11, 0, 0, 5, 13, 5, tower); for (let k = 0; k < 5; k++) Q(-11, 13 + k * 1.4, 0, +(5.4 * (1 - k / 5)).toFixed(2), 1.4, +(5.4 * (1 - k / 5)).toFixed(2), roof);
     for (const s of [-1, 1]) for (const u of [-5, 0, 5]) Q(u, 2, s * 4.53, 1.0, 2.6, 0.06, COT.GLASS);
     Q(-13.53, 0, 0, 0.08, 3, 1.6, 0x5b3a2a); footprint(23, 9, x, z, rot, 20);
   };
@@ -782,5 +811,5 @@ export function makeKit({ r, rd, onRoad = () => false }) {
     }
     { const [ox, oz] = W(px, 0); footprint(3.8, 3.8, ox, oz, rot, 28); }
   };
-  return { props, obstacles, lamps, tufts, decals, emitters, bridge, box, damWorks, hydroHall, switchyard, townHall, stationBuilding, car, fountain, hermannCastle, fortress, millBuilding, millRace, panelBlock, panelTower, garages, pine, birch, boxcar, tankWagon, platform, chimney, footprint, part, BAG, bagStack, BLOCK, blockWall, palm, bush, rock, PLASTER, house, controlTower, wallRun, MESH, hesco, shade, container, cyl, tilt, CONC, stains, watchtower, hangar, barracks, fuelTank, floodlight, radioMast, equipmentHut, FRUIT, stall, STONE, well, sandbagRing, containers, scrub, cottage, church, fieldWall, pen, ruinedBarn, mill, TRIM, WOOD, DOOR, DARK, STAIN, TIN, TIMBER, STEEL, DARKM };
+  return { props, obstacles, lamps, tufts, decals, emitters, bridge, olive, cypress, MED, stoneWall, box, damWorks, hydroHall, switchyard, townHall, stationBuilding, car, fountain, hermannCastle, fortress, millBuilding, millRace, panelBlock, panelTower, garages, pine, birch, boxcar, tankWagon, platform, chimney, footprint, part, BAG, bagStack, BLOCK, blockWall, palm, bush, rock, PLASTER, house, controlTower, wallRun, MESH, hesco, shade, container, cyl, tilt, CONC, stains, watchtower, hangar, barracks, fuelTank, floodlight, radioMast, equipmentHut, FRUIT, stall, STONE, well, sandbagRing, containers, scrub, cottage, church, fieldWall, pen, ruinedBarn, mill, TRIM, WOOD, DOOR, DARK, STAIN, TIN, TIMBER, STEEL, DARKM };
 }

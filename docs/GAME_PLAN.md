@@ -3989,6 +3989,71 @@ breaks it, which is the intent, but the CPU's plan must keep moving squads (it d
 re-send). A broken squad must not be re-sent by the strategist (`pinUntil`) or the player (its order refused with a
 note). First aid without the squad walking anywhere keeps the CPU out of it for now.
 
+## Olive Gorge plan (2026-11-04)
+
+The review's conclusion ("What would be the perfect sized map", 2026-11-04): the game has data at 500 m, where tickets
+decide matches (the Hollow: 11 of 27 CPU mirrors ended by tickets), and at 2 to 3 km, where no CPU match has ever ended by
+tickets inside the clock; the 1 km slot holds only Desert Crossing, one lane and lopsided. The user said "Build this map."
+So: **Olive Gorge**, `?map=gorge`, 1.2 km, combined arms, Advance and Secure (and the other modes), mirrored about a river
+like Palm Valley so both sides get the same ground. A Mediterranean hill country: a river in a gorge cuts the plateau in
+two, an old hill town stands on both rims joined by one stone bridge, olive terraces climb a monastery's knoll on the west,
+an olive mill's groves spread on the east, and the gorge opens into a shallow basin where the ford is. Steps, each playable:
+
+- **O1, engine pieces (small).** *A squad cap and a budget by map:* `map.squadSlots` and `map.budget` (8 and 1,200 here,
+  the values the force builder had before the 2 and 3 km maps raised them to 12 and 1,500); `summarize` takes them,
+  `fitMap` trims a bigger force to them (rifle squads first, then medics, support and marksmen, as presets grew by three
+  rifle squads), the lobby shows the map's budget, and the CPU's pick is fitted at match start as the player's is
+  (`match.js` already calls `fitMap` for both). *Kit:* an olive tree (a short trunk and a grey-green crown, sizes from a
+  list of three), a cypress (a tall dark spindle), a Mediterranean palette for the cottage and the church (ochre and cream
+  walls, terracotta roofs; a parameter, the defaults unchanged so no other map moves), and a stone bridge (`stone: true`:
+  a stone deck between low parapets, piers with cutwaters, the spandrels stepped under the deck).
+- **O2, the blockout.** x east, z north, BLUFOR south. Water at -9. The gorge reach (x -600 to 200) 16 m deep and 10 to
+  14 m wide, narrowest at the bridge and the footbridge; the lower reach (x 200 to 600) 11 m deep and 26 to 34 wide,
+  a basin 6 m down round the ford at x 330 (bed -9.6, 0.6 m of water, wade at half speed). Crossings: the Old Bridge at
+  (0, 0), stone, 40 by 9 m, deck at 2.5 (the town stands on a 2.5 m pad either side); the footbridge at (-330, 0), timber,
+  32 by 3, infantry only; the ford. Five places: Monastery (-330, -250, r 30, home 0) on a terraced knoll (pads at 5, 9 and
+  13 m), Olive Mill (330, -250, r 28, home 0) on a gentle rise, Old Bridge (0, 0, r 38) over the gorge with the town on
+  both banks, and their mirrors Winery (330, 250) and Convent (-330, 250) for OPFOR. Links: each home place to the Old
+  Bridge, Monastery to Convent over the footbridge, Olive Mill to Winery through the ford; three of five for the majority,
+  three ways over the river. Bases at (0, ±520), r 40. Roads: base to base through the town and over the bridge; a road
+  from each base to each of its home places; tracks from the Monastery to the footbridge, from the Olive Mill through the
+  ford, and along each home row. Hills between the lanes and behind the home row, flank hills at the map's edges, a rise
+  under the town. Gates: the river at z 0 with portals at the footbridge (foot), the bridge and the ford. Chokes: both ends
+  of the bridge, the ford's banks (two rows each). 20 minutes, 400 tickets, 8 squads, 1,200 points. Acceptance: no page
+  errors, the walk base to Old Bridge about 540 m on the foot grid and every place reachable by the vehicle grid from both
+  bases, no pocket, the bridge the only vehicle route besides the ford (a trap row on each closes the river to armour),
+  the lobby card and thumbnail, the CPU's first plan under 150 ms.
+- **O3, the dressing.** The town: stone houses in the Mediterranean palette on lanes either side of the main street, a
+  church and a fountain on each square, cypresses and garden walls; the bridge's parapets. The Monastery: a walled
+  compound on the top terrace (a chapel, a cloister range, a gate between cypresses), dry-stone terrace walls (low cover)
+  with gaps where the paths climb, olives on the terraces. The Olive Mill: a two-storey mill, a press shed and a store
+  round a walled yard with a threshing floor, groves in rows round it. The water mill at the footbridge, a shepherd's hut
+  and pen at the ford. Cypress rows along the base roads, olive groves and scrub on the plateau, rocks along the rims.
+  Splat: concrete on the squares and the threshing floor, dirt under the groves and the tracks, sand on the ford's shingle,
+  meadow in the basin. Screenshots for the README table.
+- **O4, balance.** `tools/balance.mjs --extra map=gorge --length 1300`: the core set at seeds 1 and 2, then Balanced
+  mirrors on 12 or more seeds with `--one-side` and `swap=1` for the base split (55/45 or the layout moves), and what
+  share end by tickets: the aim is a third to a half, the rest at the clock with a close margin; the pool moves if not.
+  Then the guide's Maps line, the README map section, and the memory note.
+- Not in the plan: randomised lanes (the mode that was recommended beside the map; the lattice is data, so it comes
+  later), a vehicle Hold map, new vox landmarks.
+
+- **O1 to O3 done (2026-11-04).** `src/game/maps/gorge.js`, `?map=gorge`, the second card in the lobby. *Engine:*
+  `map.squadSlots` and `map.budget` in `summarize` and `fitMap` (the lobby fits the saved force, `match.js` both sides');
+  every preset trims to 5 to 8 squads under 1,200 (Balanced 7 squads at 1,160, Light 8 at 1,200, Armoured 5 at 1,178);
+  the kit's olive and cypress, the `MED` palette on the cottage and the church, the `stone` bridge, `stoneWall` exported.
+  *Blockout and dressing* as planned, with three corrections found by measuring: a 3 m and then a 4 m footbridge deck left
+  no free cell on the 1.2 m foot grid once its railings were padded (the Monastery to Convent walk went over the stone
+  bridge, 1,096 m), so it is 5 m (501 m now) and the stone bridge 10 m for the vehicle grid; the monastery's compound walls
+  were built in the map's frame and stood 6.6 m under the top terrace (`stoneWall` takes the ground at its anchor), so they
+  are built in the compound's frame; and +x is west on every map (the minimap mirrors the splat for it), so the Monastery
+  stands east and the mill west: the words were corrected, nothing moved. Measured (`sim-test`, foot grid): base to Old
+  Bridge 520 m, to the Monastery 447, to the Olive Mill 434, base to base 1,040; vehicles reach every place from both bases
+  (the Monastery's top through its gates, 462), the ford from the mill 500; the foot grid is one region and the vehicle
+  grid's only pockets are the two flank hilltops; line of sight on 63% of random pairs 40 to 120 m apart on the plateau
+  (90 maquis thickets took it from 68%; the Hollow is 21%, this is combined arms); 14,100 props in 118 geometries, 40
+  ticks in 26 ms, no page errors. The thumbnail is from `tools/make-map-thumbs.mjs`. O4 follows.
+
 ## Open questions
 
 None open. Answered:

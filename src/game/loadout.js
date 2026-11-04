@@ -40,18 +40,21 @@ export const PRESETS = {
 };
 
 export function itemCost(key, doctrine) { const it = ITEMS[key], mul = (DOCTRINES[doctrine] && DOCTRINES[doctrine].costMul[key]) || 1; return Math.round(it.cost * mul); }
-export function summarize(l, infantryOnly = false, footSlots = null) {   // footSlots: a map's own squad count (Hilltop Farm: six)
+// footSlots: an infantry-only map's own squad count (Hilltop Farm: six). limits: a vehicle map's own cap and budget
+// (map.squadSlots, map.budget: Olive Gorge plays 8 squads on 1,200 points, the force builder's old size, on its 1.2 km)
+export function summarize(l, infantryOnly = false, footSlots = null, limits = null) {
   let cost = 0, squads = 0, vehicles = 0;
   for (const [k, n] of Object.entries(l.items || {})) { if (!ITEMS[k] || !n) continue; cost += itemCost(k, l.doctrine) * n; if (ITEMS[k].kind === 'squad') squads += n; else if (ITEMS[k].kind === 'vehicle') vehicles += n; }
-  const slots = infantryOnly ? (footSlots || FORCE.footSquads) : MAX_SQUADS + ((DOCTRINES[l.doctrine] && DOCTRINES[l.doctrine].squadSlots) || 0);
+  const budget = (limits && limits.budget) || BUDGET;
+  const slots = infantryOnly ? (footSlots || FORCE.footSquads) : ((limits && limits.squadSlots) || MAX_SQUADS) + ((DOCTRINES[l.doctrine] && DOCTRINES[l.doctrine].squadSlots) || 0);
   const errors = [];
-  if (cost > BUDGET) errors.push(`over budget by ${cost - BUDGET}`);
+  if (cost > budget) errors.push(`over budget by ${cost - budget}`);
   if (squads > slots) errors.push(`too many squads (${squads}/${slots})`);
   if (vehicles > MAX_VEHICLES) errors.push(`too many vehicles (${vehicles}/${MAX_VEHICLES})`);
   if (infantryOnly && vehicles > 0) errors.push('no vehicles on this map');
   if (squads === 0) errors.push('at least one squad');
   if (!DOCTRINES[l.doctrine]) errors.push('pick a doctrine');
-  return { cost, squads, vehicles, slots, errors, ok: errors.length === 0 };
+  return { cost, squads, vehicles, slots, budget, errors, ok: errors.length === 0 };
 }
 // deploy list: [{ kind:'squad', kits }, { kind:'vehicle', type, supply }]
 export function expand(l) {
@@ -63,9 +66,18 @@ export function expand(l) {
   return out;
 }
 export const clone = (l) => ({ doctrine: l.doctrine, items: { ...l.items } });
-// A map for infantry only (map.infantryOnly): vehicles and the FOB kit come off, and the points go into rifle squads
+// A map for infantry only (map.infantryOnly): vehicles and the FOB kit come off, and the points go into rifle squads.
+// A map with a squad cap or a budget of its own (map.squadSlots, map.budget) trims a bigger force down to them: rifle
+// squads first (the presets grew by three of them when the cap rose), then medics, support and marksmen
 export function fitMap(l, map) {
-  if (!map || !map.infantryOnly) return l;
+  if (!map) return l;
+  if (!map.infantryOnly) {
+    if (!map.squadSlots && !map.budget) return l;
+    const out = clone(l), limits = { squadSlots: map.squadSlots, budget: map.budget }, over = (s) => s.cost > s.budget || s.squads > s.slots;
+    let s = summarize(out, false, null, limits);
+    for (const k of ['rifle', 'medic', 'support', 'marksman']) while (over(s) && out.items[k] > 0) { out.items[k]--; if (!out.items[k]) delete out.items[k]; s = summarize(out, false, null, limits); }
+    return out;
+  }
   const out = clone(l), slots = map.footSquads || null; for (const k of Object.keys(out.items)) if (!ITEMS[k] || ITEMS[k].kind !== 'squad') delete out.items[k];
   if (!map.keepKits) for (const k of ['at', 'engineer']) if (out.items[k]) { out.items.rifle = (out.items.rifle || 0) + out.items[k]; delete out.items[k]; }   // nothing to shoot rockets at or to build: rifles instead (a defence map keeps them: keepKits)
   let s = summarize(out, true, slots); while (s.cost + itemCost('rifle', out.doctrine) <= BUDGET && s.squads < s.slots) { out.items.rifle = (out.items.rifle || 0) + 1; s = summarize(out, true, slots); }   // up to the map's squad count (FORCE.footSquads, or the map's own)
