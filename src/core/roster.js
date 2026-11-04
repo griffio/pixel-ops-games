@@ -294,11 +294,19 @@ export class Roster {
       if (hit) { hit.more++; hit.alert = hit.alert || d.alert; continue; }
       out.push({ k: d.key, label: d.label, x, y, more: 0, alert: d.alert, ang: Math.atan2(dy, dx) * 180 / Math.PI + 180, dist: Math.round(Math.hypot(u.pos.x - rts.target.x, u.pos.z - rts.target.z)) });
     }
-    while (this.pointers.length < out.length) { const b = document.createElement('button'); b.className = 'edge'; E.appendChild(b); this.pointers.push({ el: b, html: '' }); }
+    // a pointer's parts are made once and each is written only when its value changes: the arrow's turn in 10 degree steps, the
+    // label, the "+N", the distance in 10 m steps (it used to rebuild its innerHTML every frame the camera panned, since the
+    // distance to the metre changed every frame, a layout and a paint per pointer per frame: judder on the iPad, 2026-11-04)
+    while (this.pointers.length < out.length) {
+      const b = document.createElement('button'); b.className = 'edge'; b.innerHTML = `<span class="dir">${icon('arrow')}</span><span class="lbl"></span><small class="more"></small><small class="dist"></small>`;
+      E.appendChild(b); this.pointers.push({ el: b, dir: b.children[0], lbl: b.children[1], more: b.children[2], dist: b.children[3], shown: true });
+    }
     this.pointers.forEach((p, i) => {
-      const o = out[i]; p.el.style.display = o ? '' : 'none'; if (!o) return;
-      const html = `<span class="dir" style="transform:rotate(${Math.round(o.ang / 10) * 10}deg)">${icon('arrow')}</span>${o.label}${o.more ? ` <small>+${o.more}</small>` : ''} <small>${o.dist} m</small>`;
-      if (p.html !== html) { p.html = html; p.el.innerHTML = html; }
+      const o = out[i], show = !!o; if (p.shown !== show) { p.shown = show; p.el.style.display = show ? '' : 'none'; } if (!o) return;
+      const ang = Math.round(o.ang / 10) * 10; if (p.ang !== ang) { p.ang = ang; p.dir.style.transform = `rotate(${ang}deg)`; }
+      if (p.label !== o.label) { p.label = o.label; p.lbl.textContent = o.label; }
+      const more = o.more ? `+${o.more}` : ''; if (p.moreT !== more) { p.moreT = more; p.more.textContent = more; p.more.style.display = more ? '' : 'none'; }
+      const dist = `${Math.max(10, Math.round(o.dist / 10) * 10)} m`; if (p.distT !== dist) { p.distT = dist; p.dist.textContent = dist; }
       if (p.k !== o.k) { p.k = o.k; p.el.dataset.k = o.k; } if (p.red !== !!o.alert) { p.red = !!o.alert; p.el.classList.toggle('red', p.red); }
       const tr = `translate(${Math.round(o.x)}px, ${Math.round(o.y)}px) translate(-50%, -50%)`; if (p.tr !== tr) { p.tr = tr; p.el.style.transform = tr; }
     });

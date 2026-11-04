@@ -3690,6 +3690,18 @@ shadows are on, and flat with them off, says the judder is the shadow pass and i
   panning 0 frames over 33 of 400 at 4096 and at 2048 shadows, still 0 at 2048 (a burst of 10 Hz stalls remains at 4096
   while a fight runs nearby, which the iPad does not use), shadow chunks 100 to 64, calls 1,153 to 894; Palm Valley 0 and
   0, unchanged. Shadows checked by eye on the town and the monastery frames.
+  *Second profile (14:50, 1366x938, after the deploy):* no frame over 33 ms in any window after the match start, but every
+  window with panning kept a p99 of 27 to 29 ms and a max of 29 to 32 (window 11, standing still: 17 and 17), at 580 and
+  at 2,600 draw calls alike, so the remaining judder follows the panning, not the GPU load. JavaScript still 1 to 1.6 ms.
+  What scales with panning and sits outside the timers is the browser's own layout and paint of the HUD: the edge pointers
+  rebuilt their innerHTML every frame the camera moved (the distance to the metre changed every frame), a feed line being
+  faded had its opacity written every frame for three seconds, and the capture bar's width every tick of a capture. Now a
+  pointer's parts are built once and written only on change (the arrow in 10 degree steps, the distance in 10 m steps), a
+  fading line gets one class and a CSS transition, the width is whole percent. The Mac bench with the HUD on (the iPad's
+  styling, no panel blur) went from 40 to 57 frames over 33 ms of 400 to 11 and 23; Chrome composites a DOM over WebGL
+  differently from Safari, so the iPad's own profile decides. If it still judders: `?tpu=6` (bigger texels, a quarter of
+  the pixels) tells whether the main pass's fill is the limit; the unit tags (sixty composited layers) are the next DOM
+  suspect.
 
 ## Base defence mode plan (2026-11-02)
 

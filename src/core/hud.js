@@ -106,7 +106,7 @@ export class Hud {
     const a = this.app, hush = a.fog && a.fog.on ? (f) => f.kind === 'event' && ((f.e.loc && m.mode.hidden && m.mode.hidden(f.e.loc)) || (f.e.team !== (a.playerTeam ?? 0) && (f.e.type === 'radio' || f.e.type === 'fob' || f.e.type === 'sandbags' || f.e.type === 'traps' || f.e.type === 'emplacement' || f.e.type === 'wall' || f.e.type === 'platform'))) : () => false;
     const feed = $('feed'), lines = m.feed.filter(f => f.t < 10 && !hush(f)), key = lines.map(f => f.id).join(',');
     if (key !== this.feedKey) { this.feedKey = key; feed.innerHTML = lines.map(f => this.feedLine(f)).join(''); }
-    lines.forEach((f, i) => { const el = feed.children[i]; if (!el) return; const op = f.t > 7 ? ((10 - f.t) / 3).toFixed(2) : '1'; if (el._op !== op) { el._op = op; el.style.opacity = op; } });
+    lines.forEach((f, i) => { const el = feed.children[i]; if (!el) return; const fade = f.t > 7; if (el._fade !== fade) { el._fade = fade; el.classList.toggle('fade', fade); } });   // a line fades out over its last three seconds by a CSS transition: one style write, where it was one a frame (the main thread's layout and paint every frame while a line faded, felt as judder on the iPad)
     // objectives bar from the mode
     const objs = $('objs'), items = m.mode.bar();
     if (objs.childElementCount !== items.length) { objs.innerHTML = items.map(l => `<div class="obj" title="Jump to ${l.name}"><b>${l.name}</b><span></span><i></i></div>`).join(''); objs.onclick = (e) => { const el = e.target.closest('.obj'); if (!el) return; const o = m.objectives && m.objectives.list.find(l => l.name === el.firstChild.textContent); if (o) { this.app.rts.fly = null; this.app.rts.follow = null; this.app.rts.target.set(o.x, 0, o.z); } }; }   // a tap on a place's box jumps the camera there
@@ -114,7 +114,7 @@ export class Hud {
       const el = objs.children[i], p = l.progress, c = el._c || (el._c = {});
       const cls = 'obj' + (l.owner === 0 ? ' t0' : l.owner === 1 ? ' t1' : ''); if (c.cls !== cls) { c.cls = cls; el.className = cls; }
       if (c.note !== l.note) { c.note = l.note; el.children[1].textContent = l.note; }
-      const bar = el.children[2], wd = Math.abs(p) + '%', bc = p < 0 ? 't1' : ''; if (c.w !== wd) { c.w = wd; bar.style.width = wd; } if (c.bc !== bc) { c.bc = bc; bar.className = bc; }
+      const bar = el.children[2], wd = Math.round(Math.abs(p)) + '%', bc = p < 0 ? 't1' : '';   // whole percent: a write when it shows, not every tick of a capture if (c.w !== wd) { c.w = wd; bar.style.width = wd; } if (c.bc !== bc) { c.bc = bc; bar.className = bc; }
     });
     // reinforcements for the player's team
     const me = this.app.playerTeam ?? 0, q = m.respawn.queue.filter(x => x.unit.team === me).sort((a, b) => a.t - b.t).slice(0, 6);
