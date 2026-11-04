@@ -3762,6 +3762,15 @@ shadows are on, and flat with them off, says the judder is the shadow pass and i
   searches a frame instead of four (the rest take their route a frame or two later, as the budget already allows), and
   the camera's height eases over 60 ms instead of a 12 m/s limit, which lagged a pan onto the town's 2.5 m pad (measured:
   no lag at a stop on the pad or the knoll, steps of 0.3 m a frame at a 120 m/s pan, the gorge and the bridge still flat).
+  *"I do see some ... on the houses by the bridge" (17:03, with a screenshot whose overlay read max 17 ms over the last two
+  seconds):* motion, then, not frames. Two of the day's own changes show on the houses: the tail-aware shadow step took
+  this iPad to 1024 within fifteen seconds of every match (both 16:56 and 17:03 runs), coarsening the shadows on the
+  houses while the tail stayed exactly as at 2048, so that trigger is gone and the median rule stands alone again; and the
+  camera's height ease trailed a pan by a few frames just where the town's pad rises, read as the houses lagging the
+  finger, so the ease is 35 ms (two frames; measured: no lag at a stop, 0.3 to 0.4 m a frame at a 120 m/s pan, the gorge
+  and the bridge still flat). The profile also still had `units` maxima of 10 to 35 ms in a few windows with two searches
+  a frame at 120,000 cells apiece, so tablets run one search a frame (a three-minute tablet-profile match captured its
+  places as before).
 
 ## Base defence mode plan (2026-11-02)
 

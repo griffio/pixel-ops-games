@@ -11,12 +11,12 @@ export class Quality {
     if (this.t < this.checkAt) return; this.checkAt = this.t + 2;
     if (!a.match || a.match.state !== 'play' || a.match.elapsed < 10 || (a.hud && a.hud.paused)) { this.slow = 0; this.fastSince = this.t; return; }
     const s = this.ms.slice().sort((x, y) => x - y), med = s[s.length >> 1], p90 = s[Math.floor(s.length * 0.9)], late = s.filter(v => v > 24).length / s.length, R = a.renderer;
-    // slow: a median over 20 ms, or a tail: at least one frame in a hundred running late (over 24 ms, two or more of the 180 kept)
-    // at three checks in a row. Under vsync the median sits at 17 ms however near the budget the frame runs, and a late frame
-    // shows on a 120 Hz tablet as a 25 to 33 ms interval: the iPad's judder over Olive Gorge's town was that tail, one frame in
-    // a hundred at 28 to 32 ms with a median of 17 all along (2026-11-04). p90 is kept for the log
+    // slow: a median over 20 ms. The tail (the share of frames over 24 ms, kept for the log) was a trigger for an afternoon on
+    // 2026-11-04: the iPad's one late frame in a hundred while panning Olive Gorge stepped it to 1024 within fifteen seconds of
+    // every match, and the tail was the same at 1024, at 2048 and with shadows off (it is the device at its budget; the judder
+    // the user saw was the camera's height), so the step cost crisp shadows for nothing. The median rule stands alone again
     this.tail = late; this.p90 = p90;
-    if (med > 20 || late >= 0.01) {
+    if (med > 20) {
       this.fastSince = this.t;
       if (++this.slow >= 3 && R.shadowSize > this.min && this.t - this.lastChange > 20) { if (this.t - this.lastRestore < 60) this.bounces++; this.step(R.shadowSize / 2, med); }
     } else {

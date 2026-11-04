@@ -80,13 +80,13 @@ export class RtsCamera {
     // under the target point alone dropped the whole view by a gorge's depth (16 m on Olive Gorge) as a pan crossed it, and the
     // bridge deck against the gorge bed beside it made the view jump as a finger wobbled along the bridge: the iPad's judder on
     // the bridge, which no frame timer showed (2026-11-04). The height is the highest of five samples 14 m apart, eased over about
-    // 60 ms; a jump of the target (a minimap tap, a fly, a follow) takes it at once
+    // 35 ms; a jump of the target (a minimap tap, a fly, a follow) takes it at once
     const moved = Math.hypot(this.target.x - (this.lastTx ?? this.target.x), this.target.z - (this.lastTz ?? this.target.z)); this.lastTx = this.target.x; this.lastTz = this.target.z;
     if (this.heightAt) {
       const H = this.heightAt, x = this.target.x, z = this.target.z, R = 14;
       const h = Math.max(H(x, z), H(x + R, z), H(x - R, z), H(x, z + R), H(x, z - R));
       if (this.groundY === undefined || moved > 60 || !(dt > 0)) this.groundY = h;
-      else this.groundY += (h - this.groundY) * (1 - Math.exp(-dt / 0.06));   // eased over about 60 ms: the 2 m terrain's bumps go, a pad's 2.5 m step is taken in a few frames (a 12 m/s limit tried first lagged a pan onto the town's pad)
+      else this.groundY += (h - this.groundY) * (1 - Math.exp(-dt / 0.035));   // eased over about 35 ms, two frames: the 2 m terrain's bumps go, and a pan onto the town's 2.5 m pad trails by half a metre at most (a 12 m/s limit, then a 60 ms ease, read as the houses lagging the finger at the pad's edge)
       this.target.y = this.groundY;
     } else this.target.y = 0;
 
