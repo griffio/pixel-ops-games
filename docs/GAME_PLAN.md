@@ -3790,7 +3790,10 @@ shadows are on, and flat with them off, says the judder is the shadow pass and i
   now."* The day's account, then: the judder was the camera riding the terrain into the gorge, the jumps were the ground
   ray flipping between the deck and the bed under a pan, and the frame tail that eight profiles showed is the iPad at its
   budget and was never either. The rendering and HUD work along the way stands as savings; the shadow-tail step and the
-  12 m/s camera limit were wrong turns and are gone.
+  12 m/s camera limit were wrong turns and are gone. The jump log from that last match (31 windows, 15 of them panning):
+  41 entries, every one a fling capped at 400 m/s, 401 to 859 before the cap, and not one pan leap or target jump, so the
+  leaps are gone and real flicks on the iPad run 400 to 860 m/s at play zoom. The cap is 900 now: it is for the thousands a
+  leap of the ground made, not for a flick.
 
 ## Base defence mode plan (2026-11-02)
 

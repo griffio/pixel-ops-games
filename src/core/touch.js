@@ -65,7 +65,7 @@ export class TouchInput {
     t.x -= dx; t.z -= dz; this.rts.follow = null;
     const dt = Math.max(0.004, (now - (this.dragging ? this.lastMoveT : now - 16)) / 1000);
     this.vel.x = this.vel.x * 0.4 - dx / dt * 0.6; this.vel.z = this.vel.z * 0.4 - dz / dt * 0.6;
-    const vm = Math.hypot(this.vel.x, this.vel.z); if (vm > 400) { this.rts.noteJump('fling', [t.x, t.z], [t.x, t.z], vm, 'capped to 400 m/s'); this.vel.x *= 400 / vm; this.vel.z *= 400 / vm; }
+    const vm = Math.hypot(this.vel.x, this.vel.z); if (vm > 900) { this.rts.noteJump('fling', [t.x, t.z], [t.x, t.z], vm, 'capped to 900 m/s'); this.vel.x *= 900 / vm; this.vel.z *= 900 / vm; }   // a real flick on the iPad reaches 400 to 600 m/s at play zoom (41 of them logged in one match at a 400 cap); the cap is for the thousands a leap of the ground made
     this.lastMoveT = now; this.dragging = true;
   }
 
