@@ -81,7 +81,9 @@ export class RtsCamera {
     // bridge deck against the gorge bed beside it made the view jump as a finger wobbled along the bridge: the iPad's judder on
     // the bridge, which no frame timer showed (2026-11-04). The height is the highest of five samples 14 m apart, eased over about
     // 35 ms; a jump of the target (a minimap tap, a fly, a follow) takes it at once
-    const moved = Math.hypot(this.target.x - (this.lastTx ?? this.target.x), this.target.z - (this.lastTz ?? this.target.z)); this.lastTx = this.target.x; this.lastTz = this.target.z;
+    const moved = Math.hypot(this.target.x - (this.lastTx ?? this.target.x), this.target.z - (this.lastTz ?? this.target.z));
+    if (moved > 60 && this.lastTx !== undefined && !this.fly && !this.follow) this.noteJump('target', [this.lastTx, this.lastTz], [this.target.x, this.target.z], moved);   // a leap of the view nobody asked for: logged for the profiler
+    this.lastTx = this.target.x; this.lastTz = this.target.z;
     if (this.heightAt) {
       const H = this.heightAt, x = this.target.x, z = this.target.z, R = 14;
       const h = Math.max(H(x, z), H(x + R, z), H(x - R, z), H(x, z + R), H(x, z - R));
@@ -116,15 +118,32 @@ export class RtsCamera {
     Mat4.invert(this.invViewProj, this.viewProj);
   }
 
-  // screen (0..1) -> point on the terrain (iterates against the height under the hit)
+  // screen (0..1) -> point on the terrain: the view ray marched down from above the highest ground (topY) in 2 m steps of
+  // height to the first point under the ground (bridge decks count, as heightAt says), then bisected to a few centimetres.
+  // The old way iterated the height under the hit four times, and over a bridge that flipped between the deck and the gorge
+  // bed 18 m below it, so two readings a frame apart could be 16 m of ground apart (the iPad's view jumping and flinging off
+  // a touch on Olive Gorge's bridge, 2026-11-04)
   screenToGround(nx, ny) {
     const p0 = Mat4.transformPoint(this.invViewProj, new Vec3(nx * 2 - 1, -(ny * 2 - 1), 0));
     const d = Mat4.column(this.world, 2).multiplyScalar(-1); // camera looks down its -z
-    let h = 0, p = p0.clone().addScaledVector(d, -p0.y / d.y);
-    if (this.heightAt) for (let i = 0; i < 4; i++) { h = this.heightAt(p.x, p.z); p = p0.clone().addScaledVector(d, (h - p0.y) / d.y); }
-    return p;
+    if (!this.heightAt || !(d.y < -1e-4)) return p0.clone().addScaledVector(d, -p0.y / d.y);
+    const H = this.heightAt, top = this.topY ?? 80, step = 2 / -d.y;
+    let s = p0.y > top ? (top - p0.y) / d.y : 0, above = s, below = -1;
+    for (let i = 0; i < 100; i++) { const y = p0.y + d.y * s; if (y <= H(p0.x + d.x * s, p0.z + d.z * s)) { below = s; break; } above = s; s += step; }
+    if (below < 0) return p0.clone().addScaledVector(d, s);
+    for (let i = 0; i < 8; i++) { const mid = (above + below) / 2, y = p0.y + d.y * mid; if (y <= H(p0.x + d.x * mid, p0.z + d.z * mid)) below = mid; else above = mid; }
+    return p0.clone().addScaledVector(d, below);
+  }
+  // screen (0..1) -> the point on the level plane y: a touch pan keeps the ground under the finger on the plane of the point it
+  // began on, so dragging across a gorge's rim or a bridge's edge does not leap to the ground far below
+  screenToPlane(nx, ny, y) {
+    const p0 = Mat4.transformPoint(this.invViewProj, new Vec3(nx * 2 - 1, -(ny * 2 - 1), 0));
+    const d = Mat4.column(this.world, 2).multiplyScalar(-1);
+    return p0.clone().addScaledVector(d, (y - p0.y) / (d.y < -1e-4 ? d.y : -1e-4));
   }
 
+  // a log of the view's leaps (kind, from, to, metres, a note), kept short; the profiler (core/prof.js) sends it with each window
+  noteJump(kind, from, to, d, note = '') { const J = this.jumps || (this.jumps = []); J.push({ kind, from: from.map(Math.round), to: to.map(Math.round), d: Math.round(d), zoom: +this.zoom.toFixed(2), note }); if (J.length > 30) J.shift(); }
   worldToScreen(x, y, z, screenW, screenH) {
     const p = Mat4.transformPoint(this.viewProj, new Vec3(x, y, z));
     return [(p.x + 1) / 2 * screenW, (1 - p.y) / 2 * screenH, p.z];

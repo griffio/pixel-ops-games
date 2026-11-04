@@ -18,7 +18,10 @@ let id = 0; const pending = new Map(); const errors = [];
 ws.onmessage = (m) => { const d = JSON.parse(m.data); if (d.id && pending.has(d.id)) { pending.get(d.id)(d); pending.delete(d.id); } if (d.method === 'Runtime.exceptionThrown') errors.push(d.params.exceptionDetails.text + ' ' + (d.params.exceptionDetails.exception?.description || '')); };
 const send = (method, params = {}) => new Promise(r => { const i = ++id; pending.set(i, r); ws.send(JSON.stringify({ id: i, method, params })); });
 const ev = async (expression) => { const r = await send('Runtime.evaluate', { expression, returnByValue: true, awaitPromise: true }); if (r.result?.exceptionDetails) throw new Error('eval: ' + (r.result.exceptionDetails.exception?.description || r.result.exceptionDetails.text)); return r.result?.result?.value; };
-await send('Runtime.enable'); await send('Page.enable');
+await send('Runtime.enable'); await send('Page.enable'); await send('Network.setCacheDisabled', { cacheDisabled: true });
+// the field manual counted as read, so a fresh profile dir works (the manual opens on the first match and pauses the game; a reused
+// profile dir kept a stale camera.js in its cache even with the cache disabled, 2026-11-04)
+await send('Page.addScriptToEvaluateOnNewDocument', { source: 'try { localStorage.setItem("pixelops.guide", JSON.stringify({ briefed: true, seen: [] })); } catch {}' });
 // retina only for the screenshot run: software GL at 2x makes frames slow enough to turn taps into holds
 await send('Emulation.setDeviceMetricsOverride', { width: 1180, height: 820, deviceScaleFactor: shot ? 2 : 1, mobile: true });
 await send('Emulation.setTouchEmulationEnabled', { enabled: true, maxTouchPoints: 5 });

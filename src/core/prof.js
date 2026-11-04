@@ -58,6 +58,7 @@ export class Profiler {
       scene: { map: a.world.map ? a.world.map.name : null, minute: m ? r1(m.elapsed / 60) : null, alive: U.filter(u => !u.dead).length, units: U.length, structures: U.filter(u => u.spec.structure && !u.dead).length, zoom: r1(a.rts.zoom), panned: Math.round(this.moved), zoomed: r1(this.zoomMoved), fog: !!(a.fog && a.fog.on), paused: !!a.hud.paused, hybrid: m ? m.hybrid || '' : '' },
       device: { ua: navigator.userAgent.slice(0, 120), screen: [screen.width, screen.height], win: [innerWidth, innerHeight], dpr: devicePixelRatio, cores: navigator.hardwareConcurrency || 0, touch: navigator.maxTouchPoints || 0, gpu: dbg ? gl.getParameter(dbg.UNMASKED_RENDERER_WEBGL) : gl.getParameter(gl.RENDERER) },
       worst: this.worst.sort((x, y) => y.ms - x.ms).slice(0, 10),
+      jumps: a.rts && a.rts.jumps ? a.rts.jumps.splice(0, a.rts.jumps.length) : [],   // the view's leaps this window (camera.noteJump): kind, from, to, metres
     };
   }
   flush(final) {

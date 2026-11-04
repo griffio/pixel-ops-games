@@ -3771,6 +3771,21 @@ shadows are on, and flat with them off, says the judder is the shadow pass and i
   and the bridge still flat). The profile also still had `units` maxima of 10 to 35 ms in a few windows with two searches
   a frame at 120,000 cells apiece, so tablets run one search a frame (a three-minute tablet-profile match captured its
   places as before).
+  *"Tapping a location on the bridge can pan the view somewhere else, intermittent, stylus too; can the jumps be logged?"
+  (17:30).* The mechanism: a touch pan kept the ground under the finger, and `screenToGround` found that ground by
+  iterating the height under the hit four times, which over the bridge flipped between the deck (2.5 m) and the gorge bed
+  (-16): two readings a frame apart could be 16 m of ground apart, the pan leapt by it, and a 16 m leap in one 8 ms event
+  became a fling of hundreds of metres a second. Even a perfect ray has a real leap where the finger crosses the rim, since
+  the ground under it drops to the bed 16 m further along the view. Four changes: `screenToGround` marches the view ray
+  down from above the highest ground (`rts.topY`) in 2 m steps of height to the first point under the ground, bridge decks
+  included, then bisects (repeatable to a millimetre, 0.17 m between neighbouring pixels down the bridge; the one 12 m gap
+  left is the rim itself, which is the terrain); the one- and two-finger pans move on the level plane of the point the
+  gesture began on (`screenToPlane`), so crossing the rim or the bridge's edge no longer leaps; a move of most of a screen's
+  width in one event is re-anchored and not applied, and a fling is capped at 400 m/s; and every leap of the view is
+  logged (`RtsCamera.noteJump`: a pan leap, a capped fling, or the target moving over 60 m in a frame with no fly or
+  follow asked for) and goes out in each profiler window as `jumps` (kind, from, to, metres, zoom, a note), so a report
+  can be read back from Workers Logs. tools/touch-test passes every gesture; it now seeds the manual as read and bypasses
+  the cache, since its reused profile dir had served a stale camera.js.
 
 ## Base defence mode plan (2026-11-02)
 

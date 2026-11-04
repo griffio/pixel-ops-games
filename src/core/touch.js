@@ -27,6 +27,7 @@ export class TouchInput {
 
   norm(x, y) { const r = this.canvas.getBoundingClientRect(); return [(x - r.left) / r.width, (y - r.top) / r.height]; }
   ground(x, y) { const [nx, ny] = this.norm(x, y); return this.rts.screenToGround(nx, ny); }
+  plane(x, y, h) { const [nx, ny] = this.norm(x, y); return this.rts.screenToPlane(nx, ny, h); }   // the point under the finger on the level of where the pan began
   get active() { return this.pts.size > 0; }
 
   onDown(e) {
@@ -42,7 +43,7 @@ export class TouchInput {
       this.hold = this.gesture === 'drag' && !this.flingStop && (this.tapOrders || this.deliberate() || !this.input.selected.length) ? { x: e.clientX, y: e.clientY, t0: now, fired: false } : null;   // no hold on a stopped glide; with tap orders off a hold only starts a box select (nothing selected) or completes an armed order
       if (this.hold) this.showRing(e.clientX, e.clientY);
     } else {
-      this.cancelHold(); this.gesture = 'multi'; this.multi = this.multiState(); this.input.box.style.display = 'none';
+      this.cancelHold(); this.gesture = 'multi'; this.multi = this.multiState(); this.multiY = undefined; this.input.box.style.display = 'none';
     }
   }
 
@@ -55,11 +56,16 @@ export class TouchInput {
     if (this.hold && this.hold.fired && this.gesture !== 'box') return;          // order given: ignore the rest of this touch
     if (this.gesture === 'box') { this.drawBox(this.boxFrom.x, this.boxFrom.y, p.x, p.y); return; }
     if (d <= SLOP && !this.dragging) return;
-    const now = e.timeStamp, g = this.ground(p.x, p.y), t = this.rts.target;
-    const dx = g.x - this.anchor.x, dz = g.z - this.anchor.z;
+    // the ground under the finger on the plane of the point the pan began on (anchor.y): across a gorge's rim or a bridge's edge
+    // the terrain under the finger leaps 16 m along the view, and a pan that followed it leapt with it and flung the view
+    const now = e.timeStamp, g = this.plane(p.x, p.y, this.anchor.y), t = this.rts.target;
+    const dx = g.x - this.anchor.x, dz = g.z - this.anchor.z, leap = Math.hypot(dx, dz);
+    // most of a screen's width in one event is no finger's move (a fast synthetic swipe in tools/touch-test moves 50 m a step): re-anchor, log, apply nothing
+    if (leap > Math.max(60, 0.8 * (this.rts.viewW || 0)) && this.dragging) { this.rts.noteJump('pan', [this.anchor.x, this.anchor.z], [g.x, g.z], leap, `screen ${Math.round(p.x)},${Math.round(p.y)} dt ${Math.round(now - this.lastMoveT)} ms`); this.anchor = g; this.lastMoveT = now; return; }
     t.x -= dx; t.z -= dz; this.rts.follow = null;
     const dt = Math.max(0.004, (now - (this.dragging ? this.lastMoveT : now - 16)) / 1000);
     this.vel.x = this.vel.x * 0.4 - dx / dt * 0.6; this.vel.z = this.vel.z * 0.4 - dz / dt * 0.6;
+    const vm = Math.hypot(this.vel.x, this.vel.z); if (vm > 400) { this.rts.noteJump('fling', [t.x, t.z], [t.x, t.z], vm, 'capped to 400 m/s'); this.vel.x *= 400 / vm; this.vel.z *= 400 / vm; }
     this.lastMoveT = now; this.dragging = true;
   }
 
@@ -100,7 +106,8 @@ export class TouchInput {
     const rts = this.rts, t = rts.target;
     if (cur.n >= 3) { rts.rotateBy(0, (cur.cy - prev.cy) * 0.004); rts.pitch = rts.pitchT; return; }
     // midpoint drag pans, pinch zooms about the midpoint, twist rotates about it
-    const g0 = this.ground(prev.cx, prev.cy), g1 = this.ground(cur.cx, cur.cy);
+    if (this.multiY === undefined) this.multiY = this.ground(prev.cx, prev.cy).y;   // the plane of the midpoint when the gesture began
+    const g0 = this.plane(prev.cx, prev.cy, this.multiY), g1 = this.plane(cur.cx, cur.cy, this.multiY);
     t.x -= g1.x - g0.x; t.z -= g1.z - g0.z; rts.follow = null;
     const z0 = rts.zoomT; rts.zoomBy(cur.dist / Math.max(1, prev.dist)); const ratio = z0 / rts.zoomT;
     t.x += (g1.x - t.x) * (1 - ratio); t.z += (g1.z - t.z) * (1 - ratio);

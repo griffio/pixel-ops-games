@@ -34,7 +34,7 @@ const rts = new RtsCamera(pixel, world.half - 10);
 const units = new UnitManager(scene, world, builders, F.recolor);
 const dust = new DustSim(); units.dust = dust; world.dust = dust;   // the world reads muzzle-flash lights from the particle pool
 const markers = new Markers(scene, world.heightAt), rings = new Rings(scene, renderer, world.heightAt);   // capture rings round the locations (gl/rings.js)
-world.focus = rts.target; rts.heightAt = world.heightAt;
+world.focus = rts.target; rts.heightAt = world.heightAt; rts.topY = world.terrain ? world.terrain.max + 10 : 10;   // where screenToGround starts its march down
 
 if (touch) { document.body.classList.add('touch'); rts.edgePan = false; units.pathBudgetMax = units.pathBudget = 1; }   // tablets: one A* search a frame, not four (a plan re-routing several squads put 8 to 35 ms of searches into one frame on the iPad, two of them at 120,000 cells apiece, 2026-11-04); the rest take their route a frame or two later, a squad's members adopt its leader's
 const app = {
