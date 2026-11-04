@@ -5,10 +5,13 @@ import { Objectives } from '../objectives.js';
 // to one of team 1's, and plays Advance and Secure along it: each place is capturable only from the one before it, so the
 // route to the enemy differs from match to match and the places off the chain are ground to cross. A chain runs toward the
 // enemy base (each place no more than 60 m back along the base-to-base line from the one before; a move along a home row is
-// allowed), is 3 to 5 places long unless the map says otherwise (map.raas = { min, max }), ends at the first of the enemy's
-// home places it reaches, and longer chains are drawn more often (weight: length squared). A map without links (Desert
-// Crossing) plays its list, which is a chain already. ?chain=A,B,C forces one (names in order) for replays and screenshots.
-// The chain's ends are the homes; the map's own home flags come off the other places (docs/GAME_PLAN.md, "Random lanes plan").
+// allowed), is 3 to 5 places long unless the map says otherwise (map.raas = { min, max }), and is even: as many places on
+// each side's half of the map, the middle band (15% of the base-to-base distance either side of the midpoint) counting for
+// neither, so neither side starts with the majority for free (the first cut let a chain run along one home row and gave
+// that side 9 of 12 Palm Valley mirrors). Longer chains are drawn more often (weight: length squared). A map without links
+// (Desert Crossing) plays its list, which is a chain already. ?chain=A,B,C forces one (names in order) for replays and
+// screenshots. The chain's ends are the homes; the map's own home flags come off the other places (docs/GAME_PLAN.md,
+// "Random lanes plan").
 export class RAAS extends AAS {
   static key = 'raas'; static name = 'Random Advance & Secure'; static desc = 'Advance & Secure along a route drawn for the match: a chain of places from your side to theirs, taken in order, different every match. The rest of the map is ground to cross.';
   setup() {
@@ -34,9 +37,11 @@ export function chainsFor(map) {
   const adj = new Map(L.map(l => [l.name, []])); for (const [a, b] of map.links) { adj.get(a).push(byName(b)); adj.get(b).push(byName(a)); }
   const b0 = map.bases[0], b1 = map.bases[1], ax = b1.x - b0.x, az = b1.z - b0.z, al = Math.hypot(ax, az) || 1, p = (l) => ((l.x - b0.x) * ax + (l.z - b0.z) * az) / al;
   const min = (map.raas && map.raas.min) || 3, max = (map.raas && map.raas.max) || 5, TOL = 60, out = [];
+  const mid = al / 2, band = al * 0.15, side = (l) => Math.abs(p(l) - mid) <= band ? 0 : Math.sign(p(l) - mid);   // -1 team 0's half, +1 team 1's, 0 the middle
+  const even = (path) => path.reduce((s, l) => s + side(l), 0) === 0;
   const walk = (path) => {
     const last = path[path.length - 1];
-    if (path.length > 1 && homeOf(last, 1)) { if (path.length >= min) out.push(path.map(strip)); return; }
+    if (path.length > 1 && homeOf(last, 1) && path.length >= min && even(path)) out.push(path.map(strip));   // and may go on through the enemy's row
     if (path.length >= max) return;
     for (const n of adj.get(last.name)) { if (path.includes(n) || p(n) < p(last) - TOL) continue; path.push(n); walk(path); path.pop(); }
   };
