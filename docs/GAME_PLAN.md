@@ -3786,6 +3786,11 @@ shadows are on, and flat with them off, says the judder is the shadow pass and i
   follow asked for) and goes out in each profiler window as `jumps` (kind, from, to, metres, zoom, a note), so a report
   can be read back from Workers Logs. tools/touch-test passes every gesture; it now seeds the manual as read and bypasses
   the cache, since its reused profile dir had served a stale camera.js.
+  *Deployed (4e9c4de2); the user: "whatever you changed, it does seem better. The jumping and jitter are not present
+  now."* The day's account, then: the judder was the camera riding the terrain into the gorge, the jumps were the ground
+  ray flipping between the deck and the bed under a pan, and the frame tail that eight profiles showed is the iPad at its
+  budget and was never either. The rendering and HUD work along the way stands as savings; the shadow-tail step and the
+  12 m/s camera limit were wrong turns and are gone.
 
 ## Base defence mode plan (2026-11-02)
 
