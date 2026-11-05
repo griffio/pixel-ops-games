@@ -94,7 +94,7 @@ export class Respawn {
         u.revive(x, z, Math.random() * Math.PI * 2);
         const L = u.squad && u.squad.members.find(m => !m.dead && m !== u && !m.afloat);
         if (this.sea(team) && this.sea(team).atShip(x, z)) this.sea(team).embark(u);   // back on the ship: into the well dock for a landing craft
-        else if (L) u.order(L.pos.x + (Math.random() - 0.5) * 3, L.pos.z + (Math.random() - 0.5) * 3);   // rejoin the squad
+        else if (L && !u.squad.rejoin(u)) u.order(L.pos.x + (Math.random() - 0.5) * 3, L.pos.z + (Math.random() - 0.5) * 3);   // rejoin the squad: a free place in its wedge (Squad.rejoin), or beside a mate aboard a vehicle
       } else {
         const S = this.sea(team), [x, z] = S && u.spec.air ? S.deckSpot() : this.spawnPoint(u, team);   // a ship's helicopters on its flight deck
         const n = this.units.spawn(u.type, x, z, Math.random() * Math.PI * 2, u.team, { supply: u.supply }); n.label = u.label;

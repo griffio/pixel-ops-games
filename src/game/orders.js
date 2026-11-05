@@ -137,7 +137,7 @@ export class Orders {
     for (const t of new Set((m.strategists || []).map(s => s.team))) for (const v of this.vehiclesOf(t)) if (v.manual) { const idle = !v.dest && !v.target && Math.abs(v.speed) < 0.3 && !v.refilling; if (!idle) v.idleSince = null; else if (v.idleSince == null) v.idleSince = m.elapsed; }   // a vehicle stays in the hand until Rejoin; the wheel's CO chip offers it when idle
     for (const t of new Set((m.strategists || []).map(s => s.team))) for (const sq of this.squadsOf(t)) {
       if (!sq.manual) continue;
-      if (sq.busy) { sq.idleSince = null; continue; }
+      if (sq.busy) { if (m.elapsed - (sq.wheelAt ?? -1e9) > 5) sq.idleSince = null; continue; }   // a turn to face the enemy (Squad.wheel) is not the player's order: the idle clock runs on
       if (sq.idleSince == null) sq.idleSince = m.elapsed; else if (m.elapsed - sq.idleSince > 90) { sq.manual = false; sq.idleSince = null; }
     }
   }

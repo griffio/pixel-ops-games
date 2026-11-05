@@ -257,6 +257,20 @@ so it can take any of them first. Radar Hill is in the middle, and the Bridgehea
 guards the bridge. Whichever side you pick, the beach side attacks: defending, or a
 balance run's `?swap=1`, plays the map from the mainland.
 
+**Squad formations.** A squad walks and stands in a wedge: its leader at the point and
+the others back along two arms, neighbours 2.4 m apart (inside first aid's reach, so a
+man down in his place still has a mate beside him). On the move each wing man walks
+beside the squad's route wherever the walking grid has room for him. Where it has not, on
+a footbridge or in a lane between houses, he falls in on the route itself, and the squad
+goes through in single file two metres a man and opens out again beyond. A wing man ahead
+of his place slows and the leader eases off for one left behind, so the wedge holds round
+corners. Where the squad stops the wedge faces the enemy it knows of, or the way it came
+when it knows of none, and the men look that way. A squad at rest that sees an enemy
+coming from a flank turns its wedge to face him before the shooting starts; a squad
+holding fire, in sandbags or standing by a wounded man stays as it is. A man back from a
+respawn walks to a free place in the wedge. Squads sent together stop 9 m apart, a wedge
+being 6 m across.
+
 **Fog of war.** Your side sees what its units see: soldiers 120 m, APCs 160 m,
 tanks 210 m, trucks 100 m, a landed helicopter 120 m and one in the air 250 m
 (over buildings), FOBs and sandbag positions 100 m. Hills and buildings block
@@ -535,7 +549,7 @@ off. On a touch screen both name the buttons instead of the keys
 | Input | Action |
 |---|---|
 | Left click / drag | Select unit or squad / box-select |
-| Right click | Move order (selected squads and vehicles move in formation); on a friendly carrier, board it; on a friendly sandbag position, man it |
+| Right click | Move order (each squad goes in its wedge, squads and vehicles sent together stop side by side); on a friendly carrier, board it; on a friendly sandbag position, man it |
 | `L` | Load: the selected soldiers board the vehicle clicked next (or the one selected with them); `L` again or `Esc` cancels |
 | `Z` | Attack-move: the selection goes to the ground clicked next, infantry stopping to fight whatever comes into range on the way; `Z` again or `Esc` cancels. `Alt` + right-click does it in one. It lifts hold fire |
 | `O` | Hold fire / fire at will: the selected soldiers' squads stay quiet and hidden, no target and no shot, until an enemy is within 20 m or they are fired on; it drops an attack-move under way |
@@ -706,7 +720,7 @@ src/core/           renderer-agnostic engine
   geometry.js       box, cylinder, wedge, frustum, frond, ring, plane and grass-tuft generators with world-unit UVs
   textures.js       procedural tarmac (slabs, taxi lines, asphalt road, grass strip), camo and grass-tuft canvases
   camera.js         orthographic RTS camera (orbit, zoom-as-pixel-scale, texel snapping, follow)
-  units.js          steering, obstacle sliding, separation, squads (one route a squad, the members following it to their places), helicopter state machine; A* searches on a per-frame budget (?paths=N), the rest taken up a frame or two later; a soldier outside the renderer's cull box keeps his pose
+  units.js          steering, obstacle sliding, separation, squads (one route a squad, the leader on it and the wing men beside it in a wedge where there is room, in single file where there is not), helicopter state machine; A* searches on a per-frame budget (?paths=N), the rest taken up a frame or two later; a soldier outside the renderer's cull box keeps his pose
   dust.js           particle simulation: dust, smoke, fire, tracers, muzzle flashes and brief flash lights for the renderer
   projectiles.js    rounds in flight: straight bullets, cannon shells on a gravity arc, rockets; tracer streaks for the renderer
   input.js, hud.js  RTS input / selection and the HUD (command bar, build markers); picking delegated to the back end

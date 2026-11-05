@@ -53,6 +53,7 @@ export class Morale {
       else if (s === 'broken') { if (v >= T.pinnedAgain) next = 'pinned'; }
       if (next !== s) { if (next === 'broken') this.breakSq(sq, fit); else if (s === 'broken') this.unbreak(sq); sq.state = next; sq.stateAt = now; if (this.onState) this.onState(sq, next, s); }
       // what the state does to the men
+      if (threat && !engaged && supp < 0.2 && (sq.state === 'steady' || sq.state === 'shaken') && sq.tag !== 'cover' && sq.wheel) sq.wheel(now);   // the wedge turns to face an enemy seen coming (Squad.wheel); a squad hiding from armour (strategist: cover) stays put
       const pinned = sq.state === 'pinned'; for (const u of sq.members) u.pinnedDown = pinned;   // flat (Unit.stepGround), and crawling if moved; not through suppression, which would feed the drain and hold the squad there
       if (sq.state === 'broken') this.flee(sq, fit, c);
     }

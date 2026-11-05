@@ -4246,6 +4246,83 @@ through them and plays Advance and Secure along it. Three steps, each playable:
   (rank 3 in the report), which would soften the single-front snowball; the armour lean on the gorge stands as noted under
   its O4; a chain of three on a five-place map could be allowed a fourth by dropping the home-row stop.
 
+## Squad wedge plan (2026-11-05)
+
+The user's note: squads should line up facing the way they walk or fire, in a `v`, not bunched together, except over
+bridges and down narrow paths; "see if it is possible to determine" where there is the space. It is: the walking grid
+(`nav.foot`, 1 to 1.2 m cells) already says which ground a man can stand on and whether a straight line is clear, so a
+wing man's place beside the squad's route can be tested as the route is handed out.
+
+What there was: `Squad.order` gave each man a slot in a wedge of 1.3 m steps round the goal, turned along the straight
+line from the leader to the goal, and every man walked the leader's route to it. On the move the squad was one knot
+(mates 1.7 m apart at the median) and where it stopped the wedge faced the way the order had pointed.
+
+**W1, the wedge (done).** `FORM` and `WEDGE` in core/units.js: the leader at the point, the others back along two
+arms, each step 2.0 m out and 1.4 m behind, so neighbours stand 2.4 m apart. That figure is first aid's: a fit mate
+must be within 3 m of a man down (`RULES.wounds.aidRange`), and a wider wedge would leave a man hit in his place out
+of reach until the squad is walked onto him; the rule was left alone and the wedge sized to it. Slots are handed out
+across the way the squad sets off (the man on the left takes the left arm), so nobody crosses the squad. A slot must be
+open ground in the clear from the leader's (`nav.lineClear`), else 0.6 and 0.3 of the way out, else the leader's own
+place: no man is sent to the far side of a hedge any more.
+
+**W2, the wedge on the move, single file where there is no room (done).** `Unit.wingRoute`: the squad's route is cut
+into pieces of 10 m at most, and at the end of each a wing man's point is his slot's width to the side of it when that
+point is open ground, the line to it from the route is clear and the line to it from his last point is clear; without
+the room his point is the route's own, marked as in file. So the wedge closes for a footbridge or a lane and opens
+again beyond, and the test is the same grid the route was searched on. `Squad.pace` keeps the shape: a wing man ahead
+of his station (his slot's depth behind the leader along the leader's heading; in file, 2.1 m behind the man in file
+ahead) drops to half pace at most, and the leader eases to four fifths while a wing man who can keep up is more than
+1.5 m behind his. Nobody waits for a man fighting, crawling or hurt, nobody stops (the stuck rule wants every man
+moving), and a broken squad keeps no station. A man taking one of his route's points no longer loses a step (the frame
+a point was taken cost a tenth of a metre at the simulation's 50 ms tick, and a wing man has a point every 10 m).
+
+**W3, facing the enemy (done).** Where it stops the wedge faces the squad's threat (the nearest enemy its side knows
+of within 150 m, game/morale.js) when he is within 150 m of the place and not on it, and otherwise the way it came in
+(the last leg of its route). The men at rest look the way the wedge faces. `Squad.wheel`, called from the morale tick:
+a squad at rest, steady or shaken, with nobody engaging and nobody suppressed, turns its wedge about its leader to
+face a threat more than 50 degrees off its facing, once in 10 s at most. Not a squad holding fire (an ambush stays as
+it was put), in bags, aboard, at work, braced for helicopters, hiding from armour (the strategist's `cover`) or
+standing by a wounded man, and not with the enemy inside 20 m. Moving men under fire halves their aim, so the turn
+comes before the shooting or not at all; in a fight each man turns to his own target as before. The player's hand-back
+clock (90 s idle under a hybrid commander) does not restart for a turn. Squads ordered together stop 9 m apart, not 7.
+
+A man back with his squad (from a respawn, off a helicopter or a landing craft) walks to a free place in its wedge
+(`Squad.rejoin`), not onto the leader.
+
+**Measured (2026-11-05)**, headless, the new code beside a worktree of the last commit served on another port
+(scratchpad scripts through `tools/sim-test.mjs`; nothing in src was edited while a balance run was reading it):
+
+- Shape. Over 110 m of open ground the wing men sit at (2.1, -0.9), (-1.9, -1.2) and (-3.9, -2.3) m from the leader,
+  across and along his heading, within half a metre of their stations the whole way, and stop at (2, -1.4),
+  (-2, -1.4), (-4, -2.8). Sent back the way they came the wedge has turned round within 10 s. Before, the four walked
+  within a metre of one line.
+- Bridges, Olive Gorge. The footbridge (5 m deck): all four on its centre line, 2 m apart, opening out as they come
+  off it; 34 s for the 150 m against 33. The Old Bridge (10 m): the leader with a man 2 m either side and the fourth
+  in file behind. With no search budget when the order is given (the tablet's case) the same routes arrive a frame later.
+- Walks. Forty squad walks a map between random points of the open map, 60 to 260 m, nobody shooting. Every man in his
+  place at the end: Olive Gorge 40 of 40 (38 before), the Hollow 40 of 40 (34 before: six squads used to leave a man
+  14 to 20 m short, his slot behind a hedge), Palm Valley 37 of 37, Narva 30 of 30. No man gave up his route in either
+  build. Time until the whole squad is in place: Narva +0.7%, Palm Valley +1.5%, Olive Gorge +2.7%, the Hollow +6.4%.
+- Spacing in a CPU match on Palm Valley: squads at rest in minutes 5 to 10, the median distance to the nearest mate
+  2.23 m against 1.77; on the move in the first five minutes 2.50 m against 1.73 (means). Four to five per cent of a
+  wing man's walking is in file. The wedge turned to face an enemy 1 to 15 times in eight minutes of a match.
+- Facing. An enemy squad set down 100 m off the flank of a squad at rest: the wedge had turned to face it 1.5 s later.
+  A move ordered then, at right angles to him, ended with the wedge facing him (1.95 rad against a bearing of 1.96).
+- Balance, the same seeds before and after (Palm Valley and Olive Gorge: the core set, 16 matches; the Hollow: 8
+  mirrors). Matches ended by tickets 0, 8, 2 before and 3, 8, 1 after; infantry lost a match 243, 125, 188 and 232,
+  116, 185; the wounded patched up 19%, 21%, 17% and 20%, 22%, 17%, so first aid is not hurt by the wider wedge;
+  captures a match 10.5, 7.9, 8.5 and 10.4, 8.6, 7.9. The win tables moved inside their noise. Mechanized on the Gorge
+  looked softer (8 of 8 before, 3 of 8 after), so both builds played four more seeds of its two pairings: 19 of 24
+  before and 17 of 24 after over the six seeds. The armour lean there stands as it was. No page error in the final
+  build's 56 matches.
+- Other modes stepped eight minutes each with no error: Peninsula's invasion (88 men rejoining off the craft and from
+  respawns), Hold the Farm, Narva, Desert Crossing, Random AAS on the Gorge.
+
+Open: two squads sent along one route still walk through each other's wedges (a lane a squad to one side of the route
+would do it, with the same room test); a wedge wider than 2.4 m between neighbours needs a rule for a fit man to walk
+to a mate who is down, since first aid reaches 3 m; the turn to face the enemy is rare, because most resting CPU
+squads hold fire in ambush and those stay as they were put.
+
 ## Open questions
 
 None open. Answered:

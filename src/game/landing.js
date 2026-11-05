@@ -172,7 +172,7 @@ export class Landing {
       u.afloat = false; u.mounted = null; u.group.visible = true; u.pos.set(x, W.heightAt(x, z), z); u.heading = h; u.group.rotation.y = h;
       if (u.supply) continue;
       const mate = u.squad && u.squad.members.find(o => o !== u && !o.dead && !o.afloat);
-      if (mate) u.order(mate.pos.x + (Math.random() - 0.5) * 3, mate.pos.z + (Math.random() - 0.5) * 3);
+      if (mate) { if (!u.squad.rejoin(u)) u.order(mate.pos.x + (Math.random() - 0.5) * 3, mate.pos.z + (Math.random() - 0.5) * 3); }   // a free place in the squad's wedge round the first man ashore (Squad.rejoin)
       else u.order(at.x + (Math.random() - 0.5) * 14, at.z + (Math.random() - 0.5) * 14);
     }
     c.passengers = [];

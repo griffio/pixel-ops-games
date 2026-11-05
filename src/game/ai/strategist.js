@@ -816,7 +816,7 @@ export class Strategist {
         } else if (lift.t > 60) { this.endLift(heli); heli.unload(); }                  // they never made it: give up
       } else if (lift.stage === 'fly') {
         if (parked && !heli.passengers.length) {                                         // dropped: each one rejoins his squad, then perch or fly home
-          for (const m of lift.riders) { const L = m.squad && m.squad.members.find(o => !o.dead && !o.mounted && !lift.riders.includes(o)); if (!m.dead && L) m.order(L.pos.x + (Math.random() - 0.5) * 3, L.pos.z + (Math.random() - 0.5) * 3); }
+          for (const m of lift.riders) { const L = m.squad && m.squad.members.find(o => !o.dead && !o.mounted && !lift.riders.includes(o)); if (!m.dead && L && !m.squad.rejoin(m)) m.order(L.pos.x + (Math.random() - 0.5) * 3, L.pos.z + (Math.random() - 0.5) * 3); }
           this.endLift(heli);
           if (perch && !this.percher) sit(perch); else home();
         }

@@ -3,6 +3,13 @@ import { RULES } from '../game/rules.js';
 import { WEAPONS } from '../game/weapons.js';
 
 const rnd = (a, b) => a + rng() * (b - a);
+// A squad's wedge (Squad.order): the leader at the point and the others back along its two arms, each step FORM.side metres out
+// and FORM.back metres behind (neighbours 2.4 m apart: inside first aid's reach of 3 m, RULES.wounds.aidRange, so a man down in
+// his place still has a mate at arm's length). On the move a wing man walks the squad's route that far to its side wherever the
+// walking grid has the room (Unit.wingRoute, judged every FORM.piece metres), and on the route itself where it has not, in
+// single file FORM.file metres a man: a footbridge, a lane between houses
+const FORM = { side: 2.0, back: 1.4, file: 2.1, piece: 10 };
+const WEDGE = [[0, 0], [-1, -1], [1, -1], [-2, -2], [2, -2], [-3, -3], [3, -3], [0, -2]];   // in steps: across (right is +) and along (behind is -)
 
 export const SPEC = {
   soldier: { speed: 4.6, turn: 9, accel: 18, label: 'SQ', air: false, hp: 35, nav: 'foot' },   // four rifle hits; infantry are expendable, vehicles are not
@@ -110,14 +117,14 @@ export class Unit {
   // Move order: path through the nav grid when one is available, otherwise straight line.
   // shared: the squad's route (Squad.order), adopted in place of a search of this unit's own. A search beyond the frame's budget
   // (UnitManager.pathSearch) is taken up on a later frame (resolvePath), the unit walking straight at its goal until then.
-  order(x, z, keepPost = false, shared = null) {   // any order takes a soldier out of his sandbag position, unless it is his way into it
+  order(x, z, keepPost = false, shared = null, form = null) {   // any order takes a soldier out of his sandbag position, unless it is his way into it; form: his place in the squad's wedge on the way (Squad.order), dropped by any order of his own
     if (this.dead || this.down || this.afloat) return;   // afloat: waiting on the ship or aboard a landing craft (game/landing.js); down: wounded, going nowhere
     if (!keepPost) this.leavePost();
     const nav = this.mgr && this.mgr.nav && this.spec.nav ? this.mgr.nav[this.spec.nav] : null;
     if (nav && nav.inPocket(x, z)) { const c = nav.nearestMain(nav.cellOf(x), nav.cellOf(z)); if (c) { x = nav.world(c[0]); z = nav.world(c[1]); } }   // a goal inside a building, or in a pocket between buildings, becomes the nearest open ground
     this.dest = new Vec3(x, 0, z); this.idle = 0; this.hold = false; this.advance = false; this.bestDist = Infinity; this.noProgress = 0; this.turnT = 0; this.orbit = null;
-    this.path = null; this.pathWanted = null;
-    if (nav && shared) { if (shared.path === undefined) this.pathWanted = { nav, x, z, shared }; else this.adoptRoute(nav, shared.path, x, z); }
+    this.path = null; this.pathWanted = null; this.form = form;
+    if (nav && shared) { if (shared.path === undefined) this.pathWanted = { nav, x, z, shared }; else this.adoptRoute(nav, shared.path, x, z, shared.from); }
     else if (nav) { const p = this.mgr.pathSearch(nav, this.pos.x, this.pos.z, x, z); if (p === undefined) this.pathWanted = { nav, x, z }; else this.path = p || this.escapeRoute(nav, x, z); }
     const first = this.path && this.path.length ? this.path[0] : [x, z];
     this.target = new Vec3(first[0], 0, first[1]);
@@ -128,17 +135,45 @@ export class Unit {
   // near enough the view to be drawn this frame (the renderer's cull box, set each render; headless or before the first frame: yes)
   drawn() { const R = this.mgr && this.mgr.world.renderer, B = R && R.lastCull; if (!B) return true; if (this.group.hidden) return false; const p = this.pos; return p.x >= B.minX && p.x <= B.maxX && p.z >= B.minZ && p.z <= B.maxZ; }
   // the squad's route made this unit's own: its last point becomes this unit's place in the formation, unless that place is blocked
-  adoptRoute(nav, p, x, z) {
+  adoptRoute(nav, p, x, z, from) {
     if (!p) { this.path = null; return; }   // the squad found no route and no way out (Squad.order searched both once): straight at the goal
     const last = nav.blocked(x, z) ? p[p.length - 1] : [x, z];
+    if (this.form && this.form.ox && from) { this.path = this.wingRoute(nav, p, from, this.form.ox, last); return; }   // a wing man: beside the route
     this.path = p.length > 1 ? [...p.slice(0, -1), last] : [last];
+  }
+  // The squad's route (from its leader's place `from` through the points p) as a wing man walks it, ox metres to its right
+  // (negative: its left). The route is cut into pieces of FORM.piece metres at most, and at the end of each his point is
+  // out there when there is room: the point open ground, the line to it from the route clear (so never the far side of a wall
+  // or a hedge) and the line to it from his last point clear. Without the room his point is the route's own (marked [x, z, 1]:
+  // in file, Squad.pace), reached by way of the route's last point when the straight line to it is not clear. So the wedge closes
+  // into single file for a footbridge or a lane and opens again beyond, and nobody is sent round a corner the route does not turn
+  wingRoute(nav, p, from, ox, last) {
+    const out = []; let ax = from[0], az = from[1], mx = this.pos.x, mz = this.pos.z, rx = null, rz = 0;   // a: the route so far; m: his own last point; r: the route's last piece end
+    for (let k = 0; k < p.length; k++) {
+      const bx = p[k][0], bz = p[k][1], len = Math.hypot(bx - ax, bz - az); if (len < 0.01) continue;
+      const dx = (bx - ax) / len, dz = (bz - az) / len, n = Math.ceil(len / FORM.piece), end = k === p.length - 1;
+      for (let j = 1; j <= n; j++) {
+        if (end && j === n) break;   // where the route ends he has his own place (last)
+        const ex = ax + dx * len * j / n, ez = az + dz * len * j / n, qx = ex + dz * ox, qz = ez - dx * ox;
+        if (!nav.blocked(qx, qz) && nav.lineClear(ex, ez, qx, qz) && nav.lineClear(mx, mz, qx, qz)) { out.push([qx, qz]); mx = qx; mz = qz; }
+        else { if (rx !== null && !nav.lineClear(mx, mz, ex, ez)) out.push([rx, rz, 1]); out.push([ex, ez, 1]); mx = ex; mz = ez; }
+        rx = ex; rz = ez;
+      }
+      ax = bx; az = bz;
+    }
+    // his place where the squad stops is in the clear from the point man's (Squad.order): when it is not in the clear from his
+    // own last point he goes by the point man's, rather than walk at a wall and give up short
+    const g = p[p.length - 1];
+    if (!nav.lineClear(mx, mz, last[0], last[1]) && Math.hypot(g[0] - last[0], g[1] - last[1]) > 0.1) { if (rx !== null && !nav.lineClear(mx, mz, g[0], g[1])) out.push([rx, rz, 1]); out.push([g[0], g[1], 1]); }
+    out.push(last);
+    return out;
   }
   // a route asked for when the frame's search budget was spent: taken up when there is budget again
   resolvePath() {
     const w = this.pathWanted; if (!this.dest) { this.pathWanted = null; return; }
     if (w.shared) {
       if (w.shared.path === undefined) { let r = this.mgr.pathSearch(w.nav, w.shared.from[0], w.shared.from[1], w.shared.to[0], w.shared.to[1]); if (r === undefined) return; if (r === null) r = this.escapeRoute(w.nav, w.shared.to[0], w.shared.to[1]) || null; w.shared.path = r; }
-      this.pathWanted = null; this.adoptRoute(w.nav, w.shared.path, w.x, w.z);
+      this.pathWanted = null; this.adoptRoute(w.nav, w.shared.path, w.x, w.z, w.shared.from);
     } else { const p = this.mgr.pathSearch(w.nav, this.pos.x, this.pos.z, w.x, w.z); if (p === undefined) return; this.pathWanted = null; this.path = p || this.escapeRoute(w.nav, w.x, w.z); }
     const first = this.path && this.path.length ? this.path[0] : [w.x, w.z]; this.target = new Vec3(first[0], 0, first[1]); this.bestDist = Infinity; this.noProgress = 0;
   }
@@ -164,7 +199,7 @@ export class Unit {
   nextWaypoint() {
     this.bestDist = Infinity; this.noProgress = 0; this.turnT = 0;
     if (this.path && this.path.length > 1) { this.path.shift(); this.target.set(this.path[0][0], 0, this.path[0][1]); return true; }
-    this.target = null; this.path = null; this.dest = null; return false;
+    this.target = null; this.path = null; this.dest = null; this.form = null; return false;
   }
 
   // ---- transport ---------------------------------------------------------
@@ -327,7 +362,7 @@ export class Unit {
       // a vehicle takes a waypoint on the way within 3 m: one closer than its turning circle (a truck starting beside the
       // first point of its route) would have it circling the point for ever
       const last = !this.path || this.path.length <= 1, arrive = last ? (this.type === 'soldier' ? 0.5 : 1.5) : (this.type === 'soldier' ? 1.2 : 3);
-      if (dist < arrive) { this.nextWaypoint(); }
+      if (dist < arrive) { this.nextWaypoint(); if (this.form && this.target) want = s.speed; }   // a man on his squad's route walks through its points without breaking step (the frame a point is taken used to cost a tenth of a metre, and a wing man has one every 10 m)
       else {
         const desired = Math.atan2(dx, dz); let diff = wrap(desired - this.heading);
         // a vehicle backs up to a near goal behind it, and pivots for a near goal off to the side, instead of
@@ -355,6 +390,7 @@ export class Unit {
         }
       }
     }
+    if (want > 0 && this.form && this.squad) want *= this.squad.pace(this);   // keeping his station in the squad's wedge
     if (this.hold && this.type === 'soldier') want = 0;
     if (this.down) { want = 0; this.target = null; }   // wounded: where he fell
     else if (this.type === 'soldier' && want !== 0 && this.hp < this.maxHp * 0.7) want *= RULES.wounds.slow;   // hurt: slower
@@ -371,6 +407,8 @@ export class Unit {
     if (want === 0 && this.enemy && this.type === 'soldier') {
       const diff = wrap(Math.atan2(this.enemy.pos.x - this.pos.x, this.enemy.pos.z - this.pos.z) - this.heading);
       this.heading += clamp(diff, -s.turn * dt, s.turn * dt);
+    } else if (want === 0 && this.type === 'soldier' && !this.dest && this.squad && this.squad.face !== undefined && !this.post && !this.down && !this.building && !this.boardTarget && !this.medicTarget && !(this.tendT > 0)) {
+      const diff = wrap(this.squad.face - this.heading); if (Math.abs(diff) > 0.02) this.heading += clamp(diff, -3 * dt, 3 * dt);   // at rest in the wedge with nobody to shoot at: looking the way the squad faces
     }
     const W = this.mgr.world, T = W.terrain, ground = W.heightAt(this.pos.x, this.pos.z);
     const swim = this.spec.swim !== undefined && T && ground < T.water - 0.2; this.swimming = swim;   // an amphibian afloat: slower, on the waterline, a wake instead of dust
@@ -577,26 +615,90 @@ export class Squad {
   get fitCount() { return this.members.filter(m => m.fit).length; }
   get wounded() { return this.members.filter(m => m.down && !m.dead); }
   get team() { return this.members[0].team; }
-  // one route for the squad, the leader's (or one handed in: the strategist's detour check already searched it), the members
-  // following it to their own places in the formation; a straggler more than 8 m from the leader finds his own way. Four
-  // near-identical searches a squad, twelve squads in one plan tick, used to stall a frame (nav.js)
+  // one route for the squad, the leader's (or one handed in: the strategist's detour check already searched it): the leader walks
+  // it and the wing men walk beside it in the wedge (FORM, Unit.wingRoute) to their own places where it ends; a straggler more
+  // than 8 m from the leader finds his own way. Four near-identical searches a squad, twelve squads in one plan tick, used to
+  // stall a frame (nav.js)
   order(x, z, path, force = false) {   // force: the morale module's own flight (game/morale.js); otherwise a broken squad takes no order and a pinned one none that is toward the enemy it can see (refused: the note the HUD shows)
     const L = this.leader; if (!L) return;
     if (!force && this.state === 'broken') { this.refused = 'broken'; return; }
     if (!force && this.state === 'pinned' && this.threat && !this.pressed) { const c = this.centroid(); if (Math.hypot(x - this.threat.x, z - this.threat.z) < Math.hypot(c.x - this.threat.x, c.z - this.threat.z) - 4) { this.refused = 'pinned'; return; } }
     this.refused = null;
-    const h = Math.atan2(x - L.pos.x, z - L.pos.z), c = Math.cos(h), s = Math.sin(h);
-    const offs = [[0, 0], [-1.3, -1.3], [1.3, -1.3], [-2.6, -2.6], [2.6, -2.6], [0, -2.6], [-1.3, -3.9], [1.3, -3.9]];
     const nav = L.mgr && L.mgr.nav && L.spec.nav ? L.mgr.nav[L.spec.nav] : null;
-    let shared = null;
+    let shared = null, gx = x, gz = z;
     if (nav) {
-      let gx = x, gz = z; if (nav.inPocket(gx, gz)) { const q = nav.nearestMain(nav.cellOf(gx), nav.cellOf(gz)); if (q) { gx = nav.world(q[0]); gz = nav.world(q[1]); } }
+      if (nav.inPocket(gx, gz)) { const q = nav.nearestMain(nav.cellOf(gx), nav.cellOf(gz)); if (q) { gx = nav.world(q[0]); gz = nav.world(q[1]); } }
       let p = path !== undefined ? path : L.mgr.pathSearch(nav, L.pos.x, L.pos.z, gx, gz);   // undefined: no budget this frame, the first member to step with budget searches it
       if (p === null) p = L.escapeRoute(nav, gx, gz) || null;   // no route: the way out of a pocket searched once for the squad, not once a member (a 40 ms tick when it was four)
       shared = { from: [L.pos.x, L.pos.z], to: [gx, gz], path: p };
     }
-    let i = 0;
-    for (const m of this.members) { if (!m.fit) continue; const [ox, oz] = offs[i++ % offs.length]; const near = shared && Math.hypot(m.pos.x - L.pos.x, m.pos.z - L.pos.z) < 8; m.order(x + ox * c + oz * s, z - ox * s + oz * c, false, near ? shared : null); }
+    // Where it stops the squad stands in its wedge (FORM) facing the enemy it knows of (its threat, game/morale.js, when he is
+    // within 150 m of the place and not on it), and otherwise the way it came in: along the last leg of its route when the
+    // route is known now, along the line from where it stands when it is not
+    const rp = shared && shared.path, th = this.threat, td = th ? Math.hypot(th.x - gx, th.z - gz) : 0;
+    let a = rp && rp.length > 1 ? rp[rp.length - 2] : [L.pos.x, L.pos.z]; if (Math.hypot(gx - a[0], gz - a[1]) < 1.5) a = [L.pos.x, L.pos.z];
+    const h = th && td > 10 && td < 150 ? Math.atan2(th.x - gx, th.z - gz) : Math.hypot(gx - a[0], gz - a[1]) >= 1.5 ? Math.atan2(gx - a[0], gz - a[1]) : this.face ?? L.heading;
+    const c = Math.cos(h), s = Math.sin(h); this.face = h;
+    // the slots: the leader at the point, the others sorted across the way the squad sets off, so the man on the left takes the
+    // left arm and nobody crosses the squad to his place
+    const wing = this.members.filter(m => m.fit && m !== L), f0 = rp && rp.length ? rp[0] : [gx, gz];
+    const t = Math.hypot(f0[0] - L.pos.x, f0[1] - L.pos.z) > 1.5 ? Math.atan2(f0[0] - L.pos.x, f0[1] - L.pos.z) : h, tc = Math.cos(t), ts = Math.sin(t);
+    const across = (m) => (m.pos.x - L.pos.x) * tc - (m.pos.z - L.pos.z) * ts;
+    wing.sort((p, q) => across(p) - across(q));
+    const slots = WEDGE.slice(1, 1 + wing.length).sort((p, q) => p[0] - q[0]);
+    // a man's place where the squad stops: his slot when it is open ground in the clear from the point man's, else nearer him
+    const place = (ox, oz) => { for (const k of [1, 0.6, 0.3]) { const px = gx + (ox * c + oz * s) * k, pz = gz + (oz * c - ox * s) * k; if (!nav || (!nav.blocked(px, pz) && nav.lineClear(gx, gz, px, pz))) return [px, pz]; } return [gx, gz]; };
+    const id = this.formId = (this.formId || 0) + 1;
+    const go = (m, slot) => {
+      const ox = slot[0] * FORM.side, oz = slot[1] * FORM.back, rank = WEDGE.indexOf(slot), [px, pz] = rank ? place(ox, oz) : [gx, gz];
+      const near = shared && Math.hypot(m.pos.x - L.pos.x, m.pos.z - L.pos.z) < 8;   // a straggler finds his own way
+      m.order(px, pz, false, near ? shared : null, near ? { ox, oz, rank, id } : null);
+    };
+    go(L, WEDGE[0]); wing.forEach((m, i) => go(m, slots[i] || WEDGE[7]));
+  }
+  // Keeping the wedge on the move. A wing man ahead of his station (his slot's depth behind the point man, measured along the
+  // point man's heading; in single file FORM.file metres behind the man in file ahead) drops to half pace at most until the point man has passed him,
+  // and the point man eases to four fifths while a wing man who can keep up (on his feet, unhurt, walking) is over 1.5 m behind
+  // his. Nobody waits for a man fighting, crawling or lost, and nobody stops: the stuck rule (Unit.stepGround) wants every man moving
+  pace(m) {
+    const L = this.leader, F = m.form; if (!L || !L.form || !L.dest || L.form.id !== F.id) return 1;
+    const s = Math.sin(L.heading), c = Math.cos(L.heading), filed = (u) => !!(u.path && u.path[0] && u.path[0][2]);
+    const st = (u) => { if (!filed(u)) return u.form.oz; let k = 1; for (const o of this.members) if (o !== u && o.fit && o.form && o.form.id === F.id && o.form.rank && o.form.rank < u.form.rank && filed(o)) k++; return -FORM.file * k; };   // in file: behind the men in file ahead of him
+    const ahead = (u) => (u.pos.x - L.pos.x) * s + (u.pos.z - L.pos.z) * c - (st(u) - st(L));
+    if (m === L) {
+      for (const u of this.members) if (u !== L && u.fit && !u.mounted && u.dest && u.form && u.form.id === F.id && !u.hold && u.stance === 'stand' && u.hp >= u.maxHp * 0.7) { const d = ahead(u); if (d < -1.5 && d > -12) return 0.8; }
+      return 1;
+    }
+    if (L.speed < 1 || L.hold || m.fleeing || m.stance !== 'stand') return 1;   // the point man has stopped, to fight or because he is there: each man to his own place; a man crawling under fire or running from it keeps no station
+    const d = ahead(m); return d > 0.5 ? clamp(1 - (d - 0.5) / 3, 0.5, 1) : 1;
+  }
+  // At rest with an enemy known and the shooting not begun (game/morale.js calls it): the wedge turns about its point man to
+  // face him, when he is more than 50 degrees off the way it faces. Not a squad in bags, aboard, in ambush (hold fire), at
+  // work, braced for helicopters or standing by a wounded man; not with him inside 20 m; no more than once in 10 s
+  wheel(now) {
+    const th = this.threat, L = this.leader; if (!th || !L || th.d < 20 || this.aa || this.busy || now - (this.wheelAt ?? -1e9) < 10) return false;
+    const men = this.members.filter(m => m.fit); if (men.length < 2 || this.members.some(m => m.down && !m.dead)) return false;
+    if (men.some(m => m.post || m.mounted || m.afloat || m.holdFire || m.building || m.planFor || m.medicTarget || m.tendT > 0)) return false;
+    const h = Math.atan2(th.x - L.pos.x, th.z - L.pos.z); if (this.face !== undefined && Math.abs(wrap(h - this.face)) < 0.9) return false;
+    this.wheelAt = now; this.order(L.pos.x, L.pos.z); return true;
+  }
+  // A man back with his squad (from a respawn, off a helicopter or a landing craft) walks to a free place in its wedge as it
+  // stands, or as it will stand where it is going: round a fit mate's place, facing the way the squad faces, the first slot
+  // with nobody in it or bound for it. With no fit mate on foot he goes to one who is down, and is then in reach to see to him.
+  // False when there is nobody to go to
+  rejoin(u) {
+    const at = (m) => (m.dest ? [m.dest.x, m.dest.z] : [m.pos.x, m.pos.z]), others = this.members.filter(m => m !== u && !m.dead && !m.afloat && !m.mounted);
+    const L = others.find(m => m.fit), any = L || others[0]; if (!any) return false;
+    const nav = u.mgr && u.mgr.nav && u.spec.nav ? u.mgr.nav[u.spec.nav] : null;
+    if (L) {
+      const [gx, gz] = at(L), h = this.face ?? L.heading, c = Math.cos(h), s = Math.sin(h), taken = others.map(at);
+      for (let k = 1; k < WEDGE.length; k++) {
+        const ox = WEDGE[k][0] * FORM.side, oz = WEDGE[k][1] * FORM.back, px = gx + ox * c + oz * s, pz = gz + oz * c - ox * s;
+        if (taken.some(t => Math.hypot(t[0] - px, t[1] - pz) < 1.5) || (nav && (nav.blocked(px, pz) || !nav.lineClear(gx, gz, px, pz)))) continue;
+        u.order(px, pz); return true;
+      }
+    }
+    u.order(any.pos.x + (rng() - 0.5) * 3, any.pos.z + (rng() - 0.5) * 3); return true;
   }
   advanceTo(x, z) { this.order(x, z); for (const m of this.members) if (m.fit) { if (m.dest) m.advance = true; m.holdFire = false; } }   // an attack-move lifts hold fire: a squad told to fight on the way is not lying in ambush
   setHoldFire(v) { for (const m of this.members) if (!m.dead) { m.holdFire = v; if (v) m.advance = false; } }   // hold fire: quiet and hidden until an enemy is at 20 m or the squad is fired on (game/combat.js); it drops an attack-move, the walk going on as a plain move

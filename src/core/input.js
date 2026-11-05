@@ -224,7 +224,7 @@ export class Input {
     const squads = new Set(), loose = [];
     for (const u of this.selected) if (!u.spec.structure) u.squad ? squads.add(u.squad) : loose.push(u);
     const all = [...squads, ...loose], n = all.length;
-    const cols = Math.ceil(Math.sqrt(n)), gap = loose.some(u => u.spec.air) ? 12 : 7;
+    const cols = Math.ceil(Math.sqrt(n)), gap = loose.some(u => u.spec.air) ? 12 : squads.size ? 9 : 7;   // 9 m between squads: a wedge is 6 m across (core/units.js FORM), and two side by side should not mingle
     const quiet = advance ? all.filter(t => t.setHoldFire ? t.holdingFire : t.holdFire).length : 0;   // squads holding fire: an attack-move lifts it, and the toast says so
     const refused = [], refusedSq = new Set();   // squads whose morale refuses the order (game/morale.js, Squad.order): broken, or pinned and sent toward the enemy
     all.forEach((t, i) => {
