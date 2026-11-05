@@ -102,16 +102,24 @@ export class Hud {
     const s = Math.max(0, Math.ceil(m.time)); txt('m-time', `${Math.floor(s / 60)}:${String(s % 60).padStart(2, '0')}`);
     if (!this.modeShown) {
       this.modeShown = true; document.querySelector('#match .small').textContent = m.mode.constructor.name + (m.mode.constructor.sides ? (m.mode.attacker === (this.app.playerTeam ?? 0) ? ' · attacking' : ' · defending') : '') + (m.cpu && m.cpu.length === 1 ? ` · ${m.difficulty.name} CPU` : '');
-      document.querySelector('#match .t0 .nm').innerHTML = `BLUFOR<br><em>${t0.doctrine.name}</em>`; document.querySelector('#match .t1 .nm').innerHTML = `OPFOR<br><em>${t1.doctrine.name}</em>`;
+      document.querySelector('#match .t0 .nm').innerHTML = `BLUFOR<br><em>${t0.doctrine.name}</em><em class="co"></em>`; document.querySelector('#match .t1 .nm').innerHTML = `OPFOR<br><em>${t1.doctrine.name}</em><em class="co"></em>`;
       for (const id of ['minimap', 'objs', 'match', 'reinf-h', 'reinf']) $(id).style.display = ''; this.mmHidden = false;
       this.roster.setupSpawnPref(m.teams[this.app.playerTeam ?? 0]); document.body.classList.add('match'); document.body.classList.toggle('hybrid', !!m.hybrid); document.body.classList.toggle('build', !!m.plan);   // the respawn choice lives on the unit strip; hybrid: the CO button
     }
 
+    // a side under a model's command says so under its name, and says when the model stops answering (ai/remote.js: two calls
+    // failed in a row); the reason is the label's tooltip and a line in the feed. Written only when it changes
+    for (const t of [0, 1]) {
+      const st = (m.strategists || []).find(x => x.team === t), R = st && st.remote, text = R ? (R.down ? `${R.name}: no answer` : `${R.name} commander`) : '', C = this.coShown || (this.coShown = ['', '']);
+      if (C[t] === text) continue; C[t] = text;
+      const el = document.querySelector(`#match .t${t} .co`); if (el) { el.textContent = text; el.classList.toggle('down', !!(R && R.down)); el.title = R && R.down ? R.stats.lastError : ''; }
+    }
     // under fog of war the enemy's own news stays theirs: its commander's radio, its FOB going up, its digging in
     const a = this.app, hush = a.fog && a.fog.on ? (f) => f.kind === 'event' && ((f.e.loc && m.mode.hidden && m.mode.hidden(f.e.loc)) || (f.e.team !== (a.playerTeam ?? 0) && (f.e.type === 'radio' || f.e.type === 'fob' || f.e.type === 'sandbags' || f.e.type === 'traps' || f.e.type === 'emplacement' || f.e.type === 'wall' || f.e.type === 'platform'))) : () => false;
-    const feed = $('feed'), lines = m.feed.filter(f => f.t < 10 && !hush(f)), key = lines.map(f => f.id).join(',');
+    const life = (f) => (f.kind === 'event' && f.e.type === 'commander' ? 30 : 10);   // seconds a line shows; a commander going silent is not news to miss
+    const feed = $('feed'), lines = m.feed.filter(f => f.t < life(f) && !hush(f)), key = lines.map(f => f.id).join(',');
     if (key !== this.feedKey) { this.feedKey = key; feed.innerHTML = lines.map(f => this.feedLine(f)).join(''); }
-    lines.forEach((f, i) => { const el = feed.children[i]; if (!el) return; const fade = f.t > 7; if (el._fade !== fade) { el._fade = fade; el.classList.toggle('fade', fade); } });   // a line fades out over its last three seconds by a CSS transition: one style write, where it was one a frame (the main thread's layout and paint every frame while a line faded, felt as judder on the iPad)
+    lines.forEach((f, i) => { const el = feed.children[i]; if (!el) return; const fade = f.t > life(f) - 3; if (el._fade !== fade) { el._fade = fade; el.classList.toggle('fade', fade); } });   // a line fades out over its last three seconds by a CSS transition: one style write, where it was one a frame (the main thread's layout and paint every frame while a line faded, felt as judder on the iPad)
     // objectives bar from the mode
     const objs = $('objs'), items = m.mode.bar();
     if (objs.childElementCount !== items.length) { objs.innerHTML = items.map(l => `<div class="obj" title="Jump to ${l.name}"><b>${l.name}</b><span></span><i></i></div>`).join(''); objs.onclick = (e) => { const el = e.target.closest('.obj'); if (!el) return; const o = m.objectives && m.objectives.list.find(l => l.name === el.firstChild.textContent); if (o) { this.app.rts.fly = null; this.app.rts.follow = null; this.app.rts.target.set(o.x, 0, o.z); } }; }   // a tap on a place's box jumps the camera there
@@ -137,8 +145,8 @@ export class Hud {
     }
     const e = f.e, team = e.team, name = e.who || (team === 0 ? 'BLUFOR' : team === 1 ? 'OPFOR' : 'HQ'), loc = e.loc ? e.loc.name : '';   // who: the player's own CO speaking (game/orders.js)
     if (e.type === 'route') { const mm = this.app.match, names = mm && mm.mode.routeNames ? mm.mode.routeNames() : (e.names || []); return `<div class="ev">${ico('flag')}<b>${name}</b> route drawn: <b>${names.join(' → ')}</b></div>`; }   // Random Advance & Secure's chain, as far as the viewer knows it
-    const text = e.type === 'captured' ? `captured <b>${loc}</b>` : e.type === 'lost' ? `lost <b>${loc}</b>` : e.type === 'fob' ? 'FOB is up' : e.type === 'building' ? 'brought a building down' : e.type === 'sandbags' ? 'dug in behind sandbags' : e.type === 'emplacement' ? `set up ${{ hmg: 'a heavy machine gun', atgm: 'an anti-tank launcher', mortar: 'a mortar' }[e.gun] || 'an emplacement'} <b>${e.label || ''}</b>` : e.type === 'traps' ? 'laid tank traps' : e.type === 'traps cleared' ? 'cleared tank traps' : e.type === 'sandbags cleared' ? 'cleared a sandbag position' : e.type === 'wall' ? `raised a wall <b>${e.label || ''}</b>` : e.type === 'platform' ? `built a platform <b>${e.label || ''}</b>` : e.type === 'wall breached' ? 'breached a wall' : e.type === 'wall cleared' ? 'took a wall down' : e.type === 'platform cleared' ? 'took a platform down' : e.type === 'rally lost' ? `lost rally point <b>${e.rally || ''}</b>` : e.type === 'radio' ? `<i>${String(e.text).replace(/[&<>]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;' }[c]))}</i>` : e.type === 'cache revealed' ? `found the cache at <b>${loc}</b>` : e.type === 'cache destroyed' ? `destroyed the cache at <b>${loc}</b>` : e.type;
-    return `<div class="ev">${ico(e.type === 'fob' ? 'fob' : e.type.startsWith('cache') ? 'cache' : 'flag')}<b class="t${team}">${name}</b> ${text}</div>`;
+    const text = e.type === 'captured' ? `captured <b>${loc}</b>` : e.type === 'lost' ? `lost <b>${loc}</b>` : e.type === 'fob' ? 'FOB is up' : e.type === 'building' ? 'brought a building down' : e.type === 'sandbags' ? 'dug in behind sandbags' : e.type === 'emplacement' ? `set up ${{ hmg: 'a heavy machine gun', atgm: 'an anti-tank launcher', mortar: 'a mortar' }[e.gun] || 'an emplacement'} <b>${e.label || ''}</b>` : e.type === 'traps' ? 'laid tank traps' : e.type === 'traps cleared' ? 'cleared tank traps' : e.type === 'sandbags cleared' ? 'cleared a sandbag position' : e.type === 'wall' ? `raised a wall <b>${e.label || ''}</b>` : e.type === 'platform' ? `built a platform <b>${e.label || ''}</b>` : e.type === 'wall breached' ? 'breached a wall' : e.type === 'wall cleared' ? 'took a wall down' : e.type === 'platform cleared' ? 'took a platform down' : e.type === 'rally lost' ? `lost rally point <b>${e.rally || ''}</b>` : e.type === 'commander' ? (e.down ? `<b>${e.name}</b> commander is not answering (${String(e.why || 'no reason given').replace(/[&<>]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;' }[c]))}): the built-in commander takes over` : `<b>${e.name}</b> commander is answering again`) : e.type === 'radio' ? `<i>${String(e.text).replace(/[&<>]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;' }[c]))}</i>` : e.type === 'cache revealed' ? `found the cache at <b>${loc}</b>` : e.type === 'cache destroyed' ? `destroyed the cache at <b>${loc}</b>` : e.type;
+    return `<div class="ev${e.type === 'commander' ? ' co' : ''}">${ico(e.type === 'fob' ? 'fob' : e.type.startsWith('cache') ? 'cache' : 'flag')}<b class="t${team}">${name}</b> ${text}</div>`;   // co: a commander's line may run long (the reason it gave), so it wraps
   }
 
   // ---- minimap: cached terrain, then zones, units and the camera footprint. North (+z) is up and +x is to the LEFT: the
@@ -245,6 +253,8 @@ export class Hud {
     // what did the killing: the three deadliest weapons of each side, and the unit with the most kills
     const WEAPON = (k) => KIT_NAME[k] || TYPE_NAME[k] || k, top = (t) => Object.entries(t.stats.killsBy || {}).sort((p, q) => q[1] - p[1]).slice(0, 3).map(([k, n]) => `${WEAPON(k)} ${n}`).join(' · ') || '–';
     const ace = (t) => { const e = Object.entries(t.stats.killsByUnit || {}).sort((p, q) => q[1] - p[1])[0]; return e ? `${e[0]} · ${e[1]}` : '–'; };
+    const co = (t) => { const st = (m.strategists || []).find(x => x.team === t), R = st && st.remote; return R ? `${R.name} · ${R.stats.ok} of ${R.stats.calls} plans` : st ? 'Built-in' : 'You'; };
+    if ((m.strategists || []).some(st => st.remote)) rows.push(['Commander', co(0), co(1)]);   // a model that never answered shows as 0 of N
     rows.push(['Deadliest weapons', top(a), top(b)], ['Deadliest unit', ace(a), ace(b)]);
     $('end-stats').innerHTML = `<table><tr><th></th><th class="t0">BLUFOR<em>${a.loadoutName} · ${a.doctrine.name}</em></th><th class="t1">OPFOR<em>${b.loadoutName} · ${b.doctrine.name}${m.cpu.includes(1) ? ' · ' + m.difficulty.name : ''}</em></th></tr>${rows.map(r => `<tr><td>${r[0]}</td><td>${r[1]}</td><td>${r[2]}</td></tr>`).join('')}</table>`;
     $('end').style.display = 'block';

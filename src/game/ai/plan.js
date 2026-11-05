@@ -15,6 +15,7 @@ export const PLAN_SCHEMA = {
     attackShare: { type: 'number', minimum: 0, maximum: 1, description: 'fraction of the squads you give no job that join the attack (0: none of them)' },
     posture: { type: 'string', enum: POSTURES, description: 'cautious keeps more distance and falls back sooner; aggressive closes in and holds ground' },
     logistics: { type: 'string', enum: LOGISTICS, description: 'what the engineer and supply truck do, followed exactly: fob (a FOB behind the front, sandbags when no kit or site is left), sandbags (positions at the first place we hold), traps (a row of tank traps at a river crossing or bridge end on our side, off our own vehicles\' way forward), hmg / atgm / mortar (an emplacement of that kind at our FOB nearest the front, while it has room for one), none' },
+    fobAt: { type: 'string', description: 'with logistics fob: the location, by name, the FOB is built behind (about 45 m on our side of it). A place we do not hold yet makes the engineer wait until we do, digging sandbags meanwhile. "" or left out: behind the place the attack sets off from, which early on is a home place' },
     lift: { type: 'boolean', description: 'let vehicles carry squads that are at base toward the attack: helicopters fly them near distant objectives, APCs and troop trucks drive them; squads already out walk' },
     reason: { type: 'string', maxLength: 160, description: 'one line of radio chatter explaining the plan, shown to the player' },
     notes: { type: 'string', maxLength: 300, description: 'your own notes for next time: what you intend over the next minutes and why; they come back to you unchanged' },
@@ -61,6 +62,7 @@ export function validatePlan(p, names, squadIds = null, vehicleIds = null) {
   const share = Number.isFinite(+p.attackShare) ? Math.min(1, Math.max(0, +p.attackShare)) : 0.65;
   const posture = POSTURES.includes(p.posture) ? p.posture : 'balanced';
   const logistics = LOGISTICS.includes(p.logistics) ? p.logistics : 'fob';
+  const fobAt = logistics === 'fob' ? name(p.fobAt) : null;   // the place the FOB goes behind; null: the engine's own choice
   const lift = p.lift !== false;
   const reason = typeof p.reason === 'string' ? p.reason.replace(/\s+/g, ' ').trim().slice(0, 160) : '';
   const notes = typeof p.notes === 'string' ? p.notes.replace(/\s+/g, ' ').trim().slice(0, 300) : '';
@@ -84,5 +86,5 @@ export function validatePlan(p, names, squadIds = null, vehicleIds = null) {
     vseen.add(v.id); const at = name(v.at); vehicles.push(at ? { id: v.id, role: v.role, at } : { id: v.id, role: v.role }); if (vehicles.length >= 6) break;
   }
   if (!attack && !hold.length) return null;
-  return { attack, hold, attackShare: +share.toFixed(2), posture, logistics, lift, reason, notes, nextReviewIn, waitFor, squads, vehicles };
+  return { attack, hold, attackShare: +share.toFixed(2), posture, logistics, fobAt, lift, reason, notes, nextReviewIn, waitFor, squads, vehicles };
 }

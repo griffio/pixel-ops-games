@@ -179,12 +179,21 @@ export class Match {
     // ?persona=aggressive|patient|balanced likewise
     const perTeam = (list, t) => ((list && list.length > 1 ? list[t] : list && list[0]) || '').trim();
     for (const s of this.strategists) if ((perTeam(app.aiModes, s.team) || 'utility') === 'utility') s.utility = new UtilityCommander(s, perTeam(app.personas, s.team) || 'balanced');
-    // a remote commander (?commander=1 for the Worker's /commander, or a URL) advises each CPU side; its one-liners go to the feed
-    if (app.commanderUrl) for (const s of this.strategists) if (cpu.includes(s.team)) { s.remote = new RemoteCommander(this, s.team, app.commanderUrl, { model: app.commanderModel || null }); s.remote.onPlan = (p) => { if (p.reason) this.event({ type: 'radio', team: s.team, text: p.reason }); }; }
+    // a remote commander's one-liners go to the feed, and so does its silence: two calls failed in a row (the reason with it),
+    // and the first plan after that (ai/remote.js). A side whose model never answered used to play the whole match on the
+    // built-in commander with nothing on screen to say so
+    const wire = (remote, team) => {
+      remote.onPlan = (p) => { if (p.reason) this.event({ type: 'radio', team, text: p.reason }); };
+      remote.onDown = (why) => { this.event({ type: 'commander', team, down: true, name: remote.name, why }); if (app.audio) app.audio.ui('deny'); };
+      remote.onUp = () => this.event({ type: 'commander', team, down: false, name: remote.name });
+      return remote;
+    };
+    // a remote commander (?commander=1 for the Worker's /commander, or a URL) advises each CPU side
+    if (app.commanderUrl) for (const s of this.strategists) if (cpu.includes(s.team)) { s.remote = wire(new RemoteCommander(this, s.team, app.commanderUrl, { model: app.commanderModel || null }), s.team); }
     // the player's own CO, when it is a model: its one-liners are its acknowledgements over the radio
     this.styles = app.styleOff ? [] : this.strategists.map(s => new StyleReader(this, s));   // the enemy's way of fighting, read once a minute (ai/style.js); ?style=0 turns it off
     this.watches = app.watchOff ? [] : this.strategists.map(s => new PlanWatch(this, s));   // a watch on each remote commander's plan between plans (ai/watch.js); it idles without a remote; ?watch=0 turns it off
-    const hs = this.strategists.find(s => s.team === pt && !cpu.includes(pt)); if (hs && this.hybrid && this.hybrid !== 'builtin') { hs.remote = new RemoteCommander(this, pt, '/commander', { model: this.hybrid }); hs.remote.onPlan = (p) => { if (p.reason) this.event({ type: 'radio', team: pt, text: p.reason }); }; }
+    const hs = this.strategists.find(s => s.team === pt && !cpu.includes(pt)); if (hs && this.hybrid && this.hybrid !== 'builtin') { hs.remote = wire(new RemoteCommander(this, pt, '/commander', { model: this.hybrid }), pt); }
     this.spatial.rebuild(this.units.units);
   }
 

@@ -129,9 +129,10 @@ export class Strategist {
     const g = this.match.mode.goals(this.team, myFobs);
     // who sets the plan: a fresh remote commander, else the utility commander, else the mode's goals as they are
     const adviser = this.remote && this.remote.fresh ? this.remote : this.utility && this.utility.decide(squads, vehicles) ? this.utility : null;
-    if (adviser) this.applyPlan(g, adviser);
+    this.fobWait = null; this.fobNamed = false; if (adviser) this.applyPlan(g, adviser);
     const orders = this.match.orders ? this.match.orders.active(this.team) : [];
     this.quiet = false; if (orders.length) this.applyOrders(g, orders);   // the player's standing orders bind the goals (game/orders.js, the Command Wheel)
+    this.fobAnchorNow = g.fobAnchor || null; this.goalNow = g.attack || null;   // for the digest's fobs.next (fobNext)
     this.posture = g.posture || 'balanced'; this.prefer = g.logistics || 'fob'; this.lift = g.lift !== false;
     this.exact = adviser !== null && adviser === this.remote;   // a remote commander's logistics are orders; the others' are preferences
     if (g.hunt) return this.skirmish(squads, vehicles, land);
@@ -472,6 +473,10 @@ export class Strategist {
     const taken = remote === this.remote && target && target.owner === this.team ? target : null;
     if (target && target.owner !== this.team && o.capturable(this.team, target)) { g.attack = target; g.fobAnchor = o.front(this.team, target) || g.fobAnchor; }   // the FOB goes behind the place we push from
     else if (taken || (!p.attack && p.hold.length)) g.attack = null;
+    // a remote commander's own place for the FOB (plan.fobAt): behind that place once it is ours, and nowhere until then
+    // (fobWait: the digest says what the engineer is waiting for). Without it the FOB went up behind the place the attack
+    // set off from as soon as there was one, a home place 400 m from the fight, and the guns followed it there
+    if (remote === this.remote && p.fobAt) { const l = byName(p.fobAt); if (l && l.owner === this.team) { g.fobAnchor = l; this.fobNamed = true; } else if (l) { g.fobAnchor = null; this.fobWait = l.name; } }
     const h = p.hold.map(byName).filter(l => l && l.owner === this.team); if (h.length) { g.hold = h[0]; g.holds = remote === this.remote ? h : null; }   // a remote commander's: the squads it gives no job split between the holds, most at the first (the share in tick); the built-in planner names its own reserves and keeps the rest at the first
     if (taken) { g.hold = taken; g.holds = remote === this.remote ? [taken, ...h.filter(l => l !== taken)] : null; }
     g.attackShare = p.attackShare; g.posture = p.posture; g.logistics = p.logistics; g.lift = p.lift;
@@ -638,7 +643,8 @@ export class Strategist {
   logistics(squads, vehicles, anchor, hold = null, attack = null) {
     const fobs = this.match.fobs, team = this.teams[this.team], base = team.base, want = (kind) => !this.exact || (JOBS[this.prefer] || JOBS.fob).includes(kind);
     // under a remote commander a sandbag job follows its first hold: one given out for the place it held before is dropped
-    const stale = (p) => this.exact && ((p.kind === 'sandbags' && hold && Math.hypot(p.x - hold.x, p.z - hold.z) > this.postRange(hold)) || (p.kind === 'emplacement' && GUNS.includes(this.prefer) && p.gun !== this.prefer));
+    const moved = (p) => { if (!anchor) return true; const [x, z] = this.fobSite(anchor, this.fobNamed); return Math.hypot(p.x - x, p.z - z) > 30; };   // a FOB job for a site the plan no longer names
+    const stale = (p) => this.exact && ((p.kind === 'fob' && moved(p)) || (p.kind === 'sandbags' && hold && Math.hypot(p.x - hold.x, p.z - hold.z) > this.postRange(hold)) || (p.kind === 'emplacement' && GUNS.includes(this.prefer) && p.gun !== this.prefer));
     if (this.plan && (this.plan.sq.engineer === null || (this.plan.truck && this.plan.truck.dead) || (this.plan.traps && this.plan.traps.dead) || this.plan.done || !want(this.plan.kind) || stale(this.plan))) this.plan = null;
     // a supply truck too low for any job (sandbags cost least) drives home and refills to full before it takes another: one
     // that ran dry used to stand where it was for the rest of the match
@@ -666,7 +672,7 @@ export class Strategist {
       }
       const truckTo = (at) => vehicles.filter(v => stocked(v, RULES.fob.supplyCost)).sort((a, b) => Math.hypot(a.pos.x - at.x, a.pos.z - at.z) - Math.hypot(b.pos.x - at.x, b.pos.z - at.z))[0];
       if (!this.plan && anchor && fobs.kitsLeft(this.team) > 0 && this.prefer !== 'sandbags' && want('fob')) {
-        const truck = truckTo(anchor), [x, z] = this.toward(anchor, base, Math.hypot(anchor.x - base.x, anchor.z - base.z) - 45, 0);   // 45 m behind the location, towards home
+        const truck = truckTo(anchor), [x, z] = this.fobNamed ? this.fobSite(anchor, true) : this.toward(anchor, base, Math.hypot(anchor.x - base.x, anchor.z - base.z) - 45, 0);   // 45 m behind the location, towards home; toward() draws its two random numbers here as it always has, which keeps a seeded match on its old course (fobSite draws none: the digest calls it)
         if (truck && !this.units.nav.vehicle.blocked(x, z) && !this.armourNear(x, z, 150) && !fobs.active(this.team).some(f => Math.hypot(f.pos.x - x, f.pos.z - z) < RULES.fob.minSpacing)) this.plan = { kind: 'fob', sq, truck, x, z, t: 0 };
       }
       if (!this.plan && want('emplacement')) { const job = this.emplacementJob(sq, attack || hold, vehicles); if (job) this.plan = job; }   // after the FOB, its guns
@@ -694,6 +700,39 @@ export class Strategist {
       if (r.ok) p.done = true; else if (p.kind !== 'fob') this.plan = null;
     }
     return p.sq;
+  }
+
+  // Where a FOB goes for an anchor place: 45 m behind it, towards home. A place the commander named (search) may not take one
+  // there (the Monastery's walled terraces, where no truck can stand): then the nearest bearing round the place, at 45, 60 or
+  // 30 m, on ground a truck can reach. The engine's own anchors keep the plain rule, so the built-in planner sites as before.
+  // Draws no random numbers: the digest asks it too (fobNext), and a seeded match must not change course for being looked at
+  fobSite(anchor, search = false) {
+    const base = this.teams[this.team].base, dx = base.x - anchor.x, dz = base.z - anchor.z, d = Math.hypot(dx, dz) || 1, first = [anchor.x + dx * 45 / d, anchor.z + dz * 45 / d], nav = this.units.nav && this.units.nav.vehicle;
+    const ground = (x, z) => !nav.blocked(x, z) && !nav.inPocket(x, z);
+    if (!search || !nav || ground(first[0], first[1])) return first;
+    const h = Math.atan2(base.x - anchor.x, base.z - anchor.z);
+    for (const r of [45, 60, 30]) for (const k of [0, 1, -1, 2, -2, 3, -3, 4, -4, 5, -5, 6]) { const a = h + k * 0.5, x = anchor.x + Math.sin(a) * r, z = anchor.z + Math.cos(a) * r; if (ground(x, z)) return [x, z]; }
+    return first;
+  }
+  // what stops a FOB at a site, in words for the digest: the same tests logistics() makes before it plans one, and the build's own
+  fobBlock(x, z) {
+    const fobs = this.match.fobs, R = RULES.fob, eb = this.teams[1 - this.team].base, nav = this.units.nav && this.units.nav.vehicle;
+    if (!this.units.squads.some(s => s.team === this.team && s.engineer)) return 'no engineer';
+    if (!this.units.units.some(v => v.team === this.team && !v.dead && v.supply && !v.refilling && v.supplies >= R.supplyCost)) return `no supply truck with ${R.supplyCost} supplies`;
+    if (nav && nav.blocked(x, z)) return 'no ground there a truck can reach';
+    if (this.armourNear(x, z, 150)) return 'enemy armour within 150 m of the site';
+    if (fobs.active(this.team).some(f => Math.hypot(f.pos.x - x, f.pos.z - z) < R.minSpacing)) return `another FOB of ours within ${R.minSpacing} m`;
+    if (Math.hypot(eb.x - x, eb.z - z) < R.enemyBaseDistance) return 'too close to the enemy main base';
+    return null;
+  }
+  // for the digest (fobs.next): while a kit is left, where the next FOB would go under the last plan tick's goals, how far
+  // that is from the place attacked and what blocks it just now, or the place the commander named and we do not hold yet
+  fobNext(nearLoc) {
+    if (this.match.fobs.kitsLeft(this.team) <= 0) return undefined;
+    if (this.fobWait) return { waitingFor: this.fobWait };
+    const a = this.fobAnchorNow; if (!a) return undefined;
+    const [x, z] = this.fobSite(a, this.fobNamed), t = this.goalNow;
+    return { at: nearLoc(x, z), toAttack: t ? Math.round(Math.hypot(t.x - x, t.z - z)) : undefined, blocked: this.fobBlock(x, z) || undefined };
   }
 
   // Where to dig in at a place we hold: up to three positions facing the enemy's side, one out in front of the middle and one on

@@ -886,7 +886,11 @@ with what followed each (ticket swing, captures, losses, casualties), and the
 model's own notes from last time) to `/commander` and gets back a plan in a fixed schema
 (`src/game/ai/plan.js`: the next location to attack, locations to hold, attack
 share, posture, what to build (a FOB, sandbags, tank traps or nothing, carried out
-exactly), whether vehicles may carry squads from base (helicopters fly them, APCs
+exactly; for a FOB also `fobAt`, the place it goes behind: a place not yet held makes
+the engineer wait for it, digging sandbags meanwhile, and without it the FOB goes
+behind the place the attack sets off from; the digest's `fobs.next` says where the
+next FOB would go, how far that is from the place attacked and what blocks it),
+whether vehicles may carry squads from base (helicopters fly them, APCs
 and troop trucks drive them), a line of radio chatter
 that appears in the feed, notes to itself for the next call, how many seconds
 until it wants to be consulted again, and optionally a condition to wait for
@@ -908,7 +912,11 @@ grabbable, a hold at a place not ours, a raid with no enemy FOB known) comes bac
 the next digest as `refused`, with the reason and what the squad does instead. The
 strategist follows the plan while it is
 under 90 seconds old and its own goals otherwise, and every call is
-asynchronous, so a slow or failing endpoint never stalls the match. The posture
+asynchronous, so a slow or failing endpoint never stalls the match. A side under a
+model says so under its name in the match panel. Two failed calls in a row turn that
+label to "no answer" and put a line in the feed with the reason the Worker gave, the
+built-in commander plans until an answer arrives, and the debrief counts the plans
+that did. The posture
 scales the caution distances (cautious keeps 1.3× the distance, aggressive
 0.6×).
 

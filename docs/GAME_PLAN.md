@@ -4323,6 +4323,47 @@ would do it, with the same room test); a wedge wider than 2.4 m between neighbou
 to a mate who is down, since first aid reaches 3 m; the turn to face the enemy is rare, because most resting CPU
 squads hold fire in ambush and those stay as they were put.
 
+## Commander fixes (2026-11-05)
+
+From a review of the AI Gateway's log of two matches the user played on Olive Gorge with Opus 5.5 commanding (the
+report is a Claude Docs document, "Olive Gorge Opus Match Report"). The first match never reached Claude: the deployed
+Worker's `CF_AIG_TOKEN` secret was out of date, the gateway answered 401, all 58 commander calls came back 502, and
+nothing on screen said so. In the second, 76 plans arrived, and both commanders' notes asked for the FOB "toward the
+bridge" while both FOBs went up 45 m from a home place, 400 m from the fight, with the guns after them. The user asked
+for the first two gaps of that report to be closed.
+
+**C1, a failing commander says so (done).** `RemoteCommander` counts failures in a row: two and it is `down`, the
+next plan and it is up again (`onDown`, `onUp`), and its error is now the Worker's own (`{ error }` in the 502's
+body, or "no answer in 60 s"), no longer "http 502". The match turns both into `commander` events: a feed line that
+stays 30 s and wraps ("Claude Opus commander is not answering (...): the built-in commander takes over", "... is
+answering again"), not hushed by fog of war and kept out of the digest. The match panel carries a line under each
+side's name for a model commander, "Claude Opus commander", which turns to an amber "Claude Opus: no answer" with
+the reason as its tooltip. The debrief has a Commander row: the model and how many of its plans arrived. The Worker
+names a refused credential: "the AI Gateway refused the Worker token: update the CF_AIG_TOKEN secret", or "Anthropic
+refused the key stored in the AI Gateway" (the SDK's `AuthenticationError`, told apart by the body).
+
+**C2, the plan says where the FOB goes (done).** `fobAt` in the plan schema (optional, with logistics `fob`): the
+place the FOB is built behind. A place of ours: 45 m behind it towards home, or, where no truck can stand there (the
+Monastery's terraces), the nearest bearing round the place at 45, 60 or 30 m on ground a truck can reach
+(`Strategist.fobSite`). A place not ours yet: no FOB anywhere until it is, sandbags meanwhile. Left out: the engine's
+own anchor as before. A FOB job on its way to a site the plan no longer names is dropped. The digest's `fobs.next`
+says, while a kit is left, where the next FOB would go under the last plan (`at`), how far that is from the place
+attacked (`toAttack`), what blocks it just now (`blocked`: no engineer, no truck with 50 supplies, no ground, enemy
+armour within 150 m, another FOB within 80 m, the enemy base), or the place it is waiting for (`waitingFor`). The
+rules prompt explains both and why it matters (a FOB cannot be moved, kits are few, guns go up within 50 m of one).
+
+Checked headless. A stub commander failing every call: the label and the feed line appear on the second failure
+(25 s in), clear on the first plan, the debrief reads "Claude Opus · 3 of 6 plans". A stub asking for a FOB on the
+Gorge: with no place named, as before; with a home place named, both sides built there (Monastery+43 m at 4.2 min,
+Convent+45 m at 3.3); with the Old Bridge named, nobody built until a side held it, then the site was the bridge and
+the digest gave the block (enemy armour within 150 m). The real models through a local Worker on a digest from minute
+2.2: Haiku named the Olive Mill, Opus at high effort named the Old Bridge ("FOB goes up behind the bridge once it's
+ours"). Built-in matches are untouched: two seeded 15-minute matches on the Gorge ended in the same state on the old
+and the new code (the site lookup the digest makes draws no random numbers).
+
+Still open from the report: notes and radio lines cut at their limits, the watch's nudges and its one live trigger,
+the style read's blind spot for a side that stops attacking, plans ten seconds old, the double cache write.
+
 ## Open questions
 
 None open. Answered:
